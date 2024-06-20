@@ -83,7 +83,6 @@ class Chart(QWidget):
 
         mean_profile_distances, mean_profile_values = calc_mean_profile(profiles)
         self.mean_profile = mean_profile_values
-        print(mean_profile_values)
 
         self.profile_ax.plot(mean_profile_distances,
                              mean_profile_values,
