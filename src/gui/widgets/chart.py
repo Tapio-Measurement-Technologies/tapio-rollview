@@ -134,3 +134,9 @@ class Chart(QWidget):
     def clear_canvas(self):
         self.ax.clear()
         self.canvas.draw()
+
+    def resizeEvent(self, event):
+        """Handle the window resize event to update chart dimensions."""
+        super().resizeEvent(event)
+        self.figure.tight_layout()
+        self.canvas.draw()
