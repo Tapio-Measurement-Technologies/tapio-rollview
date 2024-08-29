@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDir, Qt
 from settings import DEFAULT_ROLL_DIRECTORY
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
+from utils.file_utils import open_in_file_explorer
 
 class DirectoryView(QWidget):
     def __init__(self, parent=None):
@@ -39,13 +40,22 @@ class DirectoryView(QWidget):
         # Sort the folders by modified date
         self.model.sort(3, Qt.SortOrder.DescendingOrder)
 
+        self.openDirButton = QPushButton("Open in file explorer")
+        self.openDirButton.clicked.connect(self.open_directory)
+
         # Create the button
-        self.changeDirButton = QPushButton("Change Directory")
+        self.changeDirButton = QPushButton("Change directory")
         self.changeDirButton.clicked.connect(self.change_directory)
 
         # Add widgets to the layout
         layout.addWidget(self.treeView)
+        layout.addWidget(self.openDirButton)
         layout.addWidget(self.changeDirButton)
+
+    def open_directory(self):
+        current_index = self.treeView.rootIndex()
+        current_directory = self.model.filePath(current_index)
+        open_in_file_explorer(current_directory)
 
     def change_directory(self):
         current_index = self.treeView.rootIndex()

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDir, Signal, Qt, QFile, QModelIndex, QFileInfo, QSortFilterProxyModel
 from PySide6.QtGui import QAction
+from utils.file_utils import open_in_file_explorer
 
 class ContextMenuTreeView(QTreeView):
     rootIndexChanged = Signal()
@@ -30,16 +31,28 @@ class ContextMenuTreeView(QTreeView):
             return
 
         context_menu = QMenu()
+        open_action   = QAction("Open in file explorer", self)
         rename_action = QAction("Rename", self)
         delete_action = QAction("Delete", self)
 
+        open_action.triggered.connect(lambda: self.open_file_explorer(indexes[0]))
         rename_action.triggered.connect(lambda: self.rename_file(indexes[0]))
         delete_action.triggered.connect(lambda: self.delete_file(indexes[0]))
 
+        context_menu.addAction(open_action)
         context_menu.addAction(rename_action)
         context_menu.addAction(delete_action)
 
         context_menu.exec_(self.viewport().mapToGlobal(position))
+
+    def open_file_explorer(self, index: QModelIndex):
+        if self._proxy_model:
+            index = self._proxy_model.mapToSource(index)
+        file_path = self._model.filePath(index)
+        file_info = QFileInfo(file_path)
+        if not file_info.isDir():
+            file_path = file_info.absolutePath()
+        open_in_file_explorer(file_path)
 
     def rename_file(self, index: QModelIndex):
         if self._proxy_model:
