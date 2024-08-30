@@ -26,7 +26,7 @@ class FileTransferDialog(QDialog):
 
         self.manager.model.rowsInserted.connect(self.update_progress)
         self.adjustSize()
-        
+
     def on_cancel(self):
         print("File transfer cancelled")
         self.manager.cancel_transfer()

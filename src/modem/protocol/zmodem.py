@@ -73,7 +73,7 @@ class ZMODEM(Modem):
         if kind is not TIMEOUT:
             while kind not in [ord('O'), TIMEOUT]:
                 kind = self._recv(timeout)
-        
+
         log.info("Finished transfer!")
 
     def _recv(self, timeout):
@@ -410,7 +410,7 @@ class ZMODEM(Modem):
 
         log.info('Receiving file "%s" with size %d, mtime %s' % \
             (filename, size, date))
-        
+
         self.thread.receivingFile.emit(filename, filesLeft)
 
         # Receive contents
@@ -455,7 +455,7 @@ class ZMODEM(Modem):
                 header[ZP1] << 0x08 | \
                 header[ZP2] << 0x10 | \
                 header[ZP3] << 0x18
-            
+
             if (pos > dpos):
                 return TIMEOUT, 0
             # print("DPOS: ", dpos, end="")
