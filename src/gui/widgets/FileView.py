@@ -1,7 +1,10 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
 from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
+from utils.file_utils import get_measurement_distance
 import settings
+
+PROF_FILE_HEADER_SIZE = 128
 
 class CustomFilterProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row, source_parent):
@@ -36,8 +39,8 @@ class CustomFileSystemModel(QFileSystemModel):
         if index.column() == 4:  # Custom column index (starting from 0)
             if role == Qt.ItemDataRole.DisplayRole:
                 file_info = self.fileInfo(index)
-                size = file_info.size()
-                prof_len = (size / 8) * (1 / settings.SAMPLE_INTERVAL)
+                file_path = file_info.filePath()
+                prof_len = get_measurement_distance(file_path)
                 return f"{prof_len:.2f} m"
         return super().data(index, role)
 

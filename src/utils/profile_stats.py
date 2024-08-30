@@ -35,7 +35,7 @@ def calc_mean_profile(profiles, continuous=False):
         stacked_profiles = np.stack(truncated_profiles, axis=1)
         mean_profile = np.mean(stacked_profiles, axis=1)
 
-    distances = mean_profile[0] * (1 / settings.SAMPLE_INTERVAL)
+    distances = mean_profile[0]
     values = bandpass_filter(mean_profile[1], settings.BAND_PASS_LOW, settings.BAND_PASS_HIGH,
                              settings.SAMPLE_INTERVAL)
 

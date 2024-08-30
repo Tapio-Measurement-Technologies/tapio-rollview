@@ -64,7 +64,7 @@ class Chart(QWidget):
         previous_distance = 0
         for profile in profiles:
 
-            distances = np.array(profile['data'][0] / settings.SAMPLE_INTERVAL) + previous_distance
+            distances = np.array(profile['data'][0]) + previous_distance
             if settings.CONTINUOUS_MODE:
                 previous_distance = distances[-1] + (1 / settings.SAMPLE_INTERVAL)
 
