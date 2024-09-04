@@ -42,6 +42,6 @@ class FileTransferDialog(QDialog):
         file_number = total_filecount - latest.files_remaining + 1
         self.filename_label.setText(f"Receiving: {latest.filename}")
         self.filecount_label.setText(f"({file_number} / {total_filecount})")
-        progress_percent = int((file_number / total_filecount) * 100)
+        progress_percent = int(((file_number-1) / total_filecount) * 100)
         self.progress_bar.setValue(progress_percent)
 
