@@ -42,9 +42,9 @@ class FileTransferManager:
         self.thread: FileTransferThread = None
         self.model: FileTransferModel = FileTransferModel()
 
-    def start_transfer(self, device, folder_path, on_complete):
+    def start_transfer(self, port, folder_path, on_complete):
         self.model.removeItems()
-        self.serial = serial.Serial(port=device.port,parity=serial.PARITY_NONE,bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,timeout=0,xonxoff=0,rtscts=0,dsrdtr=0,baudrate=9600)
+        self.serial = serial.Serial(port=port,parity=serial.PARITY_NONE,bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,timeout=0,xonxoff=0,rtscts=0,dsrdtr=0,baudrate=115200)
         self.thread = FileTransferThread(folder_path, self.serial)
         self.thread.receivingFile.connect(self.update_progress)
         self.thread.finished.connect(on_complete)
