@@ -16,8 +16,8 @@ def get_sample_step_mm(prof_file_path):
         # Read the header (128 bytes)
         header = file.read(128)
 
-        # Extract the sample step from bytes 9-12 (0-indexed, so 8-11 in Python)
-        sample_step = struct.unpack('f', header[8:12])[0]
+        # Extract the sample step from bytes 36-40
+        sample_step = struct.unpack('f', header[36:40])[0]
 
         return sample_step
 
