@@ -403,7 +403,11 @@ class ZMODEM(Modem):
         log.info('Meta %r' % (part,))
         size = int(part[0])
         # Date is octal (!?)
-        date = datetime.datetime.fromtimestamp(int(part[1], 8))
+        timestamp = int(part[1], 8)
+        # Timestamp from RQP is not UTC so offset by timezone
+        tz_offset = datetime.datetime.now().astimezone().utcoffset().seconds
+        timestamp -= tz_offset
+        date = datetime.datetime.fromtimestamp(timestamp)
         # We ignore mode and serial number, whatever, dude :-)
 
         filesLeft = int(part[4])
