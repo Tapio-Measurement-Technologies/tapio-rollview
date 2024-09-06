@@ -20,7 +20,7 @@ class SerialPortModel(QAbstractListModel):
 
         item = self.ports[index.row()]
         if role == Qt.ItemDataRole.DisplayRole:
-            return f"{item.port.description} ({item.port.serial_number})"
+            return f"[{item.port.device}] {item.port.description} ({item.port.serial_number})"
         elif role == Qt.ItemDataRole.UserRole:
             return item.port.device
 
@@ -35,7 +35,7 @@ class SerialPortModel(QAbstractListModel):
         self.beginRemoveRows(QModelIndex(), row, row)
         del self.ports[row]
         self.endRemoveRows()
-    
+
     def removeItems(self):
         self.beginRemoveRows(QModelIndex(), 0, self.rowCount())
         self.ports = []
@@ -52,7 +52,7 @@ class SerialPortModel(QAbstractListModel):
 
     def getSelectedPort(self):
         return self.selected_port
-    
+
     def getSelectedPortIndex(self):
         if not self.selected_port:
             return -1

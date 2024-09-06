@@ -16,6 +16,7 @@ class FileTransferThread(QThread):
     def run(self):
         def getc(size, timeout=5):
             data = self.serial.read(size).decode("ISO-8859-1")
+            print(data)
             return data
 
         def putc(data: str, timeout=8):
@@ -24,7 +25,6 @@ class FileTransferThread(QThread):
             return pbytes or None
 
         self.serial.readall()
-        self.serial.write(b'z')
         time.sleep(0.1)
 
         zmodem = ZMODEM(getc, putc, self)
@@ -43,16 +43,20 @@ class FileTransferManager:
         self.model: FileTransferModel = FileTransferModel()
 
     def start_transfer(self, port, folder_path, on_complete):
-        self.model.removeItems()
-        self.serial = serial.Serial(port=port,parity=serial.PARITY_NONE,bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,timeout=0.2,xonxoff=0,rtscts=0,dsrdtr=0,baudrate=115200)
-        self.thread = FileTransferThread(folder_path, self.serial)
-        self.thread.receivingFile.connect(self.update_progress)
-        self.thread.finished.connect(on_complete)
-        self.thread.start()
+        try:
+            self.model.removeItems()
+            self.serial = serial.Serial(port=port,parity=serial.PARITY_NONE,bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,timeout=0.2,xonxoff=0,rtscts=0,dsrdtr=0,baudrate=115200)
+            self.thread = FileTransferThread(folder_path, self.serial)
+            self.thread.receivingFile.connect(self.update_progress)
+            self.thread.finished.connect(on_complete)
+            self.thread.start()
+        except:
+            self.cancel_transfer()
 
     def cancel_transfer(self):
         self.model.removeItems()
-        self.thread.stop()
+        if self.thread is not None:
+            self.thread.stop()
 
     def update_progress(self, filename, filesLeft):
         self.model.addItem(FileTransferItem(filename, filesLeft))
