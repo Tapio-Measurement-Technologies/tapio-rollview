@@ -35,6 +35,7 @@ class SerialPortScanner(QObject):
         self.timer.start()
 
     def scan_ports(self):
+        print("Starting port scan...")
         """
         Scans for available serial ports, sends a query to each, and checks for a specific JSON response.
         """
@@ -68,6 +69,7 @@ class SerialPortScanner(QObject):
                 continue
 
         self.ports_scanned.emit(valid_ports)
+        print(f"Found {len(valid_ports)} ports: {valid_ports}")
 
 
 class SerialPortView(QListView):
