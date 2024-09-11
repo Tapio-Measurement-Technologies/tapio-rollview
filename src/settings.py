@@ -1,5 +1,6 @@
 from utils.plot_limits import constant, rel_max, rel_min, rel_mean
 import numpy as np
+import logging
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
 
@@ -131,4 +132,11 @@ try:
     from local_settings import *
 except:
     print("No local settings")
+
+
+
+# Configure logging
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%m/%d/%Y %I:%M:%S %p',
+    level=logging.ERROR)
 
