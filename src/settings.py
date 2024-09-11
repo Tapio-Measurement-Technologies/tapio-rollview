@@ -23,6 +23,8 @@ SELECTED_PROFILE_LINE_WIDTH = 2
 CUSTOM_DATE_FORMAT = None
 
 SERIAL_SCAN_INTERVAL = 1000
+SERIAL_PORT_TIMEOUT = 0.2
+
 
 SAMPLE_INTERVAL = 1000  # Samples per meter in raw data
 
@@ -124,9 +126,13 @@ SPECTRUM_LOWER_LIMIT = 0
 SPECTRUM_UPPER_LIMIT = 60
 SPECTRUM_WAVELENGTH_TICKS = True
 
-
 CONTINUOUS_MODE = False
 UNIT = "BC Hardness [g]"
+
+# Configure logging
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%m/%d/%Y %I:%M:%S %p',
+    level=logging.ERROR)
 
 try:
     from local_settings import *
@@ -134,9 +140,4 @@ except:
     print("No local settings")
 
 
-
-# Configure logging
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%m/%d/%Y %I:%M:%S %p',
-    level=logging.ERROR)
 

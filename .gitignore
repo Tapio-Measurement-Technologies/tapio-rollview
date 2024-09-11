@@ -163,3 +163,4 @@ cython_debug/
 
 local_settings.py
 Tapio RollView.lnk
+run_tapio_rollview.bat
