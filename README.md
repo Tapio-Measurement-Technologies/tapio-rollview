@@ -48,7 +48,7 @@ git clone https://github.com/Tapio-Measurement-Technologies/tapio-rollview
 # Navigate to the project directory
 cd tapio-rollview
 # Run the installation script (installs python dependencies in a virtualenv, creates local settings, launch script and shortcut)
-./install.ps1
+./install.bat
 ```
 
 
