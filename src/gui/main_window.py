@@ -64,28 +64,28 @@ class MainWindow(QMainWindow):
         settings_action.triggered.connect(self.open_settings_window)
         file_menu.addAction(settings_action)
 
-        postprocessors_menu = menu_bar.addMenu('Postprocessors')
+        # postprocessors_menu = menu_bar.addMenu('Postprocessors')
 
-        # Add 'Run after sync' heading using QLabel for better styling
-        run_after_sync_label = QLabel('Run after sync')
-        run_after_sync_label.setFont(QFont('Arial', 10, QFont.Weight.Normal))  # Make the text bold
-        run_after_sync_label.setMargin(5)
-        run_after_sync_label_action = QWidgetAction(self)
-        run_after_sync_label_action.setDefaultWidget(run_after_sync_label)
-        postprocessors_menu.addAction(run_after_sync_label_action)
+        # # Add 'Run after sync' heading using QLabel for better styling
+        # run_after_sync_label = QLabel('Run after sync')
+        # run_after_sync_label.setFont(QFont('Arial', 10, QFont.Weight.Normal))  # Make the text bold
+        # run_after_sync_label.setMargin(5)
+        # run_after_sync_label_action = QWidgetAction(self)
+        # run_after_sync_label_action.setDefaultWidget(run_after_sync_label)
+        # postprocessors_menu.addAction(run_after_sync_label_action)
 
-        # Example items with checkboxes that do not close the menu when clicked
-        checkbox_widget_1 = self.create_checkbox_menu_item('Generate Excel file', postprocessors_menu)
-        checkbox_widget_2 = self.create_checkbox_menu_item('Generate plot image', postprocessors_menu)
+        # # Example items with checkboxes that do not close the menu when clicked
+        # checkbox_widget_1 = self.create_checkbox_menu_item('Generate Excel file', postprocessors_menu)
+        # checkbox_widget_2 = self.create_checkbox_menu_item('Generate plot image', postprocessors_menu)
 
-        # Add checkboxes to the 'Postprocessors' menu
-        postprocessors_menu.addAction(checkbox_widget_1)
-        postprocessors_menu.addAction(checkbox_widget_2)
+        # # Add checkboxes to the 'Postprocessors' menu
+        # postprocessors_menu.addAction(checkbox_widget_1)
+        # postprocessors_menu.addAction(checkbox_widget_2)
 
-        # Add the 'Run postprocessors' item
-        run_postprocessors_action = QAction('Run postprocessors', self)
-        # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
-        postprocessors_menu.addAction(run_postprocessors_action)
+        # # Add the 'Run postprocessors' item
+        # run_postprocessors_action = QAction('Run postprocessors', self)
+        # # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
+        # postprocessors_menu.addAction(run_postprocessors_action)
 
     def create_checkbox_menu_item(self, label, parent_menu):
         """Helper method to create a persistent checkbox menu item."""
