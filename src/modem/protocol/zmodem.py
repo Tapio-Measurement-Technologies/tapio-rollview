@@ -380,7 +380,7 @@ class ZMODEM(Modem):
             return ord(char) - ord('0')
 
     def _recv_file(self, basedir, timeout, retry):
-        log.info('Abort to receive a file in %s' % (basedir,))
+        log.info('About to receive a file in %s' % (basedir,))
         pos = 0
 
         # Read the data subpacket containing the file information
