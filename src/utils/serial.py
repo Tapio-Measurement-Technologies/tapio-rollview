@@ -68,7 +68,7 @@ def scan_ports():
 
     for port_info in ports:
         try:
-            port = serial.Serial(port_info.device, timeout=1)  # Open the serial port
+            port = serial.Serial(port_info.device, timeout=1, write_timeout=1)  # Open the serial port
             port.write(b"RQP+DEVICEINFO?\n")  # Send the query
             response = port.readline().decode('utf-8').strip()  # Read the response
             send_timestamp(port)
