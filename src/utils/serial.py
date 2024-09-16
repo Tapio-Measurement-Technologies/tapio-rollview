@@ -16,7 +16,6 @@ class FileTransferThread(QThread):
     def run(self):
         def getc(size, timeout=5):
             data = self.serial.read(size).decode("ISO-8859-1")
-            print(data)
             return data
 
         def putc(data: str, timeout=8):
