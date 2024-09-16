@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLab
 from PySide6.QtCore import Qt
 from models.SerialPort import SerialPortModel
 from gui.filetransferdialog import FileTransferDialog
-from utils.serial import FileTransferManager, scan_ports
+from utils.serial import FileTransferManager, scan_ports, SerialPortItem
 
 class SerialPortView(QListView):
     def __init__(self, parent=None):
@@ -12,12 +12,12 @@ class SerialPortView(QListView):
         self.model = SerialPortModel()
         self.setModel(self.model)
 
-    def update_com_ports(self, valid_ports):
+    def update_com_ports(self, ports):
         # Clear existing items
         self.model.removeItems()
         # Add valid ports to the model
-        for port in valid_ports:
-            self.model.addItem(port)
+        for port in ports:
+            self.model.addItem(SerialPortItem(port))
 
         self.restore_selection()
 

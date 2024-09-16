@@ -64,6 +64,14 @@ class MainWindow(QMainWindow):
         settings_action.triggered.connect(self.open_settings_window)
         file_menu.addAction(settings_action)
 
+        view_menu = menu_bar.addMenu('View')
+        show_all_com_ports_checkbox = self.create_checkbox_menu_item(
+            'Show all COM ports',
+            view_menu,
+            self.on_show_all_com_ports_changed
+        )
+        view_menu.addAction(show_all_com_ports_checkbox)
+
         # postprocessors_menu = menu_bar.addMenu('Postprocessors')
 
         # # Add 'Run after sync' heading using QLabel for better styling
@@ -87,12 +95,13 @@ class MainWindow(QMainWindow):
         # # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
         # postprocessors_menu.addAction(run_postprocessors_action)
 
-    def create_checkbox_menu_item(self, label, parent_menu):
+    def create_checkbox_menu_item(self, label, parent_menu, callback):
         """Helper method to create a persistent checkbox menu item."""
         widget = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 0, 5, 0)  # Reduce margins for better alignment
         checkbox = QCheckBox(label)
+        checkbox.stateChanged.connect(callback)  # Connect checkbox state change to callback
         layout.addWidget(checkbox)
         widget.setLayout(layout)
 
@@ -101,6 +110,8 @@ class MainWindow(QMainWindow):
 
         return widget_action
 
+    def on_show_all_com_ports_changed(self, checked):
+        self.sidebar.serialView.view.model.setFilter(checked)
 
     def on_directory_selected(self, current, previous):
         path = self.sidebar.directoryView.model.filePath(current)

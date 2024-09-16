@@ -63,13 +63,8 @@ class FileTransferManager:
     def update_progress(self, filename, filesLeft):
         self.model.addItem(FileTransferItem(filename, filesLeft))
 
-def scan_ports(show_all_ports = False):
+def scan_ports():
     ports = serial.tools.list_ports.comports()
-    valid_ports = []
-
-    if show_all_ports:
-        valid_ports = [ SerialPortItem(port) for port in ports ]
-        return valid_ports
 
     for port_info in ports:
         try:
@@ -86,7 +81,7 @@ def scan_ports(show_all_ports = False):
                     # If valid, create a SerialPortItem with the new details
                     port_info.description = response_data['deviceName']
                     port_info.serial_number = response_data['serialNumber']
-                    valid_ports.append(SerialPortItem(port_info))
+                    port_info.device_responded = True
             except json.JSONDecodeError:
                 # Ignore invalid JSON responses
                 pass
@@ -95,4 +90,4 @@ def scan_ports(show_all_ports = False):
             # Ignore ports that cannot be opened or cause an error
             continue
 
-    return valid_ports
+    return ports
