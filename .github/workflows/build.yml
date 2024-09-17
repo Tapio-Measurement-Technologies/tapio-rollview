@@ -32,8 +32,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gh
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
@@ -51,21 +49,42 @@ jobs:
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          path: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+
+  release:
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            extension: ""
+          - platform: windows
+            extension: ".exe"
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          path: dist/
+
       - name: Check if release exists
         id: check_release
-        run: |
-          if gh release view ${{ github.ref }}; then
-            echo "Release already exists."
-            echo "release_exists=true" >> $GITHUB_ENV
-          else
-            echo "Release does not exist."
-            echo "release_exists=false" >> $GITHUB_ENV
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: insightsengineering/release-existence-action@v1.0.0
+        with:
+          release-tag: ${{ github.ref }}
 
       - name: Create Release
-        if: env.release_exists == 'false'
+        if: check_release.release-exists == 'false'
         id: create_release
         uses: actions/create-release@v1
         env:
