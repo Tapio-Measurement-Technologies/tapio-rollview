@@ -37,6 +37,7 @@ class MainWindow(QMainWindow):
         self.chart = Chart()
         self.fileView = FileView()
         self.fileView.file_selected.connect(self.on_file_selected)
+        self.fileView.files_updated.connect(lambda: self.refresh())
 
         self.sidebar.directoryView.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
         self.sidebar.directoryView.treeView.rootIndexChanged.connect(self.on_root_index_changed)
@@ -141,4 +142,6 @@ class MainWindow(QMainWindow):
         self.settings_window.show()
 
     def refresh(self):
+        currentIndex = self.sidebar.directoryView.treeView.selectionModel().currentIndex()
+        self.on_directory_selected(currentIndex, None)
         self.chart.update_plot(self.profiles, self.directory_name)

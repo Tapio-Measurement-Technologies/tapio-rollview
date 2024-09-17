@@ -77,6 +77,7 @@ class FileTreeView(ContextMenuTreeView):
 
 class FileView(QWidget):
     file_selected = Signal(str)
+    files_updated = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -111,6 +112,10 @@ class FileView(QWidget):
 
         layout.addWidget(self.view)
 
+        self.model.rowsInserted.connect(self.on_files_updated)
+        self.model.dataChanged.connect(self.on_files_updated)
+        self.model.rowsRemoved.connect(self.on_files_updated)
+
     def set_directory(self, path):
         self.model.setRootPath(path)
         self.view.setRootIndex(self.proxy_model.mapFromSource(self.model.index(path)))
@@ -121,6 +126,9 @@ class FileView(QWidget):
             selected = indexes[0]
             file_path = self.proxy_model.mapToSource(selected).data()
             self.file_selected.emit(file_path)
+
+    def on_files_updated(self, **args):
+        self.files_updated.emit()
 
     def on_selection_cleared(self):
         self.file_selected.emit('')
