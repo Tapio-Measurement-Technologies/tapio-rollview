@@ -11,6 +11,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ['3.12']
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            extension: ""
+          - os: windows-latest
+            platform: windows
+            extension: ".exe"
 
     runs-on: ${{ matrix.os }}
 
@@ -18,13 +25,15 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }} (${{ matrix.os }})
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
@@ -36,17 +45,27 @@ jobs:
           --noconsole
           src/main.py
 
-      - name: Rename executable (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          mv dist/main.exe dist/rollview-${{ github.ref_name }}-windows.exe
+      - name: Rename executable
+        run: >
+          mv
+          dist/main${{ matrix.extension }}
+          dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
-      - name: Rename executable (Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Check if release exists
+        id: check_release
         run: |
-          mv dist/main dist/rollview-${{ github.ref_name }}-linux
+          if gh release view ${{ github.ref }}; then
+            echo "Release already exists."
+            echo "release_exists=true" >> $GITHUB_ENV
+          else
+            echo "Release does not exist."
+            echo "release_exists=false" >> $GITHUB_ENV
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
+        if: env.release_exists == 'false'
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -57,25 +76,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset (Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-linux
-          asset_name: rollview-${{ github.ref_name }}-linux
+          asset_path: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          asset_name: rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
           asset_content_type: application/octet-stream
-
-      - name: Upload Release Asset (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-windows.exe
-          asset_name: rollview-${{ github.ref_name }}-windows.exe
-          asset_content_type: application/octet-stream
-
