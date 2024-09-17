@@ -44,7 +44,7 @@ def read_prof_file(file_path):
         while True:
             # Read the hardness value (4 bytes for a float)
             hardness_data = file.read(4)
-            if not hardness_data:
+            if len(hardness_data) < 4:
                 break
 
             hardness = struct.unpack('f', hardness_data)[0]
@@ -56,9 +56,12 @@ def read_prof_file(file_path):
             current_distance += sample_step
 
     # Generate distances based on the number of samples and the sample step
-    distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
-
-    data = np.array([distances, hardnesses])
+    if sample_step > 0:
+        distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
+        data = np.array([distances, hardnesses])
+    else:
+        print(f"Invalid sample step in file '{file_path}'")
+        data = []
 
     return {
         "name": directory_name,

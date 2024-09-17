@@ -7,6 +7,9 @@ import settings
 
 
 def calc_mean_profile(profiles, continuous=False):
+    if not profiles:
+        return [], []
+
     if settings.CONTINUOUS_MODE:
         distances_list = []
         values_list = []
