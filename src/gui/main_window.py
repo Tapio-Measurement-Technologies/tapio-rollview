@@ -58,6 +58,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(centralWidget)
         self.init_menu()
 
+        # Scan devices on startup
+        self.sidebar.serialView.scan_devices()
+
     def init_menu(self):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu('File')
