@@ -3,7 +3,10 @@ import serial.tools.list_ports
 from modem import ZMODEM
 from modem.const import CAN_SEQ
 from models.FileTransfer import FileTransferModel, FileTransferItem
+from models.SerialPort import SerialPortItem
 from PySide6.QtCore import QThread, Signal
+from utils.time_sync import send_timestamp
+import json
 
 class FileTransferThread(QThread):
     receivingFile = Signal(str, int) # (filename, filesLeft)
@@ -16,7 +19,6 @@ class FileTransferThread(QThread):
     def run(self):
         def getc(size, timeout=5):
             data = self.serial.read(size).decode("ISO-8859-1")
-            print(data)
             return data
 
         def putc(data: str, timeout=8):
@@ -61,6 +63,31 @@ class FileTransferManager:
     def update_progress(self, filename, filesLeft):
         self.model.addItem(FileTransferItem(filename, filesLeft))
 
-def list_com_ports():
+def scan_ports():
     ports = serial.tools.list_ports.comports()
+
+    for port_info in ports:
+        try:
+            port = serial.Serial(port_info.device, timeout=1, write_timeout=1)  # Open the serial port
+            port.write(b"RQP+DEVICEINFO?\n")  # Send the query
+            response = port.readline().decode('utf-8').strip()  # Read the response
+            send_timestamp(port)
+            port.close()
+
+            # Check if the response is a valid JSON with the expected keys
+            try:
+                response_data = json.loads(response)
+                if 'deviceName' in response_data and 'serialNumber' in response_data:
+                    # If valid, create a SerialPortItem with the new details
+                    port_info.description = response_data['deviceName']
+                    port_info.serial_number = response_data['serialNumber']
+                    port_info.device_responded = True
+            except json.JSONDecodeError:
+                # Ignore invalid JSON responses
+                pass
+
+        except (serial.SerialException, OSError):
+            # Ignore ports that cannot be opened or cause an error
+            continue
+
     return ports

@@ -56,13 +56,14 @@ class Chart(QWidget):
 
     def update_plot(self, profiles, directory_name, selected=''):
         self.clear()
-        self.profiles = profiles
+        # Filter empty profiles
+        self.profiles = [profile for profile in profiles if len(profile['data']) > 0]
         self.directory_name = directory_name
         self.selected_file = selected
         self.profile_ax.set_ylabel(settings.UNIT)
         self.profile_ax.set_xlabel("Distance [m]")
         previous_distance = 0
-        for profile in profiles:
+        for profile in self.profiles:
 
             distances = np.array(profile['data'][0]) + previous_distance
             if settings.CONTINUOUS_MODE:
@@ -81,7 +82,7 @@ class Chart(QWidget):
             else:
                 self.profile_ax.plot(distances, profile['data'][1], alpha=0.5)
 
-        mean_profile_distances, mean_profile_values = calc_mean_profile(profiles)
+        mean_profile_distances, mean_profile_values = calc_mean_profile(self.profiles)
         self.mean_profile = mean_profile_values
 
         self.profile_ax.plot(mean_profile_distances,
