@@ -1,4 +1,5 @@
 from utils.file_utils import read_prof_header, read_prof_file
+from utils.profile_stats import calc_mean_profile
 import pandas as pd
 import os
 
@@ -42,6 +43,7 @@ def export(folder_path) -> bool:
     # Create an Excel writer object
     excel_file_path = os.path.join(folder_path, f"{folder_name}.xlsx")
 
+    profiles = []
     sheets = []
 
     # Loop through all files in the specified folder
@@ -52,10 +54,12 @@ def export(folder_path) -> bool:
 
             try:
                 header = read_prof_header(file_path)
-                data = read_prof_file(file_path)['data']
+                data = read_prof_file(file_path)
+                if data['data'] is not None:
+                    profiles.append(data)
                 columns = {
-                    'Distance': data[0],
-                    'Hardness': data[1]
+                    'Distance': data['data'][0],
+                    'Hardness': data['data'][1]
                 }
                 df = pd.DataFrame(columns)
                 df.loc[0, 'Sample step']        = header['sample_step']
@@ -66,6 +70,16 @@ def export(folder_path) -> bool:
             except Exception as e:
                 print(f"Error reading {file_path}: {e}")
                 continue
+
+    # Create and add mean profile
+    if profiles:
+        mean_profile = calc_mean_profile(profiles)
+        columns = {
+            'Distance':      mean_profile[0],
+            'Mean hardness': mean_profile[1]
+        }
+        df = pd.DataFrame(columns)
+        sheets.insert(0, (df, "Mean profile"))
 
     # Only create the Excel file if there are sheets to add
     if sheets:
