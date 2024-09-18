@@ -19,6 +19,7 @@ import os
 from gui.widgets.sidebar import Sidebar
 from gui.widgets.FileView import FileView
 from gui.widgets.chart import Chart
+from gui.widgets.messagebox import show_warn_msgbox, show_message_box
 import settings
 
 from gui.settings import SettingsWindow
@@ -156,19 +157,26 @@ class MainWindow(QMainWindow):
     def toggle_postprocessor(self, postprocessor_module):
         postprocessor_module.enabled = not postprocessor_module.enabled
 
-    def run_postprocessors(self, folder_path):
-        for module_name, module in self.postprocessors.items():
-            postprocessor_name = getattr(module, 'description', module_name)
-            if module.enabled:
-                print(f"Running postprocessor '{postprocessor_name}' for folder '{folder_path}'...")
-                module.export(folder_path)
+    def run_postprocessors(self, folder_paths):
+        error_paths = set()
+        for folder_path in folder_paths:
+            for module_name, module in self.postprocessors.items():
+                postprocessor_name = getattr(module, 'description', module_name)
+                if module.enabled:
+                    print(f"Running postprocessor '{postprocessor_name}' for folder '{folder_path}'...")
+                    if not module.export(folder_path):
+                        error_paths.add(folder_path)
+        if error_paths:
+            show_warn_msgbox(
+                f"Postprocessors failed for the following paths:\n\n{'\n'.join(error_paths)}")
+        else:
+            show_message_box("Success", "All postprocessors completed successfully!")
 
     def run_postprocessors_for_all_folders(self):
         index = self.sidebar.directoryView.treeView.rootIndex()
         base_dir = self.sidebar.directoryView.model.filePath(index)
         folder_paths = [os.path.join(base_dir, folder) for folder in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, folder))]
-        for folder_path in folder_paths:
-            self.run_postprocessors(folder_path)
+        self.run_postprocessors(folder_paths)
 
     def refresh(self):
         currentIndex = self.sidebar.directoryView.treeView.selectionModel().currentIndex()
