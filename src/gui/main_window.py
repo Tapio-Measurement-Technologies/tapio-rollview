@@ -85,12 +85,12 @@ class MainWindow(QMainWindow):
         postprocessors_menu = menu_bar.addMenu('Postprocessors')
 
         # Add 'Run after sync' heading using QLabel for better styling
-        run_after_sync_label = QLabel('Run after sync')
-        run_after_sync_label.setFont(QFont('Arial', 10, QFont.Weight.Normal))  # Make the text bold
-        run_after_sync_label.setMargin(5)
-        run_after_sync_label_action = QWidgetAction(self)
-        run_after_sync_label_action.setDefaultWidget(run_after_sync_label)
-        postprocessors_menu.addAction(run_after_sync_label_action)
+        # run_after_sync_label = QLabel('Run after sync')
+        # run_after_sync_label.setFont(QFont('Arial', 10, QFont.Weight.Normal))  # Make the text bold
+        # run_after_sync_label.setMargin(5)
+        # run_after_sync_label_action = QWidgetAction(self)
+        # run_after_sync_label_action.setDefaultWidget(run_after_sync_label)
+        # postprocessors_menu.addAction(run_after_sync_label_action)
 
         for module_name, module in self.postprocessors.items():
             action_text = getattr(module, 'description', module_name)
