@@ -5,7 +5,7 @@ import os
 description = "Export plot image"
 enabled = True
 
-def export(folder_path) -> bool:
+def run(folder_path) -> bool:
     chart = Chart()
     profiles = []
     folder_name = os.path.basename(folder_path.rstrip('/\\'))

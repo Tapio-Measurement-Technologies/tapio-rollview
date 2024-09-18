@@ -160,11 +160,11 @@ class MainWindow(QMainWindow):
     def run_postprocessors(self, folder_paths):
         error_paths = set()
         for folder_path in folder_paths:
-            for module_name, module in self.postprocessors.items():
-                postprocessor_name = getattr(module, 'description', module_name)
-                if module.enabled:
+            for module_name, postprocessor in self.postprocessors.items():
+                postprocessor_name = getattr(postprocessor, 'description', module_name)
+                if postprocessor.enabled:
                     print(f"Running postprocessor '{postprocessor_name}' for folder '{folder_path}'...")
-                    if not module.export(folder_path):
+                    if not postprocessor.run(folder_path):
                         error_paths.add(folder_path)
         if error_paths:
             show_warn_msgbox(

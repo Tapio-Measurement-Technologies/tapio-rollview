@@ -3,10 +3,10 @@ from utils.profile_stats import calc_mean_profile
 import pandas as pd
 import os
 
-description = "Generate Excel file"
+description = "Export to Excel file"
 enabled = True
 
-def export(folder_path) -> bool:
+def run(folder_path) -> bool:
     """
     Exports data from '.prof' files in a specified folder to an Excel file.
 
@@ -34,7 +34,7 @@ def export(folder_path) -> bool:
     - Ensure that the helper functions `read_prof_header` and `read_prof_file` are defined and implemented correctly.
 
     Example:
-        export('/path/to/folder')
+        run('/path/to/folder')
     """
 
     # Extract folder name to use as Excel file name
