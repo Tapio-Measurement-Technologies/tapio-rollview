@@ -6,6 +6,30 @@ description = "Export plot image"
 enabled = True
 
 def run(folder_path) -> bool:
+    """
+    Generates and exports a plot image from `.prof` files in a given folder.
+
+    This function scans the specified folder for `.prof` files (excluding `mean.prof`),
+    reads the data from each of these files, and generates a plot using the `Chart` widget.
+    The generated plot is then saved as an image (`.png`) in the same folder, named after the folder.
+
+    Args:
+        folder_path (str): The path to the folder containing the `.prof` files.
+
+    Returns:
+        bool: Returns `True` if the plot image was successfully generated and saved,
+            otherwise returns `False` if no valid profiles were found or an error occurred.
+
+    Dependencies:
+        - Chart: A widget class for creating and managing charts.
+        - read_prof_file: A utility function for reading `.prof` files.
+        - os: Standard library module used for path manipulations and file operations.
+
+    Behavior:
+        - Only `.prof` files are considered, excluding `mean.prof`.
+        - If an error occurs while reading a `.prof` file, it skips that file and continues processing.
+        - If no valid `.prof` files are found, the function will return `False` and no image will be saved.
+    """
     chart = Chart()
     profiles = []
     folder_name = os.path.basename(folder_path.rstrip('/\\'))
