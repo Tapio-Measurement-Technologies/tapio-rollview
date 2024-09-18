@@ -29,7 +29,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         base_path = os.path.dirname(os.path.abspath(__file__))
-        self.postprocessors = load_modules_from_folder(os.path.join(base_path, '../postprocessors'))
+        self.postprocessors = load_modules_from_folder(os.path.join(base_path, '..', 'postprocessors'))
 
         self.setWindowTitle("Tapio RollView")
         self.resize(900, 600)
