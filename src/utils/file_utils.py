@@ -75,12 +75,12 @@ def read_prof_file(file_path):
             current_distance += sample_step
 
     # Generate distances based on the number of samples and the sample step
-    if sample_step > 0:
+    if sample_step > 0 and len(hardnesses) > 0:
         distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
         data = np.array([distances, hardnesses])
     else:
         print(f"Invalid sample step in file '{file_path}'")
-        data = []
+        data = None
 
     return {
         "name": directory_name,

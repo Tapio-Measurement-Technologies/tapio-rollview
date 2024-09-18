@@ -57,7 +57,7 @@ class Chart(QWidget):
     def update_plot(self, profiles, directory_name, selected=''):
         self.clear()
         # Filter empty profiles
-        self.profiles = [profile for profile in profiles if len(profile['data']) > 0]
+        self.profiles = [profile for profile in profiles if profile['data'] is not None]
         self.directory_name = directory_name
         self.selected_file = selected
         self.profile_ax.set_ylabel(settings.UNIT)
