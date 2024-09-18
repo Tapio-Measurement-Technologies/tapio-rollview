@@ -34,6 +34,12 @@ For support, training, instruments and customizations please contact us at:
 
 
 ## Installation instructions
+
+### Standard installation
+RollView is released as a Windows executable which does not require separate installation.
+- Download the latest release as a Windows executable from the [https://github.com/Tapio-Measurement-Technologies/tapio-rollview/releases](Releases page)
+
+### Custom installation (for configuring custom features)
 To install Tapio RollView, follow the steps below:
 
 - [Install Python 3.12.1](https://www.python.org/downloads/release/python-3121/)
