@@ -17,11 +17,17 @@ if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
 from gui.main_window import MainWindow
 
 def main():
+    app_icon = QIcon(os.path.join('assets', 'tapio192.png'))
     app = QApplication(sys.argv)
     window = MainWindow()
+
+    app.setWindowIcon(app_icon)
+    window.setWindowIcon(app_icon)
+
     window.show()
     return app.exec()
 

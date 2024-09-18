@@ -41,6 +41,7 @@ jobs:
           pyinstaller
           --onefile
           --noconsole
+          --icon src/assets/tapio_favicon.ico
           src/main.py
 
       - name: Rename executable
