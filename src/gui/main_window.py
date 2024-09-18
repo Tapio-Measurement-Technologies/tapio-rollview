@@ -19,7 +19,7 @@ import os
 from gui.widgets.sidebar import Sidebar
 from gui.widgets.FileView import FileView
 from gui.widgets.chart import Chart
-from gui.widgets.messagebox import show_warn_msgbox, show_message_box
+from gui.widgets.messagebox import show_warn_msgbox, show_info_msgbox
 import settings
 
 from gui.settings import SettingsWindow
@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
             show_warn_msgbox(
                 f"Postprocessors failed for the following paths:\n\n{'\n'.join(error_paths)}")
         else:
-            show_message_box("Success", "All postprocessors completed successfully!")
+            show_info_msgbox("All postprocessors completed successfully!", "Success")
 
     def run_postprocessors_for_all_folders(self):
         index = self.sidebar.directoryView.treeView.rootIndex()
