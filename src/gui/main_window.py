@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
                 action_text,
                 postprocessors_menu,
                 module.enabled,
-                lambda: self.toggle_postprocessor(module)
+                lambda checked, module=module: self.toggle_postprocessor(module)
             )
             postprocessors_menu.addAction(checkbox_widget)
 
@@ -156,6 +156,10 @@ class MainWindow(QMainWindow):
 
     def toggle_postprocessor(self, postprocessor_module):
         postprocessor_module.enabled = not postprocessor_module.enabled
+        if postprocessor_module.enabled:
+            print(f"Enabled postprocessor '{postprocessor_module.description}'")
+        else:
+            print(f"Disabled postprocessor '{postprocessor_module.description}'")
 
     def run_postprocessors(self, folder_paths):
         error_paths = set()
