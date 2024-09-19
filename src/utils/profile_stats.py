@@ -4,7 +4,28 @@ import numpy as np
 import settings
 
 # Implement here any custom more complicated profile statistics
+class Stats:
+    def __init__(self):
+        self.mean   = np.mean
+        self.std    = np.std
+        self.min    = np.min
+        self.max    = np.max
+        self.cv     = lambda f: (np.std(f) / np.mean(f)) * 100
+        self.pp     = lambda f: np.max(f) - np.min(f)
 
+        self.mean.unit  = 'g'
+        self.std.unit   = 'g'
+        self.min.unit   = 'g'
+        self.max.unit   = 'g'
+        self.cv.unit    = '%'
+        self.pp.unit    = 'g'
+
+        self.mean.label = 'Mean'
+        self.std.label  = 'Stdev'
+        self.min.label  = 'Min'
+        self.max.label  = 'Max'
+        self.cv.label   = 'CV'
+        self.pp.label   = 'P-p'
 
 def calc_mean_profile(profiles, continuous=False):
     if not profiles:
