@@ -65,6 +65,7 @@ def run(folder_path) -> bool:
                     'Hardness': np.round(data['data'][1], EXPORT_FLOAT_NUM_DECIMAL_PLACES)
                 }
                 df = pd.DataFrame(columns)
+                df.loc[0, 'Roll ID']            = folder_name
                 df.loc[0, 'Sample step']        = header['sample_step']
                 df.loc[0, 'Serial number']      = header['serial_number']
                 df.loc[0, '.prof file version'] = header['prof_version']
@@ -82,6 +83,7 @@ def run(folder_path) -> bool:
             'Mean hardness': np.round(mean_profile[1], EXPORT_FLOAT_NUM_DECIMAL_PLACES)
         }
         df = pd.DataFrame(columns)
+        df.loc[0, 'Roll ID'] = folder_name
         sheets.insert(0, (df, "Mean profile"))
 
     # Only create the Excel file if there are sheets to add
