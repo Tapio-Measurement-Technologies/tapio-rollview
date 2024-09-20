@@ -1,8 +1,11 @@
 from utils.file_utils import read_prof_header, read_prof_file
 from utils.profile_stats import calc_mean_profile
 from utils.profile_stats import Stats
+import numpy as np
 import os
 import json
+
+EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 
 description = "Export to JSON file"
 enabled = False
@@ -30,8 +33,8 @@ def run(folder_path) -> bool:
                     'device_sn':          header['serial_number'],
                     'prof_file_version':  header['prof_version'],
                     'sample_step':        header['sample_step'],
-                    'distances':          data['data'][0].tolist(),
-                    'values':             data['data'][1].tolist()
+                    'distances':          np.round(data['data'][0], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
+                    'values':             np.round(data['data'][1], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist()
                 }
 
                 json_filename = f"{os.path.splitext(file_path)[0]}.json"
@@ -50,15 +53,15 @@ def run(folder_path) -> bool:
         json_data = {
             'roll_id':    folder_name,
             'type':       'mean_profile',
-            'distances':  mean_profile[0].tolist(),
-            'values':     mean_profile[1].tolist(),
+            'distances':  np.round(mean_profile[0], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
+            'values':     np.round(mean_profile[1], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
             'stats': {
-                'mean_g':   stats.mean(mean_values),
-                'min_g':    stats.min(mean_values),
-                'max_g':    stats.max(mean_values),
-                'stdev_g':  stats.std(mean_values),
-                'cv_pct':   stats.cv(mean_values),
-                'pp_g':     stats.pp(mean_values)
+                'mean_g':   round(stats.mean(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'min_g':    round(stats.min(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'max_g':    round(stats.max(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'stdev_g':  round(stats.std(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'cv_pct':   round(stats.cv(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'pp_g':     round(stats.pp(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES)
             }
         }
 

@@ -1,7 +1,10 @@
 from utils.file_utils import read_prof_header, read_prof_file
 from utils.profile_stats import calc_mean_profile
 import pandas as pd
+import numpy as np
 import os
+
+EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 
 description = "Export to Excel file"
 enabled = True
@@ -58,8 +61,8 @@ def run(folder_path) -> bool:
                 if data['data'] is not None:
                     profiles.append(data)
                 columns = {
-                    'Distance': data['data'][0],
-                    'Hardness': data['data'][1]
+                    'Distance': np.round(data['data'][0], EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                    'Hardness': np.round(data['data'][1], EXPORT_FLOAT_NUM_DECIMAL_PLACES)
                 }
                 df = pd.DataFrame(columns)
                 df.loc[0, 'Sample step']        = header['sample_step']
@@ -75,8 +78,8 @@ def run(folder_path) -> bool:
     if profiles:
         mean_profile = calc_mean_profile(profiles)
         columns = {
-            'Distance':      mean_profile[0],
-            'Mean hardness': mean_profile[1]
+            'Distance':      np.round(mean_profile[0], EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+            'Mean hardness': np.round(mean_profile[1], EXPORT_FLOAT_NUM_DECIMAL_PLACES)
         }
         df = pd.DataFrame(columns)
         sheets.insert(0, (df, "Mean profile"))
