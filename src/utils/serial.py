@@ -7,7 +7,9 @@ from models.SerialPort import SerialPortItem
 from PySide6.QtCore import QThread, Signal
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.time_sync import send_timestamp
+from utils.postprocess import run_postprocessors
 import json
+import os
 
 class FileTransferThread(QThread):
     receivingFile = Signal(str, int) # (filename, filesLeft)
@@ -44,14 +46,17 @@ class FileTransferManager:
         self.serial: serial.Serial = None
         self.thread: FileTransferThread = None
         self.model: FileTransferModel = FileTransferModel()
+        self.sync_folder_path = None
 
     def start_transfer(self, port, folder_path, on_complete):
         try:
             self.model.removeItems()
             self.serial = serial.Serial(port=port,parity=serial.PARITY_NONE,bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,timeout=0.2,xonxoff=0,rtscts=0,dsrdtr=0,baudrate=115200)
+            self.sync_folder_path = folder_path
             self.thread = FileTransferThread(folder_path, self.serial)
             self.thread.receivingFile.connect(self.update_progress)
             self.thread.finished.connect(on_complete)
+            self.thread.finished.connect(self.on_transfer_finished)
             self.thread.start()
         except:
             self.cancel_transfer()
@@ -60,6 +65,14 @@ class FileTransferManager:
         self.model.removeItems()
         if self.thread is not None:
             self.thread.stop()
+
+    def on_transfer_finished(self):
+        received_files = self.model.getReceivedFiles()
+        folder_paths = list(set([ os.path.join(self.sync_folder_path, os.path.dirname(received_file)) for received_file in received_files ]))
+        print(f"Received files in folders: {folder_paths}")
+        print(f"Running postprocessors for: {folder_paths}")
+        run_postprocessors(folder_paths)
+        self.model.removeItems()
 
     def update_progress(self, filename, filesLeft):
         self.model.addItem(FileTransferItem(filename, filesLeft))
