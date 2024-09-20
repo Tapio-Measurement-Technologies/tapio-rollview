@@ -49,7 +49,7 @@ def run(folder_path) -> bool:
                 continue
 
     if profiles:
-        chart.update_plot(profiles, folder_name)
+        chart.update_plot(profiles, folder_name, show_stats_in_title=True)
         chart.figure.savefig(save_path)
         print(f"Successfully generated plot image for folder '{folder_path}'!")
         return True
