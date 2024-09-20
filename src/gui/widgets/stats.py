@@ -101,6 +101,8 @@ class StatWidget(QWidget):
 
             self.value_label.setText(f"{self.value or 0:.2f}")
             self.update_tooltip()
+        else:
+            self.value_label.setText("--")
 
 class MeanWidget(StatWidget):
     def __init__(self, data, limit=None):
