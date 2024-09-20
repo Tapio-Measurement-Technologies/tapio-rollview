@@ -24,28 +24,24 @@ cd tapio-rollview
 ./install.bat
 ```
 
-
-## Directory selection
-- By default, RollView uses the folder .tapiorqp under the user's home directory.
+## Directory Selection
+- By default, RollView uses the folder `.tapiorqp` under the user's home directory.
 
 ## Synchronization
 - On sync, the contents of the device SD card are synchronized to the computer using the ZMODEM protocol.
 
 ## Statistics
-The displayed statistics are based on the mean profile (which is calculated as the mean of multiple measured profiles in the same folder).
+The displayed statistics are based on the mean profile (calculated as the mean of multiple measured profiles in the same folder).
 
 Available statistics are:
-- Mean [g]: Mean hardness of the mean hardness profile
-- Stdev [g]: Standard deviation of the mean hardness profile
-- CV [%]: Standard deviation normalized by the mean
-- Min [g]: Smallest hardness value of the mean hardness profile
-- Max [g]: Largest hardness value of the mean hardness profile
-- P-p [g]: Peak-to-peak, difference between largest and smallest hardness values in the mean proile
+- **Mean [g]:** Mean hardness of the mean hardness profile.
+- **Stdev [g]:** Standard deviation of the mean hardness profile.
+- **CV [%]:** Coefficient of variation, standard deviation normalized by the mean.
+- **Min [g]:** Smallest hardness value of the mean hardness profile.
+- **Max [g]:** Largest hardness value of the mean hardness profile.
+- **P-p [g]:** Peak-to-peak, the difference between the largest and smallest hardness values in the mean profile.
 
-## Postprocessor system
-- Postprocessors are run after synchronizing new files from an RQP Live
-- Postprocessors can be activated from the menu
-- A re-run of activated postprocessors for all files can be triggered from the menu
-
-
-
+## Postprocessor System
+- Postprocessors are run after synchronizing new files from an RQP Live.
+- Postprocessors can be activated from the menu.
+- A re-run of activated postprocessors for all files can be triggered from the menu.

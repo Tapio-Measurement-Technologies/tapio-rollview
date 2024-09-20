@@ -28,6 +28,8 @@ The [Tapio RQP Live](https://www.tapiotechnologies.com/tapio-rqp-live/) is an in
 - **Additional Features**: Request any additional functionalities.
 
 ## Support
+More detailed instructions are available in the [Tapio RollView Manual](docs/rollview-manual.md).
+
 For support, training, instruments and customizations please contact us at:
 - Email: [info@tapiotechnologies.com](mailto:info@tapiotechnologies.com)
 - Visit: [https://www.tapiotechnologies.com](https://www.tapiotechnologies.com)
