@@ -119,6 +119,7 @@ class FileView(QWidget):
     def set_directory(self, path):
         self.model.setRootPath(path)
         self.view.setRootIndex(self.proxy_model.mapFromSource(self.model.index(path)))
+        self.model.sort(3, Qt.SortOrder.DescendingOrder)
 
     def on_file_selected(self, selected, deselected):
         indexes = selected.indexes()
@@ -128,6 +129,7 @@ class FileView(QWidget):
             self.file_selected.emit(file_path)
 
     def on_files_updated(self, **args):
+        self.model.sort(3, Qt.SortOrder.DescendingOrder)
         self.files_updated.emit()
 
     def on_selection_cleared(self):

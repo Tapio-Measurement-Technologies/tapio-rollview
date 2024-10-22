@@ -8,7 +8,7 @@ import logging
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 from gui.widgets.stats import StatsWidget
 import numpy as np
-from utils.profile_stats import calc_mean_profile
+from utils.profile_stats import Stats, calc_mean_profile
 from scipy.signal import welch
 import settings
 
@@ -21,6 +21,7 @@ class Chart(QWidget):
         self.layout = QVBoxLayout(self)
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
+        self.stats = Stats()
 
         if settings.SHOW_SPECTRUM:
             self.profile_ax = self.figure.add_subplot(211)
@@ -30,9 +31,9 @@ class Chart(QWidget):
 
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.mean_profile = []
-        self.stats = StatsWidget(self.mean_profile)
+        self.stats_widget = StatsWidget(self.mean_profile)
 
-        self.layout.addWidget(self.stats)
+        self.layout.addWidget(self.stats_widget)
         self.layout.addWidget(self.canvas)
         self.layout.addWidget(self.toolbar)
 
@@ -54,10 +55,10 @@ class Chart(QWidget):
         if settings.SHOW_SPECTRUM:
             self.spectrum_ax.clear()
 
-    def update_plot(self, profiles, directory_name, selected=''):
+    def update_plot(self, profiles, directory_name, selected='', show_stats_in_title=False):
         self.clear()
         # Filter empty profiles
-        self.profiles = [profile for profile in profiles if len(profile['data']) > 0]
+        self.profiles = [profile for profile in profiles if profile['data'] is not None]
         self.directory_name = directory_name
         self.selected_file = selected
         self.profile_ax.set_ylabel(settings.UNIT)
@@ -121,10 +122,21 @@ class Chart(QWidget):
         if hasattr(settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None:
             self.profile_ax.set_ylim(top=settings.Y_LIM_HIGH(mean_profile_values))
 
+        if show_stats_in_title and len(self.mean_profile):
+            title = (
+                f"{self.stats.mean.label}: {self.stats.mean(self.mean_profile):.2f} {self.stats.mean.unit}    "
+                f"{self.stats.min.label }: { self.stats.min(self.mean_profile):.2f} {self.stats.min.unit }    "
+                f"{self.stats.max.label }: { self.stats.max(self.mean_profile):.2f} {self.stats.max.unit }\n"
+                f"{self.stats.std.label }: { self.stats.std(self.mean_profile):.2f} {self.stats.std.unit }    "
+                f"{self.stats.cv.label  }: {  self.stats.cv(self.mean_profile):.2f} {self.stats.cv.unit  }    "
+                f"{self.stats.pp.label  }: {  self.stats.pp(self.mean_profile):.2f} {self.stats.pp.unit  }"
+            )
+            self.profile_ax.set_title(title)
+
         self.profile_ax.legend(loc="upper right")
         self.figure.tight_layout()
         self.canvas.draw()
-        self.stats.update_data(self.mean_profile)
+        self.stats_widget.update_data(self.mean_profile)
 
     def update_ticks_wavelength(self, *args):
         primary_ticks = self.spectrum_ax.get_xticks()

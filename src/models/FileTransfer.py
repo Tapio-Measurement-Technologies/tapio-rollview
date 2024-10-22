@@ -12,7 +12,7 @@ class FileTransferModel(QAbstractListModel):
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.items)
-    
+
     def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
         if index.isValid() and role == Qt.ItemDataRole.EditRole:
             self.items[index.row()] = value
@@ -34,9 +34,12 @@ class FileTransferModel(QAbstractListModel):
 
     def getTotalFileCount(self):
         return max(self.items, key=lambda item: item.files_remaining).files_remaining
-    
+
     def getLatestItem(self):
         return self.items[-1]
+
+    def getReceivedFiles(self):
+        return [ item.filename for item in self.items ]
 
     def addItem(self, item):
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())

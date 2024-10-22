@@ -12,6 +12,7 @@
 from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel
 from PySide6.QtGui import QAction, QFont
 from utils.file_utils import list_prof_files, read_prof_file
+from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
 import os
 
 # Assuming Sidebar, Chart, and FileView are implemented elsewhere
@@ -26,6 +27,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
         self.setWindowTitle("Tapio RollView")
         self.resize(900, 600)
 
@@ -72,13 +74,14 @@ class MainWindow(QMainWindow):
         show_all_com_ports_checkbox = self.create_checkbox_menu_item(
             'Show all COM ports',
             view_menu,
+            self.sidebar.serialView.view.model.show_all_com_ports,
             self.on_show_all_com_ports_changed
         )
         view_menu.addAction(show_all_com_ports_checkbox)
 
-        # postprocessors_menu = menu_bar.addMenu('Postprocessors')
+        postprocessors_menu = menu_bar.addMenu('Postprocessors')
 
-        # # Add 'Run after sync' heading using QLabel for better styling
+        # Add 'Run after sync' heading using QLabel for better styling
         # run_after_sync_label = QLabel('Run after sync')
         # run_after_sync_label.setFont(QFont('Arial', 10, QFont.Weight.Normal))  # Make the text bold
         # run_after_sync_label.setMargin(5)
@@ -86,25 +89,29 @@ class MainWindow(QMainWindow):
         # run_after_sync_label_action.setDefaultWidget(run_after_sync_label)
         # postprocessors_menu.addAction(run_after_sync_label_action)
 
-        # # Example items with checkboxes that do not close the menu when clicked
-        # checkbox_widget_1 = self.create_checkbox_menu_item('Generate Excel file', postprocessors_menu)
-        # checkbox_widget_2 = self.create_checkbox_menu_item('Generate plot image', postprocessors_menu)
+        for module_name, module in get_postprocessors().items():
+            action_text = getattr(module, 'description', module_name)
+            checkbox_widget = self.create_checkbox_menu_item(
+                action_text,
+                postprocessors_menu,
+                module.enabled,
+                lambda checked, module=module: toggle_postprocessor(module)
+            )
+            postprocessors_menu.addAction(checkbox_widget)
 
-        # # Add checkboxes to the 'Postprocessors' menu
-        # postprocessors_menu.addAction(checkbox_widget_1)
-        # postprocessors_menu.addAction(checkbox_widget_2)
+        # Add the 'Run postprocessors' item
+        run_postprocessors_action = QAction('Run postprocessors', self)
+        run_postprocessors_action.triggered.connect(self.run_postprocessors_for_all_folders)
+        # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
+        postprocessors_menu.addAction(run_postprocessors_action)
 
-        # # Add the 'Run postprocessors' item
-        # run_postprocessors_action = QAction('Run postprocessors', self)
-        # # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
-        # postprocessors_menu.addAction(run_postprocessors_action)
-
-    def create_checkbox_menu_item(self, label, parent_menu, callback):
+    def create_checkbox_menu_item(self, label, parent_menu, checked, callback):
         """Helper method to create a persistent checkbox menu item."""
         widget = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 0, 5, 0)  # Reduce margins for better alignment
         checkbox = QCheckBox(label)
+        checkbox.setChecked(checked)
         checkbox.stateChanged.connect(callback)  # Connect checkbox state change to callback
         layout.addWidget(checkbox)
         widget.setLayout(layout)
@@ -143,6 +150,12 @@ class MainWindow(QMainWindow):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh)
         self.settings_window.show()
+
+    def run_postprocessors_for_all_folders(self):
+        index = self.sidebar.directoryView.treeView.rootIndex()
+        base_dir = self.sidebar.directoryView.model.filePath(index)
+        folder_paths = [os.path.join(base_dir, folder) for folder in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, folder))]
+        run_postprocessors(folder_paths)
 
     def refresh(self):
         currentIndex = self.sidebar.directoryView.treeView.selectionModel().currentIndex()

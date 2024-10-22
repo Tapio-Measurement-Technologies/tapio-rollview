@@ -1,7 +1,9 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout
 from PySide6.QtCore import Qt
-import numpy as np
+from utils.profile_stats import Stats
 import settings
+
+stats = Stats()
 
 class StatsWidget(QWidget):
     def __init__(self, data):
@@ -99,27 +101,29 @@ class StatWidget(QWidget):
 
             self.value_label.setText(f"{self.value or 0:.2f}")
             self.update_tooltip()
+        else:
+            self.value_label.setText("--")
 
 class MeanWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, "Mean", "g", np.mean, limit)
+        super().__init__(data, stats.mean.label, stats.mean.unit, stats.mean, limit)
 
 class StdWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, "Stdev", "g", np.std, limit)
+        super().__init__(data, stats.std.label, stats.std.unit, stats.std, limit)
 
 class CVWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, "CV", "%", lambda f: (np.std(f) / np.mean(f)) * 100, limit)
+        super().__init__(data, stats.cv.label, stats.cv.unit, stats.cv, limit)
 
 class MinWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, "Min", "g", np.min, limit)
+        super().__init__(data, stats.min.label, stats.min.unit, stats.min, limit)
 
 class MaxWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, "Max", "g", np.max, limit)
+        super().__init__(data, stats.max.label, stats.max.unit, stats.max, limit)
 
 class PeakToPeakWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, "P-p", "g", lambda f: np.max(f) - np.min(f), limit)
+        super().__init__(data, stats.pp.label, stats.pp.unit, stats.pp, limit)

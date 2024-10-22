@@ -55,6 +55,8 @@ class SerialWidget(QWidget):
 
         self.syncFolder = None
 
+        self.scan_thread = None
+
         # Arrange the tree view and button in a vertical layout
         layout = QVBoxLayout(self)
         layout.addWidget(self.label)
@@ -70,8 +72,13 @@ class SerialWidget(QWidget):
         self.syncButton.setEnabled(current.isValid())
 
     def scan_devices(self):
-        ports = scan_ports()
+        self.scanButton.setDisabled(True)
+        self.scan_thread = scan_ports()
+        self.scan_thread.finished_signal.connect(self.on_scan_finished)
+
+    def on_scan_finished(self, ports):
         self.view.update_com_ports(ports)
+        self.scanButton.setDisabled(False)
 
     def sync_data(self):
         self.transferDialog.show()

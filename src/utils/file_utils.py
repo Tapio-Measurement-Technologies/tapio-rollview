@@ -27,6 +27,25 @@ def get_measurement_distance(prof_file_path):
     distance = ((file_size - PROF_FILE_HEADER_SIZE) / 4) * (sample_step_mm / 1000)
     return distance
 
+def read_prof_header(file_path):
+    with open(file_path, 'rb') as file:
+        prof_version    = file.read(4)
+        serial_number   = file.read(32)
+        sample_step     = file.read(4)
+
+        try:
+            prof_version    = int.from_bytes(prof_version, byteorder='little', signed=False)
+            serial_number   = serial_number.decode('ISO-8859-1').split('\x00', 1)[0]
+            sample_step     = struct.unpack('f', sample_step)[0]
+            return {
+                'prof_version':     prof_version,
+                'serial_number':    serial_number,
+                'sample_step':      sample_step
+            }
+        except Exception as e:
+            print(f"Failed to parse header from file '{file_path}': {e}")
+            return None
+
 def read_prof_file(file_path):
     directory_name = os.path.basename(file_path)
     hardnesses = []
@@ -56,12 +75,12 @@ def read_prof_file(file_path):
             current_distance += sample_step
 
     # Generate distances based on the number of samples and the sample step
-    if sample_step > 0:
+    if sample_step > 0 and len(hardnesses) > 0:
         distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
         data = np.array([distances, hardnesses])
     else:
         print(f"Invalid sample step in file '{file_path}'")
-        data = []
+        data = None
 
     return {
         "name": directory_name,
