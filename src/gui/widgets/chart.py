@@ -52,11 +52,18 @@ class Chart(QWidget):
 
     def clear(self):
         self.profile_ax.clear()
+        self.profile_ax.figure.canvas.draw()  # Ensure the profile plot updates
         if settings.SHOW_SPECTRUM:
             self.spectrum_ax.clear()
+            self.spectrum_ax.figure.canvas.draw()
+
+
 
     def update_plot(self, profiles, directory_name, selected='', show_stats_in_title=False):
         self.clear()
+        self.figure.suptitle(directory_name)
+        self.figure.canvas.draw()
+
         # Filter empty profiles
         self.profiles = [profile for profile in profiles if profile['data'] is not None]
         self.directory_name = directory_name
