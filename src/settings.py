@@ -112,13 +112,6 @@ PROFILE_STATISTICS = [{
 }]
 
 
-def example_postprocessor(files_before_sync, files_after_sync):
-    # TODO: determine folders where new files have been created, create resampled mean profile files for transfer
-    pass
-
-
-POSTPROCESSORS = []
-
 SHOW_SPECTRUM = False
 NPERSEG = 3000
 NOVERLAP = 0.75
@@ -131,13 +124,10 @@ UNIT = "BC Hardness [g]"
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%m/%d/%Y %I:%M:%S %p',
-    level=logging.ERROR)
+                    datefmt='%m/%d/%Y %I:%M:%S %p',
+                    level=logging.ERROR)
 
 try:
     from local_settings import *
 except:
     print("No local settings")
-
-
-

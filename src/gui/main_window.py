@@ -134,8 +134,6 @@ class MainWindow(QMainWindow):
         self.chart.update_plot(self.profiles, self.directory_name)
         self.fileView.view.clearSelection()
 
-        for postp_f in settings.POSTPROCESSORS:
-            postp_f(path)
 
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)

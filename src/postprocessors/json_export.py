@@ -7,8 +7,19 @@ import json
 
 EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 
+RESAMPLE_STEP = 0.01
+BAND_PASS_HIGH = 30
+
 description = "Export to JSON file"
 enabled = False
+
+
+def resample_profile(distances, values, resample_step):
+    """Resample data to fixed intervals using linear interpolation."""
+    resampled_distances = np.arange(distances[0], distances[-1], resample_step)
+    resampled_values = np.interp(resampled_distances, distances, values)
+    return resampled_distances, resampled_values
+
 
 def run(folder_path) -> bool:
     stats = Stats()
@@ -39,8 +50,9 @@ def run(folder_path) -> bool:
 
                 json_filename = f"{os.path.splitext(file_path)[0]}.json"
                 with open(json_filename, 'w') as fp:
-                  json.dump(json_data, fp)
-                  print(f"Exported profile '{file_name}' of roll '{folder_name}' to {json_filename}.")
+                    json.dump(json_data, fp)
+                    print(f"Exported profile '{file_name}' of roll '{
+                          folder_name}' to {json_filename}.")
 
             except Exception as e:
                 print(f"Error processing {file_path}: {e}")
@@ -48,13 +60,21 @@ def run(folder_path) -> bool:
 
     # Create and add mean profile
     if profiles:
-        mean_profile = calc_mean_profile(profiles)
+        mean_profile = calc_mean_profile(
+            profiles, band_pass_low=None, band_pass_high=BAND_PASS_HIGH)
+
+        mean_distances = mean_profile[0]
         mean_values = mean_profile[1]
+
+        if RESAMPLE_STEP:
+            mean_distances, mean_values = resample_profile(
+                mean_distances, mean_values, RESAMPLE_STEP)
+
         json_data = {
             'roll_id':    folder_name,
             'type':       'mean_profile',
-            'distances':  np.round(mean_profile[0], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
-            'values':     np.round(mean_profile[1], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
+            'distances':  np.round(mean_distances, EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
+            'values':     np.round(mean_values, EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
             'stats': {
                 'mean_g':   round(stats.mean(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
                 'min_g':    round(stats.min(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
@@ -67,8 +87,9 @@ def run(folder_path) -> bool:
 
         json_filename = os.path.join(folder_path, 'mean_profile.json')
         with open(json_filename, 'w') as fp:
-          json.dump(json_data, fp)
-          print(f"Exported mean profile of roll '{folder_name}' to {json_filename}.")
+            json.dump(json_data, fp)
+            print(f"Exported mean profile of roll '{
+                  folder_name}' to {json_filename}.")
 
         return True
     else:
