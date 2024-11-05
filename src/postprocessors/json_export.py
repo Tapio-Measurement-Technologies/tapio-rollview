@@ -7,8 +7,8 @@ import json
 
 EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 
-RESAMPLE_STEP = 0.01
-BAND_PASS_HIGH = 30
+RESAMPLE_STEP = None
+BAND_PASS_HIGH = None
 
 description = "Export to JSON file"
 enabled = False
