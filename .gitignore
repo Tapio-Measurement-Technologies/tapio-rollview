@@ -6,7 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
-# Distribution / packaging
+# Distribution / packagingG
 .Python
 build/
 develop-eggs/
@@ -164,3 +164,11 @@ cython_debug/
 local_settings.py
 Tapio RollView.lnk
 run_tapio_rollview.bat
+
+src/postprocessors/*
+
+!src/postprocessors/__init__.py
+!src/postprocessors/excel_export.py
+!src/postprocessors/json_export.py
+!src/postprocessors/plot_export.py
+
