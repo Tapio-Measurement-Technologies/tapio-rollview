@@ -14,6 +14,8 @@ from PySide6.QtGui import QAction, QFont
 from utils.file_utils import list_prof_files, read_prof_file
 from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
 import os
+from datetime import datetime, timedelta
+
 
 # Assuming Sidebar, Chart, and FileView are implemented elsewhere
 from gui.widgets.sidebar import Sidebar
@@ -22,6 +24,7 @@ from gui.widgets.chart import Chart
 import settings
 
 from gui.settings import SettingsWindow
+
 
 class MainWindow(QMainWindow):
 
@@ -41,12 +44,16 @@ class MainWindow(QMainWindow):
         self.fileView.file_selected.connect(self.on_file_selected)
         self.fileView.files_updated.connect(lambda: self.refresh())
 
-        self.sidebar.directoryView.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
-        self.sidebar.directoryView.treeView.rootIndexChanged.connect(self.on_root_index_changed)
+        self.sidebar.directoryView.treeView.selectionModel(
+        ).currentChanged.connect(self.on_directory_selected)
+        self.sidebar.directoryView.treeView.rootIndexChanged.connect(
+            self.on_root_index_changed)
         self.sidebar.directoryView.treeView.rootIndexChanged.emit()
 
-        centralWidgetLayout.addWidget(self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows
-        centralWidgetLayout.addWidget(self.chart, 0, 1)  # Chart at row 0, column 1
+        centralWidgetLayout.addWidget(
+            self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows
+        centralWidgetLayout.addWidget(
+            self.chart, 0, 1)  # Chart at row 0, column 1
         # FileView at row 1, column 1
         centralWidgetLayout.addWidget(self.fileView, 1, 1)
         centralWidgetLayout.setContentsMargins(0, 0, 0, 0)
@@ -101,7 +108,8 @@ class MainWindow(QMainWindow):
 
         # Add the 'Run postprocessors' item
         run_postprocessors_action = QAction('Run postprocessors', self)
-        run_postprocessors_action.triggered.connect(self.run_postprocessors_for_all_folders)
+        run_postprocessors_action.triggered.connect(
+            self.run_postprocessors_for_all_folders)
         # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
         postprocessors_menu.addAction(run_postprocessors_action)
 
@@ -109,10 +117,12 @@ class MainWindow(QMainWindow):
         """Helper method to create a persistent checkbox menu item."""
         widget = QWidget()
         layout = QVBoxLayout()
-        layout.setContentsMargins(5, 0, 5, 0)  # Reduce margins for better alignment
+        # Reduce margins for better alignment
+        layout.setContentsMargins(5, 0, 5, 0)
         checkbox = QCheckBox(label)
         checkbox.setChecked(checked)
-        checkbox.stateChanged.connect(callback)  # Connect checkbox state change to callback
+        # Connect checkbox state change to callback
+        checkbox.stateChanged.connect(callback)
         layout.addWidget(checkbox)
         widget.setLayout(layout)
 
@@ -134,10 +144,10 @@ class MainWindow(QMainWindow):
         self.chart.update_plot(self.profiles, self.directory_name)
         self.fileView.view.clearSelection()
 
-
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)
-        self.chart.update_plot(self.profiles, self.directory_name, selected=filename)
+        self.chart.update_plot(
+            self.profiles, self.directory_name, selected=filename)
 
     def on_root_index_changed(self):
         index = self.sidebar.directoryView.treeView.rootIndex()
@@ -152,7 +162,34 @@ class MainWindow(QMainWindow):
     def run_postprocessors_for_all_folders(self):
         index = self.sidebar.directoryView.treeView.rootIndex()
         base_dir = self.sidebar.directoryView.model.filePath(index)
-        folder_paths = [os.path.join(base_dir, folder) for folder in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, folder))]
+        folder_paths = [os.path.join(base_dir, folder) for folder in os.listdir(
+            base_dir) if os.path.isdir(os.path.join(base_dir, folder))]
+        run_postprocessors(folder_paths)
+
+    def run_postprocessors_for_all_folders(self):
+        # Get the base directory path
+        index = self.sidebar.directoryView.treeView.rootIndex()
+        base_dir = self.sidebar.directoryView.model.filePath(index)
+
+        # Calculate the recent cutoff date if a cutoff time is defined
+        if settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS is not None:
+            cutoff_date = datetime.now() - \
+                timedelta(days=settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS)
+            cutoff_timestamp = cutoff_date.timestamp()
+        else:
+            cutoff_timestamp = None  # No cutoff if the setting is None
+
+        # Filter folders by modification time if a cutoff is defined
+        folder_paths = [
+            os.path.join(base_dir, folder)
+            for folder in os.listdir(base_dir)
+            if os.path.isdir(os.path.join(base_dir, folder)) and (
+                cutoff_timestamp is None or os.path.getmtime(
+                    os.path.join(base_dir, folder)) > cutoff_timestamp
+            )
+        ]
+
+        # Run postprocessors on the filtered list of folders
         run_postprocessors(folder_paths)
 
     def refresh(self):

@@ -122,10 +122,13 @@ SPECTRUM_WAVELENGTH_TICKS = True
 CONTINUOUS_MODE = False
 UNIT = "BC Hardness [g]"
 
+POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = None
+
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
+
 
 try:
     from local_settings import *
