@@ -173,21 +173,32 @@ class MainWindow(QMainWindow):
 
         # Calculate the recent cutoff date if a cutoff time is defined
         if settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS is not None:
-            cutoff_date = datetime.now() - \
-                timedelta(days=settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS)
+            cutoff_date = datetime.now() - timedelta(days=settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS)
             cutoff_timestamp = cutoff_date.timestamp()
         else:
-            cutoff_timestamp = None  # No cutoff if the setting is None
+            cutoff_timestamp = None
 
-        # Filter folders by modification time if a cutoff is defined
-        folder_paths = [
-            os.path.join(base_dir, folder)
-            for folder in os.listdir(base_dir)
-            if os.path.isdir(os.path.join(base_dir, folder)) and (
-                cutoff_timestamp is None or os.path.getmtime(
-                    os.path.join(base_dir, folder)) > cutoff_timestamp
-            )
-        ]
+        folder_paths = []
+        for folder in os.listdir(base_dir):
+            folder_path = os.path.join(base_dir, folder)
+            if os.path.isdir(folder_path):
+                folder_mtime = os.path.getmtime(folder_path)
+                folder_mod_date = datetime.fromtimestamp(folder_mtime)
+                
+                # Print folder modification date and comparison result
+                print(f"Evaluating folder: {folder}")
+                print(f" - Modification date: {folder_mod_date}")
+                print(f" - Cutoff date: {datetime.fromtimestamp(cutoff_timestamp) if cutoff_timestamp else 'No cutoff'}")
+                if cutoff_timestamp is None or folder_mtime > cutoff_timestamp:
+                    print(" - Included")
+                    folder_paths.append(folder_path)
+                else:
+                    print(" - Excluded")
+
+
+        print("Cutoff")
+        print(cutoff_timestamp)
+        print(folder_paths)
 
         # Run postprocessors on the filtered list of folders
         run_postprocessors(folder_paths)
