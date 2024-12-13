@@ -10,6 +10,7 @@ from gui.widgets.stats import StatsWidget
 import numpy as np
 from utils.profile_stats import Stats, calc_mean_profile
 from scipy.signal import welch
+from utils.zoom_pan import ZoomPan
 import settings
 
 
@@ -29,6 +30,10 @@ class Chart(QWidget):
         else:
             self.profile_ax = self.figure.add_subplot(111)
 
+        zp = ZoomPan()
+        self.zoom = zp.zoom_factory(self.profile_ax, 1.5)
+        self.pan = zp.pan_factory(self.profile_ax)
+
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.mean_profile = []
         self.stats_widget = StatsWidget(self.mean_profile)
@@ -41,6 +46,9 @@ class Chart(QWidget):
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.toolbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
+        self.initial_xlim = None
+        self.initial_ylim = None
+
         self.customize_toolbar()
 
     def customize_toolbar(self):
@@ -50,14 +58,24 @@ class Chart(QWidget):
             if action.iconText() not in icons_to_keep:
                 self.toolbar.removeAction(action)
 
+        # Set custom Home button behavior
+        for action in actions:
+            if action.iconText() == 'Home':
+                action.triggered.connect(self.reset_view)
+
+    def reset_view(self):
+        """Reset the view to the initial state."""
+        if self.initial_xlim and self.initial_ylim:
+            self.profile_ax.set_xlim(self.initial_xlim)
+            self.profile_ax.set_ylim(self.initial_ylim)
+            self.profile_ax.figure.canvas.draw()
+
     def clear(self):
         self.profile_ax.clear()
         self.profile_ax.figure.canvas.draw()  # Ensure the profile plot updates
         if settings.SHOW_SPECTRUM:
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
-
-
 
     def update_plot(self, profiles, directory_name, selected='', show_stats_in_title=False):
         self.clear()
@@ -98,6 +116,9 @@ class Chart(QWidget):
                              label="Mean profile",
                              lw=settings.MEAN_PROFILE_LINE_WIDTH,
                              color=settings.MEAN_PROFILE_LINE_COLOR)
+
+        self.initial_xlim = self.profile_ax.get_xlim()
+        self.initial_ylim = self.profile_ax.get_ylim()
 
         if settings.SHOW_SPECTRUM:
             f, Pxx = welch(mean_profile_values,
