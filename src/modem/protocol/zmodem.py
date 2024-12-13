@@ -112,7 +112,9 @@ class ZMODEM(Modem):
                 # Escape sequence
                 if char & 0x60 == 0x40:
                     return char ^ 0x40
-                break
+
+            # If no valid return condition is met, provide an explicit fallback.
+            return TIMEOUT
 
     def _recv_raw(self, timeout):
         char = self.getc(1, timeout)
