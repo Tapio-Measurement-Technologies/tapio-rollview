@@ -45,8 +45,8 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
         current_distance = 0
 
         for profile in profiles:
-            distances = profile['data'][0]
-            values = profile['data'][1]
+            distances = profile.data.distances
+            values = profile.data.hardnesses
 
             # Adjust distances to be continuous
             distances_adjusted = distances + current_distance
@@ -62,9 +62,14 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
         mean_profile = np.array([all_distances, all_values])
 
     else:
-        min_length = min(profile['data'].shape[1] for profile in profiles)
-        truncated_profiles = [profile['data'][:, :min_length]
-                              for profile in profiles]
+        min_length = min(len(profile.data.distances) for profile in profiles)
+        truncated_profiles = [
+            np.vstack((
+                profile.data.distances[:min_length],
+                profile.data.hardnesses[:min_length]
+            ))
+            for profile in profiles
+        ]
         stacked_profiles = np.stack(truncated_profiles, axis=1)
         mean_profile = np.mean(stacked_profiles, axis=1)
 

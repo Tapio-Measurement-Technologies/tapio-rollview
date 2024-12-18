@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
-from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex
+from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
-from utils.file_utils import get_measurement_distance
 import settings
+import store
 
 PROF_FILE_HEADER_SIZE = 128
 
@@ -14,41 +14,88 @@ class CustomFilterProxyModel(QSortFilterProxyModel):
             return False
         return super().filterAcceptsRow(source_row, source_parent)
 
-
 class CustomFileSystemModel(QFileSystemModel):
     def columnCount(self, parent=QModelIndex()):
-        return super().columnCount(parent) + 1  # Adding one custom column
+        # Original columns: Name(0), Size(1), Type(2), Date Modified(3)
+        # We add two columns: Profile length(4), Hidden state(5)
+        return super().columnCount(parent) + 2
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
 
-        if index.column() == 3:  # Original timestamp column
-            if role == Qt.ItemDataRole.DisplayRole:
-                if settings.CUSTOM_DATE_FORMAT:
-                    file_info = self.fileInfo(index)
-                    timestamp = file_info.lastModified()
-                    # Convert QDateTime to Python's datetime
-                    py_datetime = timestamp.toPython()
-                    # Format using Python's strftime
-                    formatted_timestamp = py_datetime.strftime(settings.CUSTOM_DATE_FORMAT)
-                    return formatted_timestamp
-                else:
-                    return super().data(index, role)
+        column = index.column()
 
-        if index.column() == 4:  # Custom column index (starting from 0)
+        # Handle original timestamp column
+        if column == 3 and role == Qt.ItemDataRole.DisplayRole:
+            if settings.CUSTOM_DATE_FORMAT:
+                file_info = self.fileInfo(index)
+                timestamp = file_info.lastModified()
+                py_datetime = timestamp.toPython()
+                formatted_timestamp = py_datetime.strftime(settings.CUSTOM_DATE_FORMAT)
+                return formatted_timestamp
+            else:
+                return super().data(index, role)
+
+        # Profile length column
+        if column == 4:
             if role == Qt.ItemDataRole.DisplayRole:
                 file_info = self.fileInfo(index)
                 file_path = file_info.filePath()
-                prof_len = get_measurement_distance(file_path)
+                profile = store.get_profile_by_filename(file_path)
+                prof_len = profile.profile_length
                 return f"{prof_len:.2f} m"
+
+        # Hidden state checkbox column
+        if column == 5:
+            file_info = self.fileInfo(index)
+            file_path = file_info.filePath()
+            profile = store.get_profile_by_filename(file_path)
+
+            if role == Qt.ItemDataRole.CheckStateRole:
+                # Previously: Checked if hidden. Now we invert.
+                # Checked means show => if hidden = False, Checked; if hidden = True, Unchecked
+                return Qt.CheckState.Checked if not profile.hidden else Qt.CheckState.Unchecked
+            elif role == Qt.ItemDataRole.DisplayRole:
+                return ""
+
         return super().data(index, role)
+
+    def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
+        if not index.isValid():
+            return False
+
+        column = index.column()
+
+        # Handle checkbox toggling: checked means show (hidden = False)
+        if column == 5 and role == Qt.ItemDataRole.CheckStateRole:
+            file_info = self.fileInfo(index)
+            file_path = file_info.filePath()
+            profile = store.get_profile_by_filename(file_path)
+            # If checkbox is checked => show => hidden = False
+            # If checkbox is unchecked => do not show => hidden = True
+            hidden = (value == Qt.CheckState.Unchecked.value)
+            profile.hidden = hidden
+            self.dataChanged.emit(index, index, [Qt.ItemDataRole.CheckStateRole])
+            return True
+
+        return super().setData(index, value, role)
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
-            if section == 4:  # Custom column index
+            if section == 4:
                 return "Profile length"
+            elif section == 5:
+                return ""
         return super().headerData(section, orientation, role)
+
+    def flags(self, index):
+        fl = super().flags(index)
+        if index.column() == 5:
+            # Make the 'Hidden' column checkable
+            fl |= Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEditable
+        return fl
+
 
 class FileTreeView(ContextMenuTreeView):
     selectionCleared = Signal()
@@ -102,19 +149,23 @@ class FileView(QWidget):
 
         # Hide file type column
         for i in range(0, self.model.columnCount()):
-            if i in [2]:
+            if i == 2:
                 self.view.setColumnHidden(i, True)
 
-        self.view.setColumnWidth(0, 160)
-        self.view.setColumnWidth(1, 80)
-        self.view.setColumnWidth(3, 160)
-        self.view.setColumnWidth(4, 80)
+        # Adjust column widths
+        self.view.setColumnWidth(0, 160)  # Name
+        self.view.setColumnWidth(1, 80)   # Size
+        self.view.setColumnWidth(3, 160)  # Date
+        self.view.setColumnWidth(4, 80)   # Profile Length
+        self.view.setColumnWidth(5, 10)   # Checkbox
+
+        # Move the checkbox column to first position
+        header_view = self.view.header()
+        header_view.moveSection(5, 0)
 
         layout.addWidget(self.view)
 
-        self.model.rowsInserted.connect(self.on_files_updated)
         self.model.dataChanged.connect(self.on_files_updated)
-        self.model.rowsRemoved.connect(self.on_files_updated)
 
     def set_directory(self, path):
         self.model.setRootPath(path)
@@ -125,7 +176,8 @@ class FileView(QWidget):
         indexes = selected.indexes()
         if len(indexes):
             selected = indexes[0]
-            file_path = self.proxy_model.mapToSource(selected).data()
+            source_index = self.proxy_model.mapToSource(selected)
+            file_path = self.model.filePath(source_index)
             self.file_selected.emit(file_path)
 
     def on_files_updated(self, **args):

@@ -77,7 +77,7 @@ class DirectoryView(QWidget):
 class CustomFileSystemModel(QFileSystemModel):
     def data(self, index: QModelIndex, role: int):
         # Use the standard data method for most roles
-        if role == Qt.DisplayRole and index.column() == 3:  # Assuming column 3 is "Date Modified"
+        if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:  # Assuming column 3 is "Date Modified"
             file_path = self.filePath(index)
             # Calculate the latest modified date for this directory
             latest_modified_date = self.get_latest_modified_date(file_path)

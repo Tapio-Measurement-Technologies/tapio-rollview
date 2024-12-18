@@ -8,6 +8,9 @@ from PySide6.QtCore import QDir
 PROF_FILE_HEADER_SIZE = 128
 
 def get_sample_step_mm(prof_file_path):
+    """
+    DEPRECATED, use functions in models/Profile.py
+    """
     file_size = os.path.getsize(prof_file_path)
     if file_size < 128:
         print(f"Error reading sample step for '{prof_file_path}', invalid file header")
@@ -22,12 +25,18 @@ def get_sample_step_mm(prof_file_path):
         return sample_step
 
 def get_measurement_distance(prof_file_path):
+    """
+    DEPRECATED, use functions in models/Profile.py
+    """
     file_size = os.path.getsize(prof_file_path)
     sample_step_mm = get_sample_step_mm(prof_file_path)
     distance = ((file_size - PROF_FILE_HEADER_SIZE) / 4) * (sample_step_mm / 1000)
     return distance
 
 def read_prof_header(file_path):
+    """
+    DEPRECATED, use functions in models/Profile.py
+    """
     with open(file_path, 'rb') as file:
         prof_version    = file.read(4)
         serial_number   = file.read(32)
@@ -47,7 +56,10 @@ def read_prof_header(file_path):
             return None
 
 def read_prof_file(file_path):
-    directory_name = os.path.basename(file_path)
+    """
+    DEPRECATED, use functions in models/Profile.py
+    """
+    basename = os.path.basename(file_path)
     hardnesses = []
 
     sample_step_mm = get_sample_step_mm(file_path)
@@ -78,13 +90,15 @@ def read_prof_file(file_path):
     if sample_step > 0 and len(hardnesses) > 0:
         distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
         data = np.array([distances, hardnesses])
+        print(data)
     else:
         print(f"Invalid sample step in file '{file_path}'")
         data = None
 
     return {
-        "name": directory_name,
-        "data": data
+        "name": file_path,
+        "data": data,
+        "hidden": False
     }
 
 def open_in_file_explorer(folder_path):

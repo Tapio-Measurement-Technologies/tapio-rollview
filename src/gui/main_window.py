@@ -10,8 +10,8 @@
 
 
 from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel
-from PySide6.QtGui import QAction, QFont
-from utils.file_utils import list_prof_files, read_prof_file
+from PySide6.QtGui import QAction
+from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
 import os
 from datetime import datetime, timedelta
@@ -21,7 +21,9 @@ from datetime import datetime, timedelta
 from gui.widgets.sidebar import Sidebar
 from gui.widgets.FileView import FileView
 from gui.widgets.chart import Chart
+from models.Profile import Profile
 import settings
+import store
 
 from gui.settings import SettingsWindow
 
@@ -84,7 +86,14 @@ class MainWindow(QMainWindow):
             self.sidebar.serialView.view.model.show_all_com_ports,
             self.on_show_all_com_ports_changed
         )
+        recalculate_mean_checkbox = self.create_checkbox_menu_item(
+            'Recalculate mean on profile show/hide',
+            view_menu,
+            store.recalculate_mean,
+            self.on_recalculate_mean_changed
+        )
         view_menu.addAction(show_all_com_ports_checkbox)
+        view_menu.addAction(recalculate_mean_checkbox)
 
         postprocessors_menu = menu_bar.addMenu('Postprocessors')
 
@@ -134,20 +143,33 @@ class MainWindow(QMainWindow):
     def on_show_all_com_ports_changed(self, checked):
         self.sidebar.serialView.view.model.setFilter(checked)
 
+    def on_recalculate_mean_changed(self, checked):
+        store.recalculate_mean = checked
+        self.refresh()
+
     def on_directory_selected(self, current, previous):
         path = self.sidebar.directoryView.model.filePath(current)
         self.directory_name = os.path.basename(path)
+        store.selected_directory = path
         print(path)
-        self.fileView.set_directory(path)
-        files = list_prof_files(path)
-        self.profiles = [read_prof_file(fn) for fn in files]
-        self.chart.update_plot(self.profiles, self.directory_name)
-        self.fileView.view.clearSelection()
+        self.load_directory(store.selected_directory)
+        self.chart.update_plot(store.profiles, self.directory_name)
+
+    def load_directory(self, dir_path = None):
+        if not dir_path:
+            dir_path = store.selected_directory
+        files = list_prof_files(store.selected_directory)
+        profiles = [ Profile.fromfile(filename) for filename in files ]
+        store.profiles = profiles
+        self.fileView.set_directory(dir_path)
 
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)
         self.chart.update_plot(
-            self.profiles, self.directory_name, selected=filename)
+            store.profiles, self.directory_name, selected=filename)
+
+    def on_files_updated(self):
+        self.chart.update_plot(store.profiles, self.directory_name)
 
     def on_root_index_changed(self):
         index = self.sidebar.directoryView.treeView.rootIndex()
@@ -184,7 +206,7 @@ class MainWindow(QMainWindow):
             if os.path.isdir(folder_path):
                 folder_mtime = os.path.getmtime(folder_path)
                 folder_mod_date = datetime.fromtimestamp(folder_mtime)
-                
+
                 # Print folder modification date and comparison result
                 print(f"Evaluating folder: {folder}")
                 print(f" - Modification date: {folder_mod_date}")
@@ -205,5 +227,4 @@ class MainWindow(QMainWindow):
 
     def refresh(self):
         currentIndex = self.sidebar.directoryView.treeView.selectionModel().currentIndex()
-        self.on_directory_selected(currentIndex, None)
-        self.chart.update_plot(self.profiles, self.directory_name)
+        self.on_files_updated()

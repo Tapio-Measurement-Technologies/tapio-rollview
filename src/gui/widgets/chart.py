@@ -11,7 +11,9 @@ import numpy as np
 from utils.profile_stats import Stats, calc_mean_profile
 from scipy.signal import welch
 from utils.zoom_pan import ZoomPan
+from models.Profile import Profile
 import settings
+import store
 
 
 class Chart(QWidget):
@@ -77,13 +79,13 @@ class Chart(QWidget):
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
 
-    def update_plot(self, profiles, directory_name, selected='', show_stats_in_title=False):
+    def update_plot(self, profiles: list[Profile], directory_name, selected='', show_stats_in_title=False):
         self.clear()
         self.figure.suptitle(directory_name)
         self.figure.canvas.draw()
 
         # Filter empty profiles
-        self.profiles = [profile for profile in profiles if profile['data'] is not None]
+        self.profiles = [profile for profile in profiles if profile.data is not None]
         self.directory_name = directory_name
         self.selected_file = selected
         self.profile_ax.set_ylabel(settings.UNIT)
@@ -91,23 +93,31 @@ class Chart(QWidget):
         previous_distance = 0
         for profile in self.profiles:
 
-            distances = np.array(profile['data'][0]) + previous_distance
+            distances = np.array(profile.data.distances) + previous_distance
+            hardnesses = profile.data.hardnesses
             if settings.CONTINUOUS_MODE:
                 previous_distance = distances[-1] + (1 / settings.SAMPLE_INTERVAL)
 
+            linestyle = 'solid'
+            if profile.hidden:
+                linestyle = 'None'
+
             if selected:  # Highlight selected profile
-                if profile['name'] == selected:
+                if profile.name == selected:
 
                     self.profile_ax.plot(distances,
-                                         profile['data'][1],
+                                         hardnesses,
                                          alpha=0.6,
                                          lw=settings.SELECTED_PROFILE_LINE_WIDTH,
+                                         linestyle=linestyle,
                                          zorder=np.inf)
                 else:
-                    self.profile_ax.plot(distances, profile['data'][1], alpha=0.2)
+                    self.profile_ax.plot(distances, hardnesses, alpha=0.2, linestyle=linestyle)
             else:
-                self.profile_ax.plot(distances, profile['data'][1], alpha=0.5)
+                self.profile_ax.plot(distances, hardnesses, alpha=0.5, linestyle=linestyle)
 
+        if store.recalculate_mean:
+            self.profiles = [ profile for profile in self.profiles if not profile.hidden ]
         mean_profile_distances, mean_profile_values = calc_mean_profile(self.profiles)
         self.mean_profile = mean_profile_values
 
