@@ -46,11 +46,13 @@ class MainWindow(QMainWindow):
         self.fileView.file_selected.connect(self.on_file_selected)
         self.fileView.files_updated.connect(lambda: self.refresh())
 
-        self.sidebar.directoryView.treeView.selectionModel(
-        ).currentChanged.connect(self.on_directory_selected)
-        self.sidebar.directoryView.treeView.rootIndexChanged.connect(
-            self.on_root_index_changed)
-        self.sidebar.directoryView.treeView.rootIndexChanged.emit()
+        self.sidebar.directoryView.directory_selected.connect(self.on_directory_selected)
+        self.sidebar.directoryView.root_directory_changed.connect(
+            self.on_root_directory_changed)
+        self.sidebar.directoryView.directory_contents_changed.connect(
+            self.on_directory_contents_changed
+        )
+        # self.sidebar.directoryView.treeView.rootIndexChanged.emit()
 
         centralWidgetLayout.addWidget(
             self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows
@@ -147,15 +149,14 @@ class MainWindow(QMainWindow):
         store.recalculate_mean = checked
         self.refresh()
 
-    def on_directory_selected(self, current, previous):
-        path = self.sidebar.directoryView.model.filePath(current)
-        self.directory_name = os.path.basename(path)
-        store.selected_directory = path
-        print(path)
-        self.load_directory(store.selected_directory)
+    def on_directory_selected(self, directory):
+        self.directory_name = os.path.basename(directory)
+        store.selected_directory = directory
+        print(directory)
+        self.load_profiles(store.selected_directory)
         self.chart.update_plot(store.profiles, self.directory_name)
 
-    def load_directory(self, dir_path = None):
+    def load_profiles(self, dir_path = None):
         if not dir_path:
             dir_path = store.selected_directory
         files = list_prof_files(store.selected_directory)
@@ -168,13 +169,15 @@ class MainWindow(QMainWindow):
         self.chart.update_plot(
             store.profiles, self.directory_name, selected=filename)
 
+    def on_directory_contents_changed(self):
+        # Reload the selected directory and redraw plot
+        self.on_directory_selected(store.selected_directory)
+
     def on_files_updated(self):
         self.chart.update_plot(store.profiles, self.directory_name)
 
-    def on_root_index_changed(self):
-        index = self.sidebar.directoryView.treeView.rootIndex()
-        path = self.sidebar.directoryView.model.filePath(index)
-        self.sidebar.serialView.syncFolder = path
+    def on_root_directory_changed(self, directory):
+        self.sidebar.serialView.syncFolder = directory
 
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
@@ -182,16 +185,8 @@ class MainWindow(QMainWindow):
         self.settings_window.show()
 
     def run_postprocessors_for_all_folders(self):
-        index = self.sidebar.directoryView.treeView.rootIndex()
-        base_dir = self.sidebar.directoryView.model.filePath(index)
-        folder_paths = [os.path.join(base_dir, folder) for folder in os.listdir(
-            base_dir) if os.path.isdir(os.path.join(base_dir, folder))]
-        run_postprocessors(folder_paths)
-
-    def run_postprocessors_for_all_folders(self):
         # Get the base directory path
-        index = self.sidebar.directoryView.treeView.rootIndex()
-        base_dir = self.sidebar.directoryView.model.filePath(index)
+        base_dir = store.selected_directory
 
         # Calculate the recent cutoff date if a cutoff time is defined
         if settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS is not None:
@@ -226,5 +221,4 @@ class MainWindow(QMainWindow):
         run_postprocessors(folder_paths)
 
     def refresh(self):
-        currentIndex = self.sidebar.directoryView.treeView.selectionModel().currentIndex()
         self.on_files_updated()
