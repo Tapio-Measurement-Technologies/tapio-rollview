@@ -18,6 +18,29 @@ class ProfileData:
     distances: NDArray
     hardnesses: NDArray
 
+    @classmethod
+    def frombytes(cls, data: bytes, sample_step):
+        hardnesses = []
+        offset = 0
+
+        # Read hardness values until we run out of data
+        while offset + 4 <= len(data):
+            chunk = data[offset:offset+4]
+            hardness = struct.unpack('f', chunk)[0]
+            hardnesses.append(hardness)
+            offset += 4
+
+        # Generate distances if we have valid sample step and hardness data
+        if sample_step > 0 and len(hardnesses) > 0:
+            # Calculate the total distance traveled
+            current_distance = sample_step * len(hardnesses)
+            # Create a distance array from 0 to current_distance in steps of sample_step
+            distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
+            return cls(distances=distances, hardnesses=hardnesses)
+        else:
+            print("Invalid sample step or no hardness values in data.")
+            return None
+
     @property
     def x(self):
         return self.distances
@@ -33,7 +56,7 @@ class ProfileHeader:
     sample_step: float  # Sample step in millimeters
 
     @classmethod
-    def parse(cls, data: bytes):
+    def frombytes(cls, data: bytes):
         # Ensure the data is at least long enough to contain the expected header fields
         if len(data) != PROF_FILE_HEADER_SIZE:
             print(f"Invalid header size (actual {len(data)} != expected {PROF_FILE_HEADER_SIZE})")
@@ -65,7 +88,7 @@ class ProfileHeader:
 @dataclass
 class Profile:
     path: str
-    data: ProfileData
+    data: ProfileData | None
     header: ProfileHeader
     file_size: int
     date_modified: float
@@ -79,32 +102,12 @@ class Profile:
 
         with open(file_path, 'rb') as file:
             header_data = file.read(128)
-            header = ProfileHeader.parse(header_data)
+            header = ProfileHeader.frombytes(header_data)
             if not header:
                 return None
-            sample_step = header.sample_step / 1000.0
-            current_distance = 0.0
-            hardnesses = []
-
-            while True:
-                # Read the hardness value (4 bytes for a float)
-                hardness_data = file.read(4)
-                if len(hardness_data) < 4:
-                    break
-
-                hardness = struct.unpack('f', hardness_data)[0]
-                # Append the current distance and hardness to the lists
-                hardnesses.append(hardness)
-                # Update the distance for the next sample
-                current_distance += sample_step
-
-        # Generate distances based on the number of samples and the sample step
-        if sample_step > 0 and len(hardnesses) > 0:
-            distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
-            data = ProfileData(distances=distances, hardnesses=hardnesses)
-        else:
-            print(f"Invalid sample step in file '{file_path}'")
-            data = None
+            sample_step = header.sample_step / 1000.0   # mm -> m
+            profile_data = file.read()
+            data = ProfileData.frombytes(profile_data, sample_step)
 
         return cls(
             path=file_path,
