@@ -43,7 +43,9 @@ class DirectoryView(QWidget):
             self.treeView.setRootIndex(self.model.index(QDir.homePath()))
 
         # Sort the folders by custom modified date
-        self.model.sort(3, Qt.SortOrder.DescendingOrder)
+        self.treeView.setSortingEnabled(True)
+        self.treeView.header().setSortIndicatorShown(True)
+        self.treeView.sortByColumn(3, Qt.SortOrder.DescendingOrder)
 
         self.openDirButton = QPushButton("Open in file explorer")
         self.openDirButton.clicked.connect(self.open_directory)

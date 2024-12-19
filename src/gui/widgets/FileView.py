@@ -43,6 +43,8 @@ class CustomFileSystemModel(QFileSystemModel):
                 file_info = self.fileInfo(index)
                 file_path = file_info.filePath()
                 profile = store.get_profile_by_filename(file_path)
+                if not profile:
+                    return "--"
                 prof_len = profile.profile_length
                 return f"{prof_len:.2f} m"
 
@@ -53,7 +55,8 @@ class CustomFileSystemModel(QFileSystemModel):
             profile = store.get_profile_by_filename(file_path)
 
             if role == Qt.ItemDataRole.CheckStateRole:
-                # Previously: Checked if hidden. Now we invert.
+                if not profile:
+                    return Qt.CheckState.Checked
                 # Checked means show => if hidden = False, Checked; if hidden = True, Unchecked
                 return Qt.CheckState.Checked if not profile.hidden else Qt.CheckState.Unchecked
             elif role == Qt.ItemDataRole.DisplayRole:
@@ -145,6 +148,9 @@ class FileView(QWidget):
         self.view = FileTreeView(self.proxy_model)
         self.view.setRootIndex(self.proxy_model.mapFromSource(self.model.index(QDir.currentPath())))
         self.view.selectionModel().selectionChanged.connect(self.on_file_selected)
+        self.view.setSortingEnabled(True)
+        self.view.header().setSortIndicatorShown(True)
+        self.view.sortByColumn(3, Qt.SortOrder.DescendingOrder)
         self.view.selectionCleared.connect(self.on_selection_cleared)
 
         # Hide file type column
@@ -170,7 +176,6 @@ class FileView(QWidget):
     def set_directory(self, path):
         self.model.setRootPath(path)
         self.view.setRootIndex(self.proxy_model.mapFromSource(self.model.index(path)))
-        self.model.sort(3, Qt.SortOrder.DescendingOrder)
 
     def on_file_selected(self, selected, deselected):
         indexes = selected.indexes()
@@ -181,7 +186,6 @@ class FileView(QWidget):
             self.file_selected.emit(file_path)
 
     def on_files_updated(self, **args):
-        self.model.sort(3, Qt.SortOrder.DescendingOrder)
         self.files_updated.emit()
 
     def on_selection_cleared(self):
