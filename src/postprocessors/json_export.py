@@ -1,6 +1,6 @@
-from utils.file_utils import read_prof_header, read_prof_file
 from utils.profile_stats import calc_mean_profile
 from utils.profile_stats import Stats
+from models.Profile import Profile
 import numpy as np
 import os
 import json
@@ -33,19 +33,20 @@ def run(folder_path) -> bool:
             file_path = os.path.join(folder_path, file_name)
 
             try:
-                header = read_prof_header(file_path)
-                data = read_prof_file(file_path)
-                if data['data'] is not None:
-                    profiles.append(data)
+                profile = Profile.fromfile(file_path)
+                header = profile.header
+                data = profile.data
+                if data is not None:
+                    profiles.append(profile)
 
                 json_data = {
                     'roll_id':            folder_name,
                     'type':               'measurement',
-                    'device_sn':          header['serial_number'],
-                    'prof_file_version':  header['prof_version'],
-                    'sample_step':        header['sample_step'],
-                    'distances':          np.round(data['data'][0], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
-                    'values':             np.round(data['data'][1], EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist()
+                    'device_sn':          header.serial_number,
+                    'prof_file_version':  header.prof_version,
+                    'sample_step':        header.sample_step,
+                    'distances':          np.round(data.distances, EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
+                    'values':             np.round(data.hardnesses, EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist()
                 }
 
                 json_filename = f"{os.path.splitext(file_path)[0]}.json"

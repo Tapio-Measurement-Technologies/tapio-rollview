@@ -1,5 +1,5 @@
 from gui.widgets.chart import Chart
-from utils.file_utils import read_prof_file
+from models.Profile import Profile
 import os
 
 description = "Export plot image"
@@ -42,8 +42,8 @@ def run(folder_path) -> bool:
             file_path = os.path.join(folder_path, file_name)
 
             try:
-                data = read_prof_file(file_path)
-                profiles.append(data)
+                profile = Profile.fromfile(file_path)
+                profiles.append(profile)
             except Exception as e:
                 print(f"Error reading {file_path}: {e}")
                 continue

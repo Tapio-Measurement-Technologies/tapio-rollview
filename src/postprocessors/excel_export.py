@@ -1,5 +1,5 @@
-from utils.file_utils import read_prof_header, read_prof_file
 from utils.profile_stats import calc_mean_profile
+from models.Profile import Profile
 import pandas as pd
 import numpy as np
 import os
@@ -56,19 +56,20 @@ def run(folder_path) -> bool:
             file_path = os.path.join(folder_path, file_name)
 
             try:
-                header = read_prof_header(file_path)
-                data = read_prof_file(file_path)
-                if data['data'] is not None:
-                    profiles.append(data)
+                profile = Profile.fromfile(file_path)
+                header = profile.header
+                data = profile.data
+                if data is not None:
+                    profiles.append(profile)
                 columns = {
-                    'Distance': np.round(data['data'][0], EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                    'Hardness': np.round(data['data'][1], EXPORT_FLOAT_NUM_DECIMAL_PLACES)
+                    'Distance': np.round(data.distances, EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                    'Hardness': np.round(data.hardnesses, EXPORT_FLOAT_NUM_DECIMAL_PLACES)
                 }
                 df = pd.DataFrame(columns)
                 df.loc[0, 'Roll ID']            = folder_name
-                df.loc[0, 'Sample step']        = header['sample_step']
-                df.loc[0, 'Serial number']      = header['serial_number']
-                df.loc[0, '.prof file version'] = header['prof_version']
+                df.loc[0, 'Sample step']        = header.sample_step
+                df.loc[0, 'Serial number']      = header.serial_number
+                df.loc[0, '.prof file version'] = header.prof_version
 
                 sheets.append((df, file_name))
             except Exception as e:
