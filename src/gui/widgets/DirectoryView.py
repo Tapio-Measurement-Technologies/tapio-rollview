@@ -5,7 +5,16 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import QDir, Qt, QModelIndex, QDateTime, QSortFilterProxyModel, Signal, QFileSystemWatcher
+from PySide6.QtCore import (
+    QDir,
+    Qt,
+    QModelIndex,
+    QDateTime,
+    QSortFilterProxyModel,
+    Signal,
+    QFileSystemWatcher,
+    QItemSelectionModel
+)
 from settings import DEFAULT_ROLL_DIRECTORY
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.file_utils import open_in_file_explorer
@@ -51,6 +60,8 @@ class DirectoryView(QWidget):
             print("Failed to create folder!")
             self.treeView.setRootIndex(self.proxy_model.mapFromSource(self.model.index(QDir.currentPath())))
 
+        self.model.directoryLoaded.connect(self.select_first_directory)
+
         # Sort the folders by custom modified date
         self.treeView.setSortingEnabled(True)
         self.treeView.header().setSortIndicatorShown(True)
@@ -92,6 +103,21 @@ class DirectoryView(QWidget):
         for entry in os.scandir(directory):
             if entry.is_dir():
                 self.watcher.addPath(entry.path)
+
+    def select_first_directory(self):
+        # Get the first child of the current root index
+        root_index = self.treeView.rootIndex()
+        if root_index.isValid():
+            first_child = self.treeView.model().index(0, 0, root_index)
+            if first_child.isValid():
+                self.treeView.selectionModel().select(
+                    first_child,
+                    QItemSelectionModel.SelectionFlag.Select |
+                    QItemSelectionModel.SelectionFlag.Current |
+                    QItemSelectionModel.SelectionFlag.Rows
+                )
+                # Emit the signal for the newly selected directory
+                self.on_directory_selected(self.treeView.selectionModel().selection(), None)
 
     def open_directory(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())

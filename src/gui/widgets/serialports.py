@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt
 from models.SerialPort import SerialPortModel
 from gui.filetransferdialog import FileTransferDialog
 from utils.serial import FileTransferManager, scan_ports, SerialPortItem
+import store
 
 class SerialPortView(QListView):
     def __init__(self, parent=None):
@@ -53,8 +54,6 @@ class SerialWidget(QWidget):
         self.transferManager = FileTransferManager()
         self.transferDialog = FileTransferDialog(self.transferManager)
 
-        self.syncFolder = None
-
         self.scan_thread = None
 
         # Arrange the tree view and button in a vertical layout
@@ -81,7 +80,8 @@ class SerialWidget(QWidget):
         self.scanButton.setDisabled(False)
 
     def sync_data(self):
+        sync_folder = store.root_directory
         self.transferDialog.show()
         port = self.view.model.getSelectedPort().port.device
         if port:
-            self.transferManager.start_transfer(port, self.syncFolder, self.transferDialog.on_complete)
+            self.transferManager.start_transfer(port, sync_folder, self.transferDialog.on_complete)

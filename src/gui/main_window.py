@@ -52,7 +52,8 @@ class MainWindow(QMainWindow):
         self.sidebar.directoryView.directory_contents_changed.connect(
             self.on_directory_contents_changed
         )
-        # self.sidebar.directoryView.treeView.rootIndexChanged.emit()
+
+        ## TODO: do not load the folder in directory view, do it here
 
         centralWidgetLayout.addWidget(
             self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows
@@ -177,7 +178,7 @@ class MainWindow(QMainWindow):
         self.chart.update_plot(store.profiles, self.directory_name)
 
     def on_root_directory_changed(self, directory):
-        self.sidebar.serialView.syncFolder = directory
+        store.root_directory = directory
 
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
@@ -186,7 +187,7 @@ class MainWindow(QMainWindow):
 
     def run_postprocessors_for_all_folders(self):
         # Get the base directory path
-        base_dir = store.selected_directory
+        base_dir = store.root_directory
 
         # Calculate the recent cutoff date if a cutoff time is defined
         if settings.POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS is not None:
