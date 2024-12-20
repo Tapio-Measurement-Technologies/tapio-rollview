@@ -58,6 +58,10 @@ class DirectoryView(QWidget):
         self.treeView.header().setSortIndicatorShown(True)
         self.treeView.sortByColumn(3, Qt.SortOrder.DescendingOrder)
 
+        # Disable expanding tree view items
+        self.treeView.setItemsExpandable(False)
+        self.treeView.setExpandsOnDoubleClick(False)
+
         self.openDirButton = QPushButton("Open in file explorer")
         self.openDirButton.clicked.connect(self.open_directory)
 
