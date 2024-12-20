@@ -7,7 +7,6 @@ import os
 EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 
 description = "Export to Excel file"
-enabled = True
 
 def run(folder_path) -> bool:
     """

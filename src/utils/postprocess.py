@@ -2,13 +2,16 @@ from PySide6.QtCore import QThread, Signal
 from gui.widgets.messagebox import show_info_msgbox, show_warn_msgbox
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.dynamic_loader import load_modules_from_folder
+from utils import preferences
 import os
 
+thread = None
 base_path = os.path.dirname(os.path.abspath(__file__))
 postprocessors = load_modules_from_folder(os.path.abspath(
     os.path.join(base_path, os.pardir, 'postprocessors')))
-thread = None
 
+for module_name, postprocessor in postprocessors.items():
+    postprocessor.enabled = module_name in preferences.enabled_postprocessors
 
 class PostprocessThread(QThread):
     now_processing = Signal(str, str)  # folder name, postprocessor name
@@ -51,6 +54,12 @@ def toggle_postprocessor(postprocessor_module):
         print(f"Enabled postprocessor '{postprocessor_module.description}'")
     else:
         print(f"Disabled postprocessor '{postprocessor_module.description}'")
+    enabled_postprocessors = [
+        module_name
+        for module_name, postprocessor in postprocessors.items()
+        if postprocessor.enabled
+    ]
+    preferences.update_enabled_postprocessors(enabled_postprocessors)
 
 
 def run_postprocessors(folder_paths):

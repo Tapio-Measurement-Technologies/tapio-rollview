@@ -13,8 +13,6 @@ def load_modules_from_folder(folder_path):
                 spec.loader.exec_module(module)
                 if hasattr(module, 'description') and callable(getattr(module, 'description', None)):
                     module.description = module.description()
-                if hasattr(module, 'enabled'):
-                    module.enabled = module.enabled
                 modules[module_name] = module
                 print(f"Loaded postprocessor '{module_name}'")
     except Exception as e:

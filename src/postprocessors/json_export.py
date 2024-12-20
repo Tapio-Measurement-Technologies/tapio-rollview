@@ -11,7 +11,6 @@ RESAMPLE_STEP = None
 BAND_PASS_HIGH = None
 
 description = "Export to JSON file"
-enabled = False
 
 
 def resample_profile(distances, values, resample_step):

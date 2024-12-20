@@ -5,10 +5,12 @@ import json
 preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE_PATH)
 
 alert_limits = settings.ALERT_LIMITS_DEFAULT
+enabled_postprocessors = settings.DEFAULT_ENABLED_POSTPROCESSORS
 
 def save_preferences_to_file():
   preferences = {
-    "alert_limits": alert_limits
+    "alert_limits": alert_limits,
+    "enabled_postprocessors": enabled_postprocessors
   }
   try:
     with open(preferences_file_path, 'w') as file:
@@ -22,6 +24,11 @@ def update_alert_limits(new_limits):
   alert_limits = new_limits
   save_preferences_to_file()
 
+def update_enabled_postprocessors(new_enabled_postprocessors):
+  global enabled_postprocessors
+  enabled_postprocessors = new_enabled_postprocessors
+  save_preferences_to_file()
+
 
 ## Initialize preferences
 try:
@@ -30,6 +37,8 @@ try:
 
     if 'alert_limits' in preferences:
       alert_limits = preferences['alert_limits']
+    if 'enabled_postprocessors' in preferences:
+      enabled_postprocessors = preferences['enabled_postprocessors']
 
 except FileNotFoundError:
   save_preferences_to_file()

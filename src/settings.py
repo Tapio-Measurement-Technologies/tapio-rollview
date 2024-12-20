@@ -31,6 +31,11 @@ FILTER_NUMTAPS = 50
 BAND_PASS_LOW = 0
 BAND_PASS_HIGH = 30
 
+DEFAULT_ENABLED_POSTPROCESSORS = [
+    'excel_export',
+    'plot_export'
+]
+
 ALERT_LIMITS_DEFAULT = [
     {
         "name": "mean_g",

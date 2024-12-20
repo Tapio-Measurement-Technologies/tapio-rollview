@@ -3,7 +3,6 @@ from models.Profile import Profile
 import os
 
 description = "Export plot image"
-enabled = True
 
 def run(folder_path) -> bool:
     """
