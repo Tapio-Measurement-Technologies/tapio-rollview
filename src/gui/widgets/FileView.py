@@ -121,10 +121,6 @@ class FileTreeView(ContextMenuTreeView):
             super().mousePressEvent(event)
             self.last_index = index
 
-    def set_directory(self, path):
-        self.model().setRootPath(path)
-        self.setRootIndex(self.model().index(path))
-
 class FileView(QWidget):
     file_selected = Signal(str)
     files_updated = Signal()
@@ -137,7 +133,6 @@ class FileView(QWidget):
         self.setLayout(layout)
 
         self.model = CustomFileSystemModel()
-        self.model.setRootPath(QDir.currentPath())
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.Files)
         self.model.setNameFilters(["*.prof"])  # Set the filter for .prof files
         self.model.setNameFilterDisables(False)  # Enable the name filter
@@ -146,11 +141,11 @@ class FileView(QWidget):
         self.proxy_model.setSourceModel(self.model)
 
         self.view = FileTreeView(self.proxy_model)
-        self.view.setRootIndex(self.proxy_model.mapFromSource(self.model.index(QDir.currentPath())))
-        self.view.selectionModel().selectionChanged.connect(self.on_file_selected)
         self.view.setSortingEnabled(True)
         self.view.header().setSortIndicatorShown(True)
         self.view.sortByColumn(3, Qt.SortOrder.DescendingOrder)
+
+        self.view.selectionModel().selectionChanged.connect(self.on_file_selected)
         self.view.selectionCleared.connect(self.on_selection_cleared)
 
         # Hide file type column
@@ -174,8 +169,16 @@ class FileView(QWidget):
         self.model.dataChanged.connect(self.on_files_updated)
 
     def set_directory(self, path):
+        if not path:
+            return
         self.model.setRootPath(path)
-        self.view.setRootIndex(self.proxy_model.mapFromSource(self.model.index(path)))
+        root_index = self.proxy_model.mapFromSource(self.model.index(path))
+        if not root_index.isValid():
+            print("Invalid index encountered in FileView!")
+            print(f"\tIndex: {root_index}")
+            print(f"\tPath: '{path}'")
+            return
+        self.view.setRootIndex(root_index)
 
     def on_file_selected(self, selected, deselected):
         indexes = selected.indexes()

@@ -97,17 +97,22 @@ class DirectoryView(QWidget):
     def select_first_directory(self):
         # Get the first child of the current root index
         root_index = self.treeView.rootIndex()
-        if root_index.isValid():
-            first_child = self.treeView.model().index(0, 0, root_index)
-            if first_child.isValid():
-                self.treeView.selectionModel().select(
-                    first_child,
-                    QItemSelectionModel.SelectionFlag.Select |
-                    QItemSelectionModel.SelectionFlag.Current |
-                    QItemSelectionModel.SelectionFlag.Rows
-                )
-                # Emit the signal for the newly selected directory
-                self.on_directory_selected(self.treeView.selectionModel().selection(), None)
+        if not root_index.isValid():
+            print("Invalid root index encountered in DirectoryView while selecting first directory!")
+            print(f"\tIndex: {root_index}")
+            return
+        first_child = self.treeView.model().index(0, 0, root_index)
+        if first_child.isValid():
+            selected_index = first_child
+        else:
+            selected_index = root_index
+        self.treeView.selectionModel().select(
+            selected_index,
+            QItemSelectionModel.SelectionFlag.Clear |
+            QItemSelectionModel.SelectionFlag.Select |
+            QItemSelectionModel.SelectionFlag.Current |
+            QItemSelectionModel.SelectionFlag.Rows
+        )
 
     def open_directory(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
@@ -123,6 +128,7 @@ class DirectoryView(QWidget):
 
         if directory:
             # Update the root index of the tree view to reflect the new directory
+            self.model.setRootPath(directory)
             self.treeView.setRootIndex(self.proxy_model.mapFromSource(self.model.index(directory)))
             self.root_directory_changed.emit(directory)
             # Watch the new directory and its subdirectories
@@ -130,11 +136,11 @@ class DirectoryView(QWidget):
 
     def on_directory_selected(self, selected, deselected):
         indexes = selected.indexes()
-        if len(indexes):
-            selected = indexes[0]
-            source_index = self.proxy_model.mapToSource(selected)
-            file_path = self.model.filePath(source_index)
-            self.directory_selected.emit(file_path)
+        # If no selection, just provide root index to avoid invalid state in FileView
+        selected_index = indexes[0] if len(indexes) else self.treeView.rootIndex()
+        source_index = self.proxy_model.mapToSource(selected_index)
+        file_path = self.model.filePath(source_index)
+        self.directory_selected.emit(file_path)
 
     def on_directory_changed(self, path):
         # A directory changed event occurred
