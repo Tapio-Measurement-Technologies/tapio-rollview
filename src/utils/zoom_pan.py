@@ -62,7 +62,7 @@ class ZoomPan:
         def onMotion(event):
             # Check if toolbar is in zoom or pan mode
             toolbar = ax.get_figure().canvas.toolbar
-            if toolbar is not None and toolbar.mode in ['zoom', 'pan']:
+            if toolbar is not None and toolbar.mode in ['pan/zoom', 'zoom rect']:
                 return  # Ignore if in zoom or pan mode
 
             if self.press is None:
@@ -76,7 +76,7 @@ class ZoomPan:
             ax.set_xlim(self.cur_xlim)
             ax.set_ylim(self.cur_ylim)
 
-            ax.figure.canvas.draw()
+            ax.figure.canvas.draw_idle()
 
         fig = ax.get_figure()  # get the figure of interest
 
