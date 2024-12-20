@@ -162,6 +162,7 @@ class MainWindow(QMainWindow):
             dir_path = store.selected_directory
         files = list_prof_files(store.selected_directory)
         profiles = [ Profile.fromfile(filename) for filename in files ]
+        profiles = [ profile for profile in profiles if profile is not None ]
         store.profiles = profiles
         self.fileView.set_directory(dir_path)
 
