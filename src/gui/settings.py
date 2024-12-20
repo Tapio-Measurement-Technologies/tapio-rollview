@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtCore import Signal, Slot
-import settings
+from utils import preferences
 
 class SettingsWindow(QWidget):
     settings_updated = Signal()
@@ -44,7 +44,7 @@ class AlertLimitSettingsPage(QWidget):
         self.setLayout(layout)
         self.setting_widgets = []
 
-        for limit in settings.ALERT_LIMITS_DEFAULT:
+        for limit in preferences.alert_limits:
             setting = AlertLimitSetting(limit)
             layout.addWidget(setting)
             self.setting_widgets.append(setting)
@@ -71,9 +71,11 @@ class AlertLimitSettingsPage(QWidget):
         # Here you would add the code to save the alert limits
         for setting in self.setting_widgets:
             setting.save_values()
+        limits = [ widget.limit for widget in self.setting_widgets ]
+        preferences.update_alert_limits(limits)
+
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()
-        print(settings.ALERT_LIMITS_DEFAULT)
 
 class AlertLimitSetting(QWidget):
     modified = Signal()

@@ -1,6 +1,9 @@
 import logging
+import os
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
+PREFERENCES_FILENAME = 'preferences.json'
+PREFERENCES_FILE_PATH = os.path.join(DEFAULT_ROLL_DIRECTORY, PREFERENCES_FILENAME)
 
 # limits can be:
 # - constant(value) : constant limit

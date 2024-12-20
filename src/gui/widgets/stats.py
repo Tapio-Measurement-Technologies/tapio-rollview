@@ -1,14 +1,14 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout
 from PySide6.QtCore import Qt
 from utils.profile_stats import Stats
-import settings
+from utils import preferences
 
 stats = Stats()
 
 class StatsWidget(QWidget):
     def __init__(self, data):
         super().__init__()
-        self.limits = settings.ALERT_LIMITS_DEFAULT
+        self.limits = preferences.alert_limits
         mean_limit  = next((limit for limit in self.limits if limit['name'] == "mean_g"), None)
         stdev_limit = next((limit for limit in self.limits if limit['name'] == "stdev_g"), None)
         cv_limit    = next((limit for limit in self.limits if limit['name'] == "cv_pct"), None)
