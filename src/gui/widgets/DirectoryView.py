@@ -63,11 +63,11 @@ class DirectoryView(QWidget):
         self.treeView.setExpandsOnDoubleClick(False)
 
         self.openDirButton = QPushButton("Open in file explorer")
-        self.openDirButton.clicked.connect(self.open_directory)
+        self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
 
         # Create the button
         self.changeDirButton = QPushButton("Change directory")
-        self.changeDirButton.clicked.connect(self.change_directory)
+        self.changeDirButton.clicked.connect(self.change_root_directory)
 
         # Add widgets to the layout
         layout.addWidget(self.treeView)
@@ -114,12 +114,12 @@ class DirectoryView(QWidget):
             QItemSelectionModel.SelectionFlag.Rows
         )
 
-    def open_directory(self):
+    def open_directory_in_file_explorer(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
         current_directory = self.model.filePath(current_index)
         open_in_file_explorer(current_directory)
 
-    def change_directory(self, directory = None):
+    def change_root_directory(self, directory = None):
         if not directory:
             current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
             current_directory = self.model.filePath(current_index)

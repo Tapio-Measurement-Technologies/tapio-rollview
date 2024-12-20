@@ -45,7 +45,7 @@ class MainWindow(QMainWindow):
         self.chart = Chart()
         self.fileView = FileView()
         self.fileView.file_selected.connect(self.on_file_selected)
-        self.fileView.files_updated.connect(lambda: self.refresh())
+        self.fileView.profile_state_changed.connect(self.refresh_plot)
 
         self.sidebar.directoryView.directory_selected.connect(self.on_directory_selected)
         self.sidebar.directoryView.root_directory_changed.connect(
@@ -56,12 +56,12 @@ class MainWindow(QMainWindow):
 
         # Attempt to create default root dir if it does not exist
         if QDir().mkpath(store.root_directory):
-            self.sidebar.directoryView.change_directory(store.root_directory)
+            self.sidebar.directoryView.change_root_directory(store.root_directory)
         else:
             current_path = QDir.currentPath()
             print(f"Failed to create default roll directory to {store.root_directory}!")
             print(f"Defaulting to {current_path}")
-            self.sidebar.directoryView.change_directory(current_path)
+            self.sidebar.directoryView.change_root_directory(current_path)
 
         centralWidgetLayout.addWidget(
             self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
 
     def on_recalculate_mean_changed(self, checked):
         store.recalculate_mean = checked
-        self.refresh()
+        self.refresh_plot()
 
     def on_directory_selected(self, directory):
         self.directory_name = os.path.basename(directory)
@@ -183,7 +183,7 @@ class MainWindow(QMainWindow):
         # Reload the selected directory and redraw plot
         self.on_directory_selected(store.selected_directory)
 
-    def on_files_updated(self):
+    def refresh_plot(self):
         self.chart.update_plot(store.profiles, self.directory_name)
 
     def on_root_directory_changed(self, directory):
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
 
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
-        self.settings_window.settings_updated.connect(self.refresh)
+        self.settings_window.settings_updated.connect(self.refresh_plot)
         self.settings_window.show()
 
     def run_postprocessors_for_all_folders(self):
@@ -229,6 +229,3 @@ class MainWindow(QMainWindow):
 
         # Run postprocessors on the filtered list of folders
         run_postprocessors(folder_paths)
-
-    def refresh(self):
-        self.on_files_updated()

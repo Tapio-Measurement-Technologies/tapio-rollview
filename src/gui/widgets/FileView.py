@@ -123,7 +123,7 @@ class FileTreeView(ContextMenuTreeView):
 
 class FileView(QWidget):
     file_selected = Signal(str)
-    files_updated = Signal()
+    profile_state_changed = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -189,7 +189,7 @@ class FileView(QWidget):
             self.file_selected.emit(file_path)
 
     def on_files_updated(self, **args):
-        self.files_updated.emit()
+        self.profile_state_changed.emit()
 
     def on_selection_cleared(self):
         self.file_selected.emit('')
