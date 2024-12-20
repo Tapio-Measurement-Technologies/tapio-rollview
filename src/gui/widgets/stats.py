@@ -79,6 +79,7 @@ class StatWidget(QWidget):
         self.data = data
         if len(self.data):
             self.value = self.func(self.data)
+            self.over_limit = False
 
             if self.limit is not None:
                 if self.limit['min'] is not None:
