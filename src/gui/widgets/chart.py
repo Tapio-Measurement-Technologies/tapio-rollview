@@ -12,8 +12,8 @@ from utils.profile_stats import Stats, calc_mean_profile
 from scipy.signal import welch
 from utils.zoom_pan import ZoomPan
 from models.Profile import Profile
+from utils import preferences
 import settings
-import store
 
 
 class Chart(QWidget):
@@ -116,7 +116,7 @@ class Chart(QWidget):
             else:
                 self.profile_ax.plot(distances, hardnesses, alpha=0.5, linestyle=linestyle)
 
-        if store.recalculate_mean:
+        if preferences.recalculate_mean:
             self.profiles = [ profile for profile in self.profiles if not profile.hidden ]
         mean_profile_distances, mean_profile_values = calc_mean_profile(self.profiles)
         self.mean_profile = mean_profile_values

@@ -2,7 +2,6 @@ from PySide6.QtCore import QDir
 from settings import DEFAULT_ROLL_DIRECTORY
 
 root_directory = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
-recalculate_mean = True
 connections = []
 profiles = []
 selected_profile = None

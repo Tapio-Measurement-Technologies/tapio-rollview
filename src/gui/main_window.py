@@ -14,6 +14,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
+from utils import preferences
 import os
 from datetime import datetime, timedelta
 
@@ -94,13 +95,13 @@ class MainWindow(QMainWindow):
         show_all_com_ports_checkbox = self.create_checkbox_menu_item(
             'Show all COM ports',
             view_menu,
-            self.sidebar.serialView.view.model.show_all_com_ports,
+            preferences.show_all_com_ports,
             self.on_show_all_com_ports_changed
         )
         recalculate_mean_checkbox = self.create_checkbox_menu_item(
             'Recalculate mean on profile show/hide',
             view_menu,
-            store.recalculate_mean,
+            preferences.recalculate_mean,
             self.on_recalculate_mean_changed
         )
         view_menu.addAction(show_all_com_ports_checkbox)
@@ -152,10 +153,11 @@ class MainWindow(QMainWindow):
         return widget_action
 
     def on_show_all_com_ports_changed(self, checked):
-        self.sidebar.serialView.view.model.setFilter(checked)
+        preferences.update_show_all_com_ports(checked)
+        self.sidebar.serialView.view.model.applyFilter()
 
     def on_recalculate_mean_changed(self, checked):
-        store.recalculate_mean = checked
+        preferences.update_recalculate_mean(checked)
         self.refresh_plot()
 
     def on_directory_selected(self, directory):

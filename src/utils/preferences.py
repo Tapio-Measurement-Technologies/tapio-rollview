@@ -4,13 +4,17 @@ import json
 
 preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE_PATH)
 
-alert_limits = settings.ALERT_LIMITS_DEFAULT
+alert_limits           = settings.ALERT_LIMITS_DEFAULT
 enabled_postprocessors = settings.DEFAULT_ENABLED_POSTPROCESSORS
+show_all_com_ports     = settings.SHOW_ALL_COM_PORTS_DEFAULT
+recalculate_mean       = settings.RECALCULATE_MEAN_DEFAULT
 
 def save_preferences_to_file():
   preferences = {
-    "alert_limits": alert_limits,
-    "enabled_postprocessors": enabled_postprocessors
+    "alert_limits":           alert_limits,
+    "enabled_postprocessors": enabled_postprocessors,
+    "show_all_com_ports":     show_all_com_ports,
+    "recalculate_mean":       recalculate_mean
   }
   try:
     with open(preferences_file_path, 'w') as file:
@@ -29,6 +33,15 @@ def update_enabled_postprocessors(new_enabled_postprocessors):
   enabled_postprocessors = new_enabled_postprocessors
   save_preferences_to_file()
 
+def update_show_all_com_ports(new_show_all_com_ports):
+  global show_all_com_ports
+  show_all_com_ports = bool(new_show_all_com_ports)
+  save_preferences_to_file()
+
+def update_recalculate_mean(new_recalculate_mean):
+  global recalculate_mean
+  recalculate_mean = bool(new_recalculate_mean)
+  save_preferences_to_file()
 
 ## Initialize preferences
 try:
@@ -39,6 +52,10 @@ try:
       alert_limits = preferences['alert_limits']
     if 'enabled_postprocessors' in preferences:
       enabled_postprocessors = preferences['enabled_postprocessors']
+    if 'show_all_com_ports' in preferences:
+      show_all_com_ports = preferences['show_all_com_ports']
+    if 'recalculate_mean' in preferences:
+      recalculate_mean = preferences['recalculate_mean']
 
 except FileNotFoundError:
   save_preferences_to_file()

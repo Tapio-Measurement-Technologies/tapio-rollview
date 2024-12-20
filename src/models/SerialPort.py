@@ -1,5 +1,6 @@
 from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 from serial.tools import list_ports_common
+from utils import preferences
 
 class SerialPortItem:
     def __init__(self, port: list_ports_common.ListPortInfo):
@@ -10,7 +11,6 @@ class SerialPortModel(QAbstractListModel):
         super().__init__(parent)
         self.ports = ports
         self.filtered_ports = ports
-        self.show_all_com_ports = False
         self.selected_port: list_ports_common.ListPortInfo = None
 
     def rowCount(self, parent=QModelIndex()):
@@ -65,14 +65,9 @@ class SerialPortModel(QAbstractListModel):
                 return index
         return -1
 
-    def setFilter(self, enabled: bool):
-        """ Enable or disable the filter for device_responded. """
-        self.show_all_com_ports = enabled
-        self.applyFilter()
-
     def applyFilter(self):
         """ Apply the filter and update the filtered_ports list. """
-        if not self.show_all_com_ports:
+        if not preferences.show_all_com_ports:
             # Filter to only show ports with device_responded = True
             self.filtered_ports = [item for item in self.ports if hasattr(item.port, 'device_responded') and item.port.device_responded]
         else:

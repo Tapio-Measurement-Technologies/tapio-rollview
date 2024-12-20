@@ -36,6 +36,9 @@ DEFAULT_ENABLED_POSTPROCESSORS = [
     'plot_export'
 ]
 
+SHOW_ALL_COM_PORTS_DEFAULT = False
+RECALCULATE_MEAN_DEFAULT = True
+
 ALERT_LIMITS_DEFAULT = [
     {
         "name": "mean_g",
