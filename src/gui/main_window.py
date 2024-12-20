@@ -11,6 +11,7 @@
 
 from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel
 from PySide6.QtGui import QAction
+from PySide6.QtCore import QDir
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
 import os
@@ -53,7 +54,14 @@ class MainWindow(QMainWindow):
             self.on_directory_contents_changed
         )
 
-        ## TODO: do not load the folder in directory view, do it here
+        # Attempt to create default root dir if it does not exist
+        if QDir().mkpath(store.root_directory):
+            self.sidebar.directoryView.change_directory(store.root_directory)
+        else:
+            current_path = QDir.currentPath()
+            print(f"Failed to create default roll directory to {store.root_directory}!")
+            print(f"Defaulting to {current_path}")
+            self.sidebar.directoryView.change_directory(current_path)
 
         centralWidgetLayout.addWidget(
             self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows

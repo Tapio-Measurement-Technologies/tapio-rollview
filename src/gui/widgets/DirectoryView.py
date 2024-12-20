@@ -15,7 +15,6 @@ from PySide6.QtCore import (
     QFileSystemWatcher,
     QItemSelectionModel
 )
-from settings import DEFAULT_ROLL_DIRECTORY
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.file_utils import open_in_file_explorer
 import os
@@ -52,14 +51,6 @@ class DirectoryView(QWidget):
 
         self.treeView.setColumnWidth(0, 200)
 
-        dir_path = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
-
-        if QDir().mkpath(dir_path):
-            self.treeView.setRootIndex(self.proxy_model.mapFromSource(self.model.index(dir_path)))
-        else:
-            print("Failed to create folder!")
-            self.treeView.setRootIndex(self.proxy_model.mapFromSource(self.model.index(QDir.currentPath())))
-
         self.model.directoryLoaded.connect(self.select_first_directory)
 
         # Sort the folders by custom modified date
@@ -83,11 +74,6 @@ class DirectoryView(QWidget):
         self.watcher = QFileSystemWatcher(self)
         self.watcher.directoryChanged.connect(self.on_directory_changed)
         self.watcher.fileChanged.connect(self.on_file_changed)
-
-        # Watch the initial root directory
-        root_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
-        root_directory = self.model.filePath(root_index)
-        self.watch_directory_and_subdirs(root_directory)
 
     def watch_directory_and_subdirs(self, directory):
         # Clear previous watchers
@@ -124,11 +110,12 @@ class DirectoryView(QWidget):
         current_directory = self.model.filePath(current_index)
         open_in_file_explorer(current_directory)
 
-    def change_directory(self):
-        current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
-        current_directory = self.model.filePath(current_index)
-        # Open a dialog to select a directory
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory", current_directory)
+    def change_directory(self, directory = None):
+        if not directory:
+            current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
+            current_directory = self.model.filePath(current_index)
+            # Open a dialog to select a directory
+            directory = QFileDialog.getExistingDirectory(self, "Select Directory", current_directory)
 
         if directory:
             # Update the root index of the tree view to reflect the new directory
