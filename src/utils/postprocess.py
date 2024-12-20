@@ -78,8 +78,7 @@ def run_postprocessors(folder_paths):
             show_warn_msgbox(
                 f"Postprocessors failed for the following paths:\n\n{'\n'.join(error_paths)}")
         else:
-            # show_info_msgbox("All postprocessors completed successfully!", "Success")
-            print("All postprocessors completed successfully!")
+            show_info_msgbox("All postprocessors completed successfully!", "Success")
 
     thread.now_processing.connect(on_now_processing)
     thread.processing_failed.connect(on_postprocess_fail)
