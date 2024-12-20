@@ -36,31 +36,27 @@ class DirectoryView(QWidget):
         # Create the model and proxy
         self.model = CustomFileSystemModel()
         self.model.setRootPath(QDir.currentPath())
-        # Only show directories
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
+        self.model.directoryLoaded.connect(self.select_first_directory)
+
         self.proxy_model = DirectorySortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
 
         self.treeView = ContextMenuTreeView(self.proxy_model)
         self.treeView.selectionModel().selectionChanged.connect(self.on_directory_selected)
+        # Sort the folders by custom modified date
+        self.treeView.setSortingEnabled(True)
+        self.treeView.header().setSortIndicatorShown(True)
+        self.treeView.sortByColumn(3, Qt.SortOrder.DescendingOrder)
+        # Disable expanding tree view items
+        self.treeView.setItemsExpandable(False)
+        self.treeView.setExpandsOnDoubleClick(False)
+        self.treeView.setColumnWidth(0, 200)
 
         # Show only the first and modified date columns
         for i in range(1, self.model.columnCount()):
             if i != 3:  # Assuming column 3 is the "Date Modified" column
                 self.treeView.setColumnHidden(i, True)
-
-        self.treeView.setColumnWidth(0, 200)
-
-        self.model.directoryLoaded.connect(self.select_first_directory)
-
-        # Sort the folders by custom modified date
-        self.treeView.setSortingEnabled(True)
-        self.treeView.header().setSortIndicatorShown(True)
-        self.treeView.sortByColumn(3, Qt.SortOrder.DescendingOrder)
-
-        # Disable expanding tree view items
-        self.treeView.setItemsExpandable(False)
-        self.treeView.setExpandsOnDoubleClick(False)
 
         self.openDirButton = QPushButton("Open in file explorer")
         self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
@@ -161,16 +157,7 @@ class DirectoryView(QWidget):
         # A specific file changed event occurred
         # Determine its parent directory and invalidate cache
         directory_path = os.path.dirname(path)
-        self.model.invalidate_cache(directory_path)
-
-        # Update the view for that directory (same logic as directory_changed)
-        index = self.model.index(directory_path)
-        if index.isValid():
-            # The "Date Modified" column is 3
-            top_left = self.proxy_model.mapFromSource(self.model.index(index.row(), 3, index.parent()))
-            bottom_right = top_left
-            self.proxy_model.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
-        self.directory_contents_changed.emit()
+        self.on_directory_changed(directory_path)
 
 class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):

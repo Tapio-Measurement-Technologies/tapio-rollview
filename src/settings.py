@@ -1,5 +1,3 @@
-from utils.plot_limits import constant, rel_max, rel_min, rel_mean
-import numpy as np
 import logging
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
@@ -21,10 +19,6 @@ SELECTED_PROFILE_LINE_WIDTH = 2
 # See python strftime
 # https://docs.python.org/3/library/datetime.html
 CUSTOM_DATE_FORMAT = None
-
-SERIAL_SCAN_INTERVAL = 1000
-SERIAL_PORT_TIMEOUT = 0.2
-
 
 SAMPLE_INTERVAL = 1000  # Samples per meter in raw data
 
@@ -78,39 +72,6 @@ ALERT_LIMITS_DEFAULT = [
         "max": None
     }
 ]
-
-PROFILE_STATISTICS = [{
-    "name": "Mean",
-    "unit": "g",
-    "func": np.mean,
-    "limits": [None, 10]
-}, {
-    "name": "Standard deviation",
-    "unit": "g",
-    "func": np.std,
-    "limits": None
-}, {
-    "name": "CV",
-    "unit": "%",
-    "func": lambda f: (np.mean(f) / np.std(f)),
-    "limits": [0, 10]
-}, {
-    "name": "Min",
-    "unit": "g",
-    "func": np.min,
-    "limits": None
-}, {
-    "name": "Max",
-    "unit": "g",
-    "func": np.max,
-    "limits": None
-}, {
-    "name": "P-P",
-    "unit": "g",
-    "func": lambda f: np.max - np.min,
-    "limits": None
-}]
-
 
 SHOW_SPECTRUM = False
 NPERSEG = 3000
