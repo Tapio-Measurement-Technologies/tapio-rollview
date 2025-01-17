@@ -11,7 +11,8 @@
 
 from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel
 from PySide6.QtGui import QAction
-from PySide6.QtCore import QDir
+from PySide6.QtCore import QDir, Qt
+
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
 from utils import preferences
@@ -83,6 +84,13 @@ class MainWindow(QMainWindow):
 
         # Scan devices on startup
         self.sidebar.serialView.scan_devices()
+
+    def keyPressEvent(self, event):
+        """Forward key press events to the chart."""
+        if self.chart:
+            self.chart.keyPressEvent(event)
+        super().keyPressEvent(event)
+
 
     def init_menu(self):
         menu_bar = self.menuBar()

@@ -1,5 +1,10 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 
+from PySide6.QtGui import QImage, QKeyEvent
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
@@ -15,12 +20,15 @@ from models.Profile import Profile
 from utils import preferences
 import settings
 
+from io import BytesIO
+import matplotlib.pyplot as plt
+
 
 class Chart(QWidget):
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        # Existing initialization code
         self.layout = QVBoxLayout(self)
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
@@ -52,6 +60,39 @@ class Chart(QWidget):
         self.initial_ylim = None
 
         self.customize_toolbar()
+
+    def keyPressEvent(self, event: QKeyEvent):
+        """Handle key press events for the widget."""
+        if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_C:
+            # Copy plot to clipboard when Ctrl+C is pressed
+            if hasattr(self, 'figure') and self.figure:
+                self.copyPlotToClipboard()
+            else:
+                print("Warning: No plot available to copy.")
+        else:
+            super().keyPressEvent(event)
+
+    def copyPlotToClipboard(self):
+        """Copies the current plot to the clipboard."""
+        try:
+            buffer = BytesIO()
+            self.figure.savefig(buffer, format='png', dpi=300)
+            buffer.seek(0)
+
+            # Convert buffer to QImage
+            image = QImage()
+            image.loadFromData(buffer.read(), format='PNG')
+            buffer.close()
+
+            # Copy to clipboard
+            clipboard = QApplication.clipboard()
+            clipboard.setImage(image)
+            print("Plot copied to clipboard.")
+        except Exception as e:
+            print(f"Error copying plot to clipboard: {e}")
+
+
+
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
