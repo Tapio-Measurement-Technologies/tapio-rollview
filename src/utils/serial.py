@@ -11,8 +11,9 @@ from utils.postprocess import run_postprocessors
 import json
 import os
 
+
 class FileTransferThread(QThread):
-    receivingFile = Signal(str, int) # (filename, filesLeft)
+    receivingFile = Signal(str, int)  # (filename, filesLeft)
 
     def __init__(self, folder_path, serial):
         super().__init__()
@@ -41,6 +42,7 @@ class FileTransferThread(QThread):
             self.serial.write(CAN_SEQ)
             self.serial.close()
 
+
 class FileTransferManager:
     def __init__(self):
         self.serial: serial.Serial = None
@@ -51,7 +53,8 @@ class FileTransferManager:
     def start_transfer(self, port, folder_path, on_complete):
         try:
             self.model.removeItems()
-            self.serial = serial.Serial(port=port,parity=serial.PARITY_NONE,bytesize=serial.EIGHTBITS,stopbits=serial.STOPBITS_ONE,timeout=0.2,xonxoff=0,rtscts=0,dsrdtr=0,baudrate=115200)
+            self.serial = serial.Serial(port=port, parity=serial.PARITY_NONE, bytesize=serial.EIGHTBITS,
+                                        stopbits=serial.STOPBITS_ONE, timeout=0.2, xonxoff=0, rtscts=0, dsrdtr=0, baudrate=115200)
             self.sync_folder_path = folder_path
             self.thread = FileTransferThread(folder_path, self.serial)
             self.thread.receivingFile.connect(self.update_progress)
@@ -68,7 +71,8 @@ class FileTransferManager:
 
     def on_transfer_finished(self):
         received_files = self.model.getReceivedFiles()
-        folder_paths = list(set([ os.path.join(self.sync_folder_path, os.path.dirname(received_file)) for received_file in received_files ]))
+        folder_paths = list(set([os.path.join(self.sync_folder_path, os.path.dirname(
+            received_file)) for received_file in received_files]))
         print(f"Received files in folders: {folder_paths}")
         print(f"Running postprocessors for: {folder_paths}")
         run_postprocessors(folder_paths)
@@ -76,6 +80,7 @@ class FileTransferManager:
 
     def update_progress(self, filename, filesLeft):
         self.model.addItem(FileTransferItem(filename, filesLeft))
+
 
 class PortScannerThread(QThread):
     progress_signal = Signal(int, str)  # Signal to update progress bar
@@ -87,11 +92,31 @@ class PortScannerThread(QThread):
         for index, port_info in enumerate(ports):
             try:
                 # Emit progress updates to the main thread
-                self.progress_signal.emit(int((index + 1) / len(ports) * 100), f"Scanning port '{port_info.device}'...")
+                self.progress_signal.emit(
+                    int((index + 1) / len(ports) * 100), f"Scanning port '{port_info.device}'...")
 
-                port = serial.Serial(port_info.device, timeout=1, write_timeout=1)  # Open the serial port
+                print("Opening port")
+                # # port = serial.Serial(port_info.device, timeout=1, write_timeout=1)  # Open the serial port
+                # port = serial.Serial(port_info.device, write_timeout=1, baudrate=115200, timeout=0.2)
+                port = serial.Serial(
+                    port=port_info.device,
+                    baudrate=115200,
+                    bytesize=serial.EIGHTBITS,
+                    parity=serial.PARITY_NONE,
+                    stopbits=serial.STOPBITS_ONE,
+                    timeout=0.1,  # Use minimal timeout
+                    write_timeout=0.1,  # Reduce write timeout
+                    xonxoff=False,
+                    rtscts=False,
+                    dsrdtr=False
+                )
+
+
+                print("Sending device info")
                 port.write(b"RQP+DEVICEINFO?\n")  # Send the query
+                print("Waiting for response")
                 response = port.readline().decode('utf-8').strip()  # Read the response
+                print("Sending timestamp")
                 send_timestamp(port)
                 port.close()
 
@@ -123,8 +148,10 @@ def scan_ports():
     scanner_thread = PortScannerThread()
 
     # Connect the signals from the thread to the dialog updates
-    scanner_thread.progress_signal.connect(lambda value, text: dialog.update_progress(value, text))
-    scanner_thread.finished_signal.connect(lambda ports: dialog.update_progress(100, "Scanning complete"))
+    scanner_thread.progress_signal.connect(
+        lambda value, text: dialog.update_progress(value, text))
+    scanner_thread.finished_signal.connect(
+        lambda ports: dialog.update_progress(100, "Scanning complete"))
 
     # Start the scanning thread
     scanner_thread.start()
