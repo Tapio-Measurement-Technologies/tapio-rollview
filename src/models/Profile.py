@@ -123,6 +123,8 @@ class Profile:
 
     @property
     def profile_length(self):
+        if self.data is None or len(self.data.distances) == 0:
+            return 0
         return self.data.distances[-1]
 
 
