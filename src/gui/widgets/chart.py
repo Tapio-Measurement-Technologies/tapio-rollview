@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
 
 from PySide6.QtGui import QImage, QKeyEvent
 from PySide6.QtWidgets import QApplication
@@ -23,6 +23,24 @@ import settings
 from io import BytesIO
 import matplotlib.pyplot as plt
 
+class WarningLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setStyleSheet("""
+            background-color: lightgoldenrodyellow;
+            border-radius: 4px;
+            border: 2px;
+        """)
+
+    def set_text(self, text):
+        self.setHidden(False)
+        self.setText(f"⚠ {text}")
+
+    def clear(self):
+        self.setHidden(True)
+        self.setText("")
+
 
 class Chart(QWidget):
     def __init__(self, parent=None):
@@ -31,6 +49,7 @@ class Chart(QWidget):
         # Existing initialization code
         self.layout = QVBoxLayout(self)
         self.figure = Figure()
+        self.warning_label = WarningLabel()
         self.canvas = FigureCanvas(self.figure)
         self.stats = Stats()
 
@@ -49,6 +68,7 @@ class Chart(QWidget):
         self.stats_widget = StatsWidget(self.mean_profile)
 
         self.layout.addWidget(self.stats_widget)
+        self.layout.addWidget(self.warning_label)
         self.layout.addWidget(self.canvas)
         self.layout.addWidget(self.toolbar)
 
@@ -116,6 +136,7 @@ class Chart(QWidget):
     def clear(self):
         self.profile_ax.clear()
         self.profile_ax.figure.canvas.draw()  # Ensure the profile plot updates
+        self.warning_label.clear()
         if settings.SHOW_SPECTRUM:
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
@@ -162,11 +183,14 @@ class Chart(QWidget):
         mean_profile_distances, mean_profile_values = calc_mean_profile(self.profiles)
         self.mean_profile = mean_profile_values
 
-        self.profile_ax.plot(mean_profile_distances,
-                             mean_profile_values,
-                             label="Mean profile",
-                             lw=settings.MEAN_PROFILE_LINE_WIDTH,
-                             color=settings.MEAN_PROFILE_LINE_COLOR)
+        if len(mean_profile_values) > 0:
+            self.profile_ax.plot(mean_profile_distances,
+                                mean_profile_values,
+                                label="Mean profile",
+                                lw=settings.MEAN_PROFILE_LINE_WIDTH,
+                                color=settings.MEAN_PROFILE_LINE_COLOR)
+        else:
+            self.warning_label.set_text("Profiles are too short to calculate mean profile")
 
         self.initial_xlim = self.profile_ax.get_xlim()
         self.initial_ylim = self.profile_ax.get_ylim()
