@@ -36,7 +36,15 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
     band_pass_high = band_pass_high if band_pass_high is not None else settings.BAND_PASS_HIGH
     sample_interval = sample_interval if sample_interval is not None else settings.SAMPLE_INTERVAL
 
-    if not profiles:
+    # Profiles shorter than NUMTAPS cannot be bandpass filtered, so
+    # do not take them into account when calculating mean profile
+    filtered_profiles = [
+        profile for profile in profiles
+        if  profile.data is not None
+        and len(profile.data.hardnesses) > settings.FILTER_NUMTAPS
+    ]
+
+    if not filtered_profiles:
         return [], []
 
     if settings.CONTINUOUS_MODE:
@@ -44,7 +52,7 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
         values_list = []
         current_distance = 0
 
-        for profile in profiles:
+        for profile in filtered_profiles:
             distances = profile.data.distances
             values = profile.data.hardnesses
 
@@ -62,13 +70,13 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
         mean_profile = np.array([all_distances, all_values])
 
     else:
-        min_length = min(len(profile.data.distances) for profile in profiles)
+        min_length = min(len(profile.data.distances) for profile in filtered_profiles)
         truncated_profiles = [
             np.vstack((
                 profile.data.distances[:min_length],
                 profile.data.hardnesses[:min_length]
             ))
-            for profile in profiles
+            for profile in filtered_profiles
         ]
         stacked_profiles = np.stack(truncated_profiles, axis=1)
         mean_profile = np.mean(stacked_profiles, axis=1)
