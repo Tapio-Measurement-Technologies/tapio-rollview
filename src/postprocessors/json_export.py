@@ -1,4 +1,5 @@
 from utils.profile_stats import calc_mean_profile
+from gettext import gettext as _
 from utils.profile_stats import Stats
 from models.Profile import Profile
 import numpy as np
@@ -10,7 +11,7 @@ EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 RESAMPLE_STEP = None
 BAND_PASS_HIGH = None
 
-description = "Export to JSON file"
+description = _("POSTPROCESSOR_NAME_JSON_EXPORT")
 
 
 def resample_profile(distances, values, resample_step):

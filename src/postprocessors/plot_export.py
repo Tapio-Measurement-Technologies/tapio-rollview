@@ -1,8 +1,9 @@
 from gui.widgets.chart import Chart
+from gettext import gettext as _
 from models.Profile import Profile
 import os
 
-description = "Export plot image"
+description = _("POSTPROCESSOR_NAME_PLOT_EXPORT")
 
 def run(folder_path) -> bool:
     """

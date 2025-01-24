@@ -29,6 +29,7 @@ import settings
 import store
 
 from gui.settings import SettingsWindow
+from gettext import gettext as _
 
 
 class MainWindow(QMainWindow):
@@ -94,20 +95,22 @@ class MainWindow(QMainWindow):
 
     def init_menu(self):
         menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu('File')
-        settings_action = QAction('Settings', self)
+        file_menu = menu_bar.addMenu(_('MENU_BAR_FILE'))
+        settings_action = QAction(_('MENU_BAR_SETTINGS'), self)
         settings_action.triggered.connect(self.open_settings_window)
         file_menu.addAction(settings_action)
 
-        view_menu = menu_bar.addMenu('View')
+        view_menu = menu_bar.addMenu(_('MENU_BAR_VIEW'))
         show_all_com_ports_checkbox = self.create_checkbox_menu_item(
-            'Show all COM ports',
+            _('MENU_BAR_SHOW_ALL_COM_PORTS'),
+            # 'Show all COM ports'
             view_menu,
             preferences.show_all_com_ports,
             self.on_show_all_com_ports_changed
         )
         recalculate_mean_checkbox = self.create_checkbox_menu_item(
-            'Recalculate mean on profile show/hide',
+            _('MENU_BAR_RECALCULATE_MEAN'),
+            # 'Recalculate mean on profile show/hide',
             view_menu,
             preferences.recalculate_mean,
             self.on_recalculate_mean_changed
@@ -115,7 +118,7 @@ class MainWindow(QMainWindow):
         view_menu.addAction(show_all_com_ports_checkbox)
         view_menu.addAction(recalculate_mean_checkbox)
 
-        postprocessors_menu = menu_bar.addMenu('Postprocessors')
+        postprocessors_menu = menu_bar.addMenu(_('MENU_BAR_POSTPROCESSORS'))
 
         # Add 'Run after sync' heading using QLabel for better styling
         # run_after_sync_label = QLabel('Run after sync')
@@ -136,7 +139,7 @@ class MainWindow(QMainWindow):
             postprocessors_menu.addAction(checkbox_widget)
 
         # Add the 'Run postprocessors' item
-        run_postprocessors_action = QAction('Run postprocessors', self)
+        run_postprocessors_action = QAction(_('MENU_BAR_RUN_POSTPROCESSORS'), self)
         run_postprocessors_action.triggered.connect(
             self.run_postprocessors_for_all_folders)
         # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors

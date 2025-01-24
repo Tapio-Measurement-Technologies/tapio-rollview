@@ -1,5 +1,6 @@
 import logging
 import os
+from gettext import gettext as _
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
 PREFERENCES_FILENAME = 'preferences.json'
@@ -42,42 +43,42 @@ RECALCULATE_MEAN_DEFAULT = True
 ALERT_LIMITS_DEFAULT = [
     {
         "name": "mean_g",
-        "label": "Mean",
+        "label": _("ALERT_LIMIT_MEAN"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "stdev_g",
-        "label": "Stdev",
+        "label": _("ALERT_LIMIT_STDEV"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "cv_pct",
-        "label": "CV",
+        "label": _("ALERT_LIMIT_CV"),
         "units": "%",
         "min": None,
         "max": None
     },
     {
         "name": "min_g",
-        "label": "Min",
+        "label": _("ALERT_LIMIT_MIN"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "max_g",
-        "label": "Max",
+        "label": _("ALERT_LIMIT_MAX"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "pp_g",
-        "label": "P-p",
+        "label": _("ALERT_LIMIT_PP"),
         "units": "g",
         "min": None,
         "max": None
@@ -92,7 +93,6 @@ SPECTRUM_UPPER_LIMIT = 60
 SPECTRUM_WAVELENGTH_TICKS = True
 
 CONTINUOUS_MODE = False
-UNIT = "BC Hardness [g]"
 
 POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = None
 

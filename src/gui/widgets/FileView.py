@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
 from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
+from gettext import gettext as _
 import settings
 import store
 
@@ -86,10 +87,17 @@ class CustomFileSystemModel(QFileSystemModel):
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
-            if section == 4:
-                return "Profile length"
-            elif section == 5:
-                return ""
+            match section:
+                case 0:
+                    return _("TREEVIEW_HEADER_NAME")
+                case 1:
+                    return _("TREEVIEW_HEADER_SIZE")
+                case 3:
+                    return _("TREEVIEW_HEADER_DATE_MODIFIED")
+                case 4:
+                    return _("TREEVIEW_HEADER_PROFILE_LENGTH")
+                case 5:
+                    return ""
         return super().headerData(section, orientation, role)
 
     def flags(self, index):

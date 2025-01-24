@@ -16,11 +16,34 @@ if sys.stdout is None:
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon
-from gui.main_window import MainWindow
+import gettext
+import locale
 
 def main():
+    # Initialize translations
+    locale.setlocale(locale.LC_ALL, '')  # Use user's locale
+    lang, encoding = locale.getlocale()  # Get the current locale and encoding
+    if lang is None:
+        lang = 'en'  # Fallback to a default language if the locale is not set
+    locale_dir = os.path.join(os.path.dirname(__file__), "locales")
+
+    if lang.startswith('en'):
+        lang = 'en'  # Treat all English locales as "en"
+
+    print(f"Detected locale: '{lang}'")
+
+    # Set up gettext
+    try:
+        gettext.bindtextdomain('messages', locale_dir)
+        gettext.textdomain('messages')
+        _ = gettext.gettext
+    except FileNotFoundError:
+        gettext.install("messages")  # Fallback to default
+
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtGui import QIcon
+    from gui.main_window import MainWindow
+
     app = QApplication(sys.argv)
     window = MainWindow()
 

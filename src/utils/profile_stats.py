@@ -2,9 +2,18 @@ import numpy as np
 from utils.filter import bandpass_filter
 import numpy as np
 import settings
+from gettext import gettext as _
 
 # Implement here any custom more complicated profile statistics
 
+stat_labels = {
+    "mean_g": _("ALERT_LIMIT_MEAN"),
+    "stdev_g": _("ALERT_LIMIT_STDEV"),
+    "min_g": _("ALERT_LIMIT_MIN"),
+    "max_g": _("ALERT_LIMIT_MAX"),
+    "cv_pct": _("ALERT_LIMIT_CV"),
+    "pp_g": _("ALERT_LIMIT_PP")
+}
 
 class Stats:
     def __init__(self):
@@ -16,18 +25,18 @@ class Stats:
         self.pp = lambda f: np.max(f) - np.min(f)
 
         self.mean.unit = 'g'
-        self.std.unit = 'g'
-        self.min.unit = 'g'
-        self.max.unit = 'g'
-        self.cv.unit = '%'
-        self.pp.unit = 'g'
+        self.std.unit  = 'g'
+        self.min.unit  = 'g'
+        self.max.unit  = 'g'
+        self.cv.unit   = '%'
+        self.pp.unit   = 'g'
 
-        self.mean.label = 'Mean'
-        self.std.label = 'Stdev'
-        self.min.label = 'Min'
-        self.max.label = 'Max'
-        self.cv.label = 'CV'
-        self.pp.label = 'P-p'
+        self.mean.name = "mean_g"
+        self.std.name  = "stdev_g"
+        self.min.name  = "min_g"
+        self.max.name  = "max_g"
+        self.cv.name   = "cv_pct"
+        self.pp.name   = "pp_g"
 
 
 def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_interval=None):

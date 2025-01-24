@@ -17,6 +17,7 @@ from PySide6.QtCore import (
 )
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.file_utils import open_in_file_explorer
+from gettext import gettext as _
 import os
 from datetime import datetime
 
@@ -58,11 +59,11 @@ class DirectoryView(QWidget):
             if i != 3:  # Assuming column 3 is the "Date Modified" column
                 self.treeView.setColumnHidden(i, True)
 
-        self.openDirButton = QPushButton("Open in file explorer")
+        self.openDirButton = QPushButton(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"))
         self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
 
         # Create the button
-        self.changeDirButton = QPushButton("Change directory")
+        self.changeDirButton = QPushButton(_("BUTTON_TEXT_CHANGE_DIRECTORY"))
         self.changeDirButton.clicked.connect(self.change_root_directory)
 
         # Add widgets to the layout
@@ -120,7 +121,7 @@ class DirectoryView(QWidget):
             current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
             current_directory = self.model.filePath(current_index)
             # Open a dialog to select a directory
-            directory = QFileDialog.getExistingDirectory(self, "Select Directory", current_directory)
+            directory = QFileDialog.getExistingDirectory(self, _("CHANGE_DIRECTORY_DIALOG_TITLE"), current_directory)
 
         if directory:
             # Update the root index of the tree view to reflect the new directory
@@ -163,6 +164,15 @@ class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.modified_date_cache = {}
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            match section:
+                case 0:
+                    return _("TREEVIEW_HEADER_NAME")
+                case 3:
+                    return _("TREEVIEW_HEADER_DATE_MODIFIED")
+        return super().headerData(section, orientation, role)
 
     def data(self, index: QModelIndex, role: int):
         if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:

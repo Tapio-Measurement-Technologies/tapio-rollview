@@ -8,6 +8,7 @@ from PySide6.QtCore import QThread, Signal
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.time_sync import send_timestamp
 from utils.postprocess import run_postprocessors
+from gettext import gettext as _
 import json
 import os
 
@@ -93,7 +94,7 @@ class PortScannerThread(QThread):
             try:
                 # Emit progress updates to the main thread
                 self.progress_signal.emit(
-                    int((index + 1) / len(ports) * 100), f"Scanning port '{port_info.device}'...")
+                    int((index + 1) / len(ports) * 100), f"{_("PORTSCAN_SCANNING_PORT_TEXT")} '{port_info.device}'...")
 
                 print("Opening port")
                 # # port = serial.Serial(port_info.device, timeout=1, write_timeout=1)  # Open the serial port
@@ -151,7 +152,7 @@ def scan_ports():
     scanner_thread.progress_signal.connect(
         lambda value, text: dialog.update_progress(value, text))
     scanner_thread.finished_signal.connect(
-        lambda ports: dialog.update_progress(100, "Scanning complete"))
+        lambda ports: dialog.update_progress(100, _("PORTSCAN_COMPLETE_TEXT")))
 
     # Start the scanning thread
     scanner_thread.start()

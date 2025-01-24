@@ -2,13 +2,15 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QS
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtCore import Signal, Slot
 from utils import preferences
+from gettext import gettext as _
+from utils import profile_stats
 
 class SettingsWindow(QWidget):
     settings_updated = Signal()
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(_("WINDOW_TITLE_SETTINGS"))
         self.setGeometry(100, 100, 800, 400)
 
         main_layout = QHBoxLayout()
@@ -21,7 +23,7 @@ class SettingsWindow(QWidget):
         main_layout.addWidget(self.stacked_widget)
 
         self.alert_limit_page = AlertLimitSettingsPage()
-        self.add_settings_page("Alert limits", self.alert_limit_page)
+        self.add_settings_page(_("ALERT_LIMITS"), self.alert_limit_page)
 
         self.list_widget.currentRowChanged.connect(self.display_page)
         self.list_widget.setCurrentRow(0)
@@ -52,7 +54,7 @@ class AlertLimitSettingsPage(QWidget):
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
-        self.apply_button = QPushButton("Save", self)
+        self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
         self.apply_button.setEnabled(False)  # Initially disabled
         self.apply_button.clicked.connect(self.save_alert_limits)
         self.footer_layout.addWidget(self.apply_button)
@@ -86,12 +88,12 @@ class AlertLimitSetting(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        self.label = QLabel(f"{limit['label']} [{limit['units']}]")
+        self.label = QLabel(f"{profile_stats.stat_labels[limit['name']]} [{limit['units']}]")
         layout.addWidget(self.label)
 
         input_layout = QHBoxLayout()
 
-        self.min_label = QLabel("Min:")
+        self.min_label = QLabel(f"{_("MIN")}:")
         self.min_input = QLineEdit()
         self.min_input.setValidator(QDoubleValidator())
         self.min_input.setText(str(limit['min']) if limit['min'] is not None else '')
@@ -99,7 +101,7 @@ class AlertLimitSetting(QWidget):
         input_layout.addWidget(self.min_label)
         input_layout.addWidget(self.min_input)
 
-        self.max_label = QLabel("Max:")
+        self.max_label = QLabel(f"{_("MAX")}:")
         self.max_input = QLineEdit()
         self.max_input.setValidator(QDoubleValidator())
         self.max_input.setText(str(limit['max']) if limit['max'] is not None else '')

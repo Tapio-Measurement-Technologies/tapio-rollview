@@ -1,4 +1,5 @@
 from utils.profile_stats import calc_mean_profile
+from gettext import gettext as _
 from models.Profile import Profile
 import pandas as pd
 import numpy as np
@@ -6,7 +7,7 @@ import os
 
 EXPORT_FLOAT_NUM_DECIMAL_PLACES = 3
 
-description = "Export to Excel file"
+description = _("POSTPROCESSOR_NAME_EXCEL_EXPORT")
 
 def run(folder_path) -> bool:
     """

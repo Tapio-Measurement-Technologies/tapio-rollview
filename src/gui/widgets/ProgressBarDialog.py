@@ -2,12 +2,13 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QProgressBar, QPushButton, QLabel
 )
 from PySide6.QtCore import Qt
+from gettext import gettext as _
 
 class ProgressBarDialog(QDialog):
     def __init__(self, auto_close=False, parent=None):
         super().__init__(parent)
 
-        self.setWindowTitle("Progress")
+        self.setWindowTitle(_("PROGRESS_DIALOG_TITLE"))
         self.setFixedSize(300, 150)
 
         # Store the auto-close option
@@ -17,7 +18,7 @@ class ProgressBarDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # Status text label
-        self.statusLabel = QLabel("Starting...", self)
+        self.statusLabel = QLabel(_("PROGRESS_DIALOG_STARTING"), self)
         self.statusLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.statusLabel)
 
@@ -28,7 +29,7 @@ class ProgressBarDialog(QDialog):
         layout.addWidget(self.progressBar)
 
         # Optional: Button to close the dialog
-        self.closeButton = QPushButton("Close", self)
+        self.closeButton = QPushButton(_("BUTTON_TEXT_CLOSE"), self)
         self.closeButton.setEnabled(False)  # Initially disabled
         self.closeButton.clicked.connect(self.close)
         layout.addWidget(self.closeButton)
@@ -46,5 +47,5 @@ class ProgressBarDialog(QDialog):
     def reset(self):
         """Resets the progress bar and the button."""
         self.progressBar.setValue(0)
-        self.statusLabel.setText("Starting...")
+        self.statusLabel.setText(_("PROGRESS_DIALOG_STARTING"))
         self.closeButton.setEnabled(False)

@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt
 from models.SerialPort import SerialPortModel
 from gui.filetransferdialog import FileTransferDialog
 from utils.serial import FileTransferManager, scan_ports, SerialPortItem
+from gettext import gettext as _
 import store
 
 class SerialPortView(QListView):
@@ -42,12 +43,12 @@ class SerialWidget(QWidget):
         # Create the COM Ports TreeView
         self.view = SerialPortView()
 
-        self.label = QLabel("Devices")
+        self.label = QLabel(_("SERIAL_DEVICE_LIST_TITLE"))
 
-        self.scanButton = QPushButton("Scan for devices")
+        self.scanButton = QPushButton(_("SERIAL_SCAN_BUTTON_TEXT"))
         self.scanButton.clicked.connect(self.scan_devices)
 
-        self.syncButton = QPushButton("Sync data")
+        self.syncButton = QPushButton(_("SERIAL_SYNC_BUTTON_TEXT"))
         self.syncButton.clicked.connect(self.sync_data)
         self.syncButton.setEnabled(False)
 

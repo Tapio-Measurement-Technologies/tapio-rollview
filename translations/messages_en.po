@@ -1,0 +1,282 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2025-01-24 14:39+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+
+
+#: src/gui/filetransferdialog.py:9
+msgid "FILE_TRANSFER_DIALOG_TITLE"
+msgstr "File Transfer Progress"
+
+#: src/gui/filetransferdialog.py:14 src/gui/widgets/ProgressBarDialog.py:21
+#: src/gui/widgets/ProgressBarDialog.py:50
+msgid "PROGRESS_DIALOG_STARTING"
+msgstr "Starting..."
+
+#: src/gui/filetransferdialog.py:19
+msgid "BUTTON_TEXT_CANCEL"
+msgstr "Cancel"
+
+#: src/gui/filetransferdialog.py:44
+msgid "FILE_TRANSFER_DIALOG_RECEIVING"
+msgstr "Receiving"
+
+#: src/gui/main_window.py:98
+msgid "MENU_BAR_FILE"
+msgstr "File"
+
+#: src/gui/main_window.py:99
+msgid "MENU_BAR_SETTINGS"
+msgstr "Settings"
+
+#: src/gui/main_window.py:103
+msgid "MENU_BAR_VIEW"
+msgstr "View"
+
+#: src/gui/main_window.py:105
+msgid "MENU_BAR_SHOW_ALL_COM_PORTS"
+msgstr "Show all COM ports"
+
+#: src/gui/main_window.py:112
+msgid "MENU_BAR_RECALCULATE_MEAN"
+msgstr "Recalculate mean on profile show/hide"
+
+#: src/gui/main_window.py:121
+msgid "MENU_BAR_POSTPROCESSORS"
+msgstr "Postprocessors"
+
+#: src/gui/main_window.py:142
+msgid "MENU_BAR_RUN_POSTPROCESSORS"
+msgstr "Run postprocessors"
+
+#: src/gui/settings.py:12
+msgid "WINDOW_TITLE_SETTINGS"
+msgstr "Settings"
+
+#: src/gui/settings.py:25 src/gui/widgets/stats.py:74
+msgid "ALERT_LIMITS"
+msgstr "Alert limits"
+
+#: src/gui/settings.py:56
+msgid "BUTTON_TEXT_SAVE"
+msgstr "Save"
+
+#: src/gui/settings.py:95 src/gui/widgets/stats.py:74
+msgid "MIN"
+msgstr "Min"
+
+#: src/gui/settings.py:103 src/gui/widgets/stats.py:74
+msgid "MAX"
+msgstr "Max"
+
+#: src/gui/widgets/ContextMenuTreeView.py:35
+#: src/gui/widgets/DirectoryView.py:62
+msgid "BUTTON_TEXT_OPEN_FILE_EXPLORER"
+msgstr "Open in file explorer"
+
+#: src/gui/widgets/ContextMenuTreeView.py:36
+msgid "BUTTON_TEXT_RENAME"
+msgstr "Rename"
+
+#: src/gui/widgets/ContextMenuTreeView.py:37
+msgid "BUTTON_TEXT_DELETE"
+msgstr "Delete"
+
+#: src/gui/widgets/ContextMenuTreeView.py:62
+msgid "RENAME_DIALOG_NEW_NAME_TEXT"
+msgstr "New name"
+
+#: src/gui/widgets/ContextMenuTreeView.py:62
+msgid "RENAME_DIALOG_TITLE"
+msgstr "Rename File"
+
+#: src/gui/widgets/ContextMenuTreeView.py:69
+msgid "RENAME_FAILED_MSGBOX_TEXT"
+msgstr "Could not rename"
+
+#: src/gui/widgets/ContextMenuTreeView.py:69
+msgid "RENAME_FAILED_MSGBOX_TITLE"
+msgstr "Rename Failed"
+
+#: src/gui/widgets/ContextMenuTreeView.py:79
+msgid "DELETE_DIALOG_FOLDER_TEXT_1"
+msgstr "Are you sure you want to delete"
+
+#: src/gui/widgets/ContextMenuTreeView.py:79
+msgid "DELETE_DIALOG_FOLDER_TEXT_2"
+msgstr "and all its contents"
+
+#: src/gui/widgets/ContextMenuTreeView.py:79
+#: src/gui/widgets/ContextMenuTreeView.py:86
+msgid "DELETE_DIALOG_TITLE"
+msgstr "Confirm Delete"
+
+#: src/gui/widgets/ContextMenuTreeView.py:84
+#: src/gui/widgets/ContextMenuTreeView.py:90
+msgid "DELETE_FAILED_MSGBOX_TEXT"
+msgstr "Could not delete"
+
+#: src/gui/widgets/ContextMenuTreeView.py:84
+#: src/gui/widgets/ContextMenuTreeView.py:90
+msgid "DELETE_FAILED_MSGBOX_TITLE"
+msgstr "Delete Failed"
+
+#: src/gui/widgets/ContextMenuTreeView.py:86
+msgid "DELETE_DIALOG_FILE_TEXT"
+msgstr "Are you sure you want to delete"
+
+#: src/gui/widgets/DirectoryView.py:66
+msgid "BUTTON_TEXT_CHANGE_DIRECTORY"
+msgstr "Change directory"
+
+#: src/gui/widgets/DirectoryView.py:124
+msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
+msgstr "Select Directory"
+
+#: src/gui/widgets/DirectoryView.py:172 src/gui/widgets/FileView.py:92
+msgid "TREEVIEW_HEADER_NAME"
+msgstr "Name"
+
+#: src/gui/widgets/DirectoryView.py:174 src/gui/widgets/FileView.py:96
+msgid "TREEVIEW_HEADER_DATE_MODIFIED"
+msgstr "Date modified"
+
+#: src/gui/widgets/FileView.py:94
+msgid "TREEVIEW_HEADER_SIZE"
+msgstr "Size"
+
+#: src/gui/widgets/FileView.py:98
+msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
+msgstr "Profile length"
+
+#: src/gui/widgets/ProgressBarDialog.py:11
+msgid "PROGRESS_DIALOG_TITLE"
+msgstr "Progress"
+
+#: src/gui/widgets/ProgressBarDialog.py:32
+msgid "BUTTON_TEXT_CLOSE"
+msgstr "Close"
+
+#: src/gui/widgets/chart.py:153
+msgid "CHART_HARDNESS_LABEL"
+msgstr "BC Hardness"
+
+#: src/gui/widgets/chart.py:154
+msgid "CHART_DISTANCE_LABEL"
+msgstr "Distance"
+
+#: src/gui/widgets/chart.py:189
+msgid "CHART_MEAN_PROFILE_LABEL"
+msgstr "Mean profile"
+
+#: src/gui/widgets/chart.py:193
+msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
+msgstr "Profiles are too short to calculate mean profile"
+
+#: src/gui/widgets/chart.py:208
+msgid "CHART_AMPLITUDE_LABEL"
+msgstr "Amplitude"
+
+#: src/gui/widgets/chart.py:209
+msgid "CHART_FREQUENCY_LABEL"
+msgstr "Frequency"
+
+#: src/gui/widgets/chart.py:248
+msgid "CHART_WAVELENGTH_LABEL"
+msgstr "Wavelength"
+
+#: src/gui/widgets/messagebox.py:7
+msgid "ERROR_MSGBOX_TITLE"
+msgstr "Error"
+
+#: src/gui/widgets/messagebox.py:10
+msgid "WARNING_MSGBOX_TITLE"
+msgstr "Warning"
+
+#: src/gui/widgets/serialports.py:46
+msgid "SERIAL_DEVICE_LIST_TITLE"
+msgstr "Devices"
+
+#: src/gui/widgets/serialports.py:48
+msgid "SERIAL_SCAN_BUTTON_TEXT"
+msgstr "Scan devices"
+
+#: src/gui/widgets/serialports.py:51
+msgid "SERIAL_SYNC_BUTTON_TEXT"
+msgstr "Sync data"
+
+#: src/gui/widgets/stats.py:76
+msgid "ALERT_LIMITS_NOT_SET"
+msgstr "No alert limits set"
+
+#: src/postprocessors/excel_export.py:10
+msgid "POSTPROCESSOR_NAME_EXCEL_EXPORT"
+msgstr "Export to Excel file"
+
+#: src/postprocessors/json_export.py:14
+msgid "POSTPROCESSOR_NAME_JSON_EXPORT"
+msgstr "Export to JSON file"
+
+#: src/postprocessors/plot_export.py:7
+msgid "POSTPROCESSOR_NAME_PLOT_EXPORT"
+msgstr "Export plot image"
+
+#: src/settings.py:46 src/utils/profile_stats.py:26
+msgid "ALERT_LIMIT_MEAN"
+msgstr "Mean"
+
+#: src/settings.py:53 src/utils/profile_stats.py:27
+msgid "ALERT_LIMIT_STDEV"
+msgstr "Stdev"
+
+#: src/settings.py:60 src/utils/profile_stats.py:30
+msgid "ALERT_LIMIT_CV"
+msgstr "CV"
+
+#: src/settings.py:67 src/utils/profile_stats.py:28
+msgid "ALERT_LIMIT_MIN"
+msgstr "Min"
+
+#: src/settings.py:74 src/utils/profile_stats.py:29
+msgid "ALERT_LIMIT_MAX"
+msgstr "Max"
+
+#: src/settings.py:81 src/utils/profile_stats.py:31
+msgid "ALERT_LIMIT_PP"
+msgstr "P-p"
+
+#: src/utils/postprocess.py:81
+msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
+msgstr "Running postprocessors"
+
+#: src/utils/postprocess.py:84
+msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
+msgstr "Finished processing folders"
+
+#: src/utils/postprocess.py:87
+msgid "POSTPROCESSORS_ERROR_TEXT"
+msgstr "Postprocessors failed for the following paths"
+
+#: src/utils/postprocess.py:89
+msgid "POSTPROCESSORS_SUCCESS_TEXT"
+msgstr "All postprocessors completed successfully!"
+
+#: src/utils/serial.py:97
+msgid "PORTSCAN_SCANNING_PORT_TEXT"
+msgstr "Scanning port"
+
+#: src/utils/serial.py:155
+msgid "PORTSCAN_COMPLETE_TEXT"
+msgstr "Scanning complete"
+

@@ -2,6 +2,7 @@ from PySide6.QtCore import QThread, Signal
 from gui.widgets.messagebox import show_info_msgbox, show_warn_msgbox
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.dynamic_loader import load_modules_from_folder
+from gettext import gettext as _
 from utils import preferences
 import os
 
@@ -79,15 +80,15 @@ def run_postprocessors(folder_paths):
         nonlocal processed_items
         processed_items += 1
         dialog.update_progress((processed_items / total_items_to_process) *
-                               100, f"Running postprocessors:\n{folder_path}\n{postprocessor_name}")
+                               100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
 
     def on_finished():
-        dialog.update_progress(100, "Finished processing folders")
+        dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
         if error_paths:
             show_warn_msgbox(
-                f"Postprocessors failed for the following paths:\n\n{'\n'.join(error_paths)}")
+                f"{_("POSTPROCESSORS_ERROR_TEXT")}:\n\n{'\n'.join(error_paths)}")
         else:
-            show_info_msgbox("All postprocessors completed successfully!", "Success")
+            show_info_msgbox(_("POSTPROCESSORS_SUCCESS_TEXT"), "Success")
 
     thread.now_processing.connect(on_now_processing)
     thread.processing_failed.connect(on_postprocess_fail)

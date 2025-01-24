@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
 from PySide6.QtGui import QImage, QKeyEvent
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
-
+from gettext import gettext as _
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -17,7 +17,7 @@ from utils.profile_stats import Stats, calc_mean_profile
 from scipy.signal import welch
 from utils.zoom_pan import ZoomPan
 from models.Profile import Profile
-from utils import preferences
+from utils import preferences, profile_stats
 import settings
 
 from io import BytesIO
@@ -150,8 +150,8 @@ class Chart(QWidget):
         self.profiles = [profile for profile in profiles if profile.data is not None]
         self.directory_name = directory_name
         self.selected_file = selected
-        self.profile_ax.set_ylabel(settings.UNIT)
-        self.profile_ax.set_xlabel("Distance [m]")
+        self.profile_ax.set_ylabel(f"{_("CHART_HARDNESS_LABEL")} [g]")
+        self.profile_ax.set_xlabel(f"{_("CHART_DISTANCE_LABEL")} [m]")
         previous_distance = 0
         for profile in self.profiles:
 
@@ -186,11 +186,11 @@ class Chart(QWidget):
         if len(mean_profile_values) > 0:
             self.profile_ax.plot(mean_profile_distances,
                                 mean_profile_values,
-                                label="Mean profile",
+                                label=_("CHART_MEAN_PROFILE_LABEL"),
                                 lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                 color=settings.MEAN_PROFILE_LINE_COLOR)
         else:
-            self.warning_label.set_text("Profiles are too short to calculate mean profile")
+            self.warning_label.set_text(_("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
 
         self.initial_xlim = self.profile_ax.get_xlim()
         self.initial_ylim = self.profile_ax.get_ylim()
@@ -205,8 +205,8 @@ class Chart(QWidget):
             self.spectrum_ax.plot(f[settings.SPECTRUM_LOWER_LIMIT:settings.SPECTRUM_UPPER_LIMIT],
                                   np.sqrt(Pxx)[settings.SPECTRUM_LOWER_LIMIT:settings.SPECTRUM_UPPER_LIMIT])
 
-            self.spectrum_ax.set_ylabel("Amplitude [g]")
-            self.spectrum_ax.set_xlabel("Frequency [1/m]")
+            self.spectrum_ax.set_ylabel(f"{_("CHART_AMPLITUDE_LABEL")} [g]")
+            self.spectrum_ax.set_xlabel(f"{_("CHART_FREQUENCY_LABEL")} [1/m]")
 
         if settings.SPECTRUM_WAVELENGTH_TICKS and settings.SHOW_SPECTRUM:
             self.update_ticks_wavelength()
@@ -227,12 +227,12 @@ class Chart(QWidget):
 
         if show_stats_in_title and len(self.mean_profile):
             title = (
-                f"{self.stats.mean.label}: {self.stats.mean(self.mean_profile):.2f} {self.stats.mean.unit}    "
-                f"{self.stats.min.label }: { self.stats.min(self.mean_profile):.2f} {self.stats.min.unit }    "
-                f"{self.stats.max.label }: { self.stats.max(self.mean_profile):.2f} {self.stats.max.unit }\n"
-                f"{self.stats.std.label }: { self.stats.std(self.mean_profile):.2f} {self.stats.std.unit }    "
-                f"{self.stats.cv.label  }: {  self.stats.cv(self.mean_profile):.2f} {self.stats.cv.unit  }    "
-                f"{self.stats.pp.label  }: {  self.stats.pp(self.mean_profile):.2f} {self.stats.pp.unit  }"
+                f"{profile_stats.stat_labels[self.stats.mean.name]}: {self.stats.mean(self.mean_profile):.2f} {self.stats.mean.unit}    "
+                f"{profile_stats.stat_labels[self.stats.min.name] }: { self.stats.min(self.mean_profile):.2f} {self.stats.min.unit }    "
+                f"{profile_stats.stat_labels[self.stats.max.name] }: { self.stats.max(self.mean_profile):.2f} {self.stats.max.unit }\n"
+                f"{profile_stats.stat_labels[self.stats.std.name] }: { self.stats.std(self.mean_profile):.2f} {self.stats.std.unit }    "
+                f"{profile_stats.stat_labels[self.stats.cv.name]  }: {  self.stats.cv(self.mean_profile):.2f} {self.stats.cv.unit  }    "
+                f"{profile_stats.stat_labels[self.stats.pp.name]  }: {  self.stats.pp(self.mean_profile):.2f} {self.stats.pp.unit  }"
             )
             self.profile_ax.set_title(title)
 
@@ -245,7 +245,7 @@ class Chart(QWidget):
         primary_ticks = self.spectrum_ax.get_xticks()
         wavelenght_ticks = [100 * (1 / i) for i in primary_ticks]
         self.spectrum_ax.set_xticklabels([f"{tick:.2f}" for tick in wavelenght_ticks])
-        self.spectrum_ax.set_xlabel("Wavelength [cm]")
+        self.spectrum_ax.set_xlabel(f"{_("CHART_WAVELENGTH_LABEL")} [cm]")
 
     def clear_canvas(self):
         self.ax.clear()
