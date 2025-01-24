@@ -83,7 +83,7 @@ class Chart(QWidget):
 
     def keyPressEvent(self, event: QKeyEvent):
         """Handle key press events for the widget."""
-        if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_C:
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
             # Copy plot to clipboard when Ctrl+C is pressed
             if hasattr(self, 'figure') and self.figure:
                 self.copyPlotToClipboard()
