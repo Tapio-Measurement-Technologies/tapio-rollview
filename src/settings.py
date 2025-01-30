@@ -1,6 +1,5 @@
 import logging
 import os
-from gettext import gettext as _
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
 PREFERENCES_FILENAME = 'preferences.json'
@@ -39,46 +38,41 @@ DEFAULT_ENABLED_POSTPROCESSORS = [
 
 SHOW_ALL_COM_PORTS_DEFAULT = False
 RECALCULATE_MEAN_DEFAULT = True
+LOCALE_DEFAULT = "en"
 
 ALERT_LIMITS_DEFAULT = [
     {
         "name": "mean_g",
-        "label": _("ALERT_LIMIT_MEAN"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "stdev_g",
-        "label": _("ALERT_LIMIT_STDEV"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "cv_pct",
-        "label": _("ALERT_LIMIT_CV"),
         "units": "%",
         "min": None,
         "max": None
     },
     {
         "name": "min_g",
-        "label": _("ALERT_LIMIT_MIN"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "max_g",
-        "label": _("ALERT_LIMIT_MAX"),
         "units": "g",
         "min": None,
         "max": None
     },
     {
         "name": "pp_g",
-        "label": _("ALERT_LIMIT_PP"),
         "units": "g",
         "min": None,
         "max": None

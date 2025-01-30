@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout
 from PySide6.QtCore import Qt
 from utils.profile_stats import Stats
 from utils import preferences, profile_stats
-from gettext import gettext as _
+from utils.translation import _
 
 stats = Stats()
 

@@ -1,5 +1,5 @@
 from utils.profile_stats import calc_mean_profile
-from gettext import gettext as _
+from utils.translation import _
 from utils.profile_stats import Stats
 from models.Profile import Profile
 import numpy as np

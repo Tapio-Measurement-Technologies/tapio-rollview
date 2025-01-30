@@ -17,7 +17,7 @@ from PySide6.QtCore import (
 )
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.file_utils import open_in_file_explorer
-from gettext import gettext as _
+from utils.translation import _
 import os
 from datetime import datetime
 

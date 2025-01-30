@@ -1,4 +1,4 @@
-from gettext import gettext as _
+from utils.translation import _
 
 ABORT                = _('Aborting transfer')
 ABORT_WHY            = _('Aborting transfer; %s')

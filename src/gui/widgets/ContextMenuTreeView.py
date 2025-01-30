@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDir, Signal, Qt, QFile, QModelIndex, QFileInfo, QSortFilterProxyModel
 from PySide6.QtGui import QAction
 from utils.file_utils import open_in_file_explorer
-from gettext import gettext as _
+from utils.translation import _
 
 class ContextMenuTreeView(QTreeView):
     rootIndexChanged = Signal()

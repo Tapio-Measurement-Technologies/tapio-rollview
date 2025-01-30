@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
 from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
-from gettext import gettext as _
+from utils.translation import _
 import settings
 import store
 

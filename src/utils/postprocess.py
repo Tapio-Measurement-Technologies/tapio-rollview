@@ -2,7 +2,7 @@ from PySide6.QtCore import QThread, Signal
 from gui.widgets.messagebox import show_info_msgbox, show_warn_msgbox
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.dynamic_loader import load_modules_from_folder
-from gettext import gettext as _
+from utils.translation import _
 from utils import preferences
 import os
 

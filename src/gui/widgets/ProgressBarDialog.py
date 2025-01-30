@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QProgressBar, QPushButton, QLabel
 )
 from PySide6.QtCore import Qt
-from gettext import gettext as _
+from utils.translation import _
 
 class ProgressBarDialog(QDialog):
     def __init__(self, auto_close=False, parent=None):

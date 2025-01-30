@@ -8,13 +8,15 @@ alert_limits           = settings.ALERT_LIMITS_DEFAULT
 enabled_postprocessors = settings.DEFAULT_ENABLED_POSTPROCESSORS
 show_all_com_ports     = settings.SHOW_ALL_COM_PORTS_DEFAULT
 recalculate_mean       = settings.RECALCULATE_MEAN_DEFAULT
+locale                 = settings.LOCALE_DEFAULT
 
 def save_preferences_to_file():
   preferences = {
     "alert_limits":           alert_limits,
     "enabled_postprocessors": enabled_postprocessors,
     "show_all_com_ports":     show_all_com_ports,
-    "recalculate_mean":       recalculate_mean
+    "recalculate_mean":       recalculate_mean,
+    "locale":                 locale
   }
   try:
     with open(preferences_file_path, 'w') as file:
@@ -43,6 +45,11 @@ def update_recalculate_mean(new_recalculate_mean):
   recalculate_mean = bool(new_recalculate_mean)
   save_preferences_to_file()
 
+def update_locale(new_locale):
+  global locale
+  locale = new_locale
+  save_preferences_to_file()
+
 ## Initialize preferences
 try:
   with open(preferences_file_path, 'r') as file:
@@ -56,6 +63,8 @@ try:
       show_all_com_ports = preferences['show_all_com_ports']
     if 'recalculate_mean' in preferences:
       recalculate_mean = preferences['recalculate_mean']
+    if 'locale' in preferences:
+      locale = preferences['locale']
 
 except FileNotFoundError:
   save_preferences_to_file()

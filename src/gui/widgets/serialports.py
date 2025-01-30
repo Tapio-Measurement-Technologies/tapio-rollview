@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from models.SerialPort import SerialPortModel
 from gui.filetransferdialog import FileTransferDialog
 from utils.serial import FileTransferManager, scan_ports, SerialPortItem
-from gettext import gettext as _
+from utils.translation import _
 import store
 
 class SerialPortView(QListView):

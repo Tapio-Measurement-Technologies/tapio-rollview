@@ -1,5 +1,5 @@
 from gui.widgets.chart import Chart
-from gettext import gettext as _
+from utils.translation import _
 from models.Profile import Profile
 import os
 

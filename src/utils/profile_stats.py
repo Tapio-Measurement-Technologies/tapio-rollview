@@ -2,7 +2,7 @@ import numpy as np
 from utils.filter import bandpass_filter
 import numpy as np
 import settings
-from gettext import gettext as _
+from utils.translation import _
 
 # Implement here any custom more complicated profile statistics
 

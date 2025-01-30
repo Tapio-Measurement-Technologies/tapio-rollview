@@ -54,7 +54,7 @@ msgstr "Recalculate mean on profile show/hide"
 
 #: src/gui/main_window.py:121
 msgid "MENU_BAR_POSTPROCESSORS"
-msgstr "Postprocessors"
+msgstr "データ処理"
 
 #: src/gui/main_window.py:142
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
@@ -170,7 +170,7 @@ msgstr "Close"
 
 #: src/gui/widgets/chart.py:153
 msgid "CHART_HARDNESS_LABEL"
-msgstr "BC Hardness"
+msgstr "硬度"
 
 #: src/gui/widgets/chart.py:154
 msgid "CHART_DISTANCE_LABEL"
@@ -282,12 +282,3 @@ msgstr "Scanning complete"
 
 msgid "LANGUAGE"
 msgstr "Language"
-
-msgid "GENERAL_SETTINGS"
-msgstr "General settings"
-
-msgid "RESTART_REQUIRED_MSGBOX_TITLE"
-msgstr "Restart required"
-
-msgid "RESTART_REQUIRED_MSGBOX_TEXT"
-msgstr "Language will be changed "

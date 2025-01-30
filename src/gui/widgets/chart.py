@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
 from PySide6.QtGui import QImage, QKeyEvent
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
-from gettext import gettext as _
+from utils.translation import _
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure

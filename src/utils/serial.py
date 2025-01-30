@@ -8,7 +8,7 @@ from PySide6.QtCore import QThread, Signal
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.time_sync import send_timestamp
 from utils.postprocess import run_postprocessors
-from gettext import gettext as _
+from utils.translation import _
 import json
 import os
 

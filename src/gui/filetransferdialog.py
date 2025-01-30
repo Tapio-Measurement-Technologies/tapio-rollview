@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QDialog, QProgressBar, QPushButton, QVBoxLayout, QApplication, QLabel
 from PySide6.QtCore import QModelIndex
 from utils.serial import FileTransferManager
-from gettext import gettext as _
+from utils.translation import _
 
 class FileTransferDialog(QDialog):
     def __init__(self, manager: FileTransferManager):

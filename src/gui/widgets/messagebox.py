@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QMessageBox
-from gettext import gettext as _
+from utils.translation import _
 
 def show_info_msgbox(text: str, title: str, buttons: QMessageBox.StandardButton = QMessageBox.StandardButton.Ok):
     show_message_box(text, title, QMessageBox.Icon.Information, buttons)

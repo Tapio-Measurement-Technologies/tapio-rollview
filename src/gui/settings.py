@@ -1,9 +1,10 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox
 from PySide6.QtGui import QDoubleValidator
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, Qt
 from utils import preferences
-from gettext import gettext as _
+from utils.translation import _
 from utils import profile_stats
+import settings
 
 class SettingsWindow(QWidget):
     settings_updated = Signal()
@@ -22,6 +23,9 @@ class SettingsWindow(QWidget):
         self.stacked_widget = QStackedWidget()
         main_layout.addWidget(self.stacked_widget)
 
+        self.general_settings_page = GeneralSettingsPage()
+        self.add_settings_page(_("GENERAL_SETTINGS"), self.general_settings_page)
+
         self.alert_limit_page = AlertLimitSettingsPage()
         self.add_settings_page(_("ALERT_LIMITS"), self.alert_limit_page)
 
@@ -36,6 +40,62 @@ class SettingsWindow(QWidget):
 
     def display_page(self, index):
         self.stacked_widget.setCurrentIndex(index)
+
+class GeneralSettingsPage(QWidget):
+    settings_updated = Signal()
+
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        self.language_label = QLabel(_("LANGUAGE"))
+        layout.addWidget(self.language_label)
+
+        self.language_selector = QComboBox()
+        self.languages = {
+            "en": "English",
+            "ja": "日本語 (Japanese)"
+        }
+
+        current_locale = preferences.locale
+        current_lang = current_locale[:2] if current_locale else settings.LOCALE_DEFAULT
+
+        self.language_selector.addItems(self.languages.values())
+
+        for lang_code, lang_name in self.languages.items():
+            if lang_code == current_lang:
+                self.language_selector.setCurrentText(lang_name)
+                break
+
+        self.language_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self.language_selector)
+
+        self.footer_layout = QHBoxLayout()
+        self.footer_layout.addStretch()
+
+        self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        self.apply_button.setEnabled(False)
+        self.apply_button.clicked.connect(self.save_language)
+        self.footer_layout.addWidget(self.apply_button)
+
+        layout.addLayout(self.footer_layout)
+
+    @Slot()
+    def enable_save_button(self):
+        self.apply_button.setEnabled(True)
+
+    @Slot()
+    def save_language(self):
+        selected_lang = list(self.languages.keys())[self.language_selector.currentIndex()]
+        preferences.update_locale(selected_lang)
+        self.apply_button.setEnabled(False)
+        self.settings_updated.emit()
+        msgbox = QMessageBox()
+        msgbox.setText(_("RESTART_REQUIRED_MSGBOX_TITLE"))
+        msgbox.setWindowTitle(_("RESTART_REQUIRED_MSGBOX_TEXT"))
+        msgbox.exec()
 
 class AlertLimitSettingsPage(QWidget):
     settings_updated = Signal()

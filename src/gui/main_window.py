@@ -29,7 +29,7 @@ import settings
 import store
 
 from gui.settings import SettingsWindow
-from gettext import gettext as _
+from utils.translation import _
 
 
 class MainWindow(QMainWindow):
