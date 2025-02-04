@@ -52,11 +52,16 @@ jobs:
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
+      - name: Compress executable
+        run: |
+          zip dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip \
+          dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
-          path: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          name: rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip
+          path: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip
 
   release:
     runs-on: ubuntu-latest
@@ -69,13 +74,13 @@ jobs:
       - name: Download Artifact (linux)
         uses: actions/download-artifact@v3
         with:
-          name: rollview-${{ github.ref_name }}-linux
+          name: rollview-${{ github.ref_name }}-linux.zip
           path: dist/
 
       - name: Download Artifact (windows)
         uses: actions/download-artifact@v3
         with:
-          name: rollview-${{ github.ref_name }}-windows.exe
+          name: rollview-${{ github.ref_name }}-windows.zip
           path: dist/
 
       - name: Create Release
@@ -95,9 +100,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-linux
-          asset_name: rollview-${{ github.ref_name }}-linux
-          asset_content_type: application/octet-stream
+          asset_path: dist/rollview-${{ github.ref_name }}-linux.zip
+          asset_name: rollview-${{ github.ref_name }}-linux.zip
+          asset_content_type: application/zip
 
       - name: Upload Release Asset (windows)
         uses: actions/upload-release-asset@v1
@@ -105,6 +110,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-windows.exe
-          asset_name: rollview-${{ github.ref_name }}-windows.exe
-          asset_content_type: application/octet-stream
+          asset_path: dist/rollview-${{ github.ref_name }}-windows.zip
+          asset_name: rollview-${{ github.ref_name }}-windows.zip
+          asset_content_type: application/zip
