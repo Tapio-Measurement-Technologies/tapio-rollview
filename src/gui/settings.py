@@ -93,8 +93,8 @@ class GeneralSettingsPage(QWidget):
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()
         msgbox = QMessageBox()
-        msgbox.setText(_("RESTART_REQUIRED_MSGBOX_TITLE"))
-        msgbox.setWindowTitle(_("RESTART_REQUIRED_MSGBOX_TEXT"))
+        msgbox.setWindowTitle(_("RESTART_REQUIRED_MSGBOX_TITLE"))
+        msgbox.setText(_("RESTART_REQUIRED_MSGBOX_TEXT"))
         msgbox.exec()
 
 class AlertLimitSettingsPage(QWidget):
