@@ -22,6 +22,16 @@ import settings
 
 from io import BytesIO
 import matplotlib.pyplot as plt
+from utils import preferences
+
+# Add support for Japanese characters
+if preferences.locale == 'ja':
+    import matplotlib
+    import matplotlib.font_manager as font_manager
+    font_path = settings.JP_FONT_PATH
+    font_manager.fontManager.addfont(font_path)
+    prop = font_manager.FontProperties(fname=font_path)
+    matplotlib.rcParams['font.family'] = prop.get_name()
 
 class WarningLabel(QLabel):
     def __init__(self, parent=None):
