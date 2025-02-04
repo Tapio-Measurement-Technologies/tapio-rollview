@@ -80,10 +80,18 @@ jobs:
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
-      - name: Compress executable
+      - name: Compress executable (Linux)
+        if: runner.os == 'Linux'
         run: |
           zip dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip \
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+
+      - name: Compress executable (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}" `
+          -DestinationPath "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
