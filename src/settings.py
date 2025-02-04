@@ -1,11 +1,26 @@
 import logging
 import os
+import sys
+
+def resource_path(relative_path):
+    """ Get the absolute path to a resource (for PyInstaller compatibility). """
+    try:
+        base_path = sys._MEIPASS  # When running as a PyInstaller bundle
+    except AttributeError:
+        base_path = os.path.abspath(".")  # When running as a script
+
+    return os.path.join(base_path, relative_path)
+
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
 PREFERENCES_FILENAME = 'preferences.json'
-PREFERENCES_FILE_PATH = os.path.join(DEFAULT_ROLL_DIRECTORY, PREFERENCES_FILENAME)
-LOCALE_FILES_PATH = os.path.join('src', 'locales')
-JP_FONT_PATH = os.path.join('src', 'assets', 'fonts', 'NotoSansJP-Regular.ttf')
+PREFERENCES_FILE_PATH = os.path.join(
+    DEFAULT_ROLL_DIRECTORY, PREFERENCES_FILENAME)
+
+# Use resource_path() for PyInstaller compatibility
+LOCALE_FILES_PATH = resource_path('locales')
+JP_FONT_PATH = resource_path('assets/fonts/NotoSansJP-Regular.ttf')
+
 
 # limits can be:
 # - constant(value) : constant limit

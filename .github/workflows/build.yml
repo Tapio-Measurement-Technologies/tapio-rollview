@@ -68,7 +68,6 @@ jobs:
           --clean
           --onefile
           --noconsole
-          --log-level=DEBUG
           --add-data "src/postprocessors/:postprocessors/"
           --add-data "src/assets/fonts/:assets/fonts/"
           --add-data "src/locales/:locales/"
@@ -151,3 +150,6 @@ jobs:
           asset_path: dist/rollview-${{ github.ref_name }}-windows.zip
           asset_name: rollview-${{ github.ref_name }}-windows.zip
           asset_content_type: application/zip
+
+
+
