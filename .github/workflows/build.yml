@@ -40,27 +40,27 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Compile translation files (linux)
-        shell: bash
-        run: |
-          mkdir -p src/locales/LC_MESSAGES/
-          for po_file in translations/messages_*.po; do
-            lang=$(basename "$po_file" | cut -d'_' -f2 | cut -d'.' -f1)
-            mkdir -p "src/locales/LC_MESSAGES/$lang"
-            msgfmt "$po_file" -o "src/locales/LC_MESSAGES/$lang/messages.mo"
-          done
-        if: runner.os == 'Linux'
+      # - name: Compile translation files (linux)
+      #   shell: bash
+      #   run: |
+      #     mkdir -p src/locales/LC_MESSAGES/
+      #     for po_file in translations/messages_*.po; do
+      #       lang=$(basename "$po_file" | cut -d'_' -f2 | cut -d'.' -f1)
+      #       mkdir -p "src/locales/LC_MESSAGES/$lang"
+      #       msgfmt "$po_file" -o "src/locales/LC_MESSAGES/$lang/messages.mo"
+      #     done
+      #   if: runner.os == 'Linux'
 
-      - name: Compile translation files (windows)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path src/locales/LC_MESSAGES -Force
-          Get-ChildItem translations/messages_*.po | ForEach-Object {
-            $lang = $_.BaseName -replace 'messages_', ''
-            New-Item -ItemType Directory -Path "src/locales/LC_MESSAGES/$lang" -Force
-            msgfmt $_.FullName -o "src/locales/LC_MESSAGES/$lang/messages.mo"
-          }
-        if: runner.os == 'Windows'
+      # - name: Compile translation files (windows)
+      #   shell: pwsh
+      #   run: |
+      #     New-Item -ItemType Directory -Path src/locales/LC_MESSAGES -Force
+      #     Get-ChildItem translations/messages_*.po | ForEach-Object {
+      #       $lang = $_.BaseName -replace 'messages_', ''
+      #       New-Item -ItemType Directory -Path "src/locales/LC_MESSAGES/$lang" -Force
+      #       msgfmt $_.FullName -o "src/locales/LC_MESSAGES/$lang/messages.mo"
+      #     }
+      #   if: runner.os == 'Windows'
 
       - name: Build executable
         run: >
