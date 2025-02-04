@@ -290,4 +290,4 @@ msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "Restart required"
 
 msgid "RESTART_REQUIRED_MSGBOX_TEXT"
-msgstr "Language will be changed "
+msgstr "Language settings will be applied after restart!"

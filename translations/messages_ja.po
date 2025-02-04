@@ -17,40 +17,40 @@ msgstr ""
 
 #: src/gui/filetransferdialog.py:9
 msgid "FILE_TRANSFER_DIALOG_TITLE"
-msgstr "File Transfer Progress"
+msgstr "ファイル転送"
 
 #: src/gui/filetransferdialog.py:14 src/gui/widgets/ProgressBarDialog.py:21
 #: src/gui/widgets/ProgressBarDialog.py:50
 msgid "PROGRESS_DIALOG_STARTING"
-msgstr "Starting..."
+msgstr "転送中"
 
 #: src/gui/filetransferdialog.py:19
 msgid "BUTTON_TEXT_CANCEL"
-msgstr "Cancel"
+msgstr "キャンセル"
 
 #: src/gui/filetransferdialog.py:44
 msgid "FILE_TRANSFER_DIALOG_RECEIVING"
-msgstr "Receiving"
+msgstr "受信中"
 
 #: src/gui/main_window.py:98
 msgid "MENU_BAR_FILE"
-msgstr "File"
+msgstr "ファイル"
 
 #: src/gui/main_window.py:99
 msgid "MENU_BAR_SETTINGS"
-msgstr "Settings"
+msgstr "設定"
 
 #: src/gui/main_window.py:103
 msgid "MENU_BAR_VIEW"
-msgstr "View"
+msgstr "表示"
 
 #: src/gui/main_window.py:105
 msgid "MENU_BAR_SHOW_ALL_COM_PORTS"
-msgstr "Show all COM ports"
+msgstr "COMポート一覧"
 
 #: src/gui/main_window.py:112
 msgid "MENU_BAR_RECALCULATE_MEAN"
-msgstr "Recalculate mean on profile show/hide"
+msgstr "プロファイル再表示/非表示"
 
 #: src/gui/main_window.py:121
 msgid "MENU_BAR_POSTPROCESSORS"
@@ -58,107 +58,107 @@ msgstr "データ処理"
 
 #: src/gui/main_window.py:142
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
-msgstr "Run postprocessors"
+msgstr "データ処理実行"
 
 #: src/gui/settings.py:12
 msgid "WINDOW_TITLE_SETTINGS"
-msgstr "Settings"
+msgstr "設定"
 
 #: src/gui/settings.py:25 src/gui/widgets/stats.py:74
 msgid "ALERT_LIMITS"
-msgstr "Alert limits"
+msgstr "アラート設定"
 
 #: src/gui/settings.py:56
 msgid "BUTTON_TEXT_SAVE"
-msgstr "Save"
+msgstr "保存"
 
 #: src/gui/settings.py:95 src/gui/widgets/stats.py:74
 msgid "MIN"
-msgstr "Min"
+msgstr "最小"
 
 #: src/gui/settings.py:103 src/gui/widgets/stats.py:74
 msgid "MAX"
-msgstr "Max"
+msgstr "最大"
 
 #: src/gui/widgets/ContextMenuTreeView.py:35
 #: src/gui/widgets/DirectoryView.py:62
 msgid "BUTTON_TEXT_OPEN_FILE_EXPLORER"
-msgstr "Open in file explorer"
+msgstr "データ保存フォルダを開く"
 
 #: src/gui/widgets/ContextMenuTreeView.py:36
 msgid "BUTTON_TEXT_RENAME"
-msgstr "Rename"
+msgstr "名前をつける"
 
 #: src/gui/widgets/ContextMenuTreeView.py:37
 msgid "BUTTON_TEXT_DELETE"
-msgstr "Delete"
+msgstr "削除"
 
 #: src/gui/widgets/ContextMenuTreeView.py:62
 msgid "RENAME_DIALOG_NEW_NAME_TEXT"
-msgstr "New name"
+msgstr "新しいファイル名"
 
 #: src/gui/widgets/ContextMenuTreeView.py:62
 msgid "RENAME_DIALOG_TITLE"
-msgstr "Rename File"
+msgstr "ファイル名の変更"
 
 #: src/gui/widgets/ContextMenuTreeView.py:69
 msgid "RENAME_FAILED_MSGBOX_TEXT"
-msgstr "Could not rename"
+msgstr "変更できませんでした"
 
 #: src/gui/widgets/ContextMenuTreeView.py:69
 msgid "RENAME_FAILED_MSGBOX_TITLE"
-msgstr "Rename Failed"
+msgstr "変更に失敗しました"
 
 #: src/gui/widgets/ContextMenuTreeView.py:79
 msgid "DELETE_DIALOG_FOLDER_TEXT_1"
-msgstr "Are you sure you want to delete"
+msgstr "全て削除しますか？ "
 
 #: src/gui/widgets/ContextMenuTreeView.py:79
 msgid "DELETE_DIALOG_FOLDER_TEXT_2"
-msgstr "and all its contents"
+msgstr ""
 
 #: src/gui/widgets/ContextMenuTreeView.py:79
 #: src/gui/widgets/ContextMenuTreeView.py:86
 msgid "DELETE_DIALOG_TITLE"
-msgstr "Confirm Delete"
+msgstr "削除しますか？"
 
 #: src/gui/widgets/ContextMenuTreeView.py:84
 #: src/gui/widgets/ContextMenuTreeView.py:90
 msgid "DELETE_FAILED_MSGBOX_TEXT"
-msgstr "Could not delete"
+msgstr "削除できませんでした"
 
 #: src/gui/widgets/ContextMenuTreeView.py:84
 #: src/gui/widgets/ContextMenuTreeView.py:90
 msgid "DELETE_FAILED_MSGBOX_TITLE"
-msgstr "Delete Failed"
+msgstr "削除に失敗しました"
 
 #: src/gui/widgets/ContextMenuTreeView.py:86
 msgid "DELETE_DIALOG_FILE_TEXT"
-msgstr "Are you sure you want to delete"
+msgstr "削除しますか"
 
 #: src/gui/widgets/DirectoryView.py:66
 msgid "BUTTON_TEXT_CHANGE_DIRECTORY"
-msgstr "Change directory"
+msgstr "ディレクトリの変更"
 
 #: src/gui/widgets/DirectoryView.py:124
 msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
-msgstr "Select Directory"
+msgstr "ディレクトリの選択"
 
 #: src/gui/widgets/DirectoryView.py:172 src/gui/widgets/FileView.py:92
 msgid "TREEVIEW_HEADER_NAME"
-msgstr "Name"
+msgstr "名前"
 
 #: src/gui/widgets/DirectoryView.py:174 src/gui/widgets/FileView.py:96
 msgid "TREEVIEW_HEADER_DATE_MODIFIED"
-msgstr "Date modified"
+msgstr "測定日時"
 
 #: src/gui/widgets/FileView.py:94
 msgid "TREEVIEW_HEADER_SIZE"
-msgstr "Size"
+msgstr "サイズ"
 
 #: src/gui/widgets/FileView.py:98
 msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
-msgstr "Profile length"
+msgstr "測定長"
 
 #: src/gui/widgets/ProgressBarDialog.py:11
 msgid "PROGRESS_DIALOG_TITLE"
@@ -166,7 +166,7 @@ msgstr "Progress"
 
 #: src/gui/widgets/ProgressBarDialog.py:32
 msgid "BUTTON_TEXT_CLOSE"
-msgstr "Close"
+msgstr "閉じる"
 
 #: src/gui/widgets/chart.py:153
 msgid "CHART_HARDNESS_LABEL"
@@ -174,111 +174,120 @@ msgstr "硬度"
 
 #: src/gui/widgets/chart.py:154
 msgid "CHART_DISTANCE_LABEL"
-msgstr "Distance"
+msgstr "距離"
 
 #: src/gui/widgets/chart.py:189
 msgid "CHART_MEAN_PROFILE_LABEL"
-msgstr "Mean profile"
+msgstr "平均プロファイル"
 
 #: src/gui/widgets/chart.py:193
 msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
-msgstr "Profiles are too short to calculate mean profile"
+msgstr "測定長が短すぎます"
 
 #: src/gui/widgets/chart.py:208
 msgid "CHART_AMPLITUDE_LABEL"
-msgstr "Amplitude"
+msgstr "拡大"
 
 #: src/gui/widgets/chart.py:209
 msgid "CHART_FREQUENCY_LABEL"
-msgstr "Frequency"
+msgstr "頻度"
 
 #: src/gui/widgets/chart.py:248
 msgid "CHART_WAVELENGTH_LABEL"
-msgstr "Wavelength"
+msgstr "波長"
 
 #: src/gui/widgets/messagebox.py:7
 msgid "ERROR_MSGBOX_TITLE"
-msgstr "Error"
+msgstr "エラー"
 
 #: src/gui/widgets/messagebox.py:10
 msgid "WARNING_MSGBOX_TITLE"
-msgstr "Warning"
+msgstr "警告"
 
 #: src/gui/widgets/serialports.py:46
 msgid "SERIAL_DEVICE_LIST_TITLE"
-msgstr "Devices"
+msgstr "ペアリング済みデバイス"
 
 #: src/gui/widgets/serialports.py:48
 msgid "SERIAL_SCAN_BUTTON_TEXT"
-msgstr "Scan devices"
+msgstr "デバイスの検出"
 
 #: src/gui/widgets/serialports.py:51
 msgid "SERIAL_SYNC_BUTTON_TEXT"
-msgstr "Sync data"
+msgstr "データダウンロード"
 
 #: src/gui/widgets/stats.py:76
 msgid "ALERT_LIMITS_NOT_SET"
-msgstr "No alert limits set"
+msgstr "アラート制限は未設定です"
 
 #: src/postprocessors/excel_export.py:10
 msgid "POSTPROCESSOR_NAME_EXCEL_EXPORT"
-msgstr "Export to Excel file"
+msgstr "Excelファイルの自動生成"
 
 #: src/postprocessors/json_export.py:14
 msgid "POSTPROCESSOR_NAME_JSON_EXPORT"
-msgstr "Export to JSON file"
+msgstr "JSONファイルの自動生成"
 
 #: src/postprocessors/plot_export.py:7
 msgid "POSTPROCESSOR_NAME_PLOT_EXPORT"
-msgstr "Export plot image"
+msgstr "イメージデータの自動生成"
 
 #: src/settings.py:46 src/utils/profile_stats.py:26
 msgid "ALERT_LIMIT_MEAN"
-msgstr "Mean"
+msgstr "平均値"
 
 #: src/settings.py:53 src/utils/profile_stats.py:27
 msgid "ALERT_LIMIT_STDEV"
-msgstr "Stdev"
+msgstr "標準偏差"
 
 #: src/settings.py:60 src/utils/profile_stats.py:30
 msgid "ALERT_LIMIT_CV"
-msgstr "CV"
+msgstr "変動係数"
 
 #: src/settings.py:67 src/utils/profile_stats.py:28
 msgid "ALERT_LIMIT_MIN"
-msgstr "Min"
+msgstr "最小値"
 
 #: src/settings.py:74 src/utils/profile_stats.py:29
 msgid "ALERT_LIMIT_MAX"
-msgstr "Max"
+msgstr "最大値"
 
 #: src/settings.py:81 src/utils/profile_stats.py:31
 msgid "ALERT_LIMIT_PP"
-msgstr "P-p"
+msgstr "最大最小差"
 
 #: src/utils/postprocess.py:81
 msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
-msgstr "Running postprocessors"
+msgstr "処理中"
 
 #: src/utils/postprocess.py:84
 msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
-msgstr "Finished processing folders"
+msgstr "処理完了"
 
 #: src/utils/postprocess.py:87
 msgid "POSTPROCESSORS_ERROR_TEXT"
-msgstr "Postprocessors failed for the following paths"
+msgstr "以下の処理に失敗しました"
 
 #: src/utils/postprocess.py:89
 msgid "POSTPROCESSORS_SUCCESS_TEXT"
-msgstr "All postprocessors completed successfully!"
+msgstr "完了"
 
 #: src/utils/serial.py:97
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
-msgstr "Scanning port"
+msgstr "ポート検出中"
 
 #: src/utils/serial.py:155
 msgid "PORTSCAN_COMPLETE_TEXT"
-msgstr "Scanning complete"
+msgstr "スキャン完了"
 
 msgid "LANGUAGE"
-msgstr "Language"
+msgstr "言語"
+
+msgid "GENERAL_SETTINGS"
+msgstr "一般設定"
+
+msgid "RESTART_REQUIRED_MSGBOX_TITLE"
+msgstr "再起動が必要です"
+
+msgid "RESTART_REQUIRED_MSGBOX_TEXT"
+msgstr "言語設定は再起動後に適用されます。"
