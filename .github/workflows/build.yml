@@ -65,8 +65,10 @@ jobs:
       - name: Build executable
         run: >
           pyinstaller
+          --clean
           --onefile
           --noconsole
+          --log-level=DEBUG
           --add-data "src/postprocessors/:postprocessors/"
           --add-data "src/assets/fonts/:assets/fonts/"
           --add-data "src/locales/:locales/"
