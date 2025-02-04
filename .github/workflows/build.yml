@@ -67,9 +67,9 @@ jobs:
           pyinstaller
           --onefile
           --noconsole
-          --add-data src/postprocessors/:postprocessors/
-          --add-data src/assets/fonts/:assets/fonts/
-          --add-data src/locales/:locales/
+          --add-data "src/postprocessors/:postprocessors/"
+          --add-data "src/assets/fonts/:assets/fonts/"
+          --add-data "src/locales/:locales/"
           --hidden-import pandas
           --icon src/assets/tapio_favicon.ico
           src/main.py
