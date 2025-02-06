@@ -7,7 +7,7 @@ def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS  # When running as a PyInstaller bundle
     except AttributeError:
-        base_path = os.path.abspath(".")  # When running as a script
+        base_path = os.path.dirname(__file__)  # When running as a script
 
     return os.path.join(base_path, relative_path)
 
