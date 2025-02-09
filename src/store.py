@@ -1,11 +1,10 @@
-from PySide6.QtCore import QDir
-from settings import DEFAULT_ROLL_DIRECTORY
+import settings
 
-root_directory = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
 connections = []
 profiles = []
 selected_profile = None
 selected_directory = None
+root_directory = settings.ROOT_DIRECTORY
 
 def get_profile_by_filename(filename):
     for profile in profiles:
