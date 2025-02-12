@@ -120,6 +120,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: rollview-${{ github.ref_name }}-windows.zip
+          
           path: dist/
 
       - name: Create Release
@@ -132,6 +133,11 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
+
+      - name: Extract Windows Executable
+        run: |
+          cd dist
+          unzip rollview-${{ github.ref_name }}-windows.zip
 
       - name: Upload Release Asset (linux)
         uses: actions/upload-release-asset@v1
