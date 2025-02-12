@@ -6,8 +6,8 @@ on:
       - '*'
   workflow_dispatch:
 
-
-
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -40,28 +40,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # - name: Compile translation files (linux)
-      #   shell: bash
-      #   run: |
-      #     mkdir -p src/locales/LC_MESSAGES/
-      #     for po_file in translations/messages_*.po; do
-      #       lang=$(basename "$po_file" | cut -d'_' -f2 | cut -d'.' -f1)
-      #       mkdir -p "src/locales/LC_MESSAGES/$lang"
-      #       msgfmt "$po_file" -o "src/locales/LC_MESSAGES/$lang/messages.mo"
-      #     done
-      #   if: runner.os == 'Linux'
-
-      # - name: Compile translation files (windows)
-      #   shell: pwsh
-      #   run: |
-      #     New-Item -ItemType Directory -Path src/locales/LC_MESSAGES -Force
-      #     Get-ChildItem translations/messages_*.po | ForEach-Object {
-      #       $lang = $_.BaseName -replace 'messages_', ''
-      #       New-Item -ItemType Directory -Path "src/locales/LC_MESSAGES/$lang" -Force
-      #       msgfmt $_.FullName -o "src/locales/LC_MESSAGES/$lang/messages.mo"
-      #     }
-      #   if: runner.os == 'Windows'
-
       - name: Build executable
         run: >
           pyinstaller
@@ -91,16 +69,16 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}" `
-          -DestinationPath "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip"
+          Compress-Archive -Path "dist/rollview-${{ github.ref_name }}-windows.exe" `
+          -DestinationPath "dist/rollview-${{ github.ref_name }}-windows.zip"
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip
-          path: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip
-
-
+          name: rollview-${{ github.ref_name }}-${{ matrix.platform }}
+          path: |
+            dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+            dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip
 
   release:
     runs-on: ubuntu-latest
@@ -110,24 +88,23 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Download Artifact (linux)
+      - name: Download Artifact (Linux)
         uses: actions/download-artifact@v4
         with:
-          name: rollview-${{ github.ref_name }}-linux.zip
+          name: rollview-${{ github.ref_name }}-linux
           path: dist/
 
-      - name: Download Artifact (windows)
+      - name: Download Artifact (Windows)
         uses: actions/download-artifact@v4
         with:
-          name: rollview-${{ github.ref_name }}-windows.zip
-          
+          name: rollview-${{ github.ref_name }}-windows
           path: dist/
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: actions/create-release@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -136,12 +113,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Extract Windows Executable
-        run: |
-          cd dist
-          unzip rollview-${{ github.ref_name }}-windows.zip
-
-      - name: Upload Release Asset (linux)
+      - name: Upload Release Asset (Linux ZIP)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -151,7 +123,7 @@ jobs:
           asset_name: rollview-${{ github.ref_name }}-linux.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Asset (windows)
+      - name: Upload Release Asset (Windows ZIP)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -161,7 +133,7 @@ jobs:
           asset_name: rollview-${{ github.ref_name }}-windows.zip
           asset_content_type: application/zip
 
-      - name: Upload Release Executable (windows)
+      - name: Upload Release Executable (Windows EXE)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -170,6 +142,3 @@ jobs:
           asset_path: dist/rollview-${{ github.ref_name }}-windows.exe
           asset_name: rollview-${{ github.ref_name }}-windows.exe
           asset_content_type: application/octet-stream
-
-
-
