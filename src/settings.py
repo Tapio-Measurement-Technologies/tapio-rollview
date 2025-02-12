@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import importlib.util
 
 from PySide6.QtCore import QDir
 
@@ -111,7 +112,7 @@ SPECTRUM_WAVELENGTH_TICKS = True
 
 CONTINUOUS_MODE = False
 
-POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = None
+POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = 10
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
@@ -119,12 +120,25 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     level=logging.ERROR)
 
 
+def load_local_settings(local_settings_path):
+    """
+    Load a local_settings.py file dynamically using importlib.
+    """
+    if os.path.exists(local_settings_path):
+        spec = importlib.util.spec_from_file_location(
+            "local_settings", local_settings_path)
+        local_settings = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(local_settings)
+        return vars(local_settings)
+    return {}
+
 
 # Check if a local_settings.py path is provided as a parameter
 if len(sys.argv) > 1:
     supplied_local_settings = sys.argv[1]
     if os.path.exists(supplied_local_settings):
-        print(f"Loading local settings from provided argument {supplied_local_settings}")
+        print(
+            f"Loading local settings from provided argument {supplied_local_settings}")
         # Dynamically load settings from the provided path
         local_settings_vars = load_local_settings(supplied_local_settings)
         globals().update(local_settings_vars)
@@ -139,6 +153,3 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
-
-
-

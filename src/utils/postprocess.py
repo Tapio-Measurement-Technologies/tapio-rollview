@@ -20,6 +20,7 @@ if os.path.exists(builtin_postprocessors_path):
 # Load user postprocessors
 user_postprocessors_path = os.path.join(settings.ROOT_DIRECTORY, 'postprocessors')
 if os.path.exists(user_postprocessors_path):
+    print("Loading user postprocessors")
     postprocessors.update(load_modules_from_folder(user_postprocessors_path))
 
 for module_name, postprocessor in postprocessors.items():
