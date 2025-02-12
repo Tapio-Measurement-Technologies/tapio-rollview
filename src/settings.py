@@ -118,6 +118,7 @@ POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = 10
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
+IGNORE_FOLDERS = ['postprocessors']
 
 
 def load_local_settings(local_settings_path):

@@ -26,7 +26,7 @@ def run(folder_path) -> bool:
     The function performs the following steps:
     1. Extracts the folder name from the provided folder path to use as the Excel file name.
     2. Loops through all files in the specified folder and processes those with a '.prof' extension (excluding 'mean.prof').
-    3. Reads the header and data from each '.prof' file using helper functions `read_prof_header` and `read_prof_file`.
+    3. Loads each '.prof' file using Profile.fromfile() to access header and measurement data.
     4. Creates a pandas DataFrame for each file's data, including metadata such as sample step, serial number, and file version.
     5. Collects all DataFrames and writes them into separate sheets in an Excel file using `xlsxwriter`.
     6. Returns True if the Excel file is successfully created and contains at least one sheet; otherwise, returns False.
