@@ -15,6 +15,7 @@ from PySide6.QtCore import (
     QFileSystemWatcher,
     QItemSelectionModel
 )
+import settings
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
@@ -208,6 +209,23 @@ class CustomFileSystemModel(QFileSystemModel):
             del self.modified_date_cache[directory_path]
 
 class DirectorySortFilterProxyModel(QSortFilterProxyModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Define folders to exclude
+        self.excluded_folders = settings.IGNORE_FOLDERS
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        source_model = self.sourceModel()
+        index = source_model.index(source_row, 0, source_parent)
+        file_path = source_model.filePath(index)
+        dir_name = os.path.basename(file_path)
+        
+        # Skip excluded folders
+        if dir_name in self.excluded_folders:
+            return False
+            
+        return super().filterAcceptsRow(source_row, source_parent)
+
     def lessThan(self, left: QModelIndex, right: QModelIndex):
         left_data = self.sourceModel().data(left, Qt.ItemDataRole.DisplayRole)
         right_data = self.sourceModel().data(right, Qt.ItemDataRole.DisplayRole)

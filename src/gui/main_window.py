@@ -229,6 +229,10 @@ class MainWindow(QMainWindow):
                 print(f"Evaluating folder: {folder}")
                 print(f" - Modification date: {folder_mod_date}")
                 print(f" - Cutoff date: {datetime.fromtimestamp(cutoff_timestamp) if cutoff_timestamp else 'No cutoff'}")
+                if os.path.basename(folder_path) in settings.IGNORE_FOLDERS:
+                    print(" - Ignored")
+                    continue
+
                 if cutoff_timestamp is None or folder_mtime > cutoff_timestamp:
                     print(" - Included")
                     folder_paths.append(folder_path)

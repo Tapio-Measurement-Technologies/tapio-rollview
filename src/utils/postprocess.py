@@ -5,14 +5,27 @@ from utils.dynamic_loader import load_modules_from_folder
 from utils.translation import _
 from utils import preferences
 import os
+import settings
 
 thread = None
 base_path = os.path.dirname(os.path.abspath(__file__))
-postprocessors = load_modules_from_folder(os.path.abspath(
-    os.path.join(base_path, os.pardir, 'postprocessors')))
+postprocessors = {}
+
+# Load built-in postprocessors
+builtin_postprocessors_path = os.path.abspath(
+    os.path.join(base_path, os.pardir, 'postprocessors'))
+if os.path.exists(builtin_postprocessors_path):
+    postprocessors.update(load_modules_from_folder(builtin_postprocessors_path))
+
+# Load user postprocessors
+user_postprocessors_path = os.path.join(settings.ROOT_DIRECTORY, 'postprocessors')
+if os.path.exists(user_postprocessors_path):
+    print("Loading user postprocessors")
+    postprocessors.update(load_modules_from_folder(user_postprocessors_path))
 
 for module_name, postprocessor in postprocessors.items():
     postprocessor.enabled = module_name in preferences.enabled_postprocessors
+
 
 class PostprocessThread(QThread):
     now_processing = Signal(str, str)  # folder name, postprocessor name
@@ -88,7 +101,8 @@ def run_postprocessors(folder_paths):
             show_warn_msgbox(
                 f"{_("POSTPROCESSORS_ERROR_TEXT")}:\n\n{'\n'.join(error_paths)}")
         else:
-            show_info_msgbox(_("POSTPROCESSORS_SUCCESS_TEXT"), "Success")
+            print("All postprocessors completed successfully!")
+            # show_info_msgbox(_("POSTPROCESSORS_SUCCESS_TEXT"), "Success")
 
     thread.now_processing.connect(on_now_processing)
     thread.processing_failed.connect(on_postprocess_fail)

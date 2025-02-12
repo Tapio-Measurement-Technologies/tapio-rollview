@@ -1,13 +1,17 @@
 import logging
 import os
 import sys
+import importlib.util
+
+from PySide6.QtCore import QDir
+
 
 def resource_path(relative_path):
     """ Get the absolute path to a resource (for PyInstaller compatibility). """
     try:
         base_path = sys._MEIPASS  # When running as a PyInstaller bundle
     except AttributeError:
-        base_path = os.path.abspath(".")  # When running as a script
+        base_path = os.path.dirname(__file__)  # When running as a script
 
     return os.path.join(base_path, relative_path)
 
@@ -16,6 +20,9 @@ DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
 PREFERENCES_FILENAME = 'preferences.json'
 PREFERENCES_FILE_PATH = os.path.join(
     DEFAULT_ROLL_DIRECTORY, PREFERENCES_FILENAME)
+
+
+ROOT_DIRECTORY = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
 
 # Use resource_path() for PyInstaller compatibility
 LOCALE_FILES_PATH = resource_path('locales')
@@ -105,15 +112,45 @@ SPECTRUM_WAVELENGTH_TICKS = True
 
 CONTINUOUS_MODE = False
 
-POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = None
+POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = 10
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
+IGNORE_FOLDERS = ['postprocessors']
 
 
-try:
-    from local_settings import *
-except:
-    print("No local settings")
+def load_local_settings(local_settings_path):
+    """
+    Load a local_settings.py file dynamically using importlib.
+    """
+    if os.path.exists(local_settings_path):
+        spec = importlib.util.spec_from_file_location(
+            "local_settings", local_settings_path)
+        local_settings = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(local_settings)
+        return vars(local_settings)
+    return {}
+
+
+# Check if a local_settings.py path is provided as a parameter
+if len(sys.argv) > 1:
+    supplied_local_settings = sys.argv[1]
+    if os.path.exists(supplied_local_settings):
+        print(
+            f"Loading local settings from provided argument {supplied_local_settings}")
+        # Dynamically load settings from the provided path
+        local_settings_vars = load_local_settings(supplied_local_settings)
+        globals().update(local_settings_vars)
+    else:
+        print(f"WARNING: Provided local_settings.py not found at {
+              supplied_local_settings}")
+else:
+    # Fallback to default local_settings import if none is supplied
+    try:
+        from local_settings import *
+        print(f"Loading local settings from internal project folder")
+    except ImportError:
+        print(f"Could not load local settings from internal project folder")
+        pass
