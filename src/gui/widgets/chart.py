@@ -1,3 +1,14 @@
+from utils import preferences
+import matplotlib.pyplot as plt
+from io import BytesIO
+import settings
+from utils import preferences, profile_stats
+from models.Profile import Profile
+from utils.zoom_pan import ZoomPan
+from scipy.signal import welch
+from utils.profile_stats import Stats, calc_mean_profile
+import numpy as np
+from gui.widgets.stats import StatsWidget
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
 
 from PySide6.QtGui import QImage, QKeyEvent
@@ -11,18 +22,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import logging
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-from gui.widgets.stats import StatsWidget
-import numpy as np
-from utils.profile_stats import Stats, calc_mean_profile
-from scipy.signal import welch
-from utils.zoom_pan import ZoomPan
-from models.Profile import Profile
-from utils import preferences, profile_stats
-import settings
 
-from io import BytesIO
-import matplotlib.pyplot as plt
-from utils import preferences
 
 # Add support for Japanese characters
 if preferences.locale == 'ja':
@@ -32,6 +32,7 @@ if preferences.locale == 'ja':
     font_manager.fontManager.addfont(font_path)
     prop = font_manager.FontProperties(fname=font_path)
     matplotlib.rcParams['font.family'] = prop.get_name()
+
 
 class WarningLabel(QLabel):
     def __init__(self, parent=None):
@@ -82,9 +83,12 @@ class Chart(QWidget):
         self.layout.addWidget(self.canvas)
         self.layout.addWidget(self.toolbar)
 
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.toolbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Expanding)
+        self.canvas.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.toolbar.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.initial_xlim = None
         self.initial_ylim = None
@@ -121,9 +125,6 @@ class Chart(QWidget):
         except Exception as e:
             print(f"Error copying plot to clipboard: {e}")
 
-
-
-
     def customize_toolbar(self):
         actions = self.toolbar.actions()
         icons_to_keep = ['Home', 'Zoom', 'Pan', 'Save']
@@ -157,7 +158,8 @@ class Chart(QWidget):
         self.figure.canvas.draw()
 
         # Filter empty profiles
-        self.profiles = [profile for profile in profiles if profile.data is not None]
+        self.profiles = [
+            profile for profile in profiles if profile.data is not None]
         self.directory_name = directory_name
         self.selected_file = selected
         self.profile_ax.set_ylabel(f"{_("CHART_HARDNESS_LABEL")} [g]")
@@ -168,7 +170,7 @@ class Chart(QWidget):
             distances = np.array(profile.data.distances) + previous_distance
             hardnesses = profile.data.hardnesses
             if settings.CONTINUOUS_MODE:
-                previous_distance = distances[-1] + (1 / settings.SAMPLE_INTERVAL)
+                previous_distance = distances[-1] + settings.SAMPLE_INTERVAL_M
 
             linestyle = 'solid'
             if profile.hidden:
@@ -184,30 +186,35 @@ class Chart(QWidget):
                                          linestyle=linestyle,
                                          zorder=np.inf)
                 else:
-                    self.profile_ax.plot(distances, hardnesses, alpha=0.2, linestyle=linestyle)
+                    self.profile_ax.plot(
+                        distances, hardnesses, alpha=0.2, linestyle=linestyle)
             else:
-                self.profile_ax.plot(distances, hardnesses, alpha=0.5, linestyle=linestyle)
+                self.profile_ax.plot(distances, hardnesses,
+                                     alpha=0.5, linestyle=linestyle)
 
         if preferences.recalculate_mean:
-            self.profiles = [ profile for profile in self.profiles if not profile.hidden ]
-        mean_profile_distances, mean_profile_values = calc_mean_profile(self.profiles)
+            self.profiles = [
+                profile for profile in self.profiles if not profile.hidden]
+        mean_profile_distances, mean_profile_values = calc_mean_profile(
+            self.profiles)
         self.mean_profile = mean_profile_values
 
         if len(mean_profile_values) > 0:
             self.profile_ax.plot(mean_profile_distances,
-                                mean_profile_values,
-                                label=_("CHART_MEAN_PROFILE_LABEL"),
-                                lw=settings.MEAN_PROFILE_LINE_WIDTH,
-                                color=settings.MEAN_PROFILE_LINE_COLOR)
+                                 mean_profile_values,
+                                 label=_("CHART_MEAN_PROFILE_LABEL"),
+                                 lw=settings.MEAN_PROFILE_LINE_WIDTH,
+                                 color=settings.MEAN_PROFILE_LINE_COLOR)
         else:
-            self.warning_label.set_text(_("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
+            self.warning_label.set_text(
+                _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
 
         self.initial_xlim = self.profile_ax.get_xlim()
         self.initial_ylim = self.profile_ax.get_ylim()
 
         if settings.SHOW_SPECTRUM:
             f, Pxx = welch(mean_profile_values,
-                           fs=settings.SAMPLE_INTERVAL,
+                           fs=(1/settings.SAMPLE_INTERVAL_M),
                            window='hann',
                            nperseg=settings.NPERSEG,
                            noverlap=settings.NOVERLAP,
@@ -220,8 +227,10 @@ class Chart(QWidget):
 
         if settings.SPECTRUM_WAVELENGTH_TICKS and settings.SHOW_SPECTRUM:
             self.update_ticks_wavelength()
-            self.spectrum_ax.callbacks.connect('xlim_changed', self.update_ticks_wavelength)
-            self.spectrum_ax.figure.canvas.mpl_connect('resize_event', self.update_ticks_wavelength)
+            self.spectrum_ax.callbacks.connect(
+                'xlim_changed', self.update_ticks_wavelength)
+            self.spectrum_ax.figure.canvas.mpl_connect(
+                'resize_event', self.update_ticks_wavelength)
 
         self.figure.suptitle(directory_name)
         if hasattr(settings, 'GRID') and settings.GRID is not None:
@@ -230,19 +239,21 @@ class Chart(QWidget):
                 self.spectrum_ax.grid()
 
         if hasattr(settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None:
-            self.profile_ax.set_ylim(bottom=settings.Y_LIM_LOW(mean_profile_values))
+            self.profile_ax.set_ylim(
+                bottom=settings.Y_LIM_LOW(mean_profile_values))
 
         if hasattr(settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None:
-            self.profile_ax.set_ylim(top=settings.Y_LIM_HIGH(mean_profile_values))
+            self.profile_ax.set_ylim(
+                top=settings.Y_LIM_HIGH(mean_profile_values))
 
         if show_stats_in_title and len(self.mean_profile):
             title = (
                 f"{profile_stats.stat_labels[self.stats.mean.name]}: {self.stats.mean(self.mean_profile):.2f} {self.stats.mean.unit}    "
-                f"{profile_stats.stat_labels[self.stats.min.name] }: { self.stats.min(self.mean_profile):.2f} {self.stats.min.unit }    "
-                f"{profile_stats.stat_labels[self.stats.max.name] }: { self.stats.max(self.mean_profile):.2f} {self.stats.max.unit }\n"
-                f"{profile_stats.stat_labels[self.stats.std.name] }: { self.stats.std(self.mean_profile):.2f} {self.stats.std.unit }    "
-                f"{profile_stats.stat_labels[self.stats.cv.name]  }: {  self.stats.cv(self.mean_profile):.2f} {self.stats.cv.unit  }    "
-                f"{profile_stats.stat_labels[self.stats.pp.name]  }: {  self.stats.pp(self.mean_profile):.2f} {self.stats.pp.unit  }"
+                f"{profile_stats.stat_labels[self.stats.min.name]}: {self.stats.min(self.mean_profile):.2f} {self.stats.min.unit}    "
+                f"{profile_stats.stat_labels[self.stats.max.name]}: {self.stats.max(self.mean_profile):.2f} {self.stats.max.unit}\n"
+                f"{profile_stats.stat_labels[self.stats.std.name]}: {self.stats.std(self.mean_profile):.2f} {self.stats.std.unit}    "
+                f"{profile_stats.stat_labels[self.stats.cv.name]}: {self.stats.cv(self.mean_profile):.2f} {self.stats.cv.unit}    "
+                f"{profile_stats.stat_labels[self.stats.pp.name]}: {self.stats.pp(self.mean_profile):.2f} {self.stats.pp.unit}"
             )
             self.profile_ax.set_title(title)
 
@@ -254,7 +265,8 @@ class Chart(QWidget):
     def update_ticks_wavelength(self, *args):
         primary_ticks = self.spectrum_ax.get_xticks()
         wavelenght_ticks = [100 * (1 / i) for i in primary_ticks]
-        self.spectrum_ax.set_xticklabels([f"{tick:.2f}" for tick in wavelenght_ticks])
+        self.spectrum_ax.set_xticklabels(
+            [f"{tick:.2f}" for tick in wavelenght_ticks])
         self.spectrum_ax.set_xlabel(f"{_("CHART_WAVELENGTH_LABEL")} [cm]")
 
     def clear_canvas(self):
