@@ -169,12 +169,14 @@ class Chart(QWidget):
 
             distances = np.array(profile.data.distances) + previous_distance
             hardnesses = profile.data.hardnesses
-            if settings.CONTINUOUS_MODE:
-                previous_distance = distances[-1] + settings.SAMPLE_INTERVAL_M
 
             linestyle = 'solid'
             if profile.hidden:
                 linestyle = 'None'
+
+            if settings.CONTINUOUS_MODE and not profile.hidden:
+                previous_distance = distances[-1] + settings.SAMPLE_INTERVAL_M
+
 
             if selected:  # Highlight selected profile
                 if profile.name == selected:
