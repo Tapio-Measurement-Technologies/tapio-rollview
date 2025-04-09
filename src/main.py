@@ -17,6 +17,15 @@ if sys.stdout is None:
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
+# Show splash screen on standalone pyinstaller executable
+try:
+    import pyi_splash
+    pyi_splash.update_text("Loading Tapio RollView...")
+    pyi_splash.close()
+except:
+    print('Skipping splash screen...')
+    pass
+
 def main():
     from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QIcon

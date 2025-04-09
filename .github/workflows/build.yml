@@ -50,6 +50,7 @@ jobs:
           --add-data "src/assets/fonts/:assets/fonts/"
           --add-data "src/locales/:locales/"
           --hidden-import pandas
+          --splash src/assets/splash.png
           --icon src/assets/tapio_favicon.ico
           src/main.py
 
