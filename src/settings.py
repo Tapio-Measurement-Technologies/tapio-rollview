@@ -49,6 +49,9 @@ CUSTOM_DATE_FORMAT = None
 
 SAMPLE_INTERVAL = 1000  # Samples per meter in raw data
 
+SAMPLE_INTERVAL_M = 0.001 # 1 mm sample interval
+
+
 FILTER_NUMTAPS = 50
 
 # Define the band pass filter, units are in cycles per meter
