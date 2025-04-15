@@ -1,5 +1,6 @@
 import settings
 
+log_manager = None
 connections = []
 profiles = []
 selected_profile = None

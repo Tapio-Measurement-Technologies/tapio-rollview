@@ -117,6 +117,10 @@ CONTINUOUS_MODE = False
 
 POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = 10
 
+LOG_WINDOW_MAX_LINES = 1000
+LOG_WINDOW_SHOW_TIMESTAMPS = True
+CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
+
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',

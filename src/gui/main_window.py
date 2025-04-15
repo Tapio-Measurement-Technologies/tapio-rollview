@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from gui.widgets.sidebar import Sidebar
 from gui.widgets.FileView import FileView
 from gui.widgets.chart import Chart
+from gui.log_window import LogWindow
 from models.Profile import Profile
 import settings
 import store
@@ -115,8 +116,13 @@ class MainWindow(QMainWindow):
             preferences.recalculate_mean,
             self.on_recalculate_mean_changed
         )
+
+        log_window_action = QAction("Application logs", self)
+        log_window_action.triggered.connect(self.open_log_window)
+
         view_menu.addAction(show_all_com_ports_checkbox)
         view_menu.addAction(recalculate_mean_checkbox)
+        view_menu.addAction(log_window_action)
 
         postprocessors_menu = menu_bar.addMenu(_('MENU_BAR_POSTPROCESSORS'))
 
@@ -206,6 +212,10 @@ class MainWindow(QMainWindow):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
         self.settings_window.show()
+
+    def open_log_window(self):
+        self.log_window = LogWindow(store.log_manager)
+        self.log_window.show()
 
     def run_postprocessors_for_all_folders(self):
         # Get the base directory path
