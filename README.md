@@ -59,6 +59,13 @@ cd tapio-rollview
 ./install.bat
 ```
 
+## Quick RQP Live Configuration
+We have created a simple tool to make it faster to set up your Tapio RQP Live for different types of rolls and grades. The [RQP Live Configurator](https://tapio-measurement-technologies.github.io/rqp-configurator/) is a browser-based tool to generate a configuration QR code for your device.
+You can flexibly adjust key parameters such as device time and alert thresholds.
+
+Once configured, the tool shows a QR code that can be scanned directly with the RQP Live to apply the settings—no manual input needed on the device.
+
+Try it here: [https://tapio-measurement-technologies.github.io/rqp-configurator/](https://tapio-measurement-technologies.github.io/rqp-configurator/)
 
 
 
