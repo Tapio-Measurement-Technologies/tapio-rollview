@@ -127,7 +127,7 @@ class Chart(QWidget):
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
-        icons_to_keep = ['Home', 'Zoom', 'Pan', 'Save']
+        icons_to_keep = ['Home', 'Zoom', 'Pan', 'Customize', 'Save']
         for action in actions:
             if action.iconText() not in icons_to_keep:
                 self.toolbar.removeAction(action)
