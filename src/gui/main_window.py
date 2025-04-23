@@ -109,6 +109,13 @@ class MainWindow(QMainWindow):
             preferences.show_all_com_ports,
             self.on_show_all_com_ports_changed
         )
+        show_plot_toolbar_checkbox = self.create_checkbox_menu_item(
+            _('MENU_BAR_SHOW_PLOT_TOOLBAR'),
+            # 'Show toolbar',
+            view_menu,
+            preferences.show_plot_toolbar,
+            self.on_show_plot_toolbar_changed
+        )
         recalculate_mean_checkbox = self.create_checkbox_menu_item(
             _('MENU_BAR_RECALCULATE_MEAN'),
             # 'Recalculate mean on profile show/hide',
@@ -121,6 +128,7 @@ class MainWindow(QMainWindow):
         log_window_action.triggered.connect(self.open_log_window)
 
         view_menu.addAction(show_all_com_ports_checkbox)
+        view_menu.addAction(show_plot_toolbar_checkbox)
         view_menu.addAction(recalculate_mean_checkbox)
         view_menu.addAction(log_window_action)
 
@@ -172,6 +180,10 @@ class MainWindow(QMainWindow):
     def on_show_all_com_ports_changed(self, checked):
         preferences.update_show_all_com_ports(checked)
         self.sidebar.serialView.view.model.applyFilter()
+
+    def on_show_plot_toolbar_changed(self, checked):
+        preferences.update_show_plot_toolbar(checked)
+        self.chart.set_toolbar_visible(checked)
 
     def on_recalculate_mean_changed(self, checked):
         preferences.update_recalculate_mean(checked)

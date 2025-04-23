@@ -49,6 +49,10 @@ msgid "MENU_BAR_SHOW_ALL_COM_PORTS"
 msgstr "COMポート一覧"
 
 #: src/gui/main_window.py:112
+msgid "MENU_BAR_SHOW_PLOT_TOOLBAR"
+msgstr "プロットツールバーを表示"
+
+#: src/gui/main_window.py:112
 msgid "MENU_BAR_RECALCULATE_MEAN"
 msgstr "プロファイル再表示/非表示"
 

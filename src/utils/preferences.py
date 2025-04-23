@@ -7,6 +7,7 @@ preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE
 alert_limits           = settings.ALERT_LIMITS_DEFAULT
 enabled_postprocessors = settings.DEFAULT_ENABLED_POSTPROCESSORS
 show_all_com_ports     = settings.SHOW_ALL_COM_PORTS_DEFAULT
+show_plot_toolbar      = settings.SHOW_PLOT_TOOLBAR_DEFAULT
 recalculate_mean       = settings.RECALCULATE_MEAN_DEFAULT
 locale                 = settings.LOCALE_DEFAULT
 
@@ -15,6 +16,7 @@ def save_preferences_to_file():
     "alert_limits":           alert_limits,
     "enabled_postprocessors": enabled_postprocessors,
     "show_all_com_ports":     show_all_com_ports,
+    "show_plot_toolbar":      show_plot_toolbar,
     "recalculate_mean":       recalculate_mean,
     "locale":                 locale
   }
@@ -40,6 +42,11 @@ def update_show_all_com_ports(new_show_all_com_ports):
   show_all_com_ports = bool(new_show_all_com_ports)
   save_preferences_to_file()
 
+def update_show_plot_toolbar(new_show_plot_toolbar):
+  global show_plot_toolbar
+  show_plot_toolbar = bool(new_show_plot_toolbar)
+  save_preferences_to_file()
+
 def update_recalculate_mean(new_recalculate_mean):
   global recalculate_mean
   recalculate_mean = bool(new_recalculate_mean)
@@ -61,6 +68,8 @@ try:
       enabled_postprocessors = preferences['enabled_postprocessors']
     if 'show_all_com_ports' in preferences:
       show_all_com_ports = preferences['show_all_com_ports']
+    if 'show_plot_toolbar' in preferences:
+      show_plot_toolbar = preferences['show_plot_toolbar']
     if 'recalculate_mean' in preferences:
       recalculate_mean = preferences['recalculate_mean']
     if 'locale' in preferences:

@@ -75,6 +75,7 @@ class Chart(QWidget):
         self.pan = zp.pan_factory(self.profile_ax)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar.setVisible(preferences.show_plot_toolbar)
         self.mean_profile = []
         self.stats_widget = StatsWidget(self.mean_profile)
 
@@ -274,6 +275,9 @@ class Chart(QWidget):
     def clear_canvas(self):
         self.ax.clear()
         self.canvas.draw()
+
+    def set_toolbar_visible(self, visible):
+        self.toolbar.setVisible(visible)
 
     def resizeEvent(self, event):
         """Handle the window resize event to update chart dimensions."""
