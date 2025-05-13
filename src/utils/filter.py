@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 import settings
 
+
 def mirror_pad(data, numtaps):
     """
     Pads the data by mirroring at both ends.
@@ -32,13 +33,24 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
 
     original_mean = np.mean(data)
 
+    data_length = len(data)
+    # Adjust number of taps if data is too short
+    if data_length < numtaps:
+        # Calculate new number of taps that's smaller than data length
+        # Keep it odd for FIR filter
+        new_numtaps = data_length - (data_length % 2) - 1
+        # Ensure we have at least 3 taps for a meaningful filter
+        new_numtaps = max(3, new_numtaps)
+        numtaps = new_numtaps
+
     epsilon = 0.0001
     # Pad the data with a mirrored copy if mirror is True
     if mirror:
         data = mirror_pad(data, numtaps)
 
     # Create the filter coefficients
-    fir_coeff = firwin(numtaps, [epsilon+lowcut, highcut], pass_zero=False, fs=fs)
+    fir_coeff = firwin(
+        numtaps, [epsilon+lowcut, highcut], pass_zero=False, fs=fs)
 
     if window == "hamming":
         hamming_window = np.hamming(numtaps)
