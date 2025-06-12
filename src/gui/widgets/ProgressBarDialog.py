@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QProgressBar, QPushButton, QLabel
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from utils.translation import _
 
 class ProgressBarDialog(QDialog):
+    cancelled = Signal()
+
     def __init__(self, auto_close=False, parent=None):
         super().__init__(parent)
 
@@ -13,6 +15,7 @@ class ProgressBarDialog(QDialog):
 
         # Store the auto-close option
         self.auto_close = auto_close
+        self._is_cancellable = True
 
         # Create layout and progress bar
         layout = QVBoxLayout(self)
@@ -28,11 +31,18 @@ class ProgressBarDialog(QDialog):
         self.progressBar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.progressBar)
 
-        # Optional: Button to close the dialog
-        self.closeButton = QPushButton(_("BUTTON_TEXT_CLOSE"), self)
-        self.closeButton.setEnabled(False)  # Initially disabled
-        self.closeButton.clicked.connect(self.close)
-        layout.addWidget(self.closeButton)
+        # Optional: Button to cancel or close the dialog
+        self.actionButton = QPushButton(_("BUTTON_TEXT_CANCEL"), self)
+        self.actionButton.clicked.connect(self.on_action_button_clicked)
+        layout.addWidget(self.actionButton)
+
+    def on_action_button_clicked(self):
+        if self._is_cancellable:
+            self.cancelled.emit()
+            self.actionButton.setEnabled(False)
+            self.actionButton.setText(_("BUTTON_TEXT_CANCELLING"))
+        else:
+            self.close()
 
     def update_progress(self, value, status_text=""):
         """Updates the progress bar value and the status text."""
@@ -40,7 +50,9 @@ class ProgressBarDialog(QDialog):
         if status_text:
             self.statusLabel.setText(status_text)
         if value >= 100:
-            self.closeButton.setEnabled(True)  # Enable the button when done
+            self.actionButton.setText(_("BUTTON_TEXT_CLOSE"))
+            self.actionButton.setEnabled(True)  # Enable the button when done
+            self._is_cancellable = False
             if self.auto_close:
                 self.close()  # Automatically close the dialog if auto_close is enabled
 
@@ -48,4 +60,6 @@ class ProgressBarDialog(QDialog):
         """Resets the progress bar and the button."""
         self.progressBar.setValue(0)
         self.statusLabel.setText(_("PROGRESS_DIALOG_STARTING"))
-        self.closeButton.setEnabled(False)
+        self.actionButton.setText(_("BUTTON_TEXT_CANCEL"))
+        self.actionButton.setEnabled(True)
+        self._is_cancellable = True

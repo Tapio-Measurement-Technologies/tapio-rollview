@@ -31,16 +31,28 @@ class PostprocessThread(QThread):
     now_processing = Signal(str, str)  # folder name, postprocessor name
     folder_processed = Signal(str)  # folder name
     processing_failed = Signal(str)  # folder name
+    processing_cancelled = Signal()
 
     def __init__(self, folder_paths):
         super().__init__()
         self.folder_paths = folder_paths
+        self._is_cancellation_requested = False
+
+    def request_cancellation(self):
+        self._is_cancellation_requested = True
 
     def run(self):
         if not self.folder_paths:
             return
         for folder_path in self.folder_paths:
+            if self._is_cancellation_requested:
+                self.processing_cancelled.emit()
+                return
             for module_name, postprocessor in postprocessors.items():
+                if self._is_cancellation_requested:
+                    self.processing_cancelled.emit()
+                    return
+
                 postprocessor_name = getattr(
                     postprocessor, 'description', module_name)
                 if postprocessor.enabled:
@@ -92,10 +104,14 @@ def run_postprocessors(folder_paths):
     def on_now_processing(folder_path, postprocessor_name):
         nonlocal processed_items
         processed_items += 1
-        dialog.update_progress((processed_items / total_items_to_process) *
-                               100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
+        if not thread._is_cancellation_requested:
+            dialog.update_progress((processed_items / total_items_to_process) *
+                                100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
 
     def on_finished():
+        if thread and thread._is_cancellation_requested:
+            return
+
         dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
         if error_paths:
             show_warn_msgbox(
@@ -104,9 +120,14 @@ def run_postprocessors(folder_paths):
             print("All postprocessors completed successfully!")
             # show_info_msgbox(_("POSTPROCESSORS_SUCCESS_TEXT"), "Success")
 
+    def on_cancelled():
+        dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_CANCELLED_TEXT"))
+
     thread.now_processing.connect(on_now_processing)
     thread.processing_failed.connect(on_postprocess_fail)
     thread.finished.connect(on_finished)
+    thread.processing_cancelled.connect(on_cancelled)
+    dialog.cancelled.connect(thread.request_cancellation)
 
     dialog.show()
     thread.start()

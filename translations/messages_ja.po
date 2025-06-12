@@ -266,7 +266,7 @@ msgstr "処理中"
 
 #: src/utils/postprocess.py:84
 msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
-msgstr "処理完了"
+msgstr "完了"
 
 #: src/utils/postprocess.py:87
 msgid "POSTPROCESSORS_ERROR_TEXT"
@@ -295,3 +295,11 @@ msgstr "再起動が必要です"
 
 msgid "RESTART_REQUIRED_MSGBOX_TEXT"
 msgstr "言語設定は再起動後に適用されます。"
+
+#: src/gui/widgets/ProgressBarDialog.py:64
+msgid "BUTTON_TEXT_CANCELLING"
+msgstr "キャンセル中..."
+
+#: src/utils/postprocess.py:126
+msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
+msgstr "処理がキャンセルされました。"

@@ -266,7 +266,7 @@ msgstr "Running postprocessors"
 
 #: src/utils/postprocess.py:84
 msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
-msgstr "Finished processing folders"
+msgstr "Finished"
 
 #: src/utils/postprocess.py:87
 msgid "POSTPROCESSORS_ERROR_TEXT"
@@ -295,3 +295,11 @@ msgstr "Restart required"
 
 msgid "RESTART_REQUIRED_MSGBOX_TEXT"
 msgstr "Language settings will be applied after restart!"
+
+#: src/gui/widgets/ProgressBarDialog.py:64
+msgid "BUTTON_TEXT_CANCELLING"
+msgstr "Cancelling..."
+
+#: src/utils/postprocess.py:126
+msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
+msgstr "Processing cancelled."
