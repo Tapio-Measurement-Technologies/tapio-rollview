@@ -21,10 +21,13 @@ class FileTransferWorker(QObject):
     Signals:
         receivingFile(str, int): Emitted when a new file starts transferring.
                                  (filename, files_left)
+        fileByteProgress(int, int): Emitted during file transfer.
+                                   (bytes_transferred, total_bytes)
         finished(): Emitted when the transfer is complete.
         error(str): Emitted on transfer error.
     """
     receivingFile = Signal(str, int)
+    fileByteProgress = Signal(int, int)
     finished = Signal()
     error = Signal(str)
 
@@ -111,6 +114,7 @@ class FileTransferManager(QObject):
     """
     transferStarted = Signal()
     transferFinished = Signal()
+    fileByteProgress = Signal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -145,6 +149,7 @@ class FileTransferManager(QObject):
 
         # Connect signals
         self.worker.receivingFile.connect(self.update_progress)
+        self.worker.fileByteProgress.connect(self.fileByteProgress)
         self.worker.finished.connect(self.on_transfer_finished)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)

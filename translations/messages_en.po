@@ -30,7 +30,11 @@ msgstr "Cancel"
 
 #: src/gui/filetransferdialog.py:44
 msgid "FILE_TRANSFER_DIALOG_RECEIVING"
-msgstr "Receiving"
+msgstr "Receiving file"
+
+#: src/gui/filetransferdialog.py:53
+msgid "TOTAL_PROGRESS"
+msgstr "Total progress"
 
 #: src/gui/main_window.py:98
 msgid "MENU_BAR_FILE"

@@ -418,6 +418,8 @@ class ZMODEM(Modem):
             (filename, size, date))
 
         self.thread.receivingFile.emit(filename, filesLeft)
+        if hasattr(self.thread, 'fileByteProgress'):
+            self.thread.fileByteProgress.emit(0, size)
 
         # Receive contents
         start = time.time()
@@ -426,6 +428,8 @@ class ZMODEM(Modem):
         while total_size < size:
             kind, chunk_size = self._recv_file_data(fp.tell(), fp, timeout)
             total_size += chunk_size
+            if hasattr(self.thread, 'fileByteProgress'):
+                self.thread.fileByteProgress.emit(total_size, size)
             if kind == ZEOF:
                 break
 

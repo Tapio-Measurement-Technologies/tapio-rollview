@@ -32,6 +32,10 @@ msgstr "キャンセル"
 msgid "FILE_TRANSFER_DIALOG_RECEIVING"
 msgstr "受信中"
 
+#: src/gui/filetransferdialog.py:53
+msgid "TOTAL_PROGRESS"
+msgstr "全体の進捗"
+
 #: src/gui/main_window.py:98
 msgid "MENU_BAR_FILE"
 msgstr "ファイル"
