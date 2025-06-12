@@ -64,6 +64,9 @@ class Chart(QWidget):
         self.canvas = FigureCanvas(self.figure)
         self.stats = Stats()
 
+        self.setMinimumHeight(400)
+        self.setMinimumWidth(400)
+
         if settings.SHOW_SPECTRUM:
             self.profile_ax = self.figure.add_subplot(211)
             self.spectrum_ax = self.figure.add_subplot(212)

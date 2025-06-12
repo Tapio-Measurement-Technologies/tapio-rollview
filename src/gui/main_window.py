@@ -1,4 +1,3 @@
-
 # Tapio RollView
 # Copyright 2024 Tapio Measurement Technologies Oy
 
@@ -9,7 +8,7 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel
+from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel, QSplitter
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt
 
@@ -39,11 +38,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Tapio RollView")
-        self.resize(900, 600)
-
-        centralWidgetLayout = QGridLayout()
-        centralWidget = QWidget()
-        centralWidget.setLayout(centralWidgetLayout)
+        self.resize(1000, 600)
 
         self.sidebar = Sidebar()
         self.chart = Chart()
@@ -67,21 +62,25 @@ class MainWindow(QMainWindow):
             print(f"Defaulting to {current_path}")
             self.sidebar.directoryView.change_root_directory(current_path)
 
-        centralWidgetLayout.addWidget(
-            self.sidebar, 0, 0, 2, 1)  # Sidebar spans 2 rows
-        centralWidgetLayout.addWidget(
-            self.chart, 0, 1)  # Chart at row 0, column 1
-        # FileView at row 1, column 1
-        centralWidgetLayout.addWidget(self.fileView, 1, 1)
-        centralWidgetLayout.setContentsMargins(0, 0, 0, 0)
+        ver_splitter = QSplitter(Qt.Orientation.Vertical)
+        ver_splitter.addWidget(self.chart)
+        ver_splitter.addWidget(self.fileView)
+        ver_splitter.setStretchFactor(0, 1)
+        ver_splitter.setStretchFactor(1, 0)
+        ver_splitter.setCollapsible(0, False)
+        ver_splitter.setCollapsible(1, False)
+        ver_splitter.setSizes([200, 200])
 
-        # Set column and row stretch factors to make the chart and file view expand
-        centralWidgetLayout.setColumnStretch(0, 1)  # Sidebar
-        centralWidgetLayout.setColumnStretch(1, 3)  # Chart and FileView
-        centralWidgetLayout.setRowStretch(0, 2)  # Chart
-        centralWidgetLayout.setRowStretch(1, 1)  # FileView
+        hor_splitter = QSplitter(Qt.Orientation.Horizontal)
+        hor_splitter.addWidget(self.sidebar)
+        hor_splitter.addWidget(ver_splitter)
+        hor_splitter.setStretchFactor(0, 0)
+        hor_splitter.setStretchFactor(1, 1)
+        hor_splitter.setSizes([400, 600])
+        hor_splitter.setCollapsible(0, False)
+        hor_splitter.setCollapsible(1, False)
 
-        self.setCentralWidget(centralWidget)
+        self.setCentralWidget(hor_splitter)
         self.init_menu()
 
         # Scan devices on startup

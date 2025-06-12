@@ -113,7 +113,7 @@ class FileTreeView(ContextMenuTreeView):
 
     def __init__(self, model) -> None:
         super().__init__(model)
-        self.setMaximumHeight(200)
+        self.setMaximumHeight(400)
         self.last_index = None
 
     # Override mousePressEvent for deselecting items
@@ -135,7 +135,7 @@ class FileView(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setMaximumHeight(200)
+        self.setMaximumHeight(400)
 
         layout = QVBoxLayout()
         self.setLayout(layout)

@@ -6,7 +6,6 @@ class Sidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setFixedWidth(400)  # Initial width of the sidebar
 
         self.directoryView = DirectoryView()
         self.serialView = SerialWidget()
