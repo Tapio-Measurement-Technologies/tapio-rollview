@@ -127,7 +127,13 @@ class DirectoryView(QWidget):
         if directory:
             # Update the root index of the tree view to reflect the new directory
             self.model.setRootPath(directory)
-            self.treeView.setRootIndex(self.proxy_model.mapFromSource(self.model.index(directory)))
+            root_index = self.proxy_model.mapFromSource(self.model.index(directory))
+            if not root_index.isValid():
+                print(f"Invalid root index encountered in DirectoryView!")
+                print(f"Path: '{directory}'")
+                return
+
+            self.treeView.setRootIndex(root_index)
             self.root_directory_changed.emit(directory)
             # Watch the new directory and its subdirectories
             self.watch_directory_and_subdirs(directory)
@@ -219,11 +225,11 @@ class DirectorySortFilterProxyModel(QSortFilterProxyModel):
         index = source_model.index(source_row, 0, source_parent)
         file_path = source_model.filePath(index)
         dir_name = os.path.basename(file_path)
-        
+
         # Skip excluded folders
         if dir_name in self.excluded_folders:
             return False
-            
+
         return super().filterAcceptsRow(source_row, source_parent)
 
     def lessThan(self, left: QModelIndex, right: QModelIndex):
