@@ -86,14 +86,15 @@ class SerialWidget(QWidget):
         self.scanButton.setDisabled(True)
         self.view.model.removeItems()
 
-        self.scan_progress_dialog = ProgressBarDialog(auto_close=True)
+        self.scan_progress_dialog = ProgressBarDialog(auto_close=True, parent=self)
         self.scanner.progress.connect(self.scan_progress_dialog.update_progress)
         self.scanner.finished.connect(
             lambda: self.scan_progress_dialog.update_progress(100, _("PORTSCAN_COMPLETE_TEXT"))
         )
+        self.scan_progress_dialog.cancelled.connect(self.scanner.stop)
 
         self.scanner.start()
-        self.scan_progress_dialog.exec()
+        self.scan_progress_dialog.show()
 
     def on_scan_finished(self, ports):
         self.view.update_com_ports(ports)

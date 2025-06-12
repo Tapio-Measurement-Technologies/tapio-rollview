@@ -44,6 +44,12 @@ class ProgressBarDialog(QDialog):
         else:
             self.close()
 
+    def closeEvent(self, event):
+        """Handle the dialog being closed by the user (e.g., by pressing Esc or the window's close button)."""
+        if self._is_cancellable:
+            self.cancelled.emit()
+        super().closeEvent(event)
+
     def update_progress(self, value, status_text=""):
         """Updates the progress bar value and the status text."""
         self.progressBar.setValue(value)

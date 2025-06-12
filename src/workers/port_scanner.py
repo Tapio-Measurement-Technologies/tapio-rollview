@@ -70,7 +70,11 @@ class PortScannerWorker(QObject):
             log.debug(f"Scanning port: {port_info.device}")
 
             device_responded = False
+            port = None
             try:
+                if not self._running:
+                    break
+
                 port = serial.Serial(
                     port=port_info.device,
                     baudrate=115200,
@@ -84,10 +88,13 @@ class PortScannerWorker(QObject):
                     dsrdtr=False,
                 )
 
+                if not self._running:
+                    break
+
                 port.write(b"RQP+DEVICEINFO?\n")
                 response = port.readline().decode("utf-8").strip()
 
-                if response:
+                if self._running and response:
                     log.debug(f"Port {port_info.device} response: {response}")
                     try:
                         response_data = json.loads(response)
@@ -103,10 +110,15 @@ class PortScannerWorker(QObject):
                         log.warning(
                             f"Could not decode JSON from port {port_info.device}: {response}"
                         )
-                port.close()
 
             except (serial.SerialException, OSError) as e:
                 log.error(f"Error opening or reading from port {port_info.device}: {e}")
+            finally:
+                if port and port.is_open:
+                    port.close()
+
+            if not self._running:
+                break
 
             scanned_ports.append(SerialPortItem(port_info, device_responded))
 
@@ -163,7 +175,6 @@ class PortScanner(QObject):
         if self._thread and self._thread.isRunning():
             log.info("Stopping port scanner thread.")
             self._thread.quit()
-            self._thread.wait()
 
     def is_running(self):
         return self._thread and self._thread.isRunning()
