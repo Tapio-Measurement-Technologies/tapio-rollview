@@ -1,8 +1,10 @@
 from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLabel
 from PySide6.QtCore import Qt
-from models.SerialPort import SerialPortModel
+from models.SerialPort import SerialPortModel, SerialPortItem
 from gui.filetransferdialog import FileTransferDialog
-from utils.serial import FileTransferManager, scan_ports, SerialPortItem
+from gui.widgets.ProgressBarDialog import ProgressBarDialog
+from workers.file_transfer import FileTransferManager
+from workers.port_scanner import PortScanner
 from utils.translation import _
 import store
 
@@ -19,7 +21,7 @@ class SerialPortView(QListView):
         self.model.removeItems()
         # Add valid ports to the model
         for port in ports:
-            self.model.addItem(SerialPortItem(port))
+            self.model.addItem(port)
 
         self.restore_selection()
 
@@ -55,7 +57,8 @@ class SerialWidget(QWidget):
         self.transferManager = FileTransferManager()
         self.transferDialog = FileTransferDialog(self.transferManager)
 
-        self.scan_thread = None
+        self.scanner = PortScanner(self)
+        self.scan_progress_dialog = None
 
         # Arrange the tree view and button in a vertical layout
         layout = QVBoxLayout(self)
@@ -65,24 +68,51 @@ class SerialWidget(QWidget):
         layout.addWidget(self.syncButton)
 
         self.view.selectionModel().currentChanged.connect(self.on_port_selected)
+        self.scanner.finished.connect(self.on_scan_finished)
+        self.transferManager.transferStarted.connect(self._on_transfer_started)
+        self.transferManager.transferFinished.connect(self._on_transfer_finished)
 
     def on_port_selected(self, current, previous):
-        selected_port = current.data(Qt.ItemDataRole.UserRole)
-        self.view.model.selectPort(selected_port)
-        self.syncButton.setEnabled(current.isValid())
+        if not current.isValid():
+            self.syncButton.setEnabled(False)
+            self.view.model.selectPort(None)
+            return
+
+        selected_port_device = current.data(Qt.ItemDataRole.UserRole)
+        self.view.model.selectPort(selected_port_device)
+        self.syncButton.setEnabled(current.isValid() and not self.transferManager.is_transfer_in_progress())
 
     def scan_devices(self):
         self.scanButton.setDisabled(True)
-        self.scan_thread = scan_ports()
-        self.scan_thread.finished_signal.connect(self.on_scan_finished)
+        self.view.model.removeItems()
+
+        self.scan_progress_dialog = ProgressBarDialog(auto_close=True)
+        self.scanner.progress.connect(self.scan_progress_dialog.update_progress)
+        self.scanner.finished.connect(
+            lambda: self.scan_progress_dialog.update_progress(100, _("PORTSCAN_COMPLETE_TEXT"))
+        )
+
+        self.scanner.start()
+        self.scan_progress_dialog.exec()
 
     def on_scan_finished(self, ports):
         self.view.update_com_ports(ports)
         self.scanButton.setDisabled(False)
+        self.view.model.applyFilter()
+        if self.scan_progress_dialog:
+            self.scan_progress_dialog.close()
 
     def sync_data(self):
         sync_folder = store.root_directory
         self.transferDialog.show()
-        port = self.view.model.getSelectedPort().port.device
-        if port:
-            self.transferManager.start_transfer(port, sync_folder, self.transferDialog.on_complete)
+        port_item = self.view.model.getSelectedPort()
+        if port_item:
+            self.transferManager.start_transfer(port_item.device, sync_folder, self.transferDialog.on_complete)
+
+    def _on_transfer_started(self):
+        self.syncButton.setEnabled(False)
+
+    def _on_transfer_finished(self):
+        # Re-enable sync button only if a valid port is still selected
+        if self.view.selectionModel().hasSelection():
+            self.syncButton.setEnabled(True)

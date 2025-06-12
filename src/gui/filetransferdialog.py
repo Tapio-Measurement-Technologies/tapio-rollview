@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QDialog, QProgressBar, QPushButton, QVBoxLayout, QApplication, QLabel
 from PySide6.QtCore import QModelIndex
-from utils.serial import FileTransferManager
+from workers.file_transfer import FileTransferManager
 from utils.translation import _
 
 class FileTransferDialog(QDialog):
