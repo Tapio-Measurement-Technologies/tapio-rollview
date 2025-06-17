@@ -279,12 +279,15 @@ msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
 msgstr "完了"
 
 #: src/utils/postprocess.py:87
-msgid "POSTPROCESSORS_ERROR_TEXT"
-msgstr "以下の処理に失敗しました"
+msgid "POSTPROCESSORS_ERROR_TEXT_1"
+msgstr "ポストプロセスに失敗しました："
+
+msgid "POSTPROCESSORS_ERROR_TEXT_2"
+msgstr "フォルダ。"
 
 #: src/utils/postprocess.py:89
-msgid "POSTPROCESSORS_SUCCESS_TEXT"
-msgstr "完了"
+msgid "POSTPROCESSORS_FINISHED_TEXT"
+msgstr "ポストプロセスが完了しました。"
 
 #: src/utils/serial.py:97
 msgid "PORTSCAN_SCANNING_PORT_TEXT"

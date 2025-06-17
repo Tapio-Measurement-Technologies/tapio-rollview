@@ -1,9 +1,9 @@
 from PySide6.QtCore import QThread, Signal, QObject
-from gui.widgets.messagebox import show_info_msgbox, show_warn_msgbox
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.dynamic_loader import load_modules_from_folder
 from utils.translation import _
 from utils import preferences
+from dataclasses import dataclass, field
 import os
 import settings
 
@@ -29,7 +29,7 @@ for module_name, postprocessor in postprocessors.items():
 
 class PostprocessThread(QThread):
     now_processing = Signal(str, str)  # folder name, postprocessor name
-    folder_processed = Signal(str)  # folder name
+    processing_successful = Signal(str)  # folder name
     processing_failed = Signal(str)  # folder name
     processing_cancelled = Signal()
 
@@ -61,7 +61,7 @@ class PostprocessThread(QThread):
                           postprocessor_name}' for folder '{folder_path}'...")
                     try:
                         if postprocessor.run(folder_path):
-                            self.folder_processed.emit(folder_path)
+                            self.processing_successful.emit(folder_path)
                         else:
                             self.processing_failed.emit(folder_path)
                     except Exception as e:
@@ -87,16 +87,20 @@ def toggle_postprocessor(postprocessor_module):
     ]
     preferences.update_enabled_postprocessors(enabled_postprocessors)
 
+@dataclass(frozen=True)
+class PostprocessResult:
+    processed_folders: list[str] = field(default_factory=list)
+    failed_folders: list[str] = field(default_factory=list)
 
 class PostprocessManager(QObject):
-    postprocess_failed = Signal(str)
-    postprocess_finished = Signal()
-    postprocess_cancelled = Signal()
+    postprocess_finished = Signal(PostprocessResult)
 
     def __init__(self):
+        super().__init__()
         self._thread = None
         self.dialog = None
         self.error_paths = set()
+        self.success_paths = set()
         self.enabled_postprocessors = [postprocessor for postprocessor in postprocessors.values() if postprocessor.enabled]
         self.total_items_to_process = 0
 
@@ -109,8 +113,8 @@ class PostprocessManager(QObject):
 
         self._thread.now_processing.connect(self.on_now_processing)
         self._thread.processing_failed.connect(self.on_postprocess_fail)
+        self._thread.processing_successful.connect(self.on_postprocess_success)
         self._thread.finished.connect(self.on_finished)
-        self._thread.processing_cancelled.connect(self.on_cancelled)
         self.dialog.cancelled.connect(self._thread.request_cancellation)
 
         self.dialog.show()
@@ -118,6 +122,9 @@ class PostprocessManager(QObject):
 
     def on_postprocess_fail(self, folder_path):
         self.error_paths.add(folder_path)
+
+    def on_postprocess_success(self, folder_path):
+        self.success_paths.add(folder_path)
 
     def on_now_processing(self, folder_path, postprocessor_name):
         self.processed_items += 1
@@ -127,15 +134,17 @@ class PostprocessManager(QObject):
 
     def on_finished(self):
         if self._thread and self._thread._is_cancellation_requested:
-            return
+            print("Postprocessing cancelled by user")
+            self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_CANCELLED_TEXT"))
+        else:
+            self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
 
-        self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
         if self.error_paths:
-            show_warn_msgbox(
-                f"{_("POSTPROCESSORS_ERROR_TEXT")}:\n\n{'\n'.join(self.error_paths)}")
+            print(f"Postprocessing failed for folders:\n{"\n".join(self.error_paths)}")
         else:
             print("All postprocessors completed successfully!")
-            # show_info_msgbox(_("POSTPROCESSORS_SUCCESS_TEXT"), "Success")
 
-    def on_cancelled(self):
-        self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_CANCELLED_TEXT"))
+        self.postprocess_finished.emit(PostprocessResult(
+            failed_folders=list(self.error_paths),
+            processed_folders=list(self.success_paths)
+        ))

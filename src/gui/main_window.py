@@ -13,7 +13,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt
 
 from utils.file_utils import list_prof_files
-from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors
+from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
 from utils import preferences
 import os
 from datetime import datetime, timedelta
@@ -103,6 +103,8 @@ class MainWindow(QMainWindow):
 
         # Run postprocessors when file transfer is finished
         self.file_transfer_manager.transferFinished.connect(self.postprocess_manager.run_postprocessors)
+
+        self.postprocess_manager.postprocess_finished.connect(self.on_postprocess_finished)
 
     def keyPressEvent(self, event):
         """Forward key press events to the chart."""
@@ -295,3 +297,9 @@ class MainWindow(QMainWindow):
 
     def on_device_count_changed(self, count):
         self.statusBar().showMessage(f"{_('SERIAL_SYNC_STATUS_BAR_TEXT_1')} {count} {_('SERIAL_SYNC_STATUS_BAR_TEXT_2')}")
+
+    def on_postprocess_finished(self, result: PostprocessResult):
+        message = _("POSTPROCESSORS_FINISHED_TEXT")
+        if result.failed_folders:
+            message += f" {_('POSTPROCESSORS_ERROR_TEXT_1')} {len(result.failed_folders)} {_('POSTPROCESSORS_ERROR_TEXT_2')}"
+        self.statusBar().showMessage(message)

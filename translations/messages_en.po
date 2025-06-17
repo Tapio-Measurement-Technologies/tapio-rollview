@@ -279,12 +279,15 @@ msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
 msgstr "Finished"
 
 #: src/utils/postprocess.py:87
-msgid "POSTPROCESSORS_ERROR_TEXT"
-msgstr "Postprocessors failed for the following paths"
+msgid "POSTPROCESSORS_ERROR_TEXT_1"
+msgstr "Postprocessing failed for"
+
+msgid "POSTPROCESSORS_ERROR_TEXT_2"
+msgstr "folder(s)."
 
 #: src/utils/postprocess.py:89
-msgid "POSTPROCESSORS_SUCCESS_TEXT"
-msgstr "All postprocessors completed successfully!"
+msgid "POSTPROCESSORS_FINISHED_TEXT"
+msgstr "Postprocessing complete."
 
 #: src/utils/serial.py:97
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
