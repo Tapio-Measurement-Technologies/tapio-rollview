@@ -112,7 +112,7 @@ class PortScannerWorker(QObject):
                         )
 
             except (serial.SerialException, OSError) as e:
-                log.error(f"Error opening or reading from port {port_info.device}: {e}")
+                log.debug(f"Error opening or reading from port {port_info.device}: {e}")
             finally:
                 if port and port.is_open:
                     port.close()
