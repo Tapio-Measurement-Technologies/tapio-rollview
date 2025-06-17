@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
         self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
 
         # Run postprocessors when file transfer is finished
-        self.file_transfer_manager.transferFinished.connect(self.postprocess_manager.run_postprocessors)
+        self.file_transfer_manager.transferFinished.connect(self.on_file_transfer_finished)
 
         self.postprocess_manager.postprocess_finished.connect(self.on_postprocess_finished)
 
@@ -303,3 +303,7 @@ class MainWindow(QMainWindow):
         if result.failed_folders:
             message += f" {_('POSTPROCESSORS_ERROR_TEXT_1')} {len(result.failed_folders)} {_('POSTPROCESSORS_ERROR_TEXT_2')}"
         self.statusBar().showMessage(message)
+
+    def on_file_transfer_finished(self, folder_paths: list[str]):
+        self.statusBar().showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+        self.postprocess_manager.run_postprocessors(folder_paths)

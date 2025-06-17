@@ -316,3 +316,6 @@ msgstr "キャンセル中..."
 #: src/utils/postprocess.py:126
 msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
 msgstr "処理がキャンセルされました。"
+
+msgid "FILE_TRANSFER_FINISHED"
+msgstr "ファイル転送が完了しました！"

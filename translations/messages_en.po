@@ -316,3 +316,6 @@ msgstr "Cancelling..."
 #: src/utils/postprocess.py:126
 msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
 msgstr "Processing cancelled."
+
+msgid "FILE_TRANSFER_FINISHED"
+msgstr "File transfer finished!"
