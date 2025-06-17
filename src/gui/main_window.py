@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
 
         # Scan devices on startup
         self.sidebar.serialView.scan_devices()
+        self.sidebar.serialView.device_count_changed.connect(self.on_device_count_changed)
 
     def keyPressEvent(self, event):
         """Forward key press events to the chart."""
@@ -278,3 +279,6 @@ class MainWindow(QMainWindow):
 
         # Run postprocessors on the filtered list of folders
         run_postprocessors(folder_paths)
+
+    def on_device_count_changed(self, count):
+        self.statusBar().showMessage(f"{_('SERIAL_SYNC_STATUS_BAR_TEXT_1')} {count} {_('SERIAL_SYNC_STATUS_BAR_TEXT_2')}")

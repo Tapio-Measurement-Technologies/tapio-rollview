@@ -224,6 +224,12 @@ msgstr "デバイスの検出"
 msgid "SERIAL_SYNC_BUTTON_TEXT"
 msgstr "データダウンロード"
 
+msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
+msgstr "スキャンが完了しました。検出されたデバイス数："
+
+msgid "SERIAL_SYNC_STATUS_BAR_TEXT_2"
+msgstr "台。"
+
 #: src/gui/widgets/stats.py:76
 msgid "ALERT_LIMITS_NOT_SET"
 msgstr "アラート制限は未設定です"

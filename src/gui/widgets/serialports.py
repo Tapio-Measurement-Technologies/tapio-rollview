@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLabel
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from models.SerialPort import SerialPortModel, SerialPortItem
 from gui.filetransferdialog import FileTransferDialog
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
@@ -38,6 +38,8 @@ class SerialPortView(QListView):
         self.select_item(index)
 
 class SerialWidget(QWidget):
+    device_count_changed = Signal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -98,6 +100,8 @@ class SerialWidget(QWidget):
 
     def on_scan_finished(self, ports):
         self.view.update_com_ports(ports)
+        valid_devices = [port for port in ports if port.device_responded]
+        self.device_count_changed.emit(len(valid_devices))
         self.scanButton.setDisabled(False)
         self.view.model.applyFilter()
         if self.scan_progress_dialog:

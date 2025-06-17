@@ -224,6 +224,12 @@ msgstr "Scan devices"
 msgid "SERIAL_SYNC_BUTTON_TEXT"
 msgstr "Sync data"
 
+msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
+msgstr "Scan complete. Found"
+
+msgid "SERIAL_SYNC_STATUS_BAR_TEXT_2"
+msgstr "device(s)."
+
 #: src/gui/widgets/stats.py:76
 msgid "ALERT_LIMITS_NOT_SET"
 msgstr "No alert limits set"
