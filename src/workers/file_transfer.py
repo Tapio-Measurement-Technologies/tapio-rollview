@@ -8,7 +8,6 @@ import time
 from modem import ZMODEM
 from models.FileTransfer import FileTransferModel, FileTransferItem
 from PySide6.QtCore import QObject, Signal, QThread
-from utils.postprocess import run_postprocessors
 from gui.widgets.messagebox import show_error_msgbox
 
 log = logging.getLogger(__name__)
@@ -113,7 +112,7 @@ class FileTransferManager(QObject):
     Manages the file transfer process using a worker thread.
     """
     transferStarted = Signal()
-    transferFinished = Signal()
+    transferFinished = Signal(list)
     fileByteProgress = Signal(int, int)
 
     def __init__(self, parent=None):
@@ -124,6 +123,7 @@ class FileTransferManager(QObject):
         self.sync_folder_path = None
         self._on_complete_callback = None
         self._transfer_in_progress = False
+        self.synced_folders = []
 
     def is_transfer_in_progress(self):
         return self._transfer_in_progress
@@ -178,7 +178,7 @@ class FileTransferManager(QObject):
         self.thread = None
         self.worker = None
         self._transfer_in_progress = False
-        self.transferFinished.emit()
+        self.transferFinished.emit(self.synced_folders)
 
     def on_transfer_error(self, error_message):
         log.error(f"File transfer error received: {error_message}")
@@ -197,7 +197,7 @@ class FileTransferManager(QObject):
                 received_file)) for received_file in received_files]))
             log.info(f"Received files in folders: {folder_paths}")
             log.info(f"Running postprocessors for: {folder_paths}")
-            run_postprocessors(folder_paths)
+            self.synced_folders = folder_paths
 
         self.model.removeItems()
 

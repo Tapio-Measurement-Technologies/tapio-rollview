@@ -1,4 +1,4 @@
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QObject
 from gui.widgets.messagebox import show_info_msgbox, show_warn_msgbox
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.dynamic_loader import load_modules_from_folder
@@ -88,46 +88,54 @@ def toggle_postprocessor(postprocessor_module):
     preferences.update_enabled_postprocessors(enabled_postprocessors)
 
 
-def run_postprocessors(folder_paths):
-    global thread
-    thread = PostprocessThread(folder_paths)
-    error_paths = set()
-    dialog = ProgressBarDialog(auto_close=True)
-    enabled_postprocessors = [
-        postprocessor for postprocessor in postprocessors.values() if postprocessor.enabled]
-    total_items_to_process = len(folder_paths) * len(enabled_postprocessors)
-    processed_items = 0
+class PostprocessManager(QObject):
+    postprocess_failed = Signal(str)
+    postprocess_finished = Signal()
+    postprocess_cancelled = Signal()
 
-    def on_postprocess_fail(folder_path):
-        error_paths.add(folder_path)
+    def __init__(self):
+        self._thread = None
+        self.dialog = None
+        self.error_paths = set()
+        self.enabled_postprocessors = [postprocessor for postprocessor in postprocessors.values() if postprocessor.enabled]
+        self.total_items_to_process = 0
 
-    def on_now_processing(folder_path, postprocessor_name):
-        nonlocal processed_items
-        processed_items += 1
-        if not thread._is_cancellation_requested:
-            dialog.update_progress((processed_items / total_items_to_process) *
+    def run_postprocessors(self, folder_paths):
+        self._thread = PostprocessThread(folder_paths)
+        self.error_paths = set()
+        self.dialog = ProgressBarDialog(auto_close=True)
+        self.total_items_to_process = len(folder_paths) * len(self.enabled_postprocessors)
+        self.processed_items = 0
+
+        self._thread.now_processing.connect(self.on_now_processing)
+        self._thread.processing_failed.connect(self.on_postprocess_fail)
+        self._thread.finished.connect(self.on_finished)
+        self._thread.processing_cancelled.connect(self.on_cancelled)
+        self.dialog.cancelled.connect(self._thread.request_cancellation)
+
+        self.dialog.show()
+        self._thread.start()
+
+    def on_postprocess_fail(self, folder_path):
+        self.error_paths.add(folder_path)
+
+    def on_now_processing(self, folder_path, postprocessor_name):
+        self.processed_items += 1
+        if not self._thread._is_cancellation_requested:
+            self.dialog.update_progress((self.processed_items / self.total_items_to_process) *
                                 100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
 
-    def on_finished():
-        if thread and thread._is_cancellation_requested:
+    def on_finished(self):
+        if self._thread and self._thread._is_cancellation_requested:
             return
 
-        dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
-        if error_paths:
+        self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
+        if self.error_paths:
             show_warn_msgbox(
-                f"{_("POSTPROCESSORS_ERROR_TEXT")}:\n\n{'\n'.join(error_paths)}")
+                f"{_("POSTPROCESSORS_ERROR_TEXT")}:\n\n{'\n'.join(self.error_paths)}")
         else:
             print("All postprocessors completed successfully!")
             # show_info_msgbox(_("POSTPROCESSORS_SUCCESS_TEXT"), "Success")
 
-    def on_cancelled():
-        dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_CANCELLED_TEXT"))
-
-    thread.now_processing.connect(on_now_processing)
-    thread.processing_failed.connect(on_postprocess_fail)
-    thread.finished.connect(on_finished)
-    thread.processing_cancelled.connect(on_cancelled)
-    dialog.cancelled.connect(thread.request_cancellation)
-
-    dialog.show()
-    thread.start()
+    def on_cancelled(self):
+        self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_CANCELLED_TEXT"))

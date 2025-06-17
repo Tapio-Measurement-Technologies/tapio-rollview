@@ -13,7 +13,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt
 
 from utils.file_utils import list_prof_files
-from utils.postprocess import toggle_postprocessor, run_postprocessors, get_postprocessors
+from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors
 from utils import preferences
 import os
 from datetime import datetime, timedelta
@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
         self.resize(1000, 600)
 
         self.file_transfer_manager = FileTransferManager()
+        self.postprocess_manager = PostprocessManager()
 
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
@@ -99,6 +100,9 @@ class MainWindow(QMainWindow):
         # Scan devices on startup
         self.serial_widget.scan_devices()
         self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
+
+        # Run postprocessors when file transfer is finished
+        self.file_transfer_manager.transferFinished.connect(self.postprocess_manager.run_postprocessors)
 
     def keyPressEvent(self, event):
         """Forward key press events to the chart."""
@@ -287,7 +291,7 @@ class MainWindow(QMainWindow):
         print(folder_paths)
 
         # Run postprocessors on the filtered list of folders
-        run_postprocessors(folder_paths)
+        self.postprocess_manager.run_postprocessors(folder_paths)
 
     def on_device_count_changed(self, count):
         self.statusBar().showMessage(f"{_('SERIAL_SYNC_STATUS_BAR_TEXT_1')} {count} {_('SERIAL_SYNC_STATUS_BAR_TEXT_2')}")

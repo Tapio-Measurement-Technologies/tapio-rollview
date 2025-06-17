@@ -117,7 +117,7 @@ class SerialWidget(QWidget):
     def _on_transfer_started(self):
         self.syncButton.setEnabled(False)
 
-    def _on_transfer_finished(self):
+    def _on_transfer_finished(self, *_):
         # Re-enable sync button only if a valid port is still selected
         if self.view.selectionModel().hasSelection():
             self.syncButton.setEnabled(True)
