@@ -8,7 +8,7 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QGridLayout, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QLabel, QSplitter
+from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt
 
@@ -79,6 +79,10 @@ class MainWindow(QMainWindow):
         hor_splitter.setSizes([400, 600])
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
+
+        status_bar = QStatusBar()
+        status_bar.setFixedHeight(30)
+        self.setStatusBar(status_bar)
 
         self.setCentralWidget(hor_splitter)
         self.init_menu()

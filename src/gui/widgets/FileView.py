@@ -140,6 +140,7 @@ class FileView(QWidget):
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+        layout.setContentsMargins(5, 0, 10, 0)
 
         self.model = CustomFileSystemModel()
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.Files)
