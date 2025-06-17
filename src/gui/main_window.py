@@ -27,7 +27,9 @@ from gui.log_window import LogWindow
 from models.Profile import Profile
 import settings
 import store
-
+from workers.file_transfer import FileTransferManager
+from gui.widgets.serialports import SerialWidget
+from gui.widgets.DirectoryView import DirectoryView
 from gui.settings import SettingsWindow
 from utils.translation import _
 
@@ -40,27 +42,34 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Tapio RollView")
         self.resize(1000, 600)
 
+        self.file_transfer_manager = FileTransferManager()
+
+        self.serial_widget = SerialWidget(self.file_transfer_manager)
+        self.directory_view = DirectoryView()
         self.sidebar = Sidebar()
+        self.sidebar.addWidget(self.serial_widget)
+        self.sidebar.addWidget(self.directory_view)
+
         self.chart = Chart()
         self.fileView = FileView()
         self.fileView.file_selected.connect(self.on_file_selected)
         self.fileView.profile_state_changed.connect(self.refresh_plot)
 
-        self.sidebar.directoryView.directory_selected.connect(self.on_directory_selected)
-        self.sidebar.directoryView.root_directory_changed.connect(
+        self.directory_view.directory_selected.connect(self.on_directory_selected)
+        self.directory_view.root_directory_changed.connect(
             self.on_root_directory_changed)
-        self.sidebar.directoryView.directory_contents_changed.connect(
+        self.directory_view.directory_contents_changed.connect(
             self.on_directory_contents_changed
         )
 
         # Attempt to create default root dir if it does not exist
         if QDir().mkpath(store.root_directory):
-            self.sidebar.directoryView.change_root_directory(store.root_directory)
+            self.directory_view.change_root_directory(store.root_directory)
         else:
             current_path = QDir.currentPath()
             print(f"Failed to create default roll directory to {store.root_directory}!")
             print(f"Defaulting to {current_path}")
-            self.sidebar.directoryView.change_root_directory(current_path)
+            self.directory_view.change_root_directory(current_path)
 
         ver_splitter = QSplitter(Qt.Orientation.Vertical)
         ver_splitter.addWidget(self.chart)
@@ -88,8 +97,8 @@ class MainWindow(QMainWindow):
         self.init_menu()
 
         # Scan devices on startup
-        self.sidebar.serialView.scan_devices()
-        self.sidebar.serialView.device_count_changed.connect(self.on_device_count_changed)
+        self.serial_widget.scan_devices()
+        self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
 
     def keyPressEvent(self, event):
         """Forward key press events to the chart."""
@@ -183,7 +192,7 @@ class MainWindow(QMainWindow):
 
     def on_show_all_com_ports_changed(self, checked):
         preferences.update_show_all_com_ports(checked)
-        self.sidebar.serialView.view.model.applyFilter()
+        self.serial_widget.view.model.applyFilter()
 
     def on_show_plot_toolbar_changed(self, checked):
         preferences.update_show_plot_toolbar(checked)

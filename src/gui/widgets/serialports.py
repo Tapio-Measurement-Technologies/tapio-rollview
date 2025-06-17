@@ -40,7 +40,7 @@ class SerialPortView(QListView):
 class SerialWidget(QWidget):
     device_count_changed = Signal(int)
 
-    def __init__(self, parent=None):
+    def __init__(self, transfer_manager: FileTransferManager, parent=None):
         super().__init__(parent)
 
         self.setMaximumHeight(200)
@@ -56,7 +56,7 @@ class SerialWidget(QWidget):
         self.syncButton.clicked.connect(self.sync_data)
         self.syncButton.setEnabled(False)
 
-        self.transferManager = FileTransferManager()
+        self.transferManager = transfer_manager
         self.transferDialog = FileTransferDialog(self.transferManager)
 
         self.scanner = PortScanner(self)
