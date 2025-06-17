@@ -17,6 +17,11 @@ def open_in_file_explorer(folder_path):
 
 
 def list_prof_files(path):
+    # Validate that the path exists and is a directory
+    if not path or not os.path.exists(path) or not os.path.isdir(path):
+        print(f"Invalid directory path provided to list_prof_files: '{path}'")
+        return []
+
     dir_iterator = QDir(path).entryInfoList(["*.prof"], QDir.Filter.Files | QDir.Filter.NoDotAndDotDot)
     prof_files = [file_info.absoluteFilePath() for file_info in dir_iterator if file_info.fileName() != "mean.prof"]
     return prof_files

@@ -4,6 +4,7 @@ from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.translation import _
 import settings
 import store
+import os
 
 PROF_FILE_HEADER_SIZE = 128
 
@@ -177,8 +178,11 @@ class FileView(QWidget):
         self.model.dataChanged.connect(self.on_files_updated)
 
     def set_directory(self, path):
-        if not path:
+        # Validate that the path exists and is a directory
+        if not os.path.exists(path) or not os.path.isdir(path):
+            print(f"Invalid directory path provided to FileView: '{path}'")
             return
+
         self.model.setRootPath(path)
         root_index = self.proxy_model.mapFromSource(self.model.index(path))
         if not root_index.isValid():

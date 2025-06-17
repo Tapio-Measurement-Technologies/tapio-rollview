@@ -78,6 +78,11 @@ class DirectoryView(QWidget):
         self.watcher.fileChanged.connect(self.on_file_changed)
 
     def watch_directory_and_subdirs(self, directory):
+        # Validate that the directory path exists and is a directory
+        if not directory or not os.path.exists(directory) or not os.path.isdir(directory):
+            print(f"Invalid directory path provided to watch_directory_and_subdirs: '{directory}'")
+            return
+
         # Clear previous watchers
         if len(self.watcher.directories()):
             self.watcher.removePaths(self.watcher.directories())
@@ -125,6 +130,11 @@ class DirectoryView(QWidget):
             directory = QFileDialog.getExistingDirectory(self, _("CHANGE_DIRECTORY_DIALOG_TITLE"), current_directory)
 
         if directory:
+            # Validate that the directory path exists and is a directory
+            if not os.path.exists(directory) or not os.path.isdir(directory):
+                print(f"Invalid directory path provided to change_root_directory: '{directory}'")
+                return
+
             # Update the root index of the tree view to reflect the new directory
             self.model.setRootPath(directory)
             root_index = self.proxy_model.mapFromSource(self.model.index(directory))
@@ -193,6 +203,11 @@ class CustomFileSystemModel(QFileSystemModel):
         return super().data(index, role)
 
     def get_latest_modified_date(self, directory_path):
+        # Validate that the directory path exists and is a directory
+        if not directory_path or not os.path.exists(directory_path) or not os.path.isdir(directory_path):
+            print(f"Invalid directory path provided to get_latest_modified_date: '{directory_path}'")
+            return None
+
         try:
             latest_date = None
             for root, _, files in os.walk(directory_path):

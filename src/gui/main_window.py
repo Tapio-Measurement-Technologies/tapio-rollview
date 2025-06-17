@@ -189,15 +189,22 @@ class MainWindow(QMainWindow):
         self.refresh_plot()
 
     def on_directory_selected(self, directory):
+        # Validate that the directory path exists and is a directory
+        if not directory or not os.path.exists(directory) or not os.path.isdir(directory):
+            print(f"Invalid directory path provided to on_directory_selected: '{directory}'")
+            return
+
         self.directory_name = os.path.basename(directory)
         store.selected_directory = directory
-        print(directory)
         self.load_profiles(store.selected_directory)
         self.chart.update_plot(store.profiles, self.directory_name)
 
-    def load_profiles(self, dir_path = None):
-        if not dir_path:
-            dir_path = store.selected_directory
+    def load_profiles(self, dir_path):
+        # Validate that the directory path exists and is a directory
+        if not dir_path or not os.path.exists(dir_path) or not os.path.isdir(dir_path):
+            print(f"Invalid directory path provided to load_profiles: '{dir_path}'")
+            return
+
         files = list_prof_files(store.selected_directory)
         profiles = [ Profile.fromfile(filename) for filename in files ]
         profiles = [ profile for profile in profiles if profile is not None ]
