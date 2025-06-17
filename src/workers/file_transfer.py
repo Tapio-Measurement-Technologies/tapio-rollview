@@ -168,7 +168,6 @@ class FileTransferManager(QObject):
         if self._transfer_in_progress and self.worker:
             log.info("Requesting to cancel file transfer.")
             self.worker.stop()
-        self.model.removeItems()
 
     def _cleanup(self):
         """
@@ -179,6 +178,7 @@ class FileTransferManager(QObject):
         self.worker = None
         self._transfer_in_progress = False
         self.transferFinished.emit(self.synced_folders)
+        self.model.removeItems()
 
     def on_transfer_error(self, error_message):
         log.error(f"File transfer error received: {error_message}")
