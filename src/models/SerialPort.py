@@ -1,6 +1,7 @@
 from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 from serial.tools import list_ports_common
 from utils import preferences
+import re
 
 class SerialPortItem:
     """
@@ -14,6 +15,15 @@ class SerialPortItem:
 
     def is_pinned(self):
         return self.device in preferences.pinned_serial_ports
+
+def natural_sort_key(text):
+    """
+    Convert a string into a list of string and number chunks.
+    "COM10" becomes ["COM", 10] which sorts correctly.
+    """
+    def atoi(text):
+        return int(text) if text.isdigit() else text
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 class SerialPortModel(QAbstractListModel):
     def __init__(self, ports: list = [], parent=None):
@@ -87,11 +97,17 @@ class SerialPortModel(QAbstractListModel):
             # Filter to only show ports with device_responded = True, but always include pinned ports
             pinned_ports = [item for item in self.ports if item.is_pinned()]
             responded_ports = [item for item in self.ports if item.device_responded and not item.is_pinned()]
+            # Sort both lists by serial port name
+            pinned_ports.sort(key=lambda x: natural_sort_key(x.device))
+            responded_ports.sort(key=lambda x: natural_sort_key(x.device))
             self.filtered_ports = pinned_ports + responded_ports
         else:
             # Show all ports, but pinned ports first
             pinned_ports = [item for item in self.ports if item.is_pinned()]
             other_ports = [item for item in self.ports if not item.is_pinned()]
+            # Sort both lists by serial port name
+            pinned_ports.sort(key=lambda x: natural_sort_key(x.device))
+            other_ports.sort(key=lambda x: natural_sort_key(x.device))
             self.filtered_ports = pinned_ports + other_ports
 
         self.layoutChanged.emit()  # Notify the view that the data has changed
