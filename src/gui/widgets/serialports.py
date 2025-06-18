@@ -84,7 +84,6 @@ class SerialWidget(QWidget):
     def __init__(self, transfer_manager: FileTransferManager, parent=None):
         super().__init__(parent)
 
-        self.setMaximumHeight(200)
         # Create the COM Ports TreeView
         self.view = SerialPortView()
 

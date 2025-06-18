@@ -48,7 +48,7 @@ class MainWindow(QMainWindow):
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
         self.sidebar = Sidebar()
-        self.sidebar.addWidget(self.serial_widget)
+        self.sidebar.addWidget(self.serial_widget, 200)
         self.sidebar.addWidget(self.directory_view)
 
         self.chart = Chart()
