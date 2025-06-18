@@ -301,6 +301,10 @@ msgstr "Postprocessing complete."
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
 msgstr "Scanning port"
 
+#: src/workers/port_scanner.py:122
+msgid "PORTSCAN_NO_PORTS_FOUND_TEXT"
+msgstr "No COM ports found"
+
 #: src/utils/serial.py:155
 msgid "PORTSCAN_COMPLETE_TEXT"
 msgstr "Scanning complete"

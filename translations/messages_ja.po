@@ -301,6 +301,10 @@ msgstr "ポストプロセスが完了しました。"
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
 msgstr "ポート検出中"
 
+#: src/workers/port_scanner.py:122
+msgid "PORTSCAN_NO_PORTS_FOUND_TEXT"
+msgstr "COMポートが見つかりません"
+
 #: src/utils/serial.py:155
 msgid "PORTSCAN_COMPLETE_TEXT"
 msgstr "スキャン完了"
