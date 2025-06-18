@@ -319,3 +319,6 @@ msgstr "Processing cancelled."
 
 msgid "FILE_TRANSFER_FINISHED"
 msgstr "File transfer finished!"
+
+msgid "CHART_STATUS_TIP_TEXT"
+msgstr "Scroll to zoom. Drag with mouse to pan."

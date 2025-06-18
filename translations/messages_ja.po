@@ -319,3 +319,6 @@ msgstr "処理がキャンセルされました。"
 
 msgid "FILE_TRANSFER_FINISHED"
 msgstr "ファイル転送が完了しました！"
+
+msgid "CHART_STATUS_TIP_TEXT"
+msgstr "スクロールでズーム、マウスドラッグで移動。"

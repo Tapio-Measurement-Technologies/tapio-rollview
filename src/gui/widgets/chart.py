@@ -57,6 +57,8 @@ class Chart(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.setStatusTip(_("CHART_STATUS_TIP_TEXT"))
+
         # Existing initialization code
         self.layout = QVBoxLayout(self)
         self.figure = Figure()
