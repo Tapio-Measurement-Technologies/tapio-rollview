@@ -1,11 +1,13 @@
-from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLabel, QMenu
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction
 from models.SerialPort import SerialPortModel, SerialPortItem
 from gui.filetransferdialog import FileTransferDialog
 from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from workers.file_transfer import FileTransferManager
 from workers.port_scanner import PortScanner
 from utils.translation import _
+from utils import preferences
 import store
 
 class SerialPortView(QListView):
@@ -15,6 +17,45 @@ class SerialPortView(QListView):
         # Set up the model
         self.model = SerialPortModel()
         self.setModel(self.model)
+
+        # Enable context menu
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, position):
+        index = self.indexAt(position)
+        if not index.isValid():
+            return
+
+        port_item = self.model.getPortItem(index.row())
+        if not port_item:
+            return
+
+        context_menu = QMenu(self)
+
+        if port_item.is_pinned():
+            pin_action = QAction(_("SERIAL_UNPIN_PORT"), self)
+            pin_action.triggered.connect(lambda: self.unpin_port(port_item.device))
+        else:
+            pin_action = QAction(_("SERIAL_PIN_PORT"), self)
+            pin_action.triggered.connect(lambda: self.pin_port(port_item.device))
+
+        context_menu.addAction(pin_action)
+        context_menu.exec_(self.viewport().mapToGlobal(position))
+
+    def pin_port(self, device):
+        """Add a port to the pinned ports list"""
+        current_pinned = set(preferences.pinned_serial_ports)
+        current_pinned.add(device)
+        preferences.update_pinned_serial_ports(list(current_pinned))
+        self.model.applyFilter()
+
+    def unpin_port(self, device):
+        """Remove a port from the pinned ports list"""
+        current_pinned = set(preferences.pinned_serial_ports)
+        current_pinned.discard(device)
+        preferences.update_pinned_serial_ports(list(current_pinned))
+        self.model.applyFilter()
 
     def update_com_ports(self, ports):
         # Clear existing items

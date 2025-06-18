@@ -12,6 +12,9 @@ class SerialPortItem:
         self.serial_number = port.serial_number
         self.device_responded = device_responded
 
+    def is_pinned(self):
+        return self.device in preferences.pinned_serial_ports
+
 class SerialPortModel(QAbstractListModel):
     def __init__(self, ports: list = [], parent=None):
         super().__init__(parent)
@@ -28,10 +31,17 @@ class SerialPortModel(QAbstractListModel):
 
         item = self.filtered_ports[index.row()]
         if role == Qt.ItemDataRole.DisplayRole:
-            return f"[{item.device}] {item.description} ({item.serial_number})"
+            pin_icon = "📌" if item.is_pinned() else ""
+            return f"{pin_icon} [{item.device}] {item.description} ({item.serial_number})"
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
 
+        return None
+
+    def getPortItem(self, row):
+        """Get the port item at the specified row"""
+        if 0 <= row < len(self.filtered_ports):
+            return self.filtered_ports[row]
         return None
 
     def addItem(self, item):
@@ -74,10 +84,14 @@ class SerialPortModel(QAbstractListModel):
     def applyFilter(self):
         """ Apply the filter and update the filtered_ports list. """
         if not preferences.show_all_com_ports:
-            # Filter to only show ports with device_responded = True
-            self.filtered_ports = [item for item in self.ports if item.device_responded]
+            # Filter to only show ports with device_responded = True, but always include pinned ports
+            pinned_ports = [item for item in self.ports if item.is_pinned()]
+            responded_ports = [item for item in self.ports if item.device_responded and not item.is_pinned()]
+            self.filtered_ports = pinned_ports + responded_ports
         else:
-            # Show all ports
-            self.filtered_ports = self.ports
+            # Show all ports, but pinned ports first
+            pinned_ports = [item for item in self.ports if item.is_pinned()]
+            other_ports = [item for item in self.ports if not item.is_pinned()]
+            self.filtered_ports = pinned_ports + other_ports
 
         self.layoutChanged.emit()  # Notify the view that the data has changed

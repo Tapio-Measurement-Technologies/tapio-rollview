@@ -10,6 +10,7 @@ show_all_com_ports     = settings.SHOW_ALL_COM_PORTS_DEFAULT
 show_plot_toolbar      = settings.SHOW_PLOT_TOOLBAR_DEFAULT
 recalculate_mean       = settings.RECALCULATE_MEAN_DEFAULT
 locale                 = settings.LOCALE_DEFAULT
+pinned_serial_ports    = settings.PINNED_SERIAL_PORTS_DEFAULT
 
 def save_preferences_to_file():
   preferences = {
@@ -18,7 +19,8 @@ def save_preferences_to_file():
     "show_all_com_ports":     show_all_com_ports,
     "show_plot_toolbar":      show_plot_toolbar,
     "recalculate_mean":       recalculate_mean,
-    "locale":                 locale
+    "locale":                 locale,
+    "pinned_serial_ports":    list(pinned_serial_ports)
   }
   try:
     with open(preferences_file_path, 'w') as file:
@@ -57,6 +59,11 @@ def update_locale(new_locale):
   locale = new_locale
   save_preferences_to_file()
 
+def update_pinned_serial_ports(new_pinned_serial_ports):
+  global pinned_serial_ports
+  pinned_serial_ports = set(new_pinned_serial_ports)
+  save_preferences_to_file()
+
 ## Initialize preferences
 try:
   with open(preferences_file_path, 'r') as file:
@@ -74,6 +81,8 @@ try:
       recalculate_mean = preferences['recalculate_mean']
     if 'locale' in preferences:
       locale = preferences['locale']
+    if 'pinned_serial_ports' in preferences:
+      pinned_serial_ports = set(preferences['pinned_serial_ports'])
 
 except FileNotFoundError:
   save_preferences_to_file()

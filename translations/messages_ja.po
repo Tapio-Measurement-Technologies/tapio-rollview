@@ -224,6 +224,14 @@ msgstr "デバイスの検出"
 msgid "SERIAL_SYNC_BUTTON_TEXT"
 msgstr "データダウンロード"
 
+#: src/gui/widgets/serialports.py:35
+msgid "SERIAL_PIN_PORT"
+msgstr "固定"
+
+#: src/gui/widgets/serialports.py:37
+msgid "SERIAL_UNPIN_PORT"
+msgstr "解除"
+
 msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
 msgstr "スキャンが完了しました。検出されたデバイス数："
 

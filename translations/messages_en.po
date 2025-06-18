@@ -224,6 +224,14 @@ msgstr "Scan devices"
 msgid "SERIAL_SYNC_BUTTON_TEXT"
 msgstr "Sync data"
 
+#: src/gui/widgets/serialports.py:35
+msgid "SERIAL_PIN_PORT"
+msgstr "Pin"
+
+#: src/gui/widgets/serialports.py:37
+msgid "SERIAL_UNPIN_PORT"
+msgstr "Unpin"
+
 msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
 msgstr "Scan complete. Found"
 
