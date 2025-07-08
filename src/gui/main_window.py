@@ -217,6 +217,7 @@ class MainWindow(QMainWindow):
         self.directory_name = os.path.basename(directory)
         store.selected_directory = directory
         self.load_profiles(store.selected_directory)
+        self.fileView.set_directory(store.selected_directory)
         self.chart.update_plot(store.profiles, self.directory_name)
 
     def load_profiles(self, dir_path):
@@ -229,7 +230,6 @@ class MainWindow(QMainWindow):
         profiles = [ Profile.fromfile(filename) for filename in files ]
         profiles = [ profile for profile in profiles if profile is not None ]
         store.profiles = profiles
-        self.fileView.set_directory(dir_path)
 
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)
