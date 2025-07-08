@@ -8,7 +8,7 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter
+from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt
 
@@ -30,9 +30,9 @@ import store
 from workers.file_transfer import FileTransferManager
 from gui.widgets.serialports import SerialWidget
 from gui.widgets.DirectoryView import DirectoryView
+from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 from gui.settings import SettingsWindow
 from utils.translation import _
-
 
 class MainWindow(QMainWindow):
 
@@ -51,17 +51,22 @@ class MainWindow(QMainWindow):
         self.sidebar.addWidget(self.serial_widget, 200)
         self.sidebar.addWidget(self.directory_view)
 
+        self.tab_view = QTabWidget()
+        self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.chart = Chart()
+        self.tab_view.addTab(self.chart, "Profiles")
+        self.tab_view.addTab(self.statistics_analysis_widget, "Statistics Analysis")
+        self.tab_view.currentChanged.connect(self.statistics_analysis_widget.update)
+
         self.fileView = FileView()
         self.fileView.file_selected.connect(self.on_file_selected)
         self.fileView.profile_state_changed.connect(self.refresh_plot)
 
         self.directory_view.directory_selected.connect(self.on_directory_selected)
-        self.directory_view.root_directory_changed.connect(
-            self.on_root_directory_changed)
-        self.directory_view.directory_contents_changed.connect(
-            self.on_directory_contents_changed
-        )
+        self.directory_view.root_directory_changed.connect(self.on_root_directory_changed)
+        self.directory_view.root_directory_changed.connect(self.statistics_analysis_widget.update)
+        self.directory_view.directory_contents_changed.connect(self.on_directory_contents_changed)
+        self.directory_view.directory_contents_changed.connect(self.statistics_analysis_widget.update)
 
         # Attempt to create default root dir if it does not exist
         if QDir().mkpath(store.root_directory):
@@ -73,7 +78,7 @@ class MainWindow(QMainWindow):
             self.directory_view.change_root_directory(current_path)
 
         ver_splitter = QSplitter(Qt.Orientation.Vertical)
-        ver_splitter.addWidget(self.chart)
+        ver_splitter.addWidget(self.tab_view)
         ver_splitter.addWidget(self.fileView)
         ver_splitter.setStretchFactor(0, 1)
         ver_splitter.setStretchFactor(1, 0)
