@@ -63,6 +63,7 @@ class MainWindow(QMainWindow):
         self.fileView.profile_state_changed.connect(self.refresh_plot)
 
         self.directory_view.directory_selected.connect(self.on_directory_selected)
+        self.directory_view.directory_selected.connect(self.statistics_analysis_widget.highlight_point)
         self.directory_view.root_directory_changed.connect(self.on_root_directory_changed)
         self.directory_view.root_directory_changed.connect(self.statistics_analysis_widget.update)
         self.directory_view.directory_contents_changed.connect(self.on_directory_contents_changed)

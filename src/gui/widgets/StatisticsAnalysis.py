@@ -36,12 +36,17 @@ class StatisticsAnalysisChart(QWidget):
                     arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
         self.stat_data = []
+        self.highlighted_point = None
 
         layout = QVBoxLayout()
         layout.addWidget(self.canvas)
         self.setLayout(layout)
 
         self.canvas.mpl_connect("pick_event", self.on_pick)
+
+    def highlight_point(self, label: str):
+        self.highlighted_point = label
+        self.plot(self.stat_data)
 
     def on_pick(self, event):
         vis = self.annot.get_visible()
@@ -73,6 +78,12 @@ class StatisticsAnalysisChart(QWidget):
 
         self.line, = self.ax.plot(x, y, 'o-', picker=5)
 
+        if self.highlighted_point:
+            for i, p in enumerate(stat_data):
+                if p['label'] == self.highlighted_point:
+                    self.ax.plot(x[i], y[i], 'o', color='tab:red', markersize=8)
+                    break
+
         # Formatting
         self.ax.set_xlabel("Time")
         self.ax.set_ylabel("Statistic Value")
@@ -101,6 +112,11 @@ class StatisticsAnalysisWidget(QWidget):
     def on_stat_selection_changed(self, stat_label: str):
         self.selected_stat = stat_label_map[stat_label]
         self.update()
+
+    @Slot(str)
+    def highlight_point(self, dir_path: str):
+        label = os.path.basename(dir_path)
+        self.chart.highlight_point(label)
 
     @Slot()
     def update(self):
