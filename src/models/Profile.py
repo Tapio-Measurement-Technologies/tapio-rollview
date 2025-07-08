@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from numpy.typing import NDArray
 import numpy as np
 import struct
@@ -10,6 +10,8 @@ from PySide6.QtCore import (
 )
 import os
 from typing import List
+from utils.profile_stats import calc_mean_profile
+from utils.file_utils import list_prof_files
 
 PROF_FILE_HEADER_SIZE = 128
 
@@ -127,6 +129,26 @@ class Profile:
             return 0
         return self.data.distances[-1]
 
+@dataclass
+class RollDirectory:
+    path: str
+    profiles: List['Profile'] = field(default_factory=list, init=False)
+    mean_profile: NDArray | None = field(default=None, init=False)
+
+    def __post_init__(self):
+        self.update()
+
+    def update(self):
+        prof_paths = list_prof_files(self.path)
+        self.profiles = [Profile.fromfile(path) for path in prof_paths]
+        self.distances, self.mean_profile = calc_mean_profile(self.profiles)
+
+    @property
+    def newest_timestamp(self):
+        if len(self.profiles) > 0:
+            return max(p.date_modified for p in self.profiles)
+        else:
+            return os.path.getmtime(self.path)
 
 # Not used at the moment but might be useful in the future
 class ProfileModel(QAbstractTableModel):
