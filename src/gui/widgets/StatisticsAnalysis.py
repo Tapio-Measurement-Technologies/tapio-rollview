@@ -9,6 +9,16 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime
 
+chart_point_style = {
+    'markersize': 4,
+    'color': 'tab:blue'
+}
+
+selected_point_style = {
+    'markersize': 6,
+    'color': 'tab:red'
+}
+
 stat_label_map = {
     "Mean": "mean",
     "Standard deviation": "std",
@@ -79,12 +89,12 @@ class StatisticsAnalysisChart(QWidget):
         x = [datetime.fromtimestamp(p['x']) for p in stat_data]
         y = [p['y'] for p in stat_data]
 
-        self.line, = self.ax.plot(x, y, 'o-', picker=5)
+        self.line, = self.ax.plot(x, y, 'o-', picker=5, **chart_point_style)
 
         if self.highlighted_point:
             for i, p in enumerate(stat_data):
                 if p['label'] == self.highlighted_point:
-                    self.ax.plot(x[i], y[i], 'o', color='tab:red', markersize=8)
+                    self.ax.plot(x[i], y[i], 'o', **selected_point_style)
                     break
 
         # Formatting
