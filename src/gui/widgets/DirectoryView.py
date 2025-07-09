@@ -24,6 +24,13 @@ from datetime import datetime
 
 CUSTOM_SORT_FILES_IN_DIRECTORY_LIMIT = 128
 
+selection_flags = (
+    QItemSelectionModel.SelectionFlag.Clear |
+    QItemSelectionModel.SelectionFlag.Select |
+    QItemSelectionModel.SelectionFlag.Current |
+    QItemSelectionModel.SelectionFlag.Rows
+)
+
 class DirectoryView(QWidget):
     root_directory_changed = Signal(str)
     directory_selected     = Signal(str)
@@ -109,13 +116,16 @@ class DirectoryView(QWidget):
             selected_index = first_child
         else:
             selected_index = root_index
-        self.treeView.selectionModel().select(
-            selected_index,
-            QItemSelectionModel.SelectionFlag.Clear |
-            QItemSelectionModel.SelectionFlag.Select |
-            QItemSelectionModel.SelectionFlag.Current |
-            QItemSelectionModel.SelectionFlag.Rows
-        )
+        self.treeView.selectionModel().select(selected_index, selection_flags)
+        self.treeView.scrollTo(selected_index)
+
+    def select_directory_by_path(self, path):
+        index = self.proxy_model.mapFromSource(self.model.index(path))
+        if index.isValid():
+            self.treeView.selectionModel().select(index, selection_flags)
+            self.treeView.scrollTo(index)
+        else:
+            print(f"Invalid index provided to select_directory_by_path: '{path}'")
 
     def open_directory_in_file_explorer(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())

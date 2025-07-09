@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout
 from models.Profile import RollDirectory
 from utils.profile_stats import Stats
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Signal
 import store
 import os
 from typing import List, Dict, Any
@@ -25,6 +25,8 @@ class StatSelectionDropdown(QComboBox):
         self.addItems(list(stat_label_map.keys()))
 
 class StatisticsAnalysisChart(QWidget):
+    point_selected = Signal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.figure = Figure()
@@ -59,6 +61,7 @@ class StatisticsAnalysisChart(QWidget):
         self.annot.set_text(point['label'])
         self.annot.set_visible(True)
         self.canvas.draw_idle()
+        self.point_selected.emit(point['path'])
 
     def plot(self, stat_data: List[Dict[str, Any]]):
         self.stat_data = stat_data
@@ -93,6 +96,8 @@ class StatisticsAnalysisChart(QWidget):
         self.canvas.draw()
 
 class StatisticsAnalysisWidget(QWidget):
+    directory_selected = Signal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
@@ -102,6 +107,7 @@ class StatisticsAnalysisWidget(QWidget):
         self.stat_selection_dropdown = StatSelectionDropdown(self)
         self.stat_selection_dropdown.currentTextChanged.connect(self.on_stat_selection_changed)
         self.chart = StatisticsAnalysisChart(self)
+        self.chart.point_selected.connect(self.on_point_selected)
 
         self.layout().addWidget(self.stat_selection_dropdown)
         self.layout().addWidget(self.chart)
@@ -112,6 +118,10 @@ class StatisticsAnalysisWidget(QWidget):
     def on_stat_selection_changed(self, stat_label: str):
         self.selected_stat = stat_label_map[stat_label]
         self.update()
+
+    @Slot(str)
+    def on_point_selected(self, label: str):
+        self.directory_selected.emit(label)
 
     @Slot(str)
     def highlight_point(self, dir_path: str):
@@ -143,7 +153,7 @@ class StatisticsAnalysisWidget(QWidget):
                 y = stat_func(roll_dir.mean_profile)
                 x = roll_dir.newest_timestamp
                 label = os.path.basename(roll_dir.path)
-                points.append({'x': x, 'y': y, 'label': label})
+                points.append({'x': x, 'y': y, 'label': label, 'path': roll_dir.path})
 
         points.sort(key=lambda p: p['x'])
         return points

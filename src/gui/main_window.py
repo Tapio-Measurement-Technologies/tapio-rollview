@@ -53,6 +53,7 @@ class MainWindow(QMainWindow):
 
         self.tab_view = QTabWidget()
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
+        self.statistics_analysis_widget.directory_selected.connect(self.on_directory_selected)
         self.chart = Chart()
         self.tab_view.addTab(self.chart, "Profiles")
         self.tab_view.addTab(self.statistics_analysis_widget, "Statistics Analysis")
@@ -224,6 +225,7 @@ class MainWindow(QMainWindow):
         store.selected_directory = directory
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
+        self.directory_view.select_directory_by_path(store.selected_directory)
         self.chart.update_plot(store.profiles, self.directory_name)
 
     def load_profiles(self, dir_path):
