@@ -120,10 +120,7 @@ class StatisticsAnalysisChart(QWidget):
         self.ax.set_xticks(x_indices)
         
         # Only show x-axis labels if there are 20 or fewer rolls
-        if num_rolls <= 20:
-            self.ax.set_xticklabels(labels, rotation=45, ha='right')
-        else:
-            self.ax.set_xticklabels([])  # Hide labels
+        self.ax.set_xticklabels([])  # Hide labels
         
         self.figure.tight_layout()
 
