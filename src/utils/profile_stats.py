@@ -51,8 +51,10 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
     # do not take them into account when calculating mean profile
     filtered_profiles = [
         profile for profile in profiles
-        if profile.data is not None
-        and len(profile.data.hardnesses) > settings.FILTER_NUMTAPS
+        if (profile is not None and
+            hasattr(profile, 'data') and
+            profile.data is not None and
+            len(profile.data.hardnesses) > settings.FILTER_NUMTAPS)
     ]
 
     if not filtered_profiles:

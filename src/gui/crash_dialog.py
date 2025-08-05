@@ -34,6 +34,9 @@ class CrashDialog(QDialog):
         self.traceback_edit = QTextEdit()
         self.traceback_edit.setReadOnly(True)
         self.traceback_edit.setPlainText(self.traceback_text)
+
+        print(self.traceback_text)
+
         layout.addWidget(self.traceback_edit)
 
         # Buttons
