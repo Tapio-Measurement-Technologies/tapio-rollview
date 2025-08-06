@@ -8,7 +8,7 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget
+from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt
 
@@ -102,9 +102,13 @@ class MainWindow(QMainWindow):
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 
-        status_bar = QStatusBar()
-        status_bar.setFixedHeight(30)
-        self.setStatusBar(status_bar)
+        self.status_bar = QStatusBar()
+        self.status_bar.setFixedHeight(30)
+        self.setStatusBar(self.status_bar)
+
+        self.scan_progress_bar = QProgressBar()
+        self.scan_progress_bar.setVisible(False)
+        self.status_bar.addPermanentWidget(self.scan_progress_bar)
 
         self.setCentralWidget(hor_splitter)
         self.init_menu()
@@ -112,11 +116,22 @@ class MainWindow(QMainWindow):
         # Scan devices on startup
         self.serial_widget.scan_devices()
         self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
+        self.serial_widget.scan_progress.connect(self.on_scan_progress)
+        self.serial_widget.scan_finished.connect(self.on_scan_finished)
 
         # Run postprocessors when file transfer is finished
         self.file_transfer_manager.transferFinished.connect(self.on_file_transfer_finished)
 
         self.postprocess_manager.postprocess_finished.connect(self.on_postprocess_finished)
+
+    def on_scan_progress(self, value, text):
+        self.scan_progress_bar.setVisible(True)
+        self.scan_progress_bar.setValue(value)
+        self.status_bar.showMessage(text)
+
+    def on_scan_finished(self):
+        self.scan_progress_bar.setVisible(False)
+        self.status_bar.clearMessage()
 
     def keyPressEvent(self, event):
         """Forward key press events to the chart."""
@@ -309,14 +324,15 @@ class MainWindow(QMainWindow):
         self.postprocess_manager.run_postprocessors(folder_paths)
 
     def on_device_count_changed(self, count):
-        self.statusBar().showMessage(f"{_('SERIAL_SYNC_STATUS_BAR_TEXT_1')} {count} {_('SERIAL_SYNC_STATUS_BAR_TEXT_2')}")
+        self.status_bar.showMessage(f"{_('SERIAL_SYNC_STATUS_BAR_TEXT_1')} {count} {_('SERIAL_SYNC_STATUS_BAR_TEXT_2')}")
 
     def on_postprocess_finished(self, result: PostprocessResult):
         message = _("POSTPROCESSORS_FINISHED_TEXT")
         if result.failed_folders:
             message += f" {_('POSTPROCESSORS_ERROR_TEXT_1')} {len(result.failed_folders)} {_('POSTPROCESSORS_ERROR_TEXT_2')}"
-        self.statusBar().showMessage(message)
+        self.status_bar.showMessage(message)
 
     def on_file_transfer_finished(self, folder_paths: list[str]):
-        self.statusBar().showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+        self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
         self.postprocess_manager.run_postprocessors(folder_paths)
+        self.on_directory_contents_changed()

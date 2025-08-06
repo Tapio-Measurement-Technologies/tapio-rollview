@@ -3,7 +3,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
 from models.SerialPort import SerialPortModel, SerialPortItem
 from gui.filetransferdialog import FileTransferDialog
-from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from workers.file_transfer import FileTransferManager
 from workers.port_scanner import PortScanner
 from utils.translation import _
@@ -80,6 +79,8 @@ class SerialPortView(QListView):
 
 class SerialWidget(QWidget):
     device_count_changed = Signal(int)
+    scan_progress = Signal(int, str)
+    scan_finished = Signal()
 
     def __init__(self, transfer_manager: FileTransferManager, parent=None):
         super().__init__(parent)
@@ -100,7 +101,6 @@ class SerialWidget(QWidget):
         self.transferDialog = FileTransferDialog(self.transferManager)
 
         self.scanner = PortScanner(self)
-        self.scan_progress_dialog = None
 
         # Arrange the tree view and button in a vertical layout
         layout = QVBoxLayout(self)
@@ -110,6 +110,7 @@ class SerialWidget(QWidget):
         layout.addWidget(self.syncButton)
 
         self.view.selectionModel().currentChanged.connect(self.on_port_selected)
+        self.scanner.progress.connect(self.scan_progress)
         self.scanner.finished.connect(self.on_scan_finished)
         self.transferManager.transferStarted.connect(self._on_transfer_started)
         self.transferManager.transferFinished.connect(self._on_transfer_finished)
@@ -127,16 +128,7 @@ class SerialWidget(QWidget):
     def scan_devices(self):
         self.scanButton.setDisabled(True)
         self.view.model.removeItems()
-
-        self.scan_progress_dialog = ProgressBarDialog(auto_close=True, parent=self)
-        self.scanner.progress.connect(self.scan_progress_dialog.update_progress)
-        self.scanner.finished.connect(
-            lambda: self.scan_progress_dialog.update_progress(100, _("PORTSCAN_COMPLETE_TEXT"))
-        )
-        self.scan_progress_dialog.cancelled.connect(self.scanner.stop)
-
         self.scanner.start()
-        self.scan_progress_dialog.show()
 
     def on_scan_finished(self, ports):
         self.view.update_com_ports(ports)
@@ -144,8 +136,7 @@ class SerialWidget(QWidget):
         self.device_count_changed.emit(len(valid_devices))
         self.scanButton.setDisabled(False)
         self.view.model.applyFilter()
-        if self.scan_progress_dialog:
-            self.scan_progress_dialog.close()
+        self.scan_finished.emit()
 
     def sync_data(self):
         sync_folder = store.root_directory
