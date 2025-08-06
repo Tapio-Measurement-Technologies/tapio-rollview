@@ -76,6 +76,8 @@ class StatisticsAnalysisChart(QWidget):
         self.annot.set_visible(False)
 
         if not stat_data:
+            self.ax.text(0.5, 0.5, "No data available", ha="center", va="center", transform=self.ax.transAxes, fontdict={'size': 16})
+            self.ax.axis('off')
             self.canvas.draw()
             return
 
