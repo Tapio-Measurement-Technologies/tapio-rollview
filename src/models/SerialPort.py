@@ -42,7 +42,10 @@ class SerialPortModel(QAbstractListModel):
         item = self.filtered_ports[index.row()]
         if role == Qt.ItemDataRole.DisplayRole:
             pin_icon = "📌" if item.is_pinned() else ""
-            return f"{pin_icon} [{item.device}] {item.description} ({item.serial_number})"
+            display_text = f"{pin_icon} [{item.device}] {item.description}"
+            if item.serial_number:
+                display_text += f" ({item.serial_number})"
+            return display_text
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
 
