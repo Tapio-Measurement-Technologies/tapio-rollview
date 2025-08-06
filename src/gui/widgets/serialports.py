@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLabel, QMenu
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
-from models.SerialPort import SerialPortModel, SerialPortItem
+from models.SerialPort import SerialPortModel, SerialPortItem, list_ports_common
 from gui.filetransferdialog import FileTransferDialog
 from workers.file_transfer import FileTransferManager
 from workers.port_scanner import PortScanner
@@ -128,11 +128,22 @@ class SerialWidget(QWidget):
     def scan_devices(self):
         self.scanButton.setDisabled(True)
         self.view.model.removeItems()
+
+        # Add pinned ports first, so they are visible during scan
+        for device in preferences.pinned_serial_ports:
+            port_info = list_ports_common.ListPortInfo(device)
+            port_info.description = ""
+            port_info.serial_number = ""
+            self.view.model.addItem(SerialPortItem(port_info))
+        self.view.model.applyFilter()
+
         self.scanner.start()
 
     def on_scan_finished(self, ports):
-        self.view.update_com_ports(ports)
-        valid_devices = [port for port in ports if port.device_responded]
+        for port in ports:
+            self.view.model.upsertItem(port)
+
+        valid_devices = [p for p in self.view.model.ports if p.device_responded]
         self.device_count_changed.emit(len(valid_devices))
         self.scanButton.setDisabled(False)
         self.view.model.applyFilter()

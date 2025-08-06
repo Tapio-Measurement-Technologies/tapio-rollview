@@ -56,7 +56,17 @@ class SerialPortModel(QAbstractListModel):
 
     def addItem(self, item):
         self.ports.append(item)
-        self.applyFilter()  # Reapply the filter after adding a new item
+
+    def upsertItem(self, new_item):
+        """Update an item if it exists, otherwise add it."""
+        for i, item in enumerate(self.ports):
+            if item.device == new_item.device:
+                self.ports[i] = new_item
+                self.applyFilter()
+                return
+        # If the item was not found, add it
+        self.addItem(new_item)
+        self.applyFilter()
 
     def removeItem(self, row):
         actual_index = self.ports.index(self.filtered_ports[row])  # Get actual index in main list
