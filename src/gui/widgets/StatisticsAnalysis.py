@@ -48,11 +48,6 @@ class StatisticsAnalysisChart(QWidget):
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.ax = self.figure.add_subplot(111)
-        self.annot = self.ax.annotate("", xy=(0,0), xytext=(20,20),
-                    textcoords="offset points",
-                    bbox=dict(boxstyle="round", fc="w"),
-                    arrowprops=dict(arrowstyle="->"))
-        self.annot.set_visible(False)
         self.stat_data = []
         self.highlighted_point = None
 
@@ -61,6 +56,7 @@ class StatisticsAnalysisChart(QWidget):
         self.setLayout(layout)
 
         self.canvas.mpl_connect("pick_event", self.on_pick)
+        self.canvas.mpl_connect('motion_notify_event', self.on_hover)
 
     def highlight_point(self, label: str):
         self.highlighted_point = label
@@ -69,10 +65,9 @@ class StatisticsAnalysisChart(QWidget):
     def plot(self, stat_data: List[Dict[str, Any]]):
         self.stat_data = stat_data
         self.ax.clear()
-        self.annot = self.ax.annotate("", xy=(0,0), xytext=(20,20),
+        self.annot = self.ax.annotate("", xy=(0,0), xytext=(0,10),
                             textcoords="offset points",
-                            bbox=dict(boxstyle="round", fc="w"),
-                            arrowprops=dict(arrowstyle="->"))
+                            bbox=dict(boxstyle="round", fc="w"))
         self.annot.set_visible(False)
 
         if not stat_data:
@@ -115,18 +110,53 @@ class StatisticsAnalysisChart(QWidget):
                     selected_stat_name = display_name
                     break
         self.ax.set_ylabel(selected_stat_name)
-        
+
         self.ax.grid(True, axis='y')  # Only show horizontal grid lines for bar charts
-        
+
         # Set x-axis ticks to show roll labels
         self.ax.set_xticks(x_indices)
-        
+
         # Only show x-axis labels if there are 20 or fewer rolls
         self.ax.set_xticklabels([])  # Hide labels
-        
+
         self.figure.tight_layout()
 
         self.canvas.draw()
+
+    def on_hover(self, event):
+        vis = self.annot.get_visible()
+        if event.inaxes != self.ax:
+            if vis:
+                self.annot.set_visible(False)
+                self.canvas.draw_idle()
+            return
+
+        if not hasattr(self, 'bars'):
+            return
+
+        for i, bar in enumerate(self.bars):
+            cont, _ = bar.contains(event)
+            if cont:
+                point = self.stat_data[i]
+                x_pos = bar.get_x() + bar.get_width() / 2
+                self.annot.xy = (x_pos, event.ydata)
+
+                # Check if the tooltip is too close to the right edge
+                if event.xdata / self.ax.get_xlim()[1] > 0.8:
+                    self.annot.set_ha('right')
+                else:
+                    self.annot.set_ha('left')
+
+                date_str = datetime.fromtimestamp(point['x']).strftime('%Y-%m-%d %H:%M')
+                text = f"{point['label']}\n{date_str}"
+                self.annot.set_text(text)
+                self.annot.set_visible(True)
+                self.canvas.draw_idle()
+                return
+
+        if vis:
+            self.annot.set_visible(False)
+            self.canvas.draw_idle()
 
     def on_pick(self, event):
         vis = self.annot.get_visible()
@@ -136,16 +166,7 @@ class StatisticsAnalysisChart(QWidget):
         # Find which bar was clicked
         bar_index = list(self.bars).index(event.artist)
         point = self.stat_data[bar_index]
-        
-        # Get bar position for annotation
-        bar = event.artist
-        x_pos = bar.get_x() + bar.get_width() / 2
-        y_pos = bar.get_height()
-        
-        self.annot.xy = (x_pos, y_pos)
-        # self.annot.set_text(point['label'])
-        # self.annot.set_visible(True)
-        self.canvas.draw_idle()
+
         self.point_selected.emit(point['path'])
 
 class StatisticsAnalysisWidget(QWidget):
