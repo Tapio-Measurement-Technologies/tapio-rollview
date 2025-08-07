@@ -161,7 +161,6 @@ class Chart(QWidget):
     def update_plot(self, profiles: list[Profile], directory_name, selected='', show_stats_in_title=False):
         self.clear()
         self.figure.suptitle(directory_name)
-        self.figure.canvas.draw()
 
         # Filter empty profiles
         self.profiles = [
@@ -171,6 +170,12 @@ class Chart(QWidget):
         self.profile_ax.set_ylabel(f"{_("CHART_HARDNESS_LABEL")} [g]")
         self.profile_ax.set_xlabel(f"{_("CHART_DISTANCE_LABEL")} [m]")
         previous_distance = 0
+
+        if len(self.profiles) == 0:
+            self.profile_ax.text(0.5, 0.5, "No data available", ha="center", va="center", transform=self.profile_ax.transAxes, fontdict={'size': 16})
+            self.canvas.draw()
+            return
+
         for profile in self.profiles:
 
             distances = np.array(profile.data.distances) + previous_distance
@@ -213,7 +218,7 @@ class Chart(QWidget):
                                  label=_("CHART_MEAN_PROFILE_LABEL"),
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
-        elif len(self.profiles) > 0:
+        else:
             self.warning_label.set_text(
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
 
