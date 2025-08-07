@@ -213,7 +213,7 @@ class Chart(QWidget):
                                  label=_("CHART_MEAN_PROFILE_LABEL"),
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
-        else:
+        elif len(self.profiles) > 0:
             self.warning_label.set_text(
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
 
