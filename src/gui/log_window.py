@@ -1,3 +1,4 @@
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QTextEdit, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QCheckBox, QFileDialog, QLabel
@@ -8,6 +9,8 @@ from utils.logging import LogManager
 from datetime import datetime
 
 class LogWindow(QWidget):
+    closed = Signal()
+
     def __init__(self, log_manager: LogManager):
         super().__init__()
         self.setWindowTitle("Application logs")
@@ -91,3 +94,7 @@ class LogWindow(QWidget):
                 QMessageBox.information(self, "Success", msg)
             else:
                 QMessageBox.critical(self, "Error", msg)
+
+    def closeEvent(self, event):
+        self.closed.emit()
+        event.accept()

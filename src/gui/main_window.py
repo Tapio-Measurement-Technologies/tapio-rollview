@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
 
         self.file_transfer_manager = FileTransferManager()
         self.postprocess_manager = PostprocessManager()
+        self.log_window = None
 
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
@@ -281,7 +282,11 @@ class MainWindow(QMainWindow):
 
     def open_log_window(self):
         self.log_window = LogWindow(store.log_manager)
+        self.log_window.closed.connect(self.on_log_window_closed)
         self.log_window.show()
+
+    def on_log_window_closed(self):
+        self.log_window = None
 
     def run_postprocessors_for_all_folders(self):
         # Get the base directory path
