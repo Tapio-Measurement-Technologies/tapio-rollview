@@ -50,6 +50,7 @@ class MainWindow(QMainWindow):
         self.file_transfer_manager = FileTransferManager()
         self.postprocess_manager = PostprocessManager()
         self.log_window = None
+        self.settings_window = None
 
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
@@ -341,3 +342,15 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
+
+    def close_child_windows(self):
+        if self.settings_window:
+            self.settings_window.close()
+            self.settings_window = None
+        if self.log_window:
+            self.log_window.close()
+            self.log_window = None
+
+    def closeEvent(self, event):
+        self.close_child_windows()
+        event.accept()
