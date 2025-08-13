@@ -334,3 +334,42 @@ msgstr "File transfer finished!"
 
 msgid "CHART_STATUS_TIP_TEXT"
 msgstr "Scroll to zoom. Drag with mouse to pan."
+
+msgid "NO_DATA_AVAILABLE"
+msgstr "No data available"
+
+msgid "FILTER_LAST_7_DAYS"
+msgstr "Last 7 days"
+
+msgid "FILTER_LAST_30_DAYS"
+msgstr "Last 30 days"
+
+msgid "FILTER_SHOW_ALL_ROLLS"
+msgstr "Show all rolls"
+
+msgid "PLOT_TITLE_ROLL"
+msgstr "Roll"
+
+msgid "MEAN_LONG"
+msgstr "Mean"
+
+msgid "STDEV_LONG"
+msgstr "Standard deviation"
+
+msgid "CV_LONG"
+msgstr "Coefficient of variation"
+
+msgid "MIN_LONG"
+msgstr "Minimum"
+
+msgid "MAX_LONG"
+msgstr "Maximum"
+
+msgid "PP_LONG"
+msgstr "Peak to peak"
+
+msgid "TAB_TITLE_PROFILES"
+msgstr "Profiles"
+
+msgid "TAB_TITLE_STATISTICS"
+msgstr "Statistics"

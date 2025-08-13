@@ -230,7 +230,7 @@ msgstr "固定"
 
 #: src/gui/widgets/serialports.py:37
 msgid "SERIAL_UNPIN_PORT"
-msgstr "解除"
+msgstr "固定解除"
 
 msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
 msgstr "スキャンが完了しました。検出されたデバイス数："
@@ -334,3 +334,42 @@ msgstr "ファイル転送が完了しました！"
 
 msgid "CHART_STATUS_TIP_TEXT"
 msgstr "スクロールでズーム、マウスドラッグで移動。"
+
+msgid "NO_DATA_AVAILABLE"
+msgstr "データ無"
+
+msgid "FILTER_LAST_7_DAYS"
+msgstr "直近7日間"
+
+msgid "FILTER_LAST_30_DAYS"
+msgstr "直近30日間"
+
+msgid "FILTER_SHOW_ALL_ROLLS"
+msgstr "全表示"
+
+msgid "PLOT_TITLE_ROLL"
+msgstr "ロール"
+
+msgid "MEAN_LONG"
+msgstr "平均値"
+
+msgid "STDEV_LONG"
+msgstr "標準偏差"
+
+msgid "CV_LONG"
+msgstr "変動係数"
+
+msgid "MIN_LONG"
+msgstr "最小値"
+
+msgid "MAX_LONG"
+msgstr "最大値"
+
+msgid "PP_LONG"
+msgstr "最大最小差"
+
+msgid "TAB_TITLE_PROFILES"
+msgstr "プロファイル"
+
+msgid "TAB_TITLE_STATISTICS"
+msgstr "履歴"

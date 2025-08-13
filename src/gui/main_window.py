@@ -60,8 +60,8 @@ class MainWindow(QMainWindow):
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.statistics_analysis_widget.directory_selected.connect(self.on_directory_selected)
         self.chart = Chart()
-        self.tab_view.addTab(self.chart, "Profiles")
-        self.tab_view.addTab(self.statistics_analysis_widget, "Statistics")
+        self.tab_view.addTab(self.chart, _("TAB_TITLE_PROFILES"))
+        self.tab_view.addTab(self.statistics_analysis_widget, _("TAB_TITLE_STATISTICS"))
         self.tab_view.currentChanged.connect(self.statistics_analysis_widget.update)
 
         self.fileView = FileView()

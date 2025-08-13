@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime, timedelta
+from utils.translation import _
 
 chart_point_style = {
     'markersize': 4,
@@ -20,12 +21,12 @@ selected_point_style = {
 }
 
 stat_label_map = {
-    "Mean [g]": "mean",
-    "Standard deviation [g]": "std",
-    "Coefficient of variation [%]": "cv",
-    "Minimum [g]": "min",
-    "Maximum [g]": "max",
-    "Peak to peak [g]": "pp"
+    _("MEAN_LONG") + " [g]": "mean",
+    _("STDEV_LONG") + " [g]": "std",
+    _("CV_LONG") + " [%]": "cv",
+    _("MIN_LONG") + " [g]": "min",
+    _("MAX_LONG") + " [g]": "max",
+    _("PP_LONG") + " [g]": "pp"
 }
 stats = Stats()
 
@@ -37,8 +38,8 @@ class StatSelectionDropdown(QComboBox):
 class FilterDropdown(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.addItems(["Last 7 days", "Last 30 days", "Show all rolls"])
-        self.setCurrentText("Last 7 days")
+        self.addItems([_("FILTER_LAST_7_DAYS"), _("FILTER_LAST_30_DAYS"), _("FILTER_SHOW_ALL_ROLLS")])
+        self.setCurrentText(_("FILTER_LAST_7_DAYS"))
 
 class StatisticsAnalysisChart(QWidget):
     point_selected = Signal(str)
@@ -71,7 +72,7 @@ class StatisticsAnalysisChart(QWidget):
         self.annot.set_visible(False)
 
         if not stat_data:
-            self.ax.text(0.5, 0.5, "No data available", ha="center", va="center", transform=self.ax.transAxes, fontdict={'size': 16})
+            self.ax.text(0.5, 0.5, _("NO_DATA_AVAILABLE"), ha="center", va="center", transform=self.ax.transAxes, fontdict={'size': 16})
             self.ax.axis('off')
             self.canvas.draw()
             return
@@ -87,7 +88,7 @@ class StatisticsAnalysisChart(QWidget):
 
         # Convert to bar chart
         bars = self.ax.bar(x_indices, y, width=bar_width, alpha=0.7, color='tab:blue', picker=5)
-        
+
         # Store bars for picker functionality
         self.bars = bars
 
@@ -100,7 +101,7 @@ class StatisticsAnalysisChart(QWidget):
                     break
 
         # Formatting
-        self.ax.set_xlabel("Roll")
+        self.ax.set_xlabel(_("PLOT_TITLE_ROLL"))
         # Get the selected statistic name for y-axis label
         selected_stat_name = "Statistic Value"  # default
         if hasattr(self.parent(), 'selected_stat'):
@@ -181,16 +182,16 @@ class StatisticsAnalysisWidget(QWidget):
 
         # Create horizontal layout for dropdowns
         dropdown_layout = QHBoxLayout()
-        
+
         self.stat_selection_dropdown = StatSelectionDropdown(self)
         self.stat_selection_dropdown.currentTextChanged.connect(self.on_stat_selection_changed)
-        
+
         self.filter_dropdown = FilterDropdown(self)
         self.filter_dropdown.currentTextChanged.connect(self.on_filter_changed)
-        
+
         dropdown_layout.addWidget(self.stat_selection_dropdown)
         dropdown_layout.addWidget(self.filter_dropdown)
-        
+
         self.chart = StatisticsAnalysisChart(self)
         self.chart.point_selected.connect(self.on_point_selected)
 
@@ -239,23 +240,23 @@ class StatisticsAnalysisWidget(QWidget):
 
         # Get current time for filtering
         now = datetime.now()
-        
+
         for roll_dir in roll_directories:
             if roll_dir.mean_profile is not None and len(roll_dir.mean_profile) > 0:
                 # Apply time filter
                 roll_time = datetime.fromtimestamp(roll_dir.newest_timestamp)
-                
+
                 # Check if roll should be included based on filter
                 include_roll = True
                 filter_option = self.filter_dropdown.currentText()
-                
-                if filter_option == "Last 7 days":
+
+                if filter_option == _("FILTER_LAST_7_DAYS"):
                     if roll_time < (now - timedelta(days=7)):
                         include_roll = False
-                elif filter_option == "Last 30 days":
+                elif filter_option == _("FILTER_LAST_30_DAYS"):
                     if roll_time < (now - timedelta(days=30)):
                         include_roll = False
-                
+
                 if include_roll:
                     y = stat_func(roll_dir.mean_profile)
                     x = roll_dir.newest_timestamp
