@@ -43,7 +43,7 @@ def main():
     app = QApplication(sys.argv)
     window = MainWindow()
 
-    app_icon = QIcon(os.path.join('assets', 'tapio192.png'))
+    app_icon = QIcon(settings.ICON_PATH)
     app.setWindowIcon(app_icon)
     window.setWindowIcon(app_icon)
 
