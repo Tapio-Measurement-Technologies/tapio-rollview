@@ -24,6 +24,9 @@ PREFERENCES_FILE_PATH = os.path.join(
 
 ROOT_DIRECTORY = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
 
+# ICON_PATH = resource_path('assets/tapio192.png')
+ICON_PATH = resource_path('assets/tapio_icon.ico')
+
 # Use resource_path() for PyInstaller compatibility
 LOCALE_FILES_PATH = resource_path('locales')
 JP_FONT_PATH = resource_path('assets/fonts/NotoSansJP-Regular.ttf')
