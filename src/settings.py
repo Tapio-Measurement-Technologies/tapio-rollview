@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import importlib.util
-
+import numpy as np
 from PySide6.QtCore import QDir
 
 
@@ -29,14 +29,10 @@ LOCALE_FILES_PATH = resource_path('locales')
 JP_FONT_PATH = resource_path('assets/fonts/NotoSansJP-Regular.ttf')
 
 
-# limits can be:
-# - constant(value) : constant limit
-# - rel_min(factor) : limit relative to mean profile min
-# - rel_max(factor) : limit relative to mean profile max
-# - rel_mean(factor) : limit relative to mean profile mean
-# - None : automatic scaling
-Y_LIM_LOW = None
-Y_LIM_HIGH = None
+# profile chart y-axis limits:
+# - None = automatic scaling
+Y_LIM_LOW = lambda min_value: 0
+Y_LIM_HIGH = lambda max_value: np.ceil((1.5 * max_value) / 10) * 10
 GRID = True
 
 MEAN_PROFILE_LINE_WIDTH = 2.8

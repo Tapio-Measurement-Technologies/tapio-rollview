@@ -251,13 +251,20 @@ class Chart(QWidget):
             if settings.SHOW_SPECTRUM:
                 self.spectrum_ax.grid()
 
+        # Calculate max value from all plotted data
+        max_plotted_value = 0
+        if self.profiles:
+            max_plotted_value = max(max(profile.data.hardnesses) for profile in self.profiles if profile.data is not None)
+        if len(mean_profile_values) > 0:
+            max_plotted_value = max(max_plotted_value, max(mean_profile_values))
+
         if hasattr(settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None:
             self.profile_ax.set_ylim(
-                bottom=settings.Y_LIM_LOW(mean_profile_values))
+                bottom=settings.Y_LIM_LOW(0))
 
         if hasattr(settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None:
             self.profile_ax.set_ylim(
-                top=settings.Y_LIM_HIGH(mean_profile_values))
+                top=settings.Y_LIM_HIGH(max_plotted_value))
 
         if show_stats_in_title and len(self.mean_profile):
             title = (
