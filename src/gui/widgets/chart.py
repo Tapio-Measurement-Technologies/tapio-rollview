@@ -203,7 +203,7 @@ class Chart(QWidget):
                         distances, hardnesses, alpha=0.2, linestyle=linestyle)
             else:
                 self.profile_ax.plot(distances, hardnesses,
-                                     alpha=0.5, linestyle=linestyle)
+                                     alpha=0.3, linestyle=linestyle)
 
         if preferences.recalculate_mean:
             self.profiles = [
