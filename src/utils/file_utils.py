@@ -23,5 +23,17 @@ def list_prof_files(path):
         return []
 
     dir_iterator = QDir(path).entryInfoList(["*.prof"], QDir.Filter.Files | QDir.Filter.NoDotAndDotDot)
-    prof_files = [file_info.absoluteFilePath() for file_info in dir_iterator if file_info.fileName() != "mean.prof"]
+    prof_files = []
+    for file_info in dir_iterator:
+        if file_info.fileName() != "mean.prof":
+            file_path = file_info.absoluteFilePath()
+            # Check if file is accessible before adding to list
+            try:
+                # Quick access check - try to stat the file
+                os.stat(file_path)
+                prof_files.append(file_path)
+            except (PermissionError, OSError):
+                # Skip files that can't be accessed (e.g., currently being copied)
+                print(f"Skipping inaccessible file: {file_path}")
+                continue
     return prof_files
