@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt
 from utils.profile_stats import Stats
 from utils import preferences, profile_stats
 from utils.translation import _
+from .AlertLimitEditor import AlertLimitEditor
 
 stats = Stats()
 
@@ -50,6 +51,7 @@ class StatWidget(QWidget):
         self.over_limit = False
 
         self.setObjectName("statWidget")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.layout = QVBoxLayout()
 
@@ -66,6 +68,21 @@ class StatWidget(QWidget):
         self.setLayout(self.layout)  # Set the layout for the StatWidget
 
         self.update_data(self.data)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.open_alert_limit_editor()
+        super().mousePressEvent(event)
+
+    def open_alert_limit_editor(self):
+        # Find the stat name from the function
+        stat_name = getattr(self.func, 'name', None)
+        if stat_name:
+            editor = AlertLimitEditor(stat_name, self.limit, self)
+            if editor.exec() == AlertLimitEditor.DialogCode.Accepted:
+                # Reload preferences and update the limit
+                self.limit = next((limit for limit in preferences.alert_limits if limit['name'] == stat_name), None)
+                self.update_data(self.data)  # Refresh the widget display
 
     def update_tooltip(self):
         if self.limit is not None:
