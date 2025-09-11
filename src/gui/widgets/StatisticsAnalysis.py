@@ -9,6 +9,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 from utils.translation import _
+from utils import preferences
 
 chart_point_style = {
     'markersize': 4,
@@ -82,22 +83,46 @@ class StatisticsAnalysisChart(QWidget):
         y = [p['y'] for p in stat_data]
         labels = [p['label'] for p in stat_data]
 
-        # Adjust bar width based on number of rolls
-        num_rolls = len(stat_data)
+        # Add alert limit ranges as shaded areas if available (draw behind bars)
+        if hasattr(self.parent(), 'selected_stat'):
+            current_stat = self.parent().selected_stat
+            # Find matching alert limit by checking if stat name is substring of alert name
+            matching_limit = None
+            for limit in preferences.alert_limits:
+                if current_stat in limit['name']:
+                    matching_limit = limit
+                    break
+
+            if matching_limit and (matching_limit['min'] is not None or matching_limit['max'] is not None):
+                y_min, y_max = self.ax.get_ylim()
+
+                # Add shaded area for acceptable range extending to plot edges (behind bars)
+                if matching_limit['min'] is not None and matching_limit['max'] is not None:
+                    # Both min and max: shade between them
+                    self.ax.axhspan(matching_limit['min'], matching_limit['max'], alpha=0.2, color='grey', zorder=0)
+                elif matching_limit['min'] is not None:
+                    # Only min: shade above min
+                    self.ax.axhspan(matching_limit['min'], y_max, alpha=0.2, color='grey', zorder=0)
+                elif matching_limit['max'] is not None:
+                    # Only max: shade below max
+                    self.ax.axhspan(y_min, matching_limit['max'], alpha=0.2, color='grey', zorder=0)
+
+                # Add threshold lines (also behind bars)
+                if matching_limit['min'] is not None:
+                    self.ax.axhline(y=matching_limit['min'], color='grey', linestyle='--', alpha=0.7, linewidth=1, zorder=1)
+                if matching_limit['max'] is not None:
+                    self.ax.axhline(y=matching_limit['max'], color='grey', linestyle='--', alpha=0.7, linewidth=1, zorder=1)
+
+        # Convert to bar chart (draw bars on top with higher zorder)
         bar_width = 0.7
-
-        # Convert to bar chart
-        bars = self.ax.bar(x_indices, y, width=bar_width, alpha=0.7, color='tab:blue', picker=5)
-
-        # Store bars for picker functionality
-        self.bars = bars
+        self.bars = self.ax.bar(x_indices, y, width=bar_width, alpha=1, color='tab:blue', picker=5, zorder=2)
 
         if self.highlighted_point:
             for i, p in enumerate(stat_data):
                 if p['label'] == self.highlighted_point:
                     # Highlight the specific bar
-                    bars[i].set_color('tab:orange')
-                    bars[i].set_alpha(1.0)
+                    self.bars[i].set_color('tab:orange')
+                    self.bars[i].set_alpha(1.0)
                     break
 
         # Formatting
