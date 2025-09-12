@@ -172,7 +172,8 @@ class Chart(QWidget):
         previous_distance = 0
 
         if len(self.profiles) == 0:
-            self.profile_ax.text(0.5, 0.5, "No data available", ha="center", va="center", transform=self.profile_ax.transAxes, fontdict={'size': 16})
+            self.profile_ax.text(0.5, 0.5, "No data available", ha="center", va="center",
+                                 transform=self.profile_ax.transAxes, fontdict={'size': 16})
             self.canvas.draw()
             return
 
@@ -187,7 +188,6 @@ class Chart(QWidget):
 
             if settings.CONTINUOUS_MODE and not profile.hidden:
                 previous_distance = distances[-1] + settings.SAMPLE_INTERVAL_M
-
 
             if selected:  # Highlight selected profile
                 if profile.name == selected:
@@ -254,17 +254,27 @@ class Chart(QWidget):
         # Calculate max value from all plotted data
         max_plotted_value = 0
         if self.profiles:
-            max_plotted_value = max(max(profile.data.hardnesses) for profile in self.profiles if profile.data is not None)
+            max_plotted_value = max(max(profile.data.hardnesses)
+                                    for profile in self.profiles if profile.data is not None)
         if len(mean_profile_values) > 0:
-            max_plotted_value = max(max_plotted_value, max(mean_profile_values))
+            max_plotted_value = max(
+                max_plotted_value, max(mean_profile_values))
 
-        if hasattr(settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None:
-            self.profile_ax.set_ylim(
-                bottom=settings.Y_LIM_LOW(0))
+        #  Only set axis limits if values are finite
+        low = settings.Y_LIM_LOW(0) if hasattr(
+            settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None else None
+        high = settings.Y_LIM_HIGH(max_plotted_value) if hasattr(
+            settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None else None
 
-        if hasattr(settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None:
-            self.profile_ax.set_ylim(
-                top=settings.Y_LIM_HIGH(max_plotted_value))
+        if low is not None and np.isfinite(low):
+            self.profile_ax.set_ylim(bottom=low)
+        elif low is not None and not np.isfinite(low):
+            self.warning_label.set_text("Y_LIM_LOW is not a finite value.")
+
+        if high is not None and np.isfinite(high):
+            self.profile_ax.set_ylim(top=high)
+        elif high is not None and not np.isfinite(high):
+            self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
 
         if show_stats_in_title and len(self.mean_profile):
             title = (
