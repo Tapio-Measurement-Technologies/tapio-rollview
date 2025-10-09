@@ -109,26 +109,30 @@ class Profile:
 
     @classmethod
     def fromfile(cls, file_path):
-        file_stats = os.stat(file_path)
-        file_size = file_stats.st_size
-        date_modified_timestamp = file_stats.st_mtime
+        try:
+            file_stats = os.stat(file_path)
+            file_size = file_stats.st_size
+            date_modified_timestamp = file_stats.st_mtime
 
-        with open(file_path, 'rb') as file:
-            header_data = file.read(128)
-            header = ProfileHeader.frombytes(header_data)
-            if not header:
-                return None
-            sample_step = header.sample_step / 1000.0   # mm -> m
-            profile_data = file.read()
-            data = ProfileData.frombytes(profile_data, sample_step)
+            with open(file_path, 'rb') as file:
+                header_data = file.read(128)
+                header = ProfileHeader.frombytes(header_data)
+                if not header:
+                    return None
+                sample_step = header.sample_step / 1000.0   # mm -> m
+                profile_data = file.read()
+                data = ProfileData.frombytes(profile_data, sample_step)
 
-        return cls(
-            path=file_path,
-            data=data,
-            header=header,
-            file_size=file_size,
-            date_modified=date_modified_timestamp
-        )
+            return cls(
+                path=file_path,
+                data=data,
+                header=header,
+                file_size=file_size,
+                date_modified=date_modified_timestamp
+            )
+        except (PermissionError, OSError) as e:
+            print(f"Cannot access file {file_path}: {e}")
+            return None
 
     @property
     def name(self):
