@@ -121,6 +121,11 @@ LOG_WINDOW_MAX_LINES = 1000
 LOG_WINDOW_SHOW_TIMESTAMPS = True
 CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
 
+FLIP_DATA = False
+DISTANCE_UNIT = "m"
+DISTANCE_UNIT_SCALING = 1
+
+
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',

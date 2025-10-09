@@ -12,8 +12,10 @@ import os
 from typing import List
 from utils.profile_stats import calc_mean_profile
 from utils.file_utils import list_prof_files
+import settings
 
 PROF_FILE_HEADER_SIZE = 128
+
 
 @dataclass(frozen=True)
 class ProfileData:
@@ -32,12 +34,16 @@ class ProfileData:
             hardnesses.append(hardness)
             offset += 4
 
+        if settings.FLIP_DATA:
+            hardnesses = hardnesses[::-1]
+
         # Generate distances if we have valid sample step and hardness data
         if sample_step > 0 and len(hardnesses) > 0:
             # Calculate the total distance traveled
             current_distance = sample_step * len(hardnesses)
             # Create a distance array from 0 to current_distance in steps of sample_step
-            distances = np.arange(0, current_distance, sample_step)[:len(hardnesses)]
+            distances = np.arange(0, current_distance, sample_step)[
+                :len(hardnesses)]
             return cls(distances=distances, hardnesses=hardnesses)
         else:
             print("Invalid sample step or no hardness values in data.")
@@ -51,6 +57,7 @@ class ProfileData:
     def y(self):
         return self.hardnesses
 
+
 @dataclass(frozen=True)
 class ProfileHeader:
     prof_version: int   # File format version
@@ -61,14 +68,17 @@ class ProfileHeader:
     def frombytes(cls, data: bytes):
         # Ensure the data is at least long enough to contain the expected header fields
         if len(data) != PROF_FILE_HEADER_SIZE:
-            print(f"Invalid header size (actual {len(data)} != expected {PROF_FILE_HEADER_SIZE})")
+            print(
+                f"Invalid header size (actual {len(data)} != expected {PROF_FILE_HEADER_SIZE})")
             return None
 
         try:
             # prof_version: 4 bytes (int)
-            prof_version = int.from_bytes(data[0:4], byteorder='little', signed=False)
+            prof_version = int.from_bytes(
+                data[0:4], byteorder='little', signed=False)
             # serial_number: 32 bytes (string, null-terminated)
-            serial_number = data[4:36].decode('ISO-8859-1', errors='replace').split('\x00', 1)[0]
+            serial_number = data[4:36].decode(
+                'ISO-8859-1', errors='replace').split('\x00', 1)[0]
             # sample_step: 4 bytes (float)
             sample_step = struct.unpack('f', data[36:40])[0]
 
@@ -86,6 +96,7 @@ class ProfileHeader:
             header_data = file.read(128)
             profile_header = cls.parse(header_data)
             return profile_header
+
 
 @dataclass
 class Profile:
@@ -129,6 +140,7 @@ class Profile:
             return 0
         return self.data.distances[-1]
 
+
 @dataclass
 class RollDirectory:
     path: str
@@ -151,6 +163,8 @@ class RollDirectory:
             return os.path.getmtime(self.path)
 
 # Not used at the moment but might be useful in the future
+
+
 class ProfileModel(QAbstractTableModel):
     COLUMNS = ["", "Name", "File Size", "Date Modified", "Profile Length"]
 
@@ -221,7 +235,8 @@ class ProfileModel(QAbstractTableModel):
             # Toggle the hidden state
             profile.hidden = (value == Qt.CheckState.Checked.value)
             print(profile.hidden)
-            self.dataChanged.emit(index, index, [Qt.ItemDataRole.CheckStateRole])
+            self.dataChanged.emit(
+                index, index, [Qt.ItemDataRole.CheckStateRole])
             return True
 
         return False
