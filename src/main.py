@@ -40,6 +40,12 @@ def main():
     from PySide6.QtGui import QIcon
     from gui.main_window import MainWindow
 
+    # Fix Windows taskbar icon
+    if sys.platform == 'win32':
+        import ctypes
+        myappid = 'tapio.rollview'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     app = QApplication(sys.argv)
     window = MainWindow()
 
