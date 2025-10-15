@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget, QPushButton
-from utils.profile_stats import Stats
 from PySide6.QtCore import Slot, Signal
 import store
 import os
@@ -12,16 +11,6 @@ from utils import preferences
 from workers.statistics_processor import StatisticsProcessor
 from gui.widgets.LoadingWidget import LoadingWidget
 
-chart_point_style = {
-    'markersize': 4,
-    'color': 'tab:blue'
-}
-
-selected_point_style = {
-    'markersize': 6,
-    'color': 'tab:green'
-}
-
 stat_label_map = {
     _("MEAN_LONG") + " [g]": "mean",
     _("STDEV_LONG") + " [g]": "std",
@@ -30,7 +19,6 @@ stat_label_map = {
     _("MAX_LONG") + " [g]": "max",
     _("PP_LONG") + " [g]": "pp"
 }
-stats = Stats()
 
 class StatSelectionDropdown(QComboBox):
     def __init__(self, parent=None):
