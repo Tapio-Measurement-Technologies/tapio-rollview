@@ -32,6 +32,10 @@ msgstr "Loading..."
 msgid "BUTTON_TEXT_CANCEL"
 msgstr "Cancel"
 
+#: src/gui/widgets/StatisticsAnalysis.py:223
+msgid "BUTTON_TEXT_REFRESH"
+msgstr "Refresh"
+
 #: src/gui/filetransferdialog.py:44
 msgid "FILE_TRANSFER_DIALOG_RECEIVING"
 msgstr "Receiving file"

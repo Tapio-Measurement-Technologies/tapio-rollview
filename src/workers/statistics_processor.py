@@ -4,7 +4,6 @@ This module contains the worker for processing statistics data.
 
 import logging
 import os
-from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from PySide6.QtCore import QObject, Signal, QThread
 from models.Profile import RollDirectory
@@ -15,33 +14,27 @@ log = logging.getLogger(__name__)
 
 class StatisticsProcessorWorker(QObject):
     """
-    A worker that processes statistics data in a separate thread.
+    A worker that processes all statistics for all rolls in a separate thread.
 
     Signals:
-        progress(int, str, int): Emitted to report processing progress. The first
-            argument is the percentage (0-100), the second is a
-            status message, and the third is the worker ID.
-        finished(list, int): Emitted when the processing is complete. The first argument
-            is a list of stat data dictionaries, the second is the worker ID.
-        error(str, int): Emitted when an error occurs during processing. The first
-            argument is the error message, the second is the worker ID.
+        progress(int, str, int): Emitted to report processing progress.
+        finished(list, int): Emitted when complete with list of roll data.
+        error(str, int): Emitted when an error occurs.
     """
     progress = Signal(int, str, int)
     finished = Signal(list, int)
     error = Signal(str, int)
 
-    def __init__(self, root_directory: str, selected_stat: str, filter_option: str, worker_id: int):
+    def __init__(self, root_directory: str, worker_id: int):
         super().__init__()
         self.root_directory = root_directory
-        self.selected_stat = selected_stat
-        self.filter_option = filter_option
         self.worker_id = worker_id
         self._running = True
         self.stats = Stats()
 
     def run(self):
         """
-        Starts the statistics processing.
+        Processes all statistics for all rolls at once.
         """
         if not self._running:
             return
@@ -60,7 +53,7 @@ class StatisticsProcessorWorker(QObject):
             if not self._running:
                 return
 
-            self.progress.emit(30, f"Processing {len(dir_paths_in_root_dir)} directories...", self.worker_id)
+            self.progress.emit(30, f"Processing {len(dir_paths_in_root_dir)} rolls...", self.worker_id)
 
             # Create RollDirectory objects
             roll_directories = [RollDirectory(d) for d in dir_paths_in_root_dir]
@@ -68,17 +61,17 @@ class StatisticsProcessorWorker(QObject):
             if not self._running:
                 return
 
-            self.progress.emit(60, "Calculating statistics...", self.worker_id)
+            self.progress.emit(50, "Calculating all statistics...", self.worker_id)
 
-            # Process statistics
-            stat_data = self._get_roll_stat_data(roll_directories)
+            # Process all statistics for all rolls
+            roll_data = self._process_all_rolls(roll_directories)
 
             if not self._running:
                 return
 
             self.progress.emit(100, "Complete", self.worker_id)
-            log.info(f"Statistics processing (worker {self.worker_id}) complete. Generated {len(stat_data)} data points.")
-            self.finished.emit(stat_data, self.worker_id)
+            log.info(f"Statistics processing (worker {self.worker_id}) complete. Processed {len(roll_data)} rolls.")
+            self.finished.emit(roll_data, self.worker_id)
 
         except Exception as e:
             log.error(f"Error during statistics processing (worker {self.worker_id}): {e}")
@@ -86,54 +79,54 @@ class StatisticsProcessorWorker(QObject):
                 self.error.emit(str(e), self.worker_id)
             self.finished.emit([], self.worker_id)
 
-    def _get_roll_stat_data(self, roll_directories: List[RollDirectory]) -> List[Dict[str, Any]]:
+    def _process_all_rolls(self, roll_directories: List[RollDirectory]) -> List[Dict[str, Any]]:
         """
-        Calculate statistics for roll directories with filtering.
+        Calculate all statistics for all roll directories.
+        Returns a list of roll data with all stats pre-computed.
         """
-        points = []
-        stat_key = self.selected_stat.lower()
-
-        try:
-            stat_func = getattr(self.stats, stat_key)
-        except AttributeError:
-            log.error(f"Unknown stat: {self.selected_stat}")
-            return []
-
-        # Get current time for filtering
-        now = datetime.now()
-
+        roll_data = []
         total = len(roll_directories)
+
+        # Get all stat functions
+        stat_funcs = {
+            'mean': self.stats.mean,
+            'std': self.stats.std,
+            'min': self.stats.min,
+            'max': self.stats.max,
+            'cv': self.stats.cv,
+            'pp': self.stats.pp
+        }
+
         for idx, roll_dir in enumerate(roll_directories):
             if not self._running:
-                return points
+                return roll_data
 
             # Update progress periodically
             if idx % max(1, total // 10) == 0:
-                progress = 60 + int((idx / total) * 30)  # 60-90% range
+                progress = 50 + int((idx / total) * 50)  # 50-100% range
                 self.progress.emit(progress, f"Processing roll {idx + 1}/{total}...", self.worker_id)
 
             if roll_dir.mean_profile is not None and len(roll_dir.mean_profile) > 0:
-                # Apply time filter
-                roll_time = datetime.fromtimestamp(roll_dir.newest_timestamp)
+                # Calculate all stats at once
+                stats = {}
+                for stat_name, stat_func in stat_funcs.items():
+                    try:
+                        stats[stat_name] = float(stat_func(roll_dir.mean_profile))
+                    except Exception as e:
+                        log.warning(f"Error calculating {stat_name} for {roll_dir.path}: {e}")
+                        stats[stat_name] = None
 
-                # Check if roll should be included based on filter
-                include_roll = True
+                # Store roll data with all stats
+                roll_data.append({
+                    'label': os.path.basename(roll_dir.path),
+                    'path': roll_dir.path,
+                    'timestamp': roll_dir.newest_timestamp,
+                    'stats': stats
+                })
 
-                if self.filter_option == "FILTER_LAST_7_DAYS":
-                    if roll_time < (now - timedelta(days=7)):
-                        include_roll = False
-                elif self.filter_option == "FILTER_LAST_30_DAYS":
-                    if roll_time < (now - timedelta(days=30)):
-                        include_roll = False
-
-                if include_roll:
-                    y = stat_func(roll_dir.mean_profile)
-                    x = roll_dir.newest_timestamp
-                    label = os.path.basename(roll_dir.path)
-                    points.append({'x': x, 'y': y, 'label': label, 'path': roll_dir.path})
-
-        points.sort(key=lambda p: p['x'])
-        return points
+        # Sort by timestamp
+        roll_data.sort(key=lambda r: r['timestamp'])
+        return roll_data
 
     def stop(self):
         """
@@ -160,9 +153,9 @@ class StatisticsProcessor(QObject):
         self._current_worker_id = 0
         self._next_worker_id = 1
 
-    def start(self, root_directory: str, selected_stat: str, filter_option: str):
+    def start(self, root_directory: str):
         """
-        Starts the statistics processing.
+        Starts the statistics processing for all rolls and all stats.
         """
         # Stop any existing processing and wait for it to finish
         self.stop()
@@ -172,7 +165,7 @@ class StatisticsProcessor(QObject):
         self._next_worker_id += 1
 
         self._thread = QThread()
-        self._worker = StatisticsProcessorWorker(root_directory, selected_stat, filter_option, self._current_worker_id)
+        self._worker = StatisticsProcessorWorker(root_directory, self._current_worker_id)
 
         self._worker.moveToThread(self._thread)
 
