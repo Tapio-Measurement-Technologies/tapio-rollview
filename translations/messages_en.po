@@ -88,6 +88,26 @@ msgstr "Alert limits"
 msgid "BUTTON_TEXT_SAVE"
 msgstr "Save"
 
+#: src/gui/widgets/AlertLimitEditor.py:25
+msgid "NOT_SET"
+msgstr "Not set"
+
+#: src/gui/widgets/AlertLimitEditor.py:57
+msgid "SAVE"
+msgstr "Save"
+
+#: src/gui/widgets/AlertLimitEditor.py:58
+msgid "CANCEL"
+msgstr "Cancel"
+
+#: src/gui/widgets/AlertLimitEditor.py:59
+msgid "CLEAR"
+msgstr "Clear"
+
+#: src/gui/widgets/AlertLimitEditor.py:111
+msgid "INVALID_ALERT_LIMIT_VALUES"
+msgstr "Invalid values: Min must be less than or equal to Max"
+
 #: src/gui/settings.py:95 src/gui/widgets/stats.py:74
 msgid "MIN"
 msgstr "Min"

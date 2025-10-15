@@ -88,6 +88,26 @@ msgstr "アラート設定"
 msgid "BUTTON_TEXT_SAVE"
 msgstr "保存"
 
+#: src/gui/widgets/AlertLimitEditor.py:25
+msgid "NOT_SET"
+msgstr "未設定"
+
+#: src/gui/widgets/AlertLimitEditor.py:57
+msgid "SAVE"
+msgstr "保存"
+
+#: src/gui/widgets/AlertLimitEditor.py:58
+msgid "CANCEL"
+msgstr "キャンセル"
+
+#: src/gui/widgets/AlertLimitEditor.py:59
+msgid "CLEAR"
+msgstr "クリア"
+
+#: src/gui/widgets/AlertLimitEditor.py:111
+msgid "INVALID_ALERT_LIMIT_VALUES"
+msgstr "無効な値：最小値は最大値以下である必要があります"
+
 #: src/gui/settings.py:95 src/gui/widgets/stats.py:74
 msgid "MIN"
 msgstr "最小"
