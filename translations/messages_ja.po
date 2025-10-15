@@ -24,6 +24,10 @@ msgstr "ファイル転送"
 msgid "PROGRESS_DIALOG_STARTING"
 msgstr "転送中"
 
+#: src/gui/widgets/LoadingWidget.py:17
+msgid "LOADING"
+msgstr "読み込み中..."
+
 #: src/gui/filetransferdialog.py:19
 msgid "BUTTON_TEXT_CANCEL"
 msgstr "キャンセル"

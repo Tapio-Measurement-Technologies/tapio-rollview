@@ -46,7 +46,6 @@ class ProfileData:
                 :len(hardnesses)]
             return cls(distances=distances, hardnesses=hardnesses)
         else:
-            print("Invalid sample step or no hardness values in data.")
             return None
 
     @property

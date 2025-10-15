@@ -1,5 +1,4 @@
-from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout, QHBoxLayout
-from models.Profile import RollDirectory
+from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget
 from utils.profile_stats import Stats
 from PySide6.QtCore import Slot, Signal
 import store
@@ -7,9 +6,11 @@ import os
 from typing import List, Dict, Any
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from datetime import datetime, timedelta
+from datetime import datetime
 from utils.translation import _
 from utils import preferences
+from workers.statistics_processor import StatisticsProcessor
+from gui.widgets.LoadingWidget import LoadingWidget
 
 chart_point_style = {
     'markersize': 4,
@@ -217,11 +218,28 @@ class StatisticsAnalysisWidget(QWidget):
         dropdown_layout.addWidget(self.stat_selection_dropdown)
         dropdown_layout.addWidget(self.filter_dropdown)
 
+        # Create stacked widget to switch between loading and chart
+        self.stacked_widget = QStackedWidget(self)
+
+        # Create loading widget
+        self.loading_widget = LoadingWidget(self)
+
+        # Create chart widget
         self.chart = StatisticsAnalysisChart(self)
         self.chart.point_selected.connect(self.on_point_selected)
 
+        # Add widgets to stacked widget
+        self.stacked_widget.addWidget(self.chart)  # index 0
+        self.stacked_widget.addWidget(self.loading_widget)  # index 1
+
         self.layout().addLayout(dropdown_layout)
-        self.layout().addWidget(self.chart)
+        self.layout().addWidget(self.stacked_widget)
+
+        # Initialize worker
+        self.processor = StatisticsProcessor(self)
+        self.processor.progress.connect(self.on_processing_progress)
+        self.processor.finished.connect(self.on_processing_finished)
+        self.processor.error.connect(self.on_processing_error)
 
         self.update()
 
@@ -248,45 +266,48 @@ class StatisticsAnalysisWidget(QWidget):
         if not self.isVisible():
             return
 
-        paths_in_root_dir = [os.path.join(store.root_directory, d) for d in os.listdir(store.root_directory)]
-        dir_paths_in_root_dir = [d for d in paths_in_root_dir if os.path.isdir(d)]
-        store.roll_directories = [RollDirectory(d) for d in dir_paths_in_root_dir]
-        stat_data = self.get_roll_stat_data(store.roll_directories, self.selected_stat)
+        # Stop any existing processing
+        if self.processor.is_running():
+            self.processor.stop()
+
+        # Show loading widget
+        self.loading_widget.reset()
+        self.stacked_widget.setCurrentWidget(self.loading_widget)
+
+        # Get the filter option text (need to extract the key, not the translated text)
+        filter_text = self.filter_dropdown.currentText()
+        # Map back to the internal key
+        filter_key = "FILTER_SHOW_ALL_ROLLS"  # default
+        if filter_text == _("FILTER_LAST_7_DAYS"):
+            filter_key = "FILTER_LAST_7_DAYS"
+        elif filter_text == _("FILTER_LAST_30_DAYS"):
+            filter_key = "FILTER_LAST_30_DAYS"
+
+        # Start processing in worker thread
+        self.processor.start(store.root_directory, self.selected_stat, filter_key)
+
+    @Slot(int, str)
+    def on_processing_progress(self, value: int, status_text: str):
+        """Update loading widget with processing progress."""
+        self.loading_widget.update_progress(value, status_text)
+
+    @Slot(list)
+    def on_processing_finished(self, stat_data: list):
+        """Handle completion of statistics processing."""
         self.chart.plot(stat_data)
+        # Switch back to chart view
+        self.stacked_widget.setCurrentWidget(self.chart)
 
-    def get_roll_stat_data(self, roll_directories: List[RollDirectory], stat: str):
-        points = []
-        stat_key = stat.lower()
-        try:
-            stat_func = getattr(stats, stat_key)
-        except AttributeError:
-            print(f"Unknown stat: {stat}")
-            return []
+    @Slot(str)
+    def on_processing_error(self, error_message: str):
+        """Handle processing errors."""
+        # Switch back to chart view (which will show "No data available")
+        self.stacked_widget.setCurrentWidget(self.chart)
+        # Could show error dialog here if desired
+        print(f"Error processing statistics: {error_message}")
 
-        # Get current time for filtering
-        now = datetime.now()
-
-        for roll_dir in roll_directories:
-            if roll_dir.mean_profile is not None and len(roll_dir.mean_profile) > 0:
-                # Apply time filter
-                roll_time = datetime.fromtimestamp(roll_dir.newest_timestamp)
-
-                # Check if roll should be included based on filter
-                include_roll = True
-                filter_option = self.filter_dropdown.currentText()
-
-                if filter_option == _("FILTER_LAST_7_DAYS"):
-                    if roll_time < (now - timedelta(days=7)):
-                        include_roll = False
-                elif filter_option == _("FILTER_LAST_30_DAYS"):
-                    if roll_time < (now - timedelta(days=30)):
-                        include_roll = False
-
-                if include_roll:
-                    y = stat_func(roll_dir.mean_profile)
-                    x = roll_dir.newest_timestamp
-                    label = os.path.basename(roll_dir.path)
-                    points.append({'x': x, 'y': y, 'label': label, 'path': roll_dir.path})
-
-        points.sort(key=lambda p: p['x'])
-        return points
+    def closeEvent(self, event):
+        """Clean up worker thread when widget is closed."""
+        if self.processor:
+            self.processor.stop()
+        super().closeEvent(event)

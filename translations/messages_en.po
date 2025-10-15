@@ -24,6 +24,10 @@ msgstr "File Transfer Progress"
 msgid "PROGRESS_DIALOG_STARTING"
 msgstr "Starting..."
 
+#: src/gui/widgets/LoadingWidget.py:17
+msgid "LOADING"
+msgstr "Loading..."
+
 #: src/gui/filetransferdialog.py:19
 msgid "BUTTON_TEXT_CANCEL"
 msgstr "Cancel"
