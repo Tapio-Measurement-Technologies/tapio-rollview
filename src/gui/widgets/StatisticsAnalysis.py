@@ -292,7 +292,7 @@ class StatisticsAnalysisWidget(QWidget):
 
     def update_chart(self):
         """Update chart using cached data with current filters."""
-        if not self.cache_valid or not self.cached_roll_data:
+        if not self.cache_valid:
             # No cached data, need to load
             self.update()
             return
