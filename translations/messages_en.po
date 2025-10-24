@@ -340,6 +340,9 @@ msgstr "Scanning complete"
 msgid "LANGUAGE"
 msgstr "Language"
 
+msgid "DISTANCE_UNIT"
+msgstr "Distance Unit"
+
 msgid "GENERAL_SETTINGS"
 msgstr "General settings"
 

@@ -60,17 +60,35 @@ class GeneralSettingsPage(QWidget):
         }
 
         current_locale = preferences.locale
-        current_lang = current_locale[:2] if current_locale else settings.LOCALE_DEFAULT
+        self.initial_lang = current_locale[:2] if current_locale else settings.LOCALE_DEFAULT
 
         self.language_selector.addItems(self.languages.values())
 
         for lang_code, lang_name in self.languages.items():
-            if lang_code == current_lang:
+            if lang_code == self.initial_lang:
                 self.language_selector.setCurrentText(lang_name)
                 break
 
         self.language_selector.currentIndexChanged.connect(self.enable_save_button)
         layout.addWidget(self.language_selector)
+
+        # Distance unit selector
+        self.distance_unit_label = QLabel(_("DISTANCE_UNIT"))
+        layout.addWidget(self.distance_unit_label)
+
+        self.distance_unit_selector = QComboBox()
+        self.distance_units = {code: unit.name for code, unit in settings.DISTANCE_UNITS.items()}
+
+        current_distance_unit = preferences.distance_unit
+
+        self.distance_unit_selector.addItems(self.distance_units.values())
+
+        # Set current selection
+        if current_distance_unit in self.distance_units:
+            self.distance_unit_selector.setCurrentText(self.distance_units[current_distance_unit])
+
+        self.distance_unit_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self.distance_unit_selector)
 
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
@@ -89,13 +107,22 @@ class GeneralSettingsPage(QWidget):
     @Slot()
     def save_language(self):
         selected_lang = list(self.languages.keys())[self.language_selector.currentIndex()]
+        language_changed = selected_lang != self.initial_lang
+
         preferences.update_locale(selected_lang)
+
+        selected_distance_unit = list(self.distance_units.keys())[self.distance_unit_selector.currentIndex()]
+        preferences.update_distance_unit(selected_distance_unit)
+
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()
-        msgbox = QMessageBox()
-        msgbox.setWindowTitle(_("RESTART_REQUIRED_MSGBOX_TITLE"))
-        msgbox.setText(_("RESTART_REQUIRED_MSGBOX_TEXT"))
-        msgbox.exec()
+
+        # Only show restart message if language was actually changed
+        if language_changed:
+            msgbox = QMessageBox()
+            msgbox.setWindowTitle(_("RESTART_REQUIRED_MSGBOX_TITLE"))
+            msgbox.setText(_("RESTART_REQUIRED_MSGBOX_TEXT"))
+            msgbox.exec()
 
 class AlertLimitSettingsPage(QWidget):
     settings_updated = Signal()

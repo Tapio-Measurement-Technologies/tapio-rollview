@@ -167,8 +167,12 @@ class Chart(QWidget):
             profile for profile in profiles if profile.data is not None]
         self.directory_name = directory_name
         self.selected_file = selected
+
+        # Get distance unit info
+        unit_info = preferences.get_distance_unit_info()
+
         self.profile_ax.set_ylabel(f"{_("CHART_HARDNESS_LABEL")} [g]")
-        self.profile_ax.set_xlabel(f"{_("CHART_DISTANCE_LABEL")} [m]")
+        self.profile_ax.set_xlabel(f"{_("CHART_DISTANCE_LABEL")} [{unit_info.unit}]")
         previous_distance = 0
 
         if len(self.profiles) == 0:
@@ -180,6 +184,8 @@ class Chart(QWidget):
         for profile in self.profiles:
 
             distances = np.array(profile.data.distances) + previous_distance
+            # Convert distances to selected unit
+            distances = distances * unit_info.conversion_factor
             hardnesses = profile.data.hardnesses
 
             linestyle = 'solid'
@@ -187,7 +193,7 @@ class Chart(QWidget):
                 linestyle = 'None'
 
             if settings.CONTINUOUS_MODE and not profile.hidden:
-                previous_distance = distances[-1] + settings.SAMPLE_INTERVAL_M
+                previous_distance = (distances[-1] / unit_info.conversion_factor) + settings.SAMPLE_INTERVAL_M
 
             if selected:  # Highlight selected profile
                 if profile.name == selected:
@@ -213,7 +219,9 @@ class Chart(QWidget):
         self.mean_profile = mean_profile_values
 
         if len(mean_profile_values) > 0:
-            self.profile_ax.plot(mean_profile_distances,
+            # Convert mean profile distances to selected unit
+            mean_profile_distances_converted = mean_profile_distances * unit_info.conversion_factor
+            self.profile_ax.plot(mean_profile_distances_converted,
                                  mean_profile_values,
                                  label=_("CHART_MEAN_PROFILE_LABEL"),
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,

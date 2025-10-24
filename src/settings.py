@@ -4,6 +4,7 @@ import sys
 import importlib.util
 import numpy as np
 from PySide6.QtCore import QDir
+from dataclasses import dataclass
 
 
 def resource_path(relative_path):
@@ -122,8 +123,22 @@ LOG_WINDOW_SHOW_TIMESTAMPS = True
 CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
 
 FLIP_DATA = False
-DISTANCE_UNIT = "m"
-DISTANCE_UNIT_SCALING = 1
+
+# Distance unit configuration
+# Each unit has: name (display name), unit (abbreviation), conversion_factor (meters to unit)
+@dataclass(frozen=True)
+class DistanceUnit:
+    name: str
+    unit: str
+    conversion_factor: float
+
+DISTANCE_UNITS = {
+    "m": DistanceUnit("Meters (m)", "m", 1.0),
+    "in": DistanceUnit("Inches (in)", "in", 39.3701),
+    "yd": DistanceUnit("Yards (yd)", "yd", 1.09361)
+}
+
+DISTANCE_UNIT_DEFAULT = "m"
 
 
 # Configure logging

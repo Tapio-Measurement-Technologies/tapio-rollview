@@ -11,6 +11,7 @@ show_plot_toolbar      = settings.SHOW_PLOT_TOOLBAR_DEFAULT
 recalculate_mean       = settings.RECALCULATE_MEAN_DEFAULT
 locale                 = settings.LOCALE_DEFAULT
 pinned_serial_ports    = settings.PINNED_SERIAL_PORTS_DEFAULT
+distance_unit          = settings.DISTANCE_UNIT_DEFAULT
 
 def save_preferences_to_file():
   preferences = {
@@ -20,7 +21,8 @@ def save_preferences_to_file():
     "show_plot_toolbar":      show_plot_toolbar,
     "recalculate_mean":       recalculate_mean,
     "locale":                 locale,
-    "pinned_serial_ports":    list(pinned_serial_ports)
+    "pinned_serial_ports":    list(pinned_serial_ports),
+    "distance_unit":          distance_unit
   }
   try:
     with open(preferences_file_path, 'w') as file:
@@ -64,6 +66,15 @@ def update_pinned_serial_ports(new_pinned_serial_ports):
   pinned_serial_ports = set(new_pinned_serial_ports)
   save_preferences_to_file()
 
+def update_distance_unit(new_distance_unit):
+  global distance_unit
+  distance_unit = new_distance_unit
+  save_preferences_to_file()
+
+def get_distance_unit_info():
+  """Returns the DistanceUnit object for the currently selected unit"""
+  return settings.DISTANCE_UNITS.get(distance_unit, settings.DISTANCE_UNITS[settings.DISTANCE_UNIT_DEFAULT])
+
 ## Initialize preferences
 try:
   with open(preferences_file_path, 'r') as file:
@@ -83,6 +94,8 @@ try:
       locale = preferences['locale']
     if 'pinned_serial_ports' in preferences:
       pinned_serial_ports = set(preferences['pinned_serial_ports'])
+    if 'distance_unit' in preferences:
+      distance_unit = preferences['distance_unit']
 
 except FileNotFoundError:
   save_preferences_to_file()
