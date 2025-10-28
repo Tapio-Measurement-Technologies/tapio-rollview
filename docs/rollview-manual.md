@@ -25,7 +25,7 @@ cd tapio-rollview
 ```
 
 ## Using Tapio RollView: Synchronizing Profiles
-![Tapio RollView](tapio-rollview-screenshot.png)
+![Tapio RollView](../tapio-rollview-screenshot.png)
 
 1. **Connect and power on** an RQP Live device.  
 2. Click **Scan devices** – the software scans all COM ports of the computer and lists any connected RQP Live units.  
