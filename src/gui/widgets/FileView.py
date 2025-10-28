@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
 from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.translation import _
+from utils import preferences
 import settings
 import store
 import os
@@ -48,7 +49,9 @@ class CustomFileSystemModel(QFileSystemModel):
                 if not profile:
                     return "--"
                 prof_len = profile.profile_length
-                return f"{prof_len:.2f} m"
+                unit_info = preferences.get_distance_unit_info()
+                prof_len_converted = prof_len * unit_info.conversion_factor
+                return f"{prof_len_converted:.2f} {unit_info.unit}"
 
         # Hidden state checkbox column
         if column == 5:

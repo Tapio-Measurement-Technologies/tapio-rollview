@@ -51,9 +51,17 @@ class ContextMenuTreeView(QTreeView):
             index = self._proxy_model.mapToSource(index)
         file_path = self._model.filePath(index)
         file_info = QFileInfo(file_path)
+
+        selected_path = None
         if not file_info.isDir():
+            # If it's a file, select it and open its parent directory
+            selected_path = file_path
             file_path = file_info.absolutePath()
-        open_in_file_explorer(file_path)
+        else:
+            # If it's a directory, select it in its parent directory
+            selected_path = file_path
+
+        open_in_file_explorer(file_path, selected_path)
 
     def rename_file(self, index: QModelIndex):
         if self._proxy_model:

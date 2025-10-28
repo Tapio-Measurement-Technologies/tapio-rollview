@@ -1,6 +1,4 @@
-from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout, QHBoxLayout
-from models.Profile import RollDirectory
-from utils.profile_stats import Stats
+from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget, QPushButton
 from PySide6.QtCore import Slot, Signal
 import store
 import os
@@ -9,16 +7,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 from utils.translation import _
-
-chart_point_style = {
-    'markersize': 4,
-    'color': 'tab:blue'
-}
-
-selected_point_style = {
-    'markersize': 6,
-    'color': 'tab:green'
-}
+from utils import preferences
+from workers.statistics_processor import StatisticsProcessor
+from gui.widgets.LoadingWidget import LoadingWidget
 
 stat_label_map = {
     _("MEAN_LONG") + " [g]": "mean",
@@ -28,7 +19,6 @@ stat_label_map = {
     _("MAX_LONG") + " [g]": "max",
     _("PP_LONG") + " [g]": "pp"
 }
-stats = Stats()
 
 class StatSelectionDropdown(QComboBox):
     def __init__(self, parent=None):
@@ -82,22 +72,46 @@ class StatisticsAnalysisChart(QWidget):
         y = [p['y'] for p in stat_data]
         labels = [p['label'] for p in stat_data]
 
-        # Adjust bar width based on number of rolls
-        num_rolls = len(stat_data)
+        # Add alert limit ranges as shaded areas if available (draw behind bars)
+        if hasattr(self.parent(), 'selected_stat'):
+            current_stat = self.parent().selected_stat
+            # Find matching alert limit by checking if stat name is substring of alert name
+            matching_limit = None
+            for limit in preferences.alert_limits:
+                if current_stat in limit['name']:
+                    matching_limit = limit
+                    break
+
+            if matching_limit and (matching_limit['min'] is not None or matching_limit['max'] is not None):
+                y_min, y_max = self.ax.get_ylim()
+
+                # Add shaded area for acceptable range extending to plot edges (behind bars)
+                if matching_limit['min'] is not None and matching_limit['max'] is not None:
+                    # Both min and max: shade between them
+                    self.ax.axhspan(matching_limit['min'], matching_limit['max'], alpha=0.2, color='grey', zorder=0)
+                elif matching_limit['min'] is not None:
+                    # Only min: shade above min
+                    self.ax.axhspan(matching_limit['min'], y_max, alpha=0.2, color='grey', zorder=0)
+                elif matching_limit['max'] is not None:
+                    # Only max: shade below max
+                    self.ax.axhspan(y_min, matching_limit['max'], alpha=0.2, color='grey', zorder=0)
+
+                # Add threshold lines (also behind bars)
+                if matching_limit['min'] is not None:
+                    self.ax.axhline(y=matching_limit['min'], color='grey', linestyle='--', alpha=0.7, linewidth=1, zorder=1)
+                if matching_limit['max'] is not None:
+                    self.ax.axhline(y=matching_limit['max'], color='grey', linestyle='--', alpha=0.7, linewidth=1, zorder=1)
+
+        # Convert to bar chart (draw bars on top with higher zorder)
         bar_width = 0.7
-
-        # Convert to bar chart
-        bars = self.ax.bar(x_indices, y, width=bar_width, alpha=0.7, color='tab:blue', picker=5)
-
-        # Store bars for picker functionality
-        self.bars = bars
+        self.bars = self.ax.bar(x_indices, y, width=bar_width, alpha=1, color='tab:blue', picker=5, zorder=2)
 
         if self.highlighted_point:
             for i, p in enumerate(stat_data):
                 if p['label'] == self.highlighted_point:
                     # Highlight the specific bar
-                    bars[i].set_color('tab:orange')
-                    bars[i].set_alpha(1.0)
+                    self.bars[i].set_color('tab:orange')
+                    self.bars[i].set_alpha(1.0)
                     break
 
         # Formatting
@@ -180,7 +194,11 @@ class StatisticsAnalysisWidget(QWidget):
         # Set to the key value, not the display name
         self.selected_stat = list(stat_label_map.values())[0]  # This will be "mean"
 
-        # Create horizontal layout for dropdowns
+        # Cache for processed roll data
+        self.cached_roll_data = []
+        self.cache_valid = False
+
+        # Create horizontal layout for dropdowns and refresh button
         dropdown_layout = QHBoxLayout()
 
         self.stat_selection_dropdown = StatSelectionDropdown(self)
@@ -192,22 +210,47 @@ class StatisticsAnalysisWidget(QWidget):
         dropdown_layout.addWidget(self.stat_selection_dropdown)
         dropdown_layout.addWidget(self.filter_dropdown)
 
+        # Add refresh button
+        self.refresh_button_layout = QHBoxLayout()
+        self.refresh_button = QPushButton(_("BUTTON_TEXT_REFRESH"), self)
+        self.refresh_button.clicked.connect(self.refresh_data)
+        self.refresh_button_layout.addStretch()
+        self.refresh_button_layout.addWidget(self.refresh_button)
+
+        # Create stacked widget to switch between loading and chart
+        self.stacked_widget = QStackedWidget(self)
+
+        # Create loading widget
+        self.loading_widget = LoadingWidget(self)
+
+        # Create chart widget
         self.chart = StatisticsAnalysisChart(self)
         self.chart.point_selected.connect(self.on_point_selected)
 
+        # Add widgets to stacked widget
+        self.stacked_widget.addWidget(self.chart)  # index 0
+        self.stacked_widget.addWidget(self.loading_widget)  # index 1
+
         self.layout().addLayout(dropdown_layout)
-        self.layout().addWidget(self.chart)
+        self.layout().addLayout(self.refresh_button_layout)
+        self.layout().addWidget(self.stacked_widget)
+
+        # Initialize worker
+        self.processor = StatisticsProcessor(self)
+        self.processor.progress.connect(self.on_processing_progress)
+        self.processor.finished.connect(self.on_processing_finished)
+        self.processor.error.connect(self.on_processing_error)
 
         self.update()
 
     @Slot(str)
     def on_stat_selection_changed(self, stat_label: str):
         self.selected_stat = stat_label_map[stat_label]
-        self.update()
+        self.update_chart()
 
     @Slot(str)
     def on_filter_changed(self, filter_option: str):
-        self.update()
+        self.update_chart()
 
     @Slot(str)
     def on_point_selected(self, label: str):
@@ -219,49 +262,117 @@ class StatisticsAnalysisWidget(QWidget):
         self.chart.highlight_point(label)
 
     @Slot()
+    def refresh_data(self):
+        """Force refresh of all statistics data."""
+        self.cache_valid = False
+        self.update()
+
+    @Slot()
     def update(self):
+        """Load or refresh data, then update chart."""
         if not self.isVisible():
             return
 
-        paths_in_root_dir = [os.path.join(store.root_directory, d) for d in os.listdir(store.root_directory)]
-        dir_paths_in_root_dir = [d for d in paths_in_root_dir if os.path.isdir(d)]
-        store.roll_directories = [RollDirectory(d) for d in dir_paths_in_root_dir]
-        stat_data = self.get_roll_stat_data(store.roll_directories, self.selected_stat)
-        self.chart.plot(stat_data)
+        # If cache is valid, just filter and update chart
+        if self.cache_valid and self.cached_roll_data:
+            self.update_chart()
+            return
 
-    def get_roll_stat_data(self, roll_directories: List[RollDirectory], stat: str):
-        points = []
-        stat_key = stat.lower()
-        try:
-            stat_func = getattr(stats, stat_key)
-        except AttributeError:
-            print(f"Unknown stat: {stat}")
-            return []
+        # Need to load data - stop any existing processing
+        if self.processor.is_running():
+            self.processor.stop()
 
-        # Get current time for filtering
+        # Show loading widget
+        self.loading_widget.reset()
+        self.stacked_widget.setCurrentWidget(self.loading_widget)
+        self.refresh_button.setEnabled(False)
+
+        # Start processing in worker thread
+        self.processor.start(store.root_directory)
+
+    def update_chart(self):
+        """Update chart using cached data with current filters."""
+        if not self.cache_valid:
+            # No cached data, need to load
+            self.update()
+            return
+
+        # Apply filters to cached data
+        filtered_data = self.apply_filters(self.cached_roll_data)
+
+        # Convert to chart format
+        chart_data = self.prepare_chart_data(filtered_data)
+
+        # Update chart
+        self.chart.plot(chart_data)
+        self.stacked_widget.setCurrentWidget(self.chart)
+
+    def apply_filters(self, roll_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Apply time filter to roll data."""
+        filter_text = self.filter_dropdown.currentText()
+
+        # No time filtering needed for "show all"
+        if filter_text == _("FILTER_SHOW_ALL_ROLLS"):
+            return roll_data
+
+        # Calculate cutoff time
         now = datetime.now()
+        if filter_text == _("FILTER_LAST_7_DAYS"):
+            cutoff = now - timedelta(days=7)
+        elif filter_text == _("FILTER_LAST_30_DAYS"):
+            cutoff = now - timedelta(days=30)
+        else:
+            return roll_data
 
-        for roll_dir in roll_directories:
-            if roll_dir.mean_profile is not None and len(roll_dir.mean_profile) > 0:
-                # Apply time filter
-                roll_time = datetime.fromtimestamp(roll_dir.newest_timestamp)
+        cutoff_timestamp = cutoff.timestamp()
 
-                # Check if roll should be included based on filter
-                include_roll = True
-                filter_option = self.filter_dropdown.currentText()
+        # Filter by timestamp
+        return [roll for roll in roll_data if roll['timestamp'] >= cutoff_timestamp]
 
-                if filter_option == _("FILTER_LAST_7_DAYS"):
-                    if roll_time < (now - timedelta(days=7)):
-                        include_roll = False
-                elif filter_option == _("FILTER_LAST_30_DAYS"):
-                    if roll_time < (now - timedelta(days=30)):
-                        include_roll = False
+    def prepare_chart_data(self, roll_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Convert roll data to chart format for the selected statistic."""
+        chart_data = []
+        stat_key = self.selected_stat
 
-                if include_roll:
-                    y = stat_func(roll_dir.mean_profile)
-                    x = roll_dir.newest_timestamp
-                    label = os.path.basename(roll_dir.path)
-                    points.append({'x': x, 'y': y, 'label': label, 'path': roll_dir.path})
+        for roll in roll_data:
+            stat_value = roll['stats'].get(stat_key)
+            if stat_value is not None:
+                chart_data.append({
+                    'x': roll['timestamp'],
+                    'y': stat_value,
+                    'label': roll['label'],
+                    'path': roll['path']
+                })
 
-        points.sort(key=lambda p: p['x'])
-        return points
+        return chart_data
+
+    @Slot(int, str)
+    def on_processing_progress(self, value: int, status_text: str):
+        """Update loading widget with processing progress."""
+        self.loading_widget.update_progress(value, status_text)
+
+    @Slot(list)
+    def on_processing_finished(self, roll_data: list):
+        """Handle completion of statistics processing."""
+        # Cache the roll data
+        self.cached_roll_data = roll_data
+        self.cache_valid = True
+        self.refresh_button.setEnabled(True)
+
+        # Update chart with filtered data
+        self.update_chart()
+
+    @Slot(str)
+    def on_processing_error(self, error_message: str):
+        """Handle processing errors."""
+        self.refresh_button.setEnabled(True)
+        # Switch back to chart view (which will show "No data available")
+        self.stacked_widget.setCurrentWidget(self.chart)
+        # Could show error dialog here if desired
+        print(f"Error processing statistics: {error_message}")
+
+    def closeEvent(self, event):
+        """Clean up worker thread when widget is closed."""
+        if self.processor:
+            self.processor.stop()
+        super().closeEvent(event)

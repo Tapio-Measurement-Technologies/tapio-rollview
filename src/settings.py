@@ -4,6 +4,7 @@ import sys
 import importlib.util
 import numpy as np
 from PySide6.QtCore import QDir
+from dataclasses import dataclass
 
 
 def resource_path(relative_path):
@@ -25,7 +26,7 @@ PREFERENCES_FILE_PATH = os.path.join(
 ROOT_DIRECTORY = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
 
 # ICON_PATH = resource_path('assets/tapio192.png')
-ICON_PATH = resource_path('assets/tapio_icon.ico')
+ICON_PATH = resource_path('assets/tapio_favicon.ico')
 
 # Use resource_path() for PyInstaller compatibility
 LOCALE_FILES_PATH = resource_path('locales')
@@ -120,6 +121,25 @@ POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = 10
 LOG_WINDOW_MAX_LINES = 1000
 LOG_WINDOW_SHOW_TIMESTAMPS = True
 CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
+
+FLIP_DATA = False
+
+# Distance unit configuration
+# Each unit has: name (display name), unit (abbreviation), conversion_factor (meters to unit)
+@dataclass(frozen=True)
+class DistanceUnit:
+    name: str
+    unit: str
+    conversion_factor: float
+
+DISTANCE_UNITS = {
+    "m": DistanceUnit("Meters (m)", "m", 1.0),
+    "in": DistanceUnit("Inches (in)", "in", 39.3701),
+    "yd": DistanceUnit("Yards (yd)", "yd", 1.09361)
+}
+
+DISTANCE_UNIT_DEFAULT = "m"
+
 
 # Configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',

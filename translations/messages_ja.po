@@ -24,9 +24,17 @@ msgstr "ファイル転送"
 msgid "PROGRESS_DIALOG_STARTING"
 msgstr "転送中"
 
+#: src/gui/widgets/LoadingWidget.py:17
+msgid "LOADING"
+msgstr "読み込み中..."
+
 #: src/gui/filetransferdialog.py:19
 msgid "BUTTON_TEXT_CANCEL"
 msgstr "キャンセル"
+
+#: src/gui/widgets/StatisticsAnalysis.py:223
+msgid "BUTTON_TEXT_REFRESH"
+msgstr "更新"
 
 #: src/gui/filetransferdialog.py:44
 msgid "FILE_TRANSFER_DIALOG_RECEIVING"
@@ -79,6 +87,26 @@ msgstr "アラート設定"
 #: src/gui/settings.py:56
 msgid "BUTTON_TEXT_SAVE"
 msgstr "保存"
+
+#: src/gui/widgets/AlertLimitEditor.py:25
+msgid "NOT_SET"
+msgstr "未設定"
+
+#: src/gui/widgets/AlertLimitEditor.py:57
+msgid "SAVE"
+msgstr "保存"
+
+#: src/gui/widgets/AlertLimitEditor.py:58
+msgid "CANCEL"
+msgstr "キャンセル"
+
+#: src/gui/widgets/AlertLimitEditor.py:59
+msgid "CLEAR"
+msgstr "クリア"
+
+#: src/gui/widgets/AlertLimitEditor.py:111
+msgid "INVALID_ALERT_LIMIT_VALUES"
+msgstr "無効な値：最小値は最大値以下である必要があります"
 
 #: src/gui/settings.py:95 src/gui/widgets/stats.py:74
 msgid "MIN"
@@ -311,6 +339,9 @@ msgstr "スキャン完了"
 
 msgid "LANGUAGE"
 msgstr "言語"
+
+msgid "DISTANCE_UNIT"
+msgstr "距離単位"
 
 msgid "GENERAL_SETTINGS"
 msgstr "一般設定"

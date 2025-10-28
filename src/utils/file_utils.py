@@ -3,12 +3,21 @@ import subprocess
 import platform
 from PySide6.QtCore import QDir
 
-def open_in_file_explorer(folder_path):
+def open_in_file_explorer(folder_path, selected_path=None):
     os_name = platform.system()
     if os_name == "Windows":
-        os.startfile(folder_path)
+        if selected_path and os.path.exists(selected_path):
+            # Use explorer.exe with /select to open and select the file
+            # Convert forward slashes to backslashes for Windows
+            selected_path = selected_path.replace('/', '\\')
+            subprocess.run(["explorer", "/select,", selected_path])
+        else:
+            os.startfile(folder_path)
     elif os_name == "Darwin":
-        subprocess.run(["open", folder_path])
+        if selected_path and os.path.exists(selected_path):
+            subprocess.run(["open", "-R", selected_path])
+        else:
+            subprocess.run(["open", folder_path])
     elif os_name == "Linux":
         subprocess.run(["xdg-open", folder_path])
     else:

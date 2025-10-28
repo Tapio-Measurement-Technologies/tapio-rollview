@@ -4,89 +4,116 @@ import json
 
 preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE_PATH)
 
-alert_limits           = settings.ALERT_LIMITS_DEFAULT
-enabled_postprocessors = settings.DEFAULT_ENABLED_POSTPROCESSORS
-show_all_com_ports     = settings.SHOW_ALL_COM_PORTS_DEFAULT
-show_plot_toolbar      = settings.SHOW_PLOT_TOOLBAR_DEFAULT
-recalculate_mean       = settings.RECALCULATE_MEAN_DEFAULT
-locale                 = settings.LOCALE_DEFAULT
-pinned_serial_ports    = settings.PINNED_SERIAL_PORTS_DEFAULT
+# Default values with type converters for special handling
+_DEFAULTS = {
+    'alert_limits': settings.ALERT_LIMITS_DEFAULT,
+    'enabled_postprocessors': settings.DEFAULT_ENABLED_POSTPROCESSORS,
+    'show_all_com_ports': settings.SHOW_ALL_COM_PORTS_DEFAULT,
+    'show_plot_toolbar': settings.SHOW_PLOT_TOOLBAR_DEFAULT,
+    'recalculate_mean': settings.RECALCULATE_MEAN_DEFAULT,
+    'locale': settings.LOCALE_DEFAULT,
+    'pinned_serial_ports': settings.PINNED_SERIAL_PORTS_DEFAULT,
+    'distance_unit': settings.DISTANCE_UNIT_DEFAULT
+}
+
+# Type converters for loading from JSON (for special types like sets)
+_LOADERS = {
+    'pinned_serial_ports': set,
+}
+
+# Type converters for saving to JSON (for special types like sets)
+_SAVERS = {
+    'pinned_serial_ports': list,
+}
+
+# Initialize module-level variables
+alert_limits = _DEFAULTS['alert_limits']
+enabled_postprocessors = _DEFAULTS['enabled_postprocessors']
+show_all_com_ports = _DEFAULTS['show_all_com_ports']
+show_plot_toolbar = _DEFAULTS['show_plot_toolbar']
+recalculate_mean = _DEFAULTS['recalculate_mean']
+locale = _DEFAULTS['locale']
+pinned_serial_ports = _DEFAULTS['pinned_serial_ports']
+distance_unit = _DEFAULTS['distance_unit']
 
 def save_preferences_to_file():
-  preferences = {
-    "alert_limits":           alert_limits,
-    "enabled_postprocessors": enabled_postprocessors,
-    "show_all_com_ports":     show_all_com_ports,
-    "show_plot_toolbar":      show_plot_toolbar,
-    "recalculate_mean":       recalculate_mean,
-    "locale":                 locale,
-    "pinned_serial_ports":    list(pinned_serial_ports)
-  }
+  """Save all preferences to file"""
+  preferences = {}
+  for key in _DEFAULTS.keys():
+    value = globals()[key]
+    # Apply saver conversion if needed (e.g., set to list)
+    if key in _SAVERS:
+      value = _SAVERS[key](value)
+    preferences[key] = value
+
   try:
     with open(preferences_file_path, 'w') as file:
-      json.dump(preferences, file)
+      json.dump(preferences, file, indent=2)
       print(f"Saved preferences to {preferences_file_path}")
   except Exception as e:
     print(f"Failed to write preferences to '{preferences_file_path}': {e}")
 
-def update_alert_limits(new_limits):
-  global alert_limits
-  alert_limits = new_limits
+def update_preference(key, value):
+  """Generic function to update any preference"""
+  if key not in _DEFAULTS:
+    raise ValueError(f"Unknown preference key: {key}")
+
+  globals()[key] = value
   save_preferences_to_file()
+
+# Convenience functions that call the generic update_preference
+def update_alert_limits(new_limits):
+  update_preference('alert_limits', new_limits)
 
 def update_enabled_postprocessors(new_enabled_postprocessors):
-  global enabled_postprocessors
-  enabled_postprocessors = new_enabled_postprocessors
-  save_preferences_to_file()
+  update_preference('enabled_postprocessors', new_enabled_postprocessors)
 
 def update_show_all_com_ports(new_show_all_com_ports):
-  global show_all_com_ports
-  show_all_com_ports = bool(new_show_all_com_ports)
-  save_preferences_to_file()
+  update_preference('show_all_com_ports', bool(new_show_all_com_ports))
 
 def update_show_plot_toolbar(new_show_plot_toolbar):
-  global show_plot_toolbar
-  show_plot_toolbar = bool(new_show_plot_toolbar)
-  save_preferences_to_file()
+  update_preference('show_plot_toolbar', bool(new_show_plot_toolbar))
 
 def update_recalculate_mean(new_recalculate_mean):
-  global recalculate_mean
-  recalculate_mean = bool(new_recalculate_mean)
-  save_preferences_to_file()
+  update_preference('recalculate_mean', bool(new_recalculate_mean))
 
 def update_locale(new_locale):
-  global locale
-  locale = new_locale
-  save_preferences_to_file()
+  update_preference('locale', new_locale)
 
 def update_pinned_serial_ports(new_pinned_serial_ports):
-  global pinned_serial_ports
-  pinned_serial_ports = set(new_pinned_serial_ports)
-  save_preferences_to_file()
+  update_preference('pinned_serial_ports', set(new_pinned_serial_ports))
 
-## Initialize preferences
-try:
-  with open(preferences_file_path, 'r') as file:
-    preferences = json.load(file)
+def update_distance_unit(new_distance_unit):
+  update_preference('distance_unit', new_distance_unit)
 
-    if 'alert_limits' in preferences:
-      alert_limits = preferences['alert_limits']
-    if 'enabled_postprocessors' in preferences:
-      enabled_postprocessors = preferences['enabled_postprocessors']
-    if 'show_all_com_ports' in preferences:
-      show_all_com_ports = preferences['show_all_com_ports']
-    if 'show_plot_toolbar' in preferences:
-      show_plot_toolbar = preferences['show_plot_toolbar']
-    if 'recalculate_mean' in preferences:
-      recalculate_mean = preferences['recalculate_mean']
-    if 'locale' in preferences:
-      locale = preferences['locale']
-    if 'pinned_serial_ports' in preferences:
-      pinned_serial_ports = set(preferences['pinned_serial_ports'])
+def get_distance_unit_info():
+  """Returns the DistanceUnit object for the currently selected unit"""
+  return settings.DISTANCE_UNITS.get(distance_unit, settings.DISTANCE_UNITS[settings.DISTANCE_UNIT_DEFAULT])
 
-except FileNotFoundError:
-  save_preferences_to_file()
-except Exception as e:
-  print(f"Error reading preferences file from '{preferences_file_path}': {e}")
-  print("Resetting default preferences")
-  save_preferences_to_file()
+## Initialize preferences from file
+def _load_preferences():
+  """Load preferences from file and update module-level variables"""
+  try:
+    with open(preferences_file_path, 'r') as file:
+      loaded_prefs = json.load(file)
+
+      for key in _DEFAULTS.keys():
+        if key in loaded_prefs:
+          value = loaded_prefs[key]
+          # Apply loader conversion if needed (e.g., list to set)
+          if key in _LOADERS:
+            value = _LOADERS[key](value)
+          globals()[key] = value
+
+      print(f"Loaded preferences from {preferences_file_path}")
+
+  except FileNotFoundError:
+    print(f"Preferences file not found, creating with defaults")
+    save_preferences_to_file()
+  except Exception as e:
+    print(f"Error reading preferences file from '{preferences_file_path}': {e}")
+    print("Resetting default preferences")
+    save_preferences_to_file()
+
+# Load preferences on module import
+_load_preferences()
