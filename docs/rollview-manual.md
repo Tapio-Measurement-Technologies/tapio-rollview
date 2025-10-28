@@ -24,6 +24,27 @@ cd tapio-rollview
 ./install.bat
 ```
 
+## Using Tapio RollView: Synchronizing Profiles
+![Tapio RollView](tapio-rollview-screenshot.png)
+
+1. **Connect and power on** an RQP Live device.  
+2. Click **Scan devices** – the software scans all COM ports of the computer and lists any connected RQP Live units.  
+3. **Select** a device from the list and click **Sync data**. The measurement profiles are then downloaded to your computer.  
+4. After synchronization, the selected default postprocessors are automatically run for new profile folders. For each folder with new profiles, the default postprocessors will generate:  
+   - a `.json` data file  
+   - an Excel file  
+   - and an image file  
+
+   You can also add **custom postprocessors** if needed, for example to move the data to a specific location in a custom format.
+
+
+
+
+
+
+
+
+
 ## Directory Selection
 - RollView will display all roll data in the currently selected working directory.
 - By default, RollView uses the folder `.tapiorqp` under the user's home directory as the working directory.
