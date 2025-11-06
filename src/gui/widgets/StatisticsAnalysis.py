@@ -36,6 +36,7 @@ class StatisticsAnalysisChart(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent_widget = parent  # Store direct reference
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.ax = self.figure.add_subplot(111)
@@ -73,8 +74,8 @@ class StatisticsAnalysisChart(QWidget):
         labels = [p['label'] for p in stat_data]
 
         # Add alert limit ranges as shaded areas if available (draw behind bars)
-        if hasattr(self.parent(), 'selected_stat'):
-            current_stat = self.parent().selected_stat
+        if hasattr(self.parent_widget, 'selected_stat'):
+            current_stat = self.parent_widget.selected_stat
             # Find matching alert limit by checking if stat name is substring of alert name
             matching_limit = None
             for limit in preferences.alert_limits:
@@ -118,10 +119,10 @@ class StatisticsAnalysisChart(QWidget):
         self.ax.set_xlabel(_("PLOT_TITLE_ROLL"))
         # Get the selected statistic name for y-axis label
         selected_stat_name = "Statistic Value"  # default
-        if hasattr(self.parent(), 'selected_stat'):
+        if hasattr(self.parent_widget, 'selected_stat'):
             # Reverse lookup to get the display name from the key
             for display_name, stat_key in stat_label_map.items():
-                if stat_key == self.parent().selected_stat:
+                if stat_key == self.parent_widget.selected_stat:
                     selected_stat_name = display_name
                     break
         self.ax.set_ylabel(selected_stat_name)
