@@ -8,6 +8,7 @@ from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 from utils.translation import _
 from utils import preferences
+from utils.clipboard import Screenshottable
 from workers.statistics_processor import StatisticsProcessor
 from gui.widgets.LoadingWidget import LoadingWidget
 
@@ -185,7 +186,7 @@ class StatisticsAnalysisChart(QWidget):
 
         self.point_selected.emit(point['path'])
 
-class StatisticsAnalysisWidget(QWidget):
+class StatisticsAnalysisWidget(Screenshottable, QWidget):
     directory_selected = Signal(str)
 
     def __init__(self, parent=None):
@@ -200,7 +201,10 @@ class StatisticsAnalysisWidget(QWidget):
         self.cache_valid = False
 
         # Create horizontal layout for dropdowns and refresh button
-        dropdown_layout = QHBoxLayout()
+        # Wrap dropdowns in a container widget so they can be captured together
+        self.dropdown_container = QWidget()
+        dropdown_layout = QHBoxLayout(self.dropdown_container)
+        dropdown_layout.setContentsMargins(0, 0, 0, 0)
 
         self.stat_selection_dropdown = StatSelectionDropdown(self)
         self.stat_selection_dropdown.currentTextChanged.connect(self.on_stat_selection_changed)
@@ -232,7 +236,7 @@ class StatisticsAnalysisWidget(QWidget):
         self.stacked_widget.addWidget(self.chart)  # index 0
         self.stacked_widget.addWidget(self.loading_widget)  # index 1
 
-        self.layout().addLayout(dropdown_layout)
+        self.layout().addWidget(self.dropdown_container)
         self.layout().addLayout(self.refresh_button_layout)
         self.layout().addWidget(self.stacked_widget)
 
@@ -371,6 +375,14 @@ class StatisticsAnalysisWidget(QWidget):
         self.stacked_widget.setCurrentWidget(self.chart)
         # Could show error dialog here if desired
         print(f"Error processing statistics: {error_message}")
+
+    def get_screenshot_widgets(self):
+        """Return list of widgets to include in screenshot."""
+        # Include dropdown container and the chart (not the loading widget or refresh button)
+        return [
+            self.dropdown_container,
+            self.chart
+        ]
 
     def closeEvent(self, event):
         """Clean up worker thread when widget is closed."""

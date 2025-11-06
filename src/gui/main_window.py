@@ -15,6 +15,7 @@ from PySide6.QtCore import QDir, Qt
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
 from utils import preferences
+from utils.clipboard import copy_widget_to_clipboard
 import os
 from datetime import datetime, timedelta
 
@@ -136,10 +137,13 @@ class MainWindow(QMainWindow):
         self.status_bar.clearMessage()
 
     def keyPressEvent(self, event):
-        """Forward key press events to the chart."""
-        if self.chart:
-            self.chart.keyPressEvent(event)
-        super().keyPressEvent(event)
+        """Handle Ctrl+C to copy current tab view to clipboard."""
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
+            current_widget = self.tab_view.currentWidget()
+            if current_widget:
+                copy_widget_to_clipboard(current_widget)
+        else:
+            super().keyPressEvent(event)
 
 
     def init_menu(self):
