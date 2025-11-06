@@ -426,10 +426,8 @@ class ZMODEM(Modem):
         kind = None
         total_size = 0
         while total_size < size:
-            kind, chunk_size = self._recv_file_data(fp.tell(), fp, timeout)
+            kind, chunk_size = self._recv_file_data(fp.tell(), fp, timeout, size)
             total_size += chunk_size
-            if hasattr(self.thread, 'fileByteProgress'):
-                self.thread.fileByteProgress.emit(total_size, size)
             if kind == ZEOF:
                 break
 
@@ -437,12 +435,16 @@ class ZMODEM(Modem):
         speed = (total_size / (time.time() - start))
         log.info('Receiving file "%s" done at %.02f bps' % (filename, speed))
 
+        # Final progress update to ensure we reach 100%
+        if hasattr(self.thread, 'fileByteProgress'):
+            self.thread.fileByteProgress.emit(size, size)
+
         # Update file metadata
         fp.close()
         mtime = time.mktime(date.timetuple())
         os.utime(filepath, (mtime, mtime))
 
-    def _recv_file_data(self, pos, fp, timeout):
+    def _recv_file_data(self, pos, fp, timeout, file_size=None):
         self._send_pos_header(ZRPOS, pos, timeout)
         # print("FPOS: ", pos, end="")
         kind = 0
@@ -477,8 +479,15 @@ class ZMODEM(Modem):
             kind, chunk = self._recv_data(pos, timeout)
             if kind in [ENDOFFRAME, FRAMEOK]:
                 fp.write(chunk.encode("ISO-8859-1"))
-                size += len(chunk)
-                # print("DPOS: {}, FPOS: {}, READ: {}, TOTAL: {}".format(dpos, pos, len(chunk), size))
+                chunk_len = len(chunk)
+                size += chunk_len
+
+                # Update progress after each frame (more granular than per-chunk)
+                # Use actual ZMODEM position as source of truth
+                if file_size and hasattr(self.thread, 'fileByteProgress'):
+                    current_pos = pos + size
+                    self.thread.fileByteProgress.emit(current_pos, file_size)
+                # print("DPOS: {}, FPOS: {}, READ: {}, TOTAL: {}".format(dpos, pos, chunk_len, size))
             # else:
                 # print("NOTOK: ", kind)
         # print("Finished chunk with kind", kind)
