@@ -48,7 +48,7 @@ class FileTransferWorker(QObject):
                 parity=serial.PARITY_NONE,
                 bytesize=serial.EIGHTBITS,
                 stopbits=serial.STOPBITS_ONE,
-                timeout=5,
+                timeout=0.5,
                 xonxoff=0,
                 rtscts=0,
                 dsrdtr=0,
