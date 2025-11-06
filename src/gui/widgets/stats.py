@@ -1,4 +1,5 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout, QMenu, QApplication
+from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 from utils.profile_stats import Stats
 from utils import preferences, profile_stats
@@ -33,6 +34,31 @@ class StatsWidget(QWidget):
             layout.setColumnMinimumWidth(index, 80)
 
         self.setLayout(layout)  # Set the layout for the StatsWidget
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, position):
+        """Show context menu with option to copy stats to clipboard."""
+        context_menu = QMenu(self)
+
+        copy_action = QAction(_("COPY_STATS_TO_CLIPBOARD"), self)
+        copy_action.triggered.connect(self.copy_stats_to_clipboard)
+        context_menu.addAction(copy_action)
+
+        context_menu.exec_(self.mapToGlobal(position))
+
+    def copy_stats_to_clipboard(self):
+        """Copy all statistics to clipboard as formatted text."""
+        stats_text = []
+        for widget in self.widgets:
+            if widget.value is not None:
+                stats_text.append(f"{widget.name}: {widget.value:.2f} {widget.units}")
+            else:
+                stats_text.append(f"{widget.name}: --")
+
+        clipboard = QApplication.clipboard()
+        clipboard.setText("\n".join(stats_text))
+        print("Statistics copied to clipboard.")
 
     def update_data(self, data):
         for widget in self.widgets:

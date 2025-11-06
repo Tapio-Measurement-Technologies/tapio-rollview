@@ -404,3 +404,6 @@ msgstr "Profiles"
 
 msgid "TAB_TITLE_STATISTICS"
 msgstr "Statistics"
+
+msgid "COPY_STATS_TO_CLIPBOARD"
+msgstr "Copy stats to clipboard"

@@ -404,3 +404,6 @@ msgstr "プロファイル"
 
 msgid "TAB_TITLE_STATISTICS"
 msgstr "履歴"
+
+msgid "COPY_STATS_TO_CLIPBOARD"
+msgstr "統計をクリップボードにコピー"
