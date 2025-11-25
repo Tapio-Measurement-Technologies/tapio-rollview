@@ -2,6 +2,12 @@ import settings
 from models.Profile import RollDirectory
 from typing import List
 
+try:
+    from version import __version__
+    app_version = __version__
+except ImportError:
+    app_version = "(development version)"
+
 log_manager = None
 connections = []
 profiles = []

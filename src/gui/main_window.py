@@ -35,17 +35,12 @@ from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 from gui.settings import SettingsWindow
 from utils.translation import _
 
-try:
-    from version import __version__
-except ImportError:
-    __version__ = "(development version)"
-
 class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle(f"Tapio RollView {__version__}")
+        self.setWindowTitle(f"Tapio RollView {store.app_version}")
         self.resize(1000, 600)
 
         self.file_transfer_manager = FileTransferManager()

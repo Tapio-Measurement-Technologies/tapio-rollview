@@ -7,6 +7,7 @@ from collections import deque
 from PySide6.QtCore import QObject, Signal
 from utils.log_stream import EmittingStream
 from gui.crash_dialog import CrashDialog
+import store
 
 # TODO: This whole module could be refactored to use python's logging module which does most of these things already
 
@@ -28,6 +29,7 @@ def get_platform_info_header():
     header = [
         "==== Platform Info ====",
         f"Exported at               : {datetime.now().isoformat()}",
+        f"Application Version       : {store.app_version}",
         f"OS                        : {platform.system()} {platform.release()}",
         f"Python Version            : {platform.python_version()}",
         f"Uptime                    : {uptime_str}",
