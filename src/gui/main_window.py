@@ -15,7 +15,7 @@ from PySide6.QtCore import QDir, Qt
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
 from utils import preferences
-from utils.clipboard import copy_plot_widget_to_clipboard
+from utils.figure_export import copy_plot_widget_to_clipboard
 import os
 from datetime import datetime, timedelta
 from gui.widgets.sidebar import Sidebar

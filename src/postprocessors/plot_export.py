@@ -1,11 +1,15 @@
 from gui.widgets.ProfileWidget import ProfileWidget
 from utils.translation import _
+from utils.figure_export import export_figure_with_annotations
 from models.Profile import Profile
 import os
 
 description = _("POSTPROCESSOR_NAME_PLOT_EXPORT")
 
 def run(folder_path) -> bool:
+    DPI = 300
+    FIGURE_SIZE_INCHES = (5.74, 2.54)
+    SCALE_MULTIPLIER = 1
     """
     Generates and exports a plot image from `.prof` files in a given folder.
 
@@ -49,8 +53,23 @@ def run(folder_path) -> bool:
                 continue
 
     if profiles:
-        profile_widget.update_plot(profiles, folder_name, show_stats_in_title=True)
-        profile_widget.figure.savefig(save_path)
+        profile_widget.figure.set_size_inches(*FIGURE_SIZE_INCHES)
+        profile_widget.update_plot(profiles, folder_name)
+
+        # Export figure with annotations using the same method as clipboard copy
+        buffer = export_figure_with_annotations(
+            figure=profile_widget.figure,
+            canvas=profile_widget.canvas,
+            annotation_callback=profile_widget._draw_stats_on_figure,
+            dpi=DPI,
+            scale_multiplier=SCALE_MULTIPLIER
+        )
+
+        # Write buffer to file
+        with open(save_path, 'wb') as f:
+            f.write(buffer.getvalue())
+        buffer.close()
+
         print(f"Successfully generated plot image for folder '{folder_path}'!")
         return True
     else:
