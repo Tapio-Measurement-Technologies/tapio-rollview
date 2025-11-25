@@ -129,7 +129,7 @@ class PostprocessManager(QObject):
     def on_now_processing(self, folder_path, postprocessor_name):
         self.processed_items += 1
         if not self._thread._is_cancellation_requested:
-            self.dialog.update_progress((self.processed_items / self.total_items_to_process) *
+            self.dialog.update_progress((self.processed_items / (self.total_items_to_process or 1)) *
                                 100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
 
     def on_finished(self):
