@@ -46,7 +46,7 @@ class DirectoryView(QWidget):
         self.model = CustomFileSystemModel()
         self.model.setRootPath(QDir.currentPath())
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
-        self.model.directoryLoaded.connect(self.select_first_directory)
+        self.model.directoryLoaded.connect(self.init_selection)
 
         self.proxy_model = DirectorySortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -119,6 +119,10 @@ class DirectoryView(QWidget):
         self.treeView.selectionModel().select(selected_index, selection_flags)
         self.treeView.scrollTo(selected_index)
 
+    def init_selection(self):
+        if not self.treeView.selectionModel().currentIndex().isValid():
+            self.select_first_directory()
+
     def select_directory_by_path(self, path):
         index = self.proxy_model.mapFromSource(self.model.index(path))
         if index.isValid():
@@ -165,6 +169,9 @@ class DirectoryView(QWidget):
             self.root_directory_changed.emit(directory)
             # Watch the new directory and its subdirectories
             self.watch_directory_and_subdirs(directory)
+
+            # Initially select the first directory in the new root
+            self.select_first_directory()
 
     def on_directory_selected(self, selected, deselected):
         indexes = selected.indexes()
