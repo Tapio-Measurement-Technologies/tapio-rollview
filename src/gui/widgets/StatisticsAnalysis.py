@@ -8,7 +8,6 @@ from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 from utils.translation import _
 from utils import preferences
-from utils.clipboard import Screenshottable
 from workers.statistics_processor import StatisticsProcessor
 from gui.widgets.LoadingWidget import LoadingWidget
 
@@ -43,6 +42,7 @@ class StatisticsAnalysisChart(QWidget):
         self.ax = self.figure.add_subplot(111)
         self.stat_data = []
         self.highlighted_point = None
+        self.current_filter = None  # Track current filter for display
 
         layout = QVBoxLayout()
         layout.addWidget(self.canvas)
@@ -175,6 +175,46 @@ class StatisticsAnalysisChart(QWidget):
             self.annot.set_visible(False)
             self.canvas.draw_idle()
 
+    def _draw_info_on_figure(self):
+        """Draw selected stat and filter info on the figure.
+
+        Returns:
+            List of text objects that were added (for cleanup)
+        """
+        added_texts = []
+
+        if not self.parent_widget:
+            return added_texts
+
+        # Get current stat display name
+        stat_display_name = ""
+        if hasattr(self.parent_widget, 'selected_stat'):
+            for display_name, stat_key in stat_label_map.items():
+                if stat_key == self.parent_widget.selected_stat:
+                    stat_display_name = display_name
+                    break
+
+        # Get current filter text
+        filter_text = ""
+        if hasattr(self.parent_widget, 'filter_dropdown'):
+            filter_text = self.parent_widget.filter_dropdown.currentText()
+
+        # Create info text
+        info_text = f"{stat_display_name}\n{filter_text}"
+
+        # Position at top right of figure
+        text_obj = self.figure.text(
+            0.95, 0.90,
+            info_text,
+            ha='right', va='top',
+            fontsize=8,
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='lightgray', linewidth=0.5),
+            transform=self.figure.transFigure,
+        )
+        added_texts.append(text_obj)
+
+        return added_texts
+
     def on_pick(self, event):
         vis = self.annot.get_visible()
         if event.artist not in self.bars:
@@ -186,7 +226,7 @@ class StatisticsAnalysisChart(QWidget):
 
         self.point_selected.emit(point['path'])
 
-class StatisticsAnalysisWidget(Screenshottable, QWidget):
+class StatisticsAnalysisWidget(QWidget):
     directory_selected = Signal(str)
 
     def __init__(self, parent=None):
@@ -375,14 +415,6 @@ class StatisticsAnalysisWidget(Screenshottable, QWidget):
         self.stacked_widget.setCurrentWidget(self.chart)
         # Could show error dialog here if desired
         print(f"Error processing statistics: {error_message}")
-
-    def get_screenshot_widgets(self):
-        """Return list of widgets to include in screenshot."""
-        # Include dropdown container and the chart (not the loading widget or refresh button)
-        return [
-            self.dropdown_container,
-            self.chart
-        ]
 
     def closeEvent(self, event):
         """Clean up worker thread when widget is closed."""

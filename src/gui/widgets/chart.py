@@ -11,7 +11,6 @@ from gui.widgets.stats import StatsWidget
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
 from PySide6.QtCore import Qt
 from utils.translation import _
-from utils.clipboard import Screenshottable
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -50,7 +49,7 @@ class WarningLabel(QLabel):
         self.setText("")
 
 
-class Chart(Screenshottable, QWidget):
+class Chart(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -111,9 +110,79 @@ class Chart(Screenshottable, QWidget):
             if action.iconText() == 'Home':
                 action.triggered.connect(self.reset_view)
 
-    def get_screenshot_widgets(self):
-        """Return list of widgets to include in screenshot (excludes toolbar)."""
-        return [self.stats_widget, self.warning_label, self.canvas]
+    def _draw_stats_on_figure(self):
+        """Draw statistics as text boxes on the figure, similar to stats widget.
+
+        Returns:
+            List of text objects that were added (for cleanup)
+        """
+        if not len(self.mean_profile):
+            return []
+
+        added_texts = []
+
+        # Get stats values
+        stats_data = [
+            (profile_stats.stat_labels[self.stats.mean.name], self.stats.mean(self.mean_profile), self.stats.mean.unit),
+            (profile_stats.stat_labels[self.stats.std.name], self.stats.std(self.mean_profile), self.stats.std.unit),
+            (profile_stats.stat_labels[self.stats.cv.name], self.stats.cv(self.mean_profile), self.stats.cv.unit),
+            (profile_stats.stat_labels[self.stats.min.name], self.stats.min(self.mean_profile), self.stats.min.unit),
+            (profile_stats.stat_labels[self.stats.max.name], self.stats.max(self.mean_profile), self.stats.max.unit),
+            (profile_stats.stat_labels[self.stats.pp.name], self.stats.pp(self.mean_profile), self.stats.pp.unit),
+        ]
+
+        # Check limits for highlighting
+        limits = preferences.alert_limits
+        limit_dict = {limit['name']: limit for limit in limits}
+        stat_functions = [self.stats.mean, self.stats.std, self.stats.cv, self.stats.min, self.stats.max, self.stats.pp]
+
+        # Position stats below title, evenly spaced across width
+        num_stats = len(stats_data)
+        # Calculate spacing to distribute evenly across width
+        # Leave smaller margins on both sides
+        left_margin = 0.1
+        right_margin = 0.1
+        usable_width = 1.0 - left_margin - right_margin
+        spacing = usable_width / num_stats
+
+        # Position at top of figure area (adjust based on tight_layout)
+        # Using figure coordinates where 1.0 is top
+        y_pos = 0.91
+
+        for i, (label, value, unit) in enumerate(stats_data):
+            stat_func = stat_functions[i]
+            stat_name = getattr(stat_func, 'name', None)
+
+            # Check if over limit
+            over_limit = False
+            if stat_name and stat_name in limit_dict:
+                limit = limit_dict[stat_name]
+                if limit['min'] is not None and value < limit['min']:
+                    over_limit = True
+                if limit['max'] is not None and value > limit['max']:
+                    over_limit = True
+
+            # Create text box with smaller font
+            text = f"{label} [{unit}]\n{value:.2f}"
+
+            # Background color (matplotlib format: (R, G, B, alpha))
+            bgcolor = (1.0, 0.0, 0.0, 0.3) if over_limit else 'white'
+
+            # With ha='right', position the right edge at the right side of allocated space
+            # This centers the fixed-width box in its allocated space
+            x_pos = left_margin + (i + 1) * spacing
+
+            text_obj = self.figure.text(
+                x_pos, y_pos,
+                text,
+                ha='right', va='top',
+                fontsize=7,
+                bbox=dict(boxstyle='square,pad=0.3', facecolor=bgcolor, edgecolor='lightgray', linewidth=0),
+                transform=self.figure.transFigure,
+            )
+            added_texts.append(text_obj)
+
+        return added_texts
 
     def reset_view(self):
         """Reset the view to the initial state."""

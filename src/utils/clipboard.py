@@ -1,116 +1,102 @@
-"""Clipboard utilities for copying widgets and figures to clipboard."""
+"""Clipboard utilities for copying figures to clipboard."""
 
-from PySide6.QtWidgets import QApplication, QWidget
-from PySide6.QtGui import QImage, QPixmap, QPainter
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QImage
 from io import BytesIO
+from gui.widgets.chart import Chart
+from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 
 
-class Screenshottable:
-    """Mixin class for widgets that can be copied to clipboard with custom logic.
-
-    Usage: Inherit from this class and override get_screenshot_widgets() to specify
-    which child widgets should be included in screenshots.
-    """
-
-    def get_screenshot_widgets(self):
-        """Override this method to return a list of widgets to include in screenshots.
-
-        Returns:
-            List of QWidget objects to capture, or None to capture entire widget
-        """
-        return None
-
-    def copy_to_clipboard(self):
-        """Copy this widget to clipboard based on screenshot configuration."""
-        copy_widget_to_clipboard(self)
-
-
-def copy_widget_to_clipboard(widget: QWidget):
-    """Copies a Qt widget to clipboard as an image.
-
-    If widget is Screenshottable and has screenshot widgets configured,
-    only those specific widgets will be captured. Otherwise captures entire widget.
+def export_figure_with_annotations(figure, canvas, annotation_callback=None, dpi=300, scale_multiplier=1):
+    """Export a matplotlib figure to buffer with optional annotations.
 
     Args:
-        widget: The QWidget to copy to clipboard
-    """
-    try:
-        if isinstance(widget, Screenshottable):
-            widgets = widget.get_screenshot_widgets()
-            if widgets:
-                pixmap = _capture_widgets(widgets)
-            else:
-                pixmap = widget.grab()
-        else:
-            pixmap = widget.grab()
-
-        # Convert to QImage and copy to clipboard
-        image = pixmap.toImage()
-        clipboard = QApplication.clipboard()
-        clipboard.setImage(image)
-        print("Widget copied to clipboard.")
-    except Exception as e:
-        print(f"Error copying widget to clipboard: {e}")
-
-
-def _capture_widgets(widgets: list) -> QPixmap:
-    """Capture multiple widgets and combine them into a single pixmap.
-
-    Args:
-        widgets: List of QWidget objects to capture
+        figure: The matplotlib Figure object
+        canvas: The FigureCanvas widget
+        annotation_callback: Optional function that draws annotations and returns list of added text objects
+        dpi: DPI for rendering (default: 300)
+        scale_multiplier: Factor to increase figure size (default: 1)
 
     Returns:
-        QPixmap containing all widgets stacked vertically
+        BytesIO buffer containing PNG data
     """
-    total_height = 0
-    max_width = 0
+    # Save current DPI and size
+    original_dpi = figure.dpi
+    original_size = figure.get_size_inches()
+    added_texts = []
 
-    captures = []
-    for widget in widgets:
-        if widget.isVisible():
-            pixmap = widget.grab()
-            captures.append(pixmap)
-            total_height += pixmap.height()
-            max_width = max(max_width, pixmap.width())
-
-    if not captures:
-        return QPixmap()
-
-    # Create combined pixmap
-    combined = QPixmap(max_width, total_height)
-    combined.fill()  # Fill with white background
-
-    painter = QPainter(combined)
-    y_offset = 0
-
-    for pixmap in captures:
-        painter.drawPixmap(0, y_offset, pixmap)
-        y_offset += pixmap.height()
-
-    painter.end()
-
-    return combined
-
-
-def copy_figure_to_clipboard(figure):
-    """Copies a matplotlib figure to the clipboard as a PNG image.
-
-    Args:
-        figure: The matplotlib Figure object to copy
-    """
     try:
+        # Increase figure size and render at high DPI for better quality
+        figure.set_dpi(dpi)
+        figure.set_size_inches(
+            original_size[0] * scale_multiplier,
+            original_size[1] * scale_multiplier
+        )
+
+        # Draw annotations if callback provided
+        if annotation_callback:
+            added_texts = annotation_callback() or []
+
+        # Render to buffer at high DPI
         buffer = BytesIO()
-        figure.savefig(buffer, format='png', dpi=300)
+        figure.savefig(buffer, format='png', dpi=dpi, bbox_inches='tight')
         buffer.seek(0)
 
-        # Convert buffer to QImage
-        image = QImage()
-        image.loadFromData(buffer.read(), format='PNG')
-        buffer.close()
+        return buffer
 
-        # Copy to clipboard
-        clipboard = QApplication.clipboard()
-        clipboard.setImage(image)
-        print("Figure copied to clipboard.")
+    finally:
+        # Remove annotations
+        for text in added_texts:
+            text.remove()
+
+        # Always restore original DPI and size
+        figure.set_dpi(original_dpi)
+        figure.set_size_inches(original_size[0], original_size[1])
+        canvas.draw()
+
+
+def _buffer_to_clipboard(buffer):
+    """Copy a PNG buffer to clipboard.
+
+    Args:
+        buffer: BytesIO buffer containing PNG data
+    """
+    image = QImage()
+    image.loadFromData(buffer.read(), format='PNG')
+    buffer.close()
+
+    clipboard = QApplication.clipboard()
+    clipboard.setImage(image)
+
+
+def copy_plot_widget_to_clipboard(widget, dpi=300, scale_multiplier=1):
+    """Copy a plot widget (Chart or StatisticsAnalysisWidget) to clipboard at high DPI.
+
+    Args:
+        widget: The Chart or StatisticsAnalysisWidget instance
+    """
+    try:
+        if isinstance(widget, Chart):
+            figure = widget.figure
+            canvas = widget.canvas
+            annotation_callback = widget._draw_stats_on_figure
+        elif isinstance(widget, StatisticsAnalysisWidget):
+            figure = widget.chart.figure
+            canvas = widget.chart.canvas
+            annotation_callback = widget.chart._draw_info_on_figure
+        else:
+            print(f"Unsupported widget type for clipboard copy: {type(widget)}")
+            return
+
+        buffer = export_figure_with_annotations(
+                figure=figure,
+                canvas=canvas,
+                annotation_callback=annotation_callback,
+                dpi=dpi,
+                scale_multiplier=scale_multiplier
+        )
+        _buffer_to_clipboard(buffer)
+        print("Plot copied to clipboard.")
+
     except Exception as e:
-        print(f"Error copying figure to clipboard: {e}")
+        print(f"Error copying plot to clipboard: {e}")
