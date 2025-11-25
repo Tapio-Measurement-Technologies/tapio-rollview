@@ -7,9 +7,7 @@ import os
 description = _("POSTPROCESSOR_NAME_PLOT_EXPORT")
 
 def run(folder_path) -> bool:
-    DPI = 300
     FIGURE_SIZE_INCHES = (5.74, 2.54)
-    SCALE_MULTIPLIER = 1
     """
     Generates and exports a plot image from `.prof` files in a given folder.
 
@@ -60,9 +58,7 @@ def run(folder_path) -> bool:
         buffer = export_figure_with_annotations(
             figure=profile_widget.figure,
             canvas=profile_widget.canvas,
-            annotation_callback=profile_widget._draw_stats_on_figure,
-            dpi=DPI,
-            scale_multiplier=SCALE_MULTIPLIER
+            annotation_callback=profile_widget._draw_stats_on_figure
         )
 
         # Write buffer to file

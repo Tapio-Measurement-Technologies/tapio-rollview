@@ -5,9 +5,15 @@ from PySide6.QtGui import QImage
 from io import BytesIO
 from gui.widgets.ProfileWidget import ProfileWidget
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
+import settings
 
-
-def export_figure_with_annotations(figure, canvas, annotation_callback=None, dpi=300, scale_multiplier=1):
+def export_figure_with_annotations(
+        figure,
+        canvas,
+        annotation_callback=None,
+        dpi=settings.PLOT_IMAGE_EXPORT_DPI,
+        scale_multiplier=settings.PLOT_IMAGE_EXPORT_SCALE
+):
     """Export a matplotlib figure to buffer with optional annotations.
 
     Args:
@@ -69,7 +75,11 @@ def _buffer_to_clipboard(buffer):
     clipboard.setImage(image)
 
 
-def copy_plot_widget_to_clipboard(widget, dpi=300, scale_multiplier=1):
+def copy_plot_widget_to_clipboard(
+        widget,
+        dpi=settings.PLOT_IMAGE_EXPORT_DPI,
+        scale_multiplier=settings.PLOT_IMAGE_EXPORT_SCALE
+):
     """Copy a plot widget (ProfileWidget or StatisticsAnalysisWidget) to clipboard at high DPI.
 
     Args:
