@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QImage
 from io import BytesIO
-from gui.widgets.chart import Chart
+from gui.widgets.ProfileWidget import ProfileWidget
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 
 
@@ -70,13 +70,13 @@ def _buffer_to_clipboard(buffer):
 
 
 def copy_plot_widget_to_clipboard(widget, dpi=300, scale_multiplier=1):
-    """Copy a plot widget (Chart or StatisticsAnalysisWidget) to clipboard at high DPI.
+    """Copy a plot widget (ProfileWidget or StatisticsAnalysisWidget) to clipboard at high DPI.
 
     Args:
-        widget: The Chart or StatisticsAnalysisWidget instance
+        widget: The ProfileWidget or StatisticsAnalysisWidget instance
     """
     try:
-        if isinstance(widget, Chart):
+        if isinstance(widget, ProfileWidget):
             figure = widget.figure
             canvas = widget.canvas
             annotation_callback = widget._draw_stats_on_figure

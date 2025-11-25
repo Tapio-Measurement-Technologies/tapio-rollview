@@ -18,12 +18,9 @@ from utils import preferences
 from utils.clipboard import copy_plot_widget_to_clipboard
 import os
 from datetime import datetime, timedelta
-
-
-# Assuming Sidebar, Chart, and FileView are implemented elsewhere
 from gui.widgets.sidebar import Sidebar
 from gui.widgets.FileView import FileView
-from gui.widgets.chart import Chart
+from gui.widgets.ProfileWidget import ProfileWidget
 from gui.log_window import LogWindow
 from models.Profile import Profile
 import settings
@@ -57,8 +54,8 @@ class MainWindow(QMainWindow):
         self.tab_view = QTabWidget()
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.statistics_analysis_widget.directory_selected.connect(self.on_directory_selected)
-        self.chart = Chart()
-        self.tab_view.addTab(self.chart, _("TAB_TITLE_PROFILES"))
+        self.profile_widget = ProfileWidget()
+        self.tab_view.addTab(self.profile_widget, _("TAB_TITLE_PROFILES"))
         self.tab_view.addTab(self.statistics_analysis_widget, _("TAB_TITLE_STATISTICS"))
         self.tab_view.currentChanged.connect(self.statistics_analysis_widget.update)
 
@@ -230,7 +227,7 @@ class MainWindow(QMainWindow):
 
     def on_show_plot_toolbar_changed(self, checked):
         preferences.update_show_plot_toolbar(checked)
-        self.chart.set_toolbar_visible(checked)
+        self.profile_widget.set_toolbar_visible(checked)
 
     def on_recalculate_mean_changed(self, checked):
         preferences.update_recalculate_mean(checked)
@@ -247,7 +244,7 @@ class MainWindow(QMainWindow):
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
         self.directory_view.select_directory_by_path(store.selected_directory)
-        self.chart.update_plot(store.profiles, self.directory_name)
+        self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def load_profiles(self, dir_path):
         # Validate that the directory path exists and is a directory
@@ -262,7 +259,7 @@ class MainWindow(QMainWindow):
 
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)
-        self.chart.update_plot(
+        self.profile_widget.update_plot(
             store.profiles, self.directory_name, selected=filename)
 
     def on_directory_contents_changed(self):
@@ -270,7 +267,7 @@ class MainWindow(QMainWindow):
         self.on_directory_selected(store.selected_directory)
 
     def refresh_plot(self):
-        self.chart.update_plot(store.profiles, self.directory_name)
+        self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_root_directory_changed(self, directory):
         store.root_directory = directory

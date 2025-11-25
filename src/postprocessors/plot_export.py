@@ -1,4 +1,4 @@
-from gui.widgets.chart import Chart
+from gui.widgets.ProfileWidget import ProfileWidget
 from utils.translation import _
 from models.Profile import Profile
 import os
@@ -10,7 +10,7 @@ def run(folder_path) -> bool:
     Generates and exports a plot image from `.prof` files in a given folder.
 
     This function scans the specified folder for `.prof` files (excluding `mean.prof`),
-    reads the data from each of these files, and generates a plot using the `Chart` widget.
+    reads the data from each of these files, and generates a plot using the `ProfileWidget` widget.
     The generated plot is then saved as an image (`.png`) in the same folder, named after the folder.
 
     Args:
@@ -21,7 +21,7 @@ def run(folder_path) -> bool:
             otherwise returns `False` if no valid profiles were found or an error occurred.
 
     Dependencies:
-        - Chart: A widget class for creating and managing charts.
+        - ProfileWidget: A widget class for creating and managing charts.
         - read_prof_file: A utility function for reading `.prof` files.
         - os: Standard library module used for path manipulations and file operations.
 
@@ -30,7 +30,7 @@ def run(folder_path) -> bool:
         - If an error occurs while reading a `.prof` file, it skips that file and continues processing.
         - If no valid `.prof` files are found, the function will return `False` and no image will be saved.
     """
-    chart = Chart()
+    profile_widget = ProfileWidget()
     profiles = []
     folder_name = os.path.basename(folder_path.rstrip('/\\'))
     save_path = os.path.join(folder_path, f"{folder_name}.png")
@@ -49,8 +49,8 @@ def run(folder_path) -> bool:
                 continue
 
     if profiles:
-        chart.update_plot(profiles, folder_name, show_stats_in_title=True)
-        chart.figure.savefig(save_path)
+        profile_widget.update_plot(profiles, folder_name, show_stats_in_title=True)
+        profile_widget.figure.savefig(save_path)
         print(f"Successfully generated plot image for folder '{folder_path}'!")
         return True
     else:
