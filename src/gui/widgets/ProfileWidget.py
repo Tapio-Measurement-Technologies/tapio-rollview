@@ -199,7 +199,7 @@ class ProfileWidget(QWidget):
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
 
-    def update_plot(self, profiles: list[Profile], directory_name, selected='', show_stats_in_title=False):
+    def update_plot(self, profiles: list[Profile], directory_name, selected=''):
         self.clear()
         self.figure.suptitle(directory_name)
 
@@ -324,17 +324,6 @@ class ProfileWidget(QWidget):
             self.profile_ax.set_ylim(top=high)
         elif high is not None and not np.isfinite(high):
             self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
-
-        if show_stats_in_title and len(self.mean_profile):
-            title = (
-                f"{profile_stats.stat_labels[self.stats.mean.name]}: {self.stats.mean(self.mean_profile):.2f} {self.stats.mean.unit}    "
-                f"{profile_stats.stat_labels[self.stats.min.name]}: {self.stats.min(self.mean_profile):.2f} {self.stats.min.unit}    "
-                f"{profile_stats.stat_labels[self.stats.max.name]}: {self.stats.max(self.mean_profile):.2f} {self.stats.max.unit}\n"
-                f"{profile_stats.stat_labels[self.stats.std.name]}: {self.stats.std(self.mean_profile):.2f} {self.stats.std.unit}    "
-                f"{profile_stats.stat_labels[self.stats.cv.name]}: {self.stats.cv(self.mean_profile):.2f} {self.stats.cv.unit}    "
-                f"{profile_stats.stat_labels[self.stats.pp.name]}: {self.stats.pp(self.mean_profile):.2f} {self.stats.pp.unit}"
-            )
-            self.profile_ax.set_title(title)
 
         self.profile_ax.legend(loc="upper right")
         self.figure.tight_layout()
