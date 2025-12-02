@@ -332,7 +332,8 @@ class ProfileWidget(QWidget):
 
     def update_ticks_wavelength(self, *args):
         primary_ticks = self.spectrum_ax.get_xticks()
-        wavelenght_ticks = [100 * (1 / i) for i in primary_ticks]
+        wavelenght_ticks = [100 * (1 / i) if i != 0 else 0 for i in primary_ticks]
+        self.spectrum_ax.set_xticks(primary_ticks) # Fixes matplotlib warning about fixed ticks
         self.spectrum_ax.set_xticklabels(
             [f"{tick:.2f}" for tick in wavelenght_ticks])
         self.spectrum_ax.set_xlabel(f"{_("CHART_WAVELENGTH_LABEL")} [cm]")
