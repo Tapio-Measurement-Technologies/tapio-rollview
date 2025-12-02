@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtCore import Signal, Slot, Qt
 from utils import preferences
@@ -28,6 +28,9 @@ class SettingsWindow(QWidget):
 
         self.alert_limit_page = AlertLimitSettingsPage()
         self.add_settings_page(_("ALERT_LIMITS"), self.alert_limit_page)
+
+        self.advanced_settings_page = AdvancedSettingsPage()
+        self.add_settings_page(_("ADVANCED_SETTINGS"), self.advanced_settings_page)
 
         self.list_widget.currentRowChanged.connect(self.display_page)
         self.list_widget.setCurrentRow(0)
@@ -205,3 +208,46 @@ class AlertLimitSetting(QWidget):
     def save_values(self):
         self.limit['min'] = float(self.min_input.text()) if self.min_input.text() else None
         self.limit['max'] = float(self.max_input.text()) if self.max_input.text() else None
+
+class AdvancedSettingsPage(QWidget):
+    settings_updated = Signal()
+
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # Show spectrum checkbox
+        self.show_spectrum_checkbox = QCheckBox(_("SHOW_SPECTRUM"))
+        self.show_spectrum_checkbox.setChecked(preferences.show_spectrum)
+        self.show_spectrum_checkbox.stateChanged.connect(self.enable_save_button)
+        layout.addWidget(self.show_spectrum_checkbox)
+
+        # Continuous mode checkbox
+        self.continuous_mode_checkbox = QCheckBox(_("CONTINUOUS_MODE"))
+        self.continuous_mode_checkbox.setChecked(preferences.continuous_mode)
+        self.continuous_mode_checkbox.stateChanged.connect(self.enable_save_button)
+        layout.addWidget(self.continuous_mode_checkbox)
+
+        self.footer_layout = QHBoxLayout()
+        self.footer_layout.addStretch()
+
+        self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        self.apply_button.setEnabled(False)
+        self.apply_button.clicked.connect(self.save_settings)
+        self.footer_layout.addWidget(self.apply_button)
+
+        layout.addLayout(self.footer_layout)
+
+    @Slot()
+    def enable_save_button(self):
+        self.apply_button.setEnabled(True)
+
+    @Slot()
+    def save_settings(self):
+        preferences.update_show_spectrum(self.show_spectrum_checkbox.isChecked())
+        preferences.update_continuous_mode(self.continuous_mode_checkbox.isChecked())
+
+        self.apply_button.setEnabled(False)
+        self.settings_updated.emit()

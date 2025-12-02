@@ -346,6 +346,15 @@ msgstr "Distance Unit"
 msgid "GENERAL_SETTINGS"
 msgstr "General settings"
 
+msgid "ADVANCED_SETTINGS"
+msgstr "Advanced settings"
+
+msgid "SHOW_SPECTRUM"
+msgstr "Show spectrum"
+
+msgid "CONTINUOUS_MODE"
+msgstr "Continuous mode"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "Restart required"
 

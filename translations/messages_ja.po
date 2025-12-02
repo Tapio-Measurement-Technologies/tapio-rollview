@@ -346,6 +346,15 @@ msgstr "距離単位"
 msgid "GENERAL_SETTINGS"
 msgstr "一般設定"
 
+msgid "ADVANCED_SETTINGS"
+msgstr "詳細設定"
+
+msgid "SHOW_SPECTRUM"
+msgstr "スペクトルを表示"
+
+msgid "CONTINUOUS_MODE"
+msgstr "連続モード"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "再起動が必要です"
 

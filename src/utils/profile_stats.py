@@ -2,6 +2,7 @@ import numpy as np
 from utils.filter import bandpass_filter
 import numpy as np
 import settings
+from utils import preferences
 from utils.translation import _
 
 # Implement here any custom more complicated profile statistics
@@ -60,7 +61,7 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
     if not filtered_profiles:
         return [], []
 
-    if settings.CONTINUOUS_MODE:
+    if preferences.continuous_mode:
         distances_list = []
         values_list = []
         current_distance = 0

@@ -13,7 +13,9 @@ _DEFAULTS = {
     'recalculate_mean': settings.RECALCULATE_MEAN_DEFAULT,
     'locale': settings.LOCALE_DEFAULT,
     'pinned_serial_ports': settings.PINNED_SERIAL_PORTS_DEFAULT,
-    'distance_unit': settings.DISTANCE_UNIT_DEFAULT
+    'distance_unit': settings.DISTANCE_UNIT_DEFAULT,
+    'continuous_mode': settings.CONTINUOUS_MODE_DEFAULT,
+    'show_spectrum': settings.SHOW_SPECTRUM_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -35,6 +37,8 @@ recalculate_mean = _DEFAULTS['recalculate_mean']
 locale = _DEFAULTS['locale']
 pinned_serial_ports = _DEFAULTS['pinned_serial_ports']
 distance_unit = _DEFAULTS['distance_unit']
+continuous_mode = _DEFAULTS['continuous_mode']
+show_spectrum = _DEFAULTS['show_spectrum']
 
 def save_preferences_to_file():
   """Save all preferences to file"""
@@ -85,6 +89,12 @@ def update_pinned_serial_ports(new_pinned_serial_ports):
 
 def update_distance_unit(new_distance_unit):
   update_preference('distance_unit', new_distance_unit)
+
+def update_continuous_mode(new_continuous_mode):
+  update_preference('continuous_mode', bool(new_continuous_mode))
+
+def update_show_spectrum(new_show_spectrum):
+  update_preference('show_spectrum', bool(new_show_spectrum))
 
 def get_distance_unit_info():
   """Returns the DistanceUnit object for the currently selected unit"""

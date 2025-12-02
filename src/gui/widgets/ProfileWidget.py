@@ -65,15 +65,8 @@ class ProfileWidget(QWidget):
         self.setMinimumHeight(400)
         self.setMinimumWidth(400)
 
-        if settings.SHOW_SPECTRUM:
-            self.profile_ax = self.figure.add_subplot(211)
-            self.spectrum_ax = self.figure.add_subplot(212)
-        else:
-            self.profile_ax = self.figure.add_subplot(111)
-
-        zp = ZoomPan()
-        self.zoom = zp.zoom_factory(self.profile_ax, 1.5)
-        self.pan = zp.pan_factory(self.profile_ax)
+        self._setup_axes()
+        self._setup_zoom_pan()
 
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.toolbar.setVisible(preferences.show_plot_toolbar)
@@ -97,6 +90,23 @@ class ProfileWidget(QWidget):
 
         self.customize_toolbar()
 
+    def _setup_axes(self):
+        """Set up the subplot axes based on current preferences."""
+        # Clear existing axes
+        self.figure.clear()
+
+        if preferences.show_spectrum:
+            self.profile_ax = self.figure.add_subplot(211)
+            self.spectrum_ax = self.figure.add_subplot(212)
+        else:
+            self.profile_ax = self.figure.add_subplot(111)
+            self.spectrum_ax = None
+
+    def _setup_zoom_pan(self):
+        """Set up zoom and pan handlers for the profile axis."""
+        zp = ZoomPan()
+        self.zoom = zp.zoom_factory(self.profile_ax, 1.5)
+        self.pan = zp.pan_factory(self.profile_ax)
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
@@ -195,11 +205,18 @@ class ProfileWidget(QWidget):
         self.profile_ax.clear()
         self.profile_ax.figure.canvas.draw()  # Ensure the profile plot updates
         self.warning_label.clear()
-        if settings.SHOW_SPECTRUM:
+        if preferences.show_spectrum and self.spectrum_ax is not None:
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
 
     def update_plot(self, profiles: list[Profile], directory_name, selected=''):
+        # Reconfigure axes layout
+        self._setup_axes()
+        self._setup_zoom_pan()
+
+        # Update toolbar visibility
+        self.toolbar.setVisible(preferences.show_plot_toolbar)
+
         self.clear()
         self.figure.suptitle(directory_name)
 
@@ -233,7 +250,7 @@ class ProfileWidget(QWidget):
             if profile.hidden:
                 linestyle = 'None'
 
-            if settings.CONTINUOUS_MODE and not profile.hidden:
+            if preferences.continuous_mode and not profile.hidden:
                 previous_distance = (distances[-1] / unit_info.conversion_factor) + settings.SAMPLE_INTERVAL_M
 
             if selected:  # Highlight selected profile
@@ -274,7 +291,7 @@ class ProfileWidget(QWidget):
         self.initial_xlim = self.profile_ax.get_xlim()
         self.initial_ylim = self.profile_ax.get_ylim()
 
-        if settings.SHOW_SPECTRUM:
+        if preferences.show_spectrum:
             f, Pxx = welch(mean_profile_values,
                            fs=(1/settings.SAMPLE_INTERVAL_M),
                            window='hann',
@@ -287,7 +304,7 @@ class ProfileWidget(QWidget):
             self.spectrum_ax.set_ylabel(f"{_("CHART_AMPLITUDE_LABEL")} [g]")
             self.spectrum_ax.set_xlabel(f"{_("CHART_FREQUENCY_LABEL")} [1/m]")
 
-        if settings.SPECTRUM_WAVELENGTH_TICKS and settings.SHOW_SPECTRUM:
+        if settings.SPECTRUM_WAVELENGTH_TICKS and preferences.show_spectrum:
             self.update_ticks_wavelength()
             self.spectrum_ax.callbacks.connect(
                 'xlim_changed', self.update_ticks_wavelength)
@@ -297,7 +314,7 @@ class ProfileWidget(QWidget):
         self.figure.suptitle(directory_name)
         if hasattr(settings, 'GRID') and settings.GRID is not None:
             self.profile_ax.grid()
-            if settings.SHOW_SPECTRUM:
+            if preferences.show_spectrum:
                 self.spectrum_ax.grid()
 
         # Calculate max value from all plotted data
