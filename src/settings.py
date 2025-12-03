@@ -113,7 +113,7 @@ NPERSEG = 3000
 NOVERLAP = 0.75
 SPECTRUM_LOWER_LIMIT = 0
 SPECTRUM_UPPER_LIMIT = 60
-SPECTRUM_WAVELENGTH_TICKS = True
+SPECTRUM_WAVELENGTH_TICKS = False
 PINNED_SERIAL_PORTS_DEFAULT = set()
 
 # Default values for plot export (copy to clipboard and postprocessor)
