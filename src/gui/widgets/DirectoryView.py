@@ -224,7 +224,11 @@ class CustomFileSystemModel(QFileSystemModel):
                 latest_modified_date = self.get_latest_modified_date(file_path)
                 if latest_modified_date:
                     self.modified_date_cache[file_path] = QDateTime(latest_modified_date)
-            return self.modified_date_cache.get(file_path, super().data(index, role))
+                else:
+                    # No custom date available, get the directory's own modification time
+                    dir_mtime = os.path.getmtime(file_path)
+                    self.modified_date_cache[file_path] = QDateTime(datetime.fromtimestamp(dir_mtime))
+            return self.modified_date_cache.get(file_path)
         return super().data(index, role)
 
     def get_latest_modified_date(self, directory_path):
@@ -276,6 +280,9 @@ class DirectorySortFilterProxyModel(QSortFilterProxyModel):
         left_data = self.sourceModel().data(left, Qt.ItemDataRole.DisplayRole)
         right_data = self.sourceModel().data(right, Qt.ItemDataRole.DisplayRole)
 
+        # Both should be QDateTime objects, so we can compare them directly
         if isinstance(left_data, QDateTime) and isinstance(right_data, QDateTime):
             return left_data < right_data
+
+        # Fallback for any unexpected cases
         return super().lessThan(left, right)
