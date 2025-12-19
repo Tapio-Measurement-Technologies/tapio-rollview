@@ -16,6 +16,7 @@ _DEFAULTS = {
     'distance_unit': settings.DISTANCE_UNIT_DEFAULT,
     'continuous_mode': settings.CONTINUOUS_MODE_DEFAULT,
     'show_spectrum': settings.SHOW_SPECTRUM_DEFAULT,
+    'flip_profiles': settings.FLIP_PROFILES_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -39,6 +40,7 @@ pinned_serial_ports = _DEFAULTS['pinned_serial_ports']
 distance_unit = _DEFAULTS['distance_unit']
 continuous_mode = _DEFAULTS['continuous_mode']
 show_spectrum = _DEFAULTS['show_spectrum']
+flip_profiles = _DEFAULTS['flip_profiles']
 
 def save_preferences_to_file():
   """Save all preferences to file"""
@@ -95,6 +97,9 @@ def update_continuous_mode(new_continuous_mode):
 
 def update_show_spectrum(new_show_spectrum):
   update_preference('show_spectrum', bool(new_show_spectrum))
+
+def update_flip_profiles(new_flip_profiles):
+  update_preference('flip_profiles', bool(new_flip_profiles))
 
 def get_distance_unit_info():
   """Returns the DistanceUnit object for the currently selected unit"""

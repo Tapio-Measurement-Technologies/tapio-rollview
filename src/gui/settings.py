@@ -230,6 +230,12 @@ class AdvancedSettingsPage(QWidget):
         self.continuous_mode_checkbox.stateChanged.connect(self.enable_save_button)
         layout.addWidget(self.continuous_mode_checkbox)
 
+        # Flip profiles checkbox
+        self.flip_profiles_checkbox = QCheckBox(_("FLIP_PROFILES"))
+        self.flip_profiles_checkbox.setChecked(preferences.flip_profiles)
+        self.flip_profiles_checkbox.stateChanged.connect(self.enable_save_button)
+        layout.addWidget(self.flip_profiles_checkbox)
+
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -248,6 +254,7 @@ class AdvancedSettingsPage(QWidget):
     def save_settings(self):
         preferences.update_show_spectrum(self.show_spectrum_checkbox.isChecked())
         preferences.update_continuous_mode(self.continuous_mode_checkbox.isChecked())
+        preferences.update_flip_profiles(self.flip_profiles_checkbox.isChecked())
 
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()

@@ -267,6 +267,7 @@ class MainWindow(QMainWindow):
         self.on_directory_selected(store.selected_directory)
 
     def refresh_plot(self):
+        self.load_profiles(store.selected_directory)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_root_directory_changed(self, directory):

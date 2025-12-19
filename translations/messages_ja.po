@@ -355,6 +355,9 @@ msgstr "スペクトルを表示"
 msgid "CONTINUOUS_MODE"
 msgstr "連続モード"
 
+msgid "FLIP_PROFILES"
+msgstr "プロファイルを反転"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "再起動が必要です"
 

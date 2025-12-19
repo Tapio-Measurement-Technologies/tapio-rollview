@@ -355,6 +355,9 @@ msgstr "Show spectrum"
 msgid "CONTINUOUS_MODE"
 msgstr "Continuous mode"
 
+msgid "FLIP_PROFILES"
+msgstr "Flip profiles"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "Restart required"
 

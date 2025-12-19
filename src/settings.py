@@ -69,6 +69,7 @@ RECALCULATE_MEAN_DEFAULT = True
 LOCALE_DEFAULT = "en"
 CONTINUOUS_MODE_DEFAULT = False
 SHOW_SPECTRUM_DEFAULT = False
+FLIP_PROFILES_DEFAULT = False
 
 ALERT_LIMITS_DEFAULT = [
     {
@@ -125,8 +126,6 @@ POSTPROCESSORS_RECENT_CUTOFF_TIME_DAYS = 10
 LOG_WINDOW_MAX_LINES = 1000
 LOG_WINDOW_SHOW_TIMESTAMPS = True
 CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
-
-FLIP_DATA = False
 
 # Distance unit configuration
 # Each unit has: name (display name), unit (abbreviation), conversion_factor (meters to unit)

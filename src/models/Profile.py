@@ -12,7 +12,7 @@ import os
 from typing import List
 from utils.profile_stats import calc_mean_profile
 from utils.file_utils import list_prof_files
-import settings
+from utils import preferences
 
 PROF_FILE_HEADER_SIZE = 128
 
@@ -34,7 +34,7 @@ class ProfileData:
             hardnesses.append(hardness)
             offset += 4
 
-        if settings.FLIP_DATA:
+        if preferences.flip_profiles:
             hardnesses = hardnesses[::-1]
 
         # Generate distances if we have valid sample step and hardness data
