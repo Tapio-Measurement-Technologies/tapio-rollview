@@ -212,7 +212,6 @@ class ProfileWidget(QWidget):
     def update_plot(self, profiles: list[Profile], directory_name, selected=''):
         # Reconfigure axes layout
         self._setup_axes()
-        self._setup_zoom_pan()
 
         # Update toolbar visibility
         self.toolbar.setVisible(preferences.show_plot_toolbar)
