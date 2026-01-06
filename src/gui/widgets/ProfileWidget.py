@@ -85,9 +85,6 @@ class ProfileWidget(QWidget):
         self.toolbar.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        self.initial_xlim = None
-        self.initial_ylim = None
-
         self.customize_toolbar()
 
     def _setup_axes(self):
@@ -114,11 +111,6 @@ class ProfileWidget(QWidget):
         for action in actions:
             if action.iconText() not in icons_to_keep:
                 self.toolbar.removeAction(action)
-
-        # Set custom Home button behavior
-        for action in actions:
-            if action.iconText() == 'Home':
-                action.triggered.connect(self.reset_view)
 
     def _draw_stats_on_figure(self):
         """Draw statistics as text boxes on the figure, similar to stats widget.
@@ -193,13 +185,6 @@ class ProfileWidget(QWidget):
             added_texts.append(text_obj)
 
         return added_texts
-
-    def reset_view(self):
-        """Reset the view to the initial state."""
-        if self.initial_xlim and self.initial_ylim:
-            self.profile_ax.set_xlim(self.initial_xlim)
-            self.profile_ax.set_ylim(self.initial_ylim)
-            self.profile_ax.figure.canvas.draw()
 
     def clear(self):
         self.profile_ax.clear()
@@ -287,9 +272,6 @@ class ProfileWidget(QWidget):
             self.warning_label.set_text(
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
 
-        self.initial_xlim = self.profile_ax.get_xlim()
-        self.initial_ylim = self.profile_ax.get_ylim()
-
         if preferences.show_spectrum:
             f, Pxx = welch(mean_profile_values,
                            fs=(1/settings.SAMPLE_INTERVAL_M),
@@ -344,6 +326,10 @@ class ProfileWidget(QWidget):
         self.profile_ax.legend(loc="upper right")
         self.figure.tight_layout()
         self.canvas.draw()
+
+        # Push current view to toolbar's view stack for Home button (correctly reset modifications from custom ZoomPan)
+        self.toolbar.push_current()
+
         self.stats_widget.update_data(self.mean_profile)
 
     def update_ticks_wavelength(self, *args):
