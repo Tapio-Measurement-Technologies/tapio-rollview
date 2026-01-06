@@ -103,10 +103,10 @@ class ProfileWidget(QWidget):
             self.spectrum_ax = None
 
     def _setup_zoom_pan(self):
-        """Set up zoom and pan handlers for the profile axis."""
-        zp = ZoomPan()
-        self.zoom = zp.zoom_factory(self.profile_ax, 1.5)
-        self.pan = zp.pan_factory(self.profile_ax)
+        """Set up zoom and pan handlers for all axes in the figure."""
+        zp = ZoomPan(self.figure)
+        self.zoom = zp.zoom_factory(base_scale=1.5)
+        self.pan = zp.pan_factory()
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
