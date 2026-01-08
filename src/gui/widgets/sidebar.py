@@ -4,7 +4,8 @@ from PySide6.QtCore import Qt
 class Sidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setStyleSheet("Sidebar { background-color: palette(window); }")
 
         # Use a vertical layout to contain the main splitter
         self.setLayout(QVBoxLayout(self))
