@@ -267,7 +267,21 @@ class MainWindow(QMainWindow):
         self.on_directory_selected(store.selected_directory)
 
     def refresh_plot(self):
+        # Store which profiles are currently hidden
+        # TODO: refactor this later, this was introduced only because flip feature was added
+        hidden_names = set()
+        for profile in store.profiles:
+            if hasattr(profile, 'hidden') and profile.hidden:
+                hidden_names.add(profile.name)
+        
+        # Reload profiles to apply new flip_profiles preference
         self.load_profiles(store.selected_directory)
+        
+        # Restore hidden state
+        for profile in store.profiles:
+            if profile.name in hidden_names:
+                profile.hidden = True
+        
         self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_root_directory_changed(self, directory):
