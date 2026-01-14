@@ -59,47 +59,35 @@ def save_preferences_to_file():
   except Exception as e:
     print(f"Failed to write preferences to '{preferences_file_path}': {e}")
 
-def update_preference(key, value):
-  """Generic function to update any preference"""
-  if key not in _DEFAULTS:
-    raise ValueError(f"Unknown preference key: {key}")
+def update_preferences(updates):
+  """
+  Update multiple preferences at once and save to file.
 
-  globals()[key] = value
+  Args:
+    updates: Dictionary of preference key-value pairs to update
+
+  Raises:
+    ValueError: If any key is not a valid preference
+    TypeError: If value types don't match expected types
+  """
+  # Validate all keys first before making any changes
+  for key in updates.keys():
+    if key not in _DEFAULTS:
+      raise ValueError(f"Unknown preference key: '{key}'")
+
+  # Update all preferences in memory
+  for key, value in updates.items():
+    # Apply type conversions based on key
+    if key in ('show_all_com_ports', 'show_plot_toolbar', 'recalculate_mean',
+               'continuous_mode', 'show_spectrum', 'flip_profiles'):
+      value = bool(value)
+    elif key == 'pinned_serial_ports':
+      value = set(value)
+
+    globals()[key] = value
+
+  # Save once after all updates
   save_preferences_to_file()
-
-# Convenience functions that call the generic update_preference
-def update_alert_limits(new_limits):
-  update_preference('alert_limits', new_limits)
-
-def update_enabled_postprocessors(new_enabled_postprocessors):
-  update_preference('enabled_postprocessors', new_enabled_postprocessors)
-
-def update_show_all_com_ports(new_show_all_com_ports):
-  update_preference('show_all_com_ports', bool(new_show_all_com_ports))
-
-def update_show_plot_toolbar(new_show_plot_toolbar):
-  update_preference('show_plot_toolbar', bool(new_show_plot_toolbar))
-
-def update_recalculate_mean(new_recalculate_mean):
-  update_preference('recalculate_mean', bool(new_recalculate_mean))
-
-def update_locale(new_locale):
-  update_preference('locale', new_locale)
-
-def update_pinned_serial_ports(new_pinned_serial_ports):
-  update_preference('pinned_serial_ports', set(new_pinned_serial_ports))
-
-def update_distance_unit(new_distance_unit):
-  update_preference('distance_unit', new_distance_unit)
-
-def update_continuous_mode(new_continuous_mode):
-  update_preference('continuous_mode', bool(new_continuous_mode))
-
-def update_show_spectrum(new_show_spectrum):
-  update_preference('show_spectrum', bool(new_show_spectrum))
-
-def update_flip_profiles(new_flip_profiles):
-  update_preference('flip_profiles', bool(new_flip_profiles))
 
 def get_distance_unit_info():
   """Returns the DistanceUnit object for the currently selected unit"""

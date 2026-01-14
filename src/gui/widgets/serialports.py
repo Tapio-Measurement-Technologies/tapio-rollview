@@ -46,14 +46,14 @@ class SerialPortView(QListView):
         """Add a port to the pinned ports list"""
         current_pinned = set(preferences.pinned_serial_ports)
         current_pinned.add(device)
-        preferences.update_pinned_serial_ports(list(current_pinned))
+        preferences.update_preferences({'pinned_serial_ports': current_pinned})
         self.model.applyFilter()
 
     def unpin_port(self, device):
         """Remove a port from the pinned ports list"""
         current_pinned = set(preferences.pinned_serial_ports)
         current_pinned.discard(device)
-        preferences.update_pinned_serial_ports(list(current_pinned))
+        preferences.update_preferences({'pinned_serial_ports': current_pinned})
         self.model.applyFilter()
 
     def update_com_ports(self, ports):

@@ -112,10 +112,12 @@ class GeneralSettingsPage(QWidget):
         selected_lang = list(self.languages.keys())[self.language_selector.currentIndex()]
         language_changed = selected_lang != self.initial_lang
 
-        preferences.update_locale(selected_lang)
-
         selected_distance_unit = list(self.distance_units.keys())[self.distance_unit_selector.currentIndex()]
-        preferences.update_distance_unit(selected_distance_unit)
+
+        preferences.update_preferences({
+            'locale': selected_lang,
+            'distance_unit': selected_distance_unit
+        })
 
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()
@@ -160,11 +162,14 @@ class AlertLimitSettingsPage(QWidget):
 
     @Slot()
     def save_alert_limits(self):
-        # Here you would add the code to save the alert limits
+        # Update limit values from UI inputs
         for setting in self.setting_widgets:
             setting.save_values()
-        limits = [ widget.limit for widget in self.setting_widgets ]
-        preferences.update_alert_limits(limits)
+        limits = [widget.limit for widget in self.setting_widgets]
+
+        preferences.update_preferences({
+            'alert_limits': limits
+        })
 
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()
@@ -252,9 +257,11 @@ class AdvancedSettingsPage(QWidget):
 
     @Slot()
     def save_settings(self):
-        preferences.update_show_spectrum(self.show_spectrum_checkbox.isChecked())
-        preferences.update_continuous_mode(self.continuous_mode_checkbox.isChecked())
-        preferences.update_flip_profiles(self.flip_profiles_checkbox.isChecked())
+        preferences.update_preferences({
+            'show_spectrum': self.show_spectrum_checkbox.isChecked(),
+            'continuous_mode': self.continuous_mode_checkbox.isChecked(),
+            'flip_profiles': self.flip_profiles_checkbox.isChecked()
+        })
 
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()

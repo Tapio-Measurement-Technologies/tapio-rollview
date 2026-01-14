@@ -85,7 +85,7 @@ def toggle_postprocessor(postprocessor_module):
         for module_name, postprocessor in postprocessors.items()
         if postprocessor.enabled
     ]
-    preferences.update_enabled_postprocessors(enabled_postprocessors)
+    preferences.update_preferences({'enabled_postprocessors': enabled_postprocessors})
 
 @dataclass(frozen=True)
 class PostprocessResult:

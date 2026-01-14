@@ -222,15 +222,15 @@ class MainWindow(QMainWindow):
         return widget_action
 
     def on_show_all_com_ports_changed(self, checked):
-        preferences.update_show_all_com_ports(checked)
+        preferences.update_preferences({'show_all_com_ports': checked})
         self.serial_widget.view.model.applyFilter()
 
     def on_show_plot_toolbar_changed(self, checked):
-        preferences.update_show_plot_toolbar(checked)
+        preferences.update_preferences({'show_plot_toolbar': checked})
         self.profile_widget.set_toolbar_visible(checked)
 
     def on_recalculate_mean_changed(self, checked):
-        preferences.update_recalculate_mean(checked)
+        preferences.update_preferences({'recalculate_mean': checked})
         self.refresh_plot()
 
     def on_directory_selected(self, directory):

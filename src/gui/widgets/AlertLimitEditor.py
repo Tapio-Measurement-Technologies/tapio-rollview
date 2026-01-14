@@ -133,7 +133,7 @@ class AlertLimitEditor(QDialog):
                     'max': max_val
                 })
 
-            preferences.update_alert_limits(updated_limits)
+            preferences.update_preferences({'alert_limits': updated_limits})
             self.accept()
 
         except ValueError:
