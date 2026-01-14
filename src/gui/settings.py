@@ -98,7 +98,7 @@ class GeneralSettingsPage(QWidget):
 
         self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
         self.apply_button.setEnabled(False)
-        self.apply_button.clicked.connect(self.save_language)
+        self.apply_button.clicked.connect(self.save_settings)
         self.footer_layout.addWidget(self.apply_button)
 
         layout.addLayout(self.footer_layout)
@@ -108,7 +108,7 @@ class GeneralSettingsPage(QWidget):
         self.apply_button.setEnabled(True)
 
     @Slot()
-    def save_language(self):
+    def save_settings(self):
         selected_lang = list(self.languages.keys())[self.language_selector.currentIndex()]
         language_changed = selected_lang != self.initial_lang
 
