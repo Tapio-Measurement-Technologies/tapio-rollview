@@ -92,16 +92,13 @@ class ContextMenuTreeView(QTreeView):
         file_path = self._model.filePath(index)
         file_info = QFileInfo(file_path)
 
-        selected_path = None
-        if not file_info.isDir():
-            # If it's a file, select it and open its parent directory
-            selected_path = file_path
-            file_path = file_info.absolutePath()
+        if file_info.isDir():
+            # If it's a directory, open it directly
+            open_in_file_explorer(file_path)
         else:
-            # If it's a directory, select it in its parent directory
-            selected_path = file_path
-
-        open_in_file_explorer(file_path, selected_path)
+            # If it's a file, select it and open its parent directory
+            parent_path = file_info.absolutePath()
+            open_in_file_explorer(parent_path, file_path)
 
     def _rename_selected(self):
         """Rename the currently selected item when F2 is pressed."""
