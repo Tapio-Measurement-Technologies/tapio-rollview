@@ -81,17 +81,24 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
         values_list = []
         current_distance = 0
 
-        for profile in filtered_profiles:
-            distances = profile.data.distances
-            values = profile.data.hardnesses
+        # Track distance offsets from all profiles, including those too short
+        for profile in profiles:
+            if (profile is not None and
+                hasattr(profile, 'data') and
+                profile.data is not None):
 
-            # Adjust distances to be continuous
-            distances_adjusted = distances + current_distance
-            current_distance = distances_adjusted[-1] + \
-                settings.SAMPLE_INTERVAL_M
+                distances = profile.data.distances
+                values = profile.data.hardnesses
 
-            distances_list.append(distances_adjusted)
-            values_list.append(values)
+                # Check if this profile is long enough to include in mean
+                if len(values) > settings.FILTER_NUMTAPS:
+                    # Adjust distances to be continuous
+                    distances_adjusted = distances + current_distance
+                    distances_list.append(distances_adjusted)
+                    values_list.append(values)
+
+                # Update current_distance for all profiles (including short ones)
+                current_distance += distances[-1] + settings.SAMPLE_INTERVAL_M
 
         # Stack the distances and values
         all_distances = np.concatenate(distances_list)
