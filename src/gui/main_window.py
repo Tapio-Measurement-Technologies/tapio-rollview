@@ -62,6 +62,7 @@ class MainWindow(QMainWindow):
         self.fileView = FileView()
         self.fileView.file_selected.connect(self.on_file_selected)
         self.fileView.profile_state_changed.connect(self.refresh_plot)
+        self.fileView.sort_changed.connect(self.on_file_sort_changed)
 
         self.directory_view.directory_selected.connect(self.on_directory_selected)
         self.directory_view.directory_selected.connect(self.statistics_analysis_widget.highlight_point)
@@ -257,6 +258,9 @@ class MainWindow(QMainWindow):
         profiles = [ profile for profile in profiles if profile is not None ]
         store.profiles = profiles
 
+        # Sort profiles using current sort criteria
+        store.sort_profiles()
+
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)
         self.profile_widget.update_plot(
@@ -273,15 +277,20 @@ class MainWindow(QMainWindow):
         for profile in store.profiles:
             if hasattr(profile, 'hidden') and profile.hidden:
                 hidden_names.add(profile.name)
-        
+
         # Reload profiles to apply new flip_profiles preference
         self.load_profiles(store.selected_directory)
-        
+
         # Restore hidden state
         for profile in store.profiles:
             if profile.name in hidden_names:
                 profile.hidden = True
-        
+
+        self.profile_widget.update_plot(store.profiles, self.directory_name)
+
+    def on_file_sort_changed(self, column_index, sort_order):
+        """Handle file list sort changes and update the plot order accordingly."""
+        store.sort_profiles(column_index, sort_order)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_root_directory_changed(self, directory):

@@ -136,6 +136,7 @@ class FileTreeView(ContextMenuTreeView):
 class FileView(QWidget):
     file_selected = Signal(str)
     profile_state_changed = Signal()
+    sort_changed = Signal(int, Qt.SortOrder) # column index, order
 
     def __init__(self) -> None:
         super().__init__()
@@ -155,8 +156,9 @@ class FileView(QWidget):
 
         self.view = FileTreeView(self.proxy_model)
         self.view.setSortingEnabled(True)
+        self.view.header().sortIndicatorChanged.connect(self.on_sort_changed)
         self.view.header().setSortIndicatorShown(True)
-        self.view.sortByColumn(3, Qt.SortOrder.DescendingOrder)
+        self.view.sortByColumn(store.current_sort_column, store.current_sort_order)
 
         self.view.selectionModel().selectionChanged.connect(self.on_file_selected)
         self.view.selectionCleared.connect(self.on_selection_cleared)
@@ -210,3 +212,5 @@ class FileView(QWidget):
     def on_selection_cleared(self):
         self.file_selected.emit('')
 
+    def on_sort_changed(self, column_index, sort_order):
+        self.sort_changed.emit(column_index, sort_order)
