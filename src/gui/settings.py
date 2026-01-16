@@ -4,6 +4,7 @@ from PySide6.QtCore import Signal, Slot, Qt
 from utils import preferences
 from utils.translation import _
 from utils import profile_stats
+from utils.excluded_regions import parse_excluded_regions
 import settings
 
 class SettingsWindow(QWidget):
@@ -241,6 +242,30 @@ class AdvancedSettingsPage(QWidget):
         self.flip_profiles_checkbox.stateChanged.connect(self.enable_save_button)
         layout.addWidget(self.flip_profiles_checkbox)
 
+        # Excluded regions section
+        self.excluded_regions_checkbox = QCheckBox(_("EXCLUDED_REGIONS_ENABLED"))
+        self.excluded_regions_checkbox.setChecked(preferences.excluded_regions_enabled)
+        self.excluded_regions_checkbox.stateChanged.connect(self.enable_save_button)
+        self.excluded_regions_checkbox.stateChanged.connect(self.on_excluded_regions_enabled_changed)
+        layout.addWidget(self.excluded_regions_checkbox)
+
+        # Excluded regions input
+        regions_layout = QHBoxLayout()
+        self.excluded_regions_input = QLineEdit()
+        self.excluded_regions_input.setText(preferences.excluded_regions)
+        self.excluded_regions_input.setPlaceholderText("0-10,90-100")
+        self.excluded_regions_input.textChanged.connect(self.enable_save_button)
+        self.excluded_regions_input.returnPressed.connect(self.save_settings)
+        self.excluded_regions_input.setEnabled(preferences.excluded_regions_enabled)
+
+        self.excluded_regions_error = QLabel()
+        self.excluded_regions_error.setStyleSheet("color: red; font-size: 12px;")
+        self.excluded_regions_error.setVisible(False)
+
+        regions_layout.addWidget(self.excluded_regions_input)
+        layout.addLayout(regions_layout)
+        layout.addWidget(self.excluded_regions_error)
+
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -256,11 +281,29 @@ class AdvancedSettingsPage(QWidget):
         self.apply_button.setEnabled(True)
 
     @Slot()
+    def on_excluded_regions_enabled_changed(self, state):
+        """Enable/disable the excluded regions input based on checkbox state."""
+        self.excluded_regions_input.setEnabled(state == Qt.CheckState.Checked.value)
+
+    @Slot()
     def save_settings(self):
+        # Validate excluded regions before saving
+        regions_text = self.excluded_regions_input.text().strip()
+        if regions_text:
+            try:
+                parse_excluded_regions(regions_text)
+                self.excluded_regions_error.setVisible(False)
+            except ValueError as e:
+                self.excluded_regions_error.setText(str(e))
+                self.excluded_regions_error.setVisible(True)
+                return
+
         preferences.update_preferences({
             'show_spectrum': self.show_spectrum_checkbox.isChecked(),
             'continuous_mode': self.continuous_mode_checkbox.isChecked(),
-            'flip_profiles': self.flip_profiles_checkbox.isChecked()
+            'flip_profiles': self.flip_profiles_checkbox.isChecked(),
+            'excluded_regions_enabled': self.excluded_regions_checkbox.isChecked(),
+            'excluded_regions': regions_text
         })
 
         self.apply_button.setEnabled(False)

@@ -6,6 +6,7 @@ from models.Profile import Profile
 from utils.zoom_pan import ZoomPan
 from scipy.signal import welch
 from utils.profile_stats import Stats, calc_mean_profile
+from utils.excluded_regions import get_included_samples
 import numpy as np
 from gui.widgets.stats import StatsWidget
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
@@ -104,6 +105,41 @@ class ProfileWidget(QWidget):
         zp = ZoomPan(self.figure)
         self.zoom = zp.zoom_factory(base_scale=1.5)
         self.pan = zp.pan_factory()
+
+    def _draw_excluded_regions_visualization(self, mean_profile_values, mean_profile_distances_converted):
+        """Draw excluded regions visualization on the plot."""
+
+        data, excluded_ranges_idx = get_included_samples(mean_profile_values, preferences.excluded_regions)
+
+        # Draw each excluded region
+        for i, (start_idx, end_idx) in enumerate(excluded_ranges_idx):
+            if start_idx < end_idx and start_idx < len(mean_profile_distances_converted) and end_idx <= len(mean_profile_distances_converted):
+                # Shade the excluded region
+                self.profile_ax.axvspan(
+                    mean_profile_distances_converted[start_idx],
+                    mean_profile_distances_converted[end_idx - 1] if end_idx < len(mean_profile_distances_converted) else mean_profile_distances_converted[-1],
+                    alpha=0.2,
+                    color='gray',
+                    label=_("EXCLUDED_REGION") if i == 0 else '',  # Only label first region
+                    zorder=-1
+                )
+                # Add dashed vertical lines at the edges
+                self.profile_ax.axvline(
+                    mean_profile_distances_converted[start_idx],
+                    color='gray',
+                    linestyle='--',
+                    linewidth=1.5,
+                    alpha=0.7,
+                    zorder=0
+                )
+                self.profile_ax.axvline(
+                    mean_profile_distances_converted[end_idx - 1] if end_idx < len(mean_profile_distances_converted) else mean_profile_distances_converted[-1],
+                    color='gray',
+                    linestyle='--',
+                    linewidth=1.5,
+                    alpha=0.7,
+                    zorder=0
+                )
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
@@ -268,6 +304,10 @@ class ProfileWidget(QWidget):
                                  label=_("CHART_MEAN_PROFILE_LABEL"),
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
+
+            # Visualize excluded regions when enabled
+            if preferences.excluded_regions_enabled:
+                self._draw_excluded_regions_visualization(mean_profile_values, mean_profile_distances_converted)
         else:
             self.warning_label.set_text(
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))

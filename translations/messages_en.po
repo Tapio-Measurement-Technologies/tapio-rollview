@@ -358,6 +358,12 @@ msgstr "Continuous mode"
 msgid "FLIP_PROFILES"
 msgstr "Flip profiles"
 
+msgid "EXCLUDED_REGIONS_ENABLED"
+msgstr "Exclude regions"
+
+msgid "EXCLUDED_REGION"
+msgstr "Excluded region"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "Restart required"
 

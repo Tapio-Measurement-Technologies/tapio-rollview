@@ -17,6 +17,8 @@ _DEFAULTS = {
     'continuous_mode': settings.CONTINUOUS_MODE_DEFAULT,
     'show_spectrum': settings.SHOW_SPECTRUM_DEFAULT,
     'flip_profiles': settings.FLIP_PROFILES_DEFAULT,
+    'excluded_regions_enabled': settings.EXCLUDED_REGIONS_ENABLED_DEFAULT,
+    'excluded_regions': settings.EXCLUDED_REGIONS_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -41,6 +43,8 @@ distance_unit = _DEFAULTS['distance_unit']
 continuous_mode = _DEFAULTS['continuous_mode']
 show_spectrum = _DEFAULTS['show_spectrum']
 flip_profiles = _DEFAULTS['flip_profiles']
+excluded_regions_enabled = _DEFAULTS['excluded_regions_enabled']
+excluded_regions = _DEFAULTS['excluded_regions']
 
 def save_preferences_to_file():
   """Save all preferences to file"""
@@ -79,7 +83,7 @@ def update_preferences(updates):
   for key, value in updates.items():
     # Apply type conversions based on key
     if key in ('show_all_com_ports', 'show_plot_toolbar', 'recalculate_mean',
-               'continuous_mode', 'show_spectrum', 'flip_profiles'):
+               'continuous_mode', 'show_spectrum', 'flip_profiles', 'excluded_regions_enabled'):
       value = bool(value)
     elif key == 'pinned_serial_ports':
       value = set(value)

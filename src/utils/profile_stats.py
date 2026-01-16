@@ -4,8 +4,22 @@ import numpy as np
 import settings
 from utils import preferences
 from utils.translation import _
+from utils.excluded_regions import get_included_samples
 
 # Implement here any custom more complicated profile statistics
+
+
+def excluded_regions_aware(func):
+    """Decorator that applies excluded regions filtering when enabled."""
+    def wrapper(f):
+        if preferences.excluded_regions_enabled and len(f) > 0:
+            included_data, _ = get_included_samples(f, preferences.excluded_regions)
+            # If all data is excluded, return NaN
+            if len(included_data) == 0:
+                return np.nan
+            return func(included_data)
+        return func(f)
+    return wrapper
 
 stat_labels = {
     "mean_g": _("ALERT_LIMIT_MEAN"),
@@ -19,12 +33,12 @@ stat_labels = {
 
 class Stats:
     def __init__(self):
-        self.mean = np.mean
-        self.std = np.std
-        self.min = np.min
-        self.max = np.max
-        self.cv = lambda f: (np.std(f) / np.mean(f)) * 100
-        self.pp = lambda f: np.max(f) - np.min(f)
+        self.mean = excluded_regions_aware(np.mean)
+        self.std = excluded_regions_aware(np.std)
+        self.min = excluded_regions_aware(np.min)
+        self.max = excluded_regions_aware(np.max)
+        self.cv = excluded_regions_aware(lambda f: (np.std(f) / np.mean(f)) * 100)
+        self.pp = excluded_regions_aware(lambda f: np.max(f) - np.min(f))
 
         self.mean.unit = 'g'
         self.std.unit = 'g'

@@ -358,6 +358,12 @@ msgstr "連続モード"
 msgid "FLIP_PROFILES"
 msgstr "プロファイルを反転"
 
+msgid "EXCLUDED_REGIONS_ENABLED"
+msgstr "除外領域"
+
+msgid "EXCLUDED_REGION"
+msgstr "除外領域"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "再起動が必要です"
 
