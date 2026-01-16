@@ -20,6 +20,14 @@ import logging
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
+STYLE_AXVLINE = {
+    'color': 'gray',
+    'linestyle': '--',
+    'linewidth': 1.5,
+    'alpha': 0.7,
+    'zorder': 0
+}
+
 
 # Add support for Japanese characters
 if preferences.locale == 'ja':
@@ -126,19 +134,11 @@ class ProfileWidget(QWidget):
                 # Add dashed vertical lines at the edges
                 self.profile_ax.axvline(
                     mean_profile_distances_converted[start_idx],
-                    color='gray',
-                    linestyle='--',
-                    linewidth=1.5,
-                    alpha=0.7,
-                    zorder=0
+                    **STYLE_AXVLINE
                 )
                 self.profile_ax.axvline(
                     mean_profile_distances_converted[end_idx - 1] if end_idx < len(mean_profile_distances_converted) else mean_profile_distances_converted[-1],
-                    color='gray',
-                    linestyle='--',
-                    linewidth=1.5,
-                    alpha=0.7,
-                    zorder=0
+                    **STYLE_AXVLINE
                 )
 
     def customize_toolbar(self):
@@ -259,7 +259,7 @@ class ProfileWidget(QWidget):
             self.canvas.draw()
             return
 
-        for profile in self.profiles:
+        for i, profile in enumerate(self.profiles):
 
             distances = np.array(profile.data.distances) + previous_distance
             # Convert distances to selected unit
@@ -272,6 +272,10 @@ class ProfileWidget(QWidget):
 
             if preferences.continuous_mode and not profile.hidden:
                 previous_distance = (distances[-1] / unit_info.conversion_factor) + settings.SAMPLE_INTERVAL_M
+                if i > 0:
+                    # Add marker between profiles at the first hardness value
+                    self.profile_ax.plot(distances[0], hardnesses[0], marker='v',
+                                       color='k', markersize=4, alpha=0.5, zorder=np.inf)
 
             if selected:  # Highlight selected profile
                 if profile.name == selected:
