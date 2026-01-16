@@ -275,8 +275,8 @@ class ProfileWidget(QWidget):
                 previous_distance = (distances[-1] / unit_info.conversion_factor) + settings.SAMPLE_INTERVAL_M
                 if i > 0:
                     # Add marker between profiles at the first hardness value
-                    self.profile_ax.plot(distances[0], hardnesses[0], marker='v',
-                                       color='k', markersize=4, alpha=0.5, zorder=np.inf)
+                    self.profile_ax.plot(distances[0], hardnesses[0], marker=7,
+                                       color='k', markersize=6, alpha=0.5, zorder=np.inf)
 
             # Prevent reducing line opacity if select state is in another folder
             if selected_profile_in_current_directory:
