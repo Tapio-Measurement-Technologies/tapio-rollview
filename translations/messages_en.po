@@ -364,6 +364,9 @@ msgstr "Exclude regions"
 msgid "EXCLUDED_REGION"
 msgstr "Excluded region"
 
+msgid "BAND_PASS_FILTER"
+msgstr "Band-pass filter"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "Restart required"
 

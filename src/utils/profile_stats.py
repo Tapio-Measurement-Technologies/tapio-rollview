@@ -57,8 +57,9 @@ class Stats:
 
 def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_interval=None):
 
-    band_pass_low = band_pass_low if band_pass_low is not None else settings.BAND_PASS_LOW
-    band_pass_high = band_pass_high if band_pass_high is not None else settings.BAND_PASS_HIGH
+    # Use preferences values if available, otherwise fall back to settings
+    band_pass_low = band_pass_low if band_pass_low is not None else preferences.band_pass_low
+    band_pass_high = band_pass_high if band_pass_high is not None else preferences.band_pass_high
     sample_interval = sample_interval if sample_interval is not None else settings.SAMPLE_INTERVAL_M
     fs = 1/sample_interval
 

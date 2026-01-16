@@ -55,8 +55,8 @@ SAMPLE_INTERVAL_M = 0.001 # 1 mm sample interval
 FILTER_NUMTAPS = 50
 
 # Define the band pass filter, units are in cycles per meter
-BAND_PASS_LOW = 0
-BAND_PASS_HIGH = 30
+BAND_PASS_LOW_DEFAULT = 0
+BAND_PASS_HIGH_DEFAULT = 30
 
 DEFAULT_ENABLED_POSTPROCESSORS = [
     'excel_export',

@@ -5,6 +5,7 @@ from utils import preferences
 from utils.translation import _
 from utils import profile_stats
 from utils.excluded_regions import parse_excluded_regions
+from gui.widgets.RangeSlider import RangeSlider
 import settings
 
 class SettingsWindow(QWidget):
@@ -217,12 +218,37 @@ class AlertLimitSetting(QWidget):
 
 class AdvancedSettingsPage(QWidget):
     settings_updated = Signal()
+    BAND_PASS_SLIDER_MIN = 0
+    BAND_PASS_SLIDER_MAX = 40
+    BAND_PASS_SLIDER_STEP = 0.1
 
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # Band pass filter section
+        band_pass_label = QLabel(_("BAND_PASS_FILTER"))
+        layout.addWidget(band_pass_label)
+
+        self.band_pass_slider_layout = QHBoxLayout()
+
+        self.band_pass_slider = RangeSlider(Qt.Orientation.Horizontal)
+        self.band_pass_slider.setMinimum(self.BAND_PASS_SLIDER_MIN)
+        self.band_pass_slider.setMaximum(self.BAND_PASS_SLIDER_MAX)
+        self.band_pass_slider.setSingleStep(self.BAND_PASS_SLIDER_STEP)
+        self.band_pass_slider.setLow(preferences.band_pass_low)
+        self.band_pass_slider.setHigh(preferences.band_pass_high)
+        self.band_pass_slider.sliderMoved.connect(self.on_band_pass_changed)
+        self.band_pass_slider_layout.addWidget(self.band_pass_slider)
+
+        self.band_pass_value_label = QLabel()
+        self.band_pass_value_label.setFixedWidth(130)
+        self.update_band_pass_label(preferences.band_pass_low, preferences.band_pass_high)
+        self.band_pass_slider_layout.addWidget(self.band_pass_value_label)
+
+        layout.addLayout(self.band_pass_slider_layout)
 
         # Show spectrum checkbox
         self.show_spectrum_checkbox = QCheckBox(_("SHOW_SPECTRUM"))
@@ -286,6 +312,16 @@ class AdvancedSettingsPage(QWidget):
         self.excluded_regions_input.setEnabled(state == Qt.CheckState.Checked.value)
 
     @Slot()
+    def on_band_pass_changed(self, low, high):
+        """Update band pass label when slider moves."""
+        self.update_band_pass_label(low, high)
+        self.enable_save_button()
+
+    def update_band_pass_label(self, low, high):
+        """Update the label showing current band pass values."""
+        self.band_pass_value_label.setText(f"{low:.1f} - {high:.1f} cycles/m")
+
+    @Slot()
     def save_settings(self):
         # Validate excluded regions before saving
         regions_text = self.excluded_regions_input.text().strip()
@@ -303,7 +339,9 @@ class AdvancedSettingsPage(QWidget):
             'continuous_mode': self.continuous_mode_checkbox.isChecked(),
             'flip_profiles': self.flip_profiles_checkbox.isChecked(),
             'excluded_regions_enabled': self.excluded_regions_checkbox.isChecked(),
-            'excluded_regions': regions_text
+            'excluded_regions': regions_text,
+            'band_pass_low': self.band_pass_slider.low(),
+            'band_pass_high': self.band_pass_slider.high()
         })
 
         self.apply_button.setEnabled(False)

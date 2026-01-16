@@ -364,6 +364,9 @@ msgstr "除外領域"
 msgid "EXCLUDED_REGION"
 msgstr "除外領域"
 
+msgid "BAND_PASS_FILTER"
+msgstr "バンドパスフィルタ"
+
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "再起動が必要です"
 
