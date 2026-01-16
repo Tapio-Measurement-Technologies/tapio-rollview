@@ -58,6 +58,11 @@ class ContextMenuTreeView(QTreeView):
             self._proxy_model = None
             self._model = model
 
+        # Add F2 shortcut for rename
+        self.rename_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
+        self.rename_shortcut.activated.connect(self._rename_selected)
+        self.rename_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
     def open_context_menu(self, position):
         indexes = self.selectedIndexes()
         if not indexes:
@@ -94,6 +99,12 @@ class ContextMenuTreeView(QTreeView):
             selected_path = file_path
 
         open_in_file_explorer(file_path, selected_path)
+
+    def _rename_selected(self):
+        """Rename the currently selected item when F2 is pressed."""
+        indexes = self.selectedIndexes()
+        if indexes:
+            self.rename_file(indexes[0])
 
     def rename_file(self, index: QModelIndex):
         if self._proxy_model:
