@@ -73,6 +73,9 @@ class ContextMenuTreeView(QTreeView):
         rename_action = QAction(_("BUTTON_TEXT_RENAME"), self)
         delete_action = QAction(_("BUTTON_TEXT_DELETE"), self)
 
+        # Add F2 shortcut hint to rename action
+        rename_action.setShortcut(QKeySequence("F2"))
+
         open_action.triggered.connect(lambda: self.open_file_explorer(indexes[0]))
         rename_action.triggered.connect(lambda: self.rename_file(indexes[0]))
         delete_action.triggered.connect(lambda: self.delete_file(indexes[0]))
