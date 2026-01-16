@@ -17,6 +17,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 import logging
+import store
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
@@ -230,7 +231,7 @@ class ProfileWidget(QWidget):
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
 
-    def update_plot(self, profiles: list[Profile], directory_name, selected=''):
+    def update_plot(self, profiles: list[Profile], directory_name):
         # Reconfigure axes layout
         self._setup_axes()
 
@@ -244,7 +245,7 @@ class ProfileWidget(QWidget):
         self.profiles = [
             profile for profile in profiles if profile.data is not None]
         self.directory_name = directory_name
-        self.selected_file = selected
+        selected_profile_in_current_directory = store.selected_profile in [ p.name for p in self.profiles ]
 
         # Get distance unit info
         unit_info = preferences.get_distance_unit_info()
@@ -277,8 +278,9 @@ class ProfileWidget(QWidget):
                     self.profile_ax.plot(distances[0], hardnesses[0], marker='v',
                                        color='k', markersize=4, alpha=0.5, zorder=np.inf)
 
-            if selected:  # Highlight selected profile
-                if profile.name == selected:
+            # Prevent reducing line opacity if select state is in another folder
+            if selected_profile_in_current_directory:
+                if profile.name == store.selected_profile:
 
                     self.profile_ax.plot(distances,
                                          hardnesses,

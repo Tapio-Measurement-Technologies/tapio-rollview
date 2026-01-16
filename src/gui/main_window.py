@@ -263,8 +263,8 @@ class MainWindow(QMainWindow):
 
     def on_file_selected(self, file_path):
         filename = os.path.basename(file_path)
-        self.profile_widget.update_plot(
-            store.profiles, self.directory_name, selected=filename)
+        store.selected_profile = filename
+        self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_directory_contents_changed(self):
         # Reload the selected directory and redraw plot
