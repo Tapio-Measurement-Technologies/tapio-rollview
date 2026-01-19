@@ -219,7 +219,7 @@ class AlertLimitSetting(QWidget):
 class AdvancedSettingsPage(QWidget):
     settings_updated = Signal()
     BAND_PASS_SLIDER_MIN = 0
-    BAND_PASS_SLIDER_MAX = 40
+    BAND_PASS_SLIDER_MAX = 100
     BAND_PASS_SLIDER_STEP = 0.1
 
     def __init__(self):
