@@ -428,3 +428,15 @@ msgstr "履歴"
 
 msgid "COPY_STATS_TO_CLIPBOARD"
 msgstr "統計をクリップボードにコピー"
+
+msgid "MENU_BAR_DEVICE_CONFIG"
+msgstr "デバイス設定"
+
+msgid "MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE"
+msgstr "デバイスにアラート設定を適用"
+
+msgid "QR_CONFIG_DIALOG_TITLE"
+msgstr "QRコードをスキャン"
+
+msgid "QR_CONFIG_INSTRUCTION"
+msgstr "RQP LiveでこのQRコードをスキャンして、現在のアラート設定をデバイスに適用してください。"

@@ -30,6 +30,7 @@ from gui.widgets.serialports import SerialWidget
 from gui.widgets.DirectoryView import DirectoryView
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 from gui.settings import SettingsWindow
+from gui.qr_config_dialog import QRConfigDialog
 from utils.translation import _
 
 class MainWindow(QMainWindow):
@@ -204,6 +205,11 @@ class MainWindow(QMainWindow):
         # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
         postprocessors_menu.addAction(run_postprocessors_action)
 
+        scan_menu = menu_bar.addMenu(_('MENU_BAR_DEVICE_CONFIG'))
+        apply_alert_limits_action = QAction(_('MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE'), self)
+        apply_alert_limits_action.triggered.connect(self.open_qr_config_dialog)
+        scan_menu.addAction(apply_alert_limits_action)
+
     def create_checkbox_menu_item(self, label, parent_menu, checked, callback):
         """Helper method to create a persistent checkbox menu item."""
         widget = QWidget()
@@ -308,6 +314,10 @@ class MainWindow(QMainWindow):
 
     def on_log_window_closed(self):
         self.log_window = None
+
+    def open_qr_config_dialog(self):
+        qr_dialog = QRConfigDialog(self)
+        qr_dialog.show()
 
     def run_postprocessors_for_all_folders(self):
         # Get the base directory path

@@ -428,3 +428,15 @@ msgstr "Statistics"
 
 msgid "COPY_STATS_TO_CLIPBOARD"
 msgstr "Copy stats to clipboard"
+
+msgid "MENU_BAR_DEVICE_CONFIG"
+msgstr "Device configuration"
+
+msgid "MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE"
+msgstr "Apply alert limits to device"
+
+msgid "QR_CONFIG_DIALOG_TITLE"
+msgstr "Scan QR code"
+
+msgid "QR_CONFIG_INSTRUCTION"
+msgstr "Scan the QR code with your RQP Live to apply the current alert limits to the device."
