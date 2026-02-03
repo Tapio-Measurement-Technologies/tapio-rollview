@@ -148,6 +148,9 @@ class FileView(QWidget):
         layout.setContentsMargins(5, 0, 10, 0)
 
         self.model = CustomFileSystemModel()
+        # Set initial root path to prevent showing filesystem root (C:\ on Windows)
+        # This will be overridden when set_directory() is called
+        self.model.setRootPath(QDir.homePath())
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.Files)
         self.model.setNameFilters(["*.prof"])  # Set the filter for .prof files
         self.model.setNameFilterDisables(False)  # Enable the name filter

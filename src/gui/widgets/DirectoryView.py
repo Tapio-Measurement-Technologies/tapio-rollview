@@ -45,7 +45,7 @@ class DirectoryView(QWidget):
 
         # Create the model and proxy
         self.model = CustomFileSystemModel()
-        self.model.setRootPath(QDir.currentPath())
+        self.model.setRootPath(QDir.homePath())
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
         self.model.directoryLoaded.connect(self.init_selection)
 
