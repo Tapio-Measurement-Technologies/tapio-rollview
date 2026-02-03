@@ -61,11 +61,11 @@ def save_preferences_to_file():
     preferences[key] = value
 
   try:
-    with open(preferences_file_path, 'w') as file:
+    with open(settings.PREFERENCES_FILE_PATH, 'w') as file:
       json.dump(preferences, file, indent=2)
-      print(f"Saved preferences to {preferences_file_path}")
+      print(f"Saved preferences to {settings.PREFERENCES_FILE_PATH}")
   except Exception as e:
-    print(f"Failed to write preferences to '{preferences_file_path}': {e}")
+    print(f"Failed to write preferences to '{settings.PREFERENCES_FILE_PATH}': {e}")
 
 def update_preferences(updates):
   """
@@ -105,7 +105,7 @@ def get_distance_unit_info():
 def _load_preferences():
   """Load preferences from file and update module-level variables"""
   try:
-    with open(preferences_file_path, 'r') as file:
+    with open(settings.PREFERENCES_FILE_PATH, 'r') as file:
       loaded_prefs = json.load(file)
 
       for key in _DEFAULTS.keys():
@@ -116,13 +116,13 @@ def _load_preferences():
             value = _LOADERS[key](value)
           globals()[key] = value
 
-      print(f"Loaded preferences from {preferences_file_path}")
+      print(f"Loaded preferences from {settings.PREFERENCES_FILE_PATH}")
 
   except FileNotFoundError:
     print(f"Preferences file not found, creating with defaults")
     save_preferences_to_file()
   except Exception as e:
-    print(f"Error reading preferences file from '{preferences_file_path}': {e}")
+    print(f"Error reading preferences file from '{settings.PREFERENCES_FILE_PATH}': {e}")
     print("Resetting default preferences")
     save_preferences_to_file()
 

@@ -19,11 +19,10 @@ def resource_path(relative_path):
 
 DEFAULT_ROLL_DIRECTORY = '.tapiorqp'
 PREFERENCES_FILENAME = 'preferences.json'
-PREFERENCES_FILE_PATH = os.path.join(
-    DEFAULT_ROLL_DIRECTORY, PREFERENCES_FILENAME)
-
-
 ROOT_DIRECTORY = QDir(QDir.homePath()).filePath(DEFAULT_ROLL_DIRECTORY)
+PREFERENCES_FILE_PATH = os.path.join(ROOT_DIRECTORY, PREFERENCES_FILENAME)
+
+
 
 # ICON_PATH = resource_path('assets/tapio192.png')
 ICON_PATH = resource_path('assets/tapio_favicon.ico')
