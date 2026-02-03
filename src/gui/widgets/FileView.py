@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
 from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
+from gui.widgets.messagebox import show_error_msgbox
 from utils.translation import _
 from utils import preferences
 import settings
@@ -184,19 +185,41 @@ class FileView(QWidget):
         self.model.dataChanged.connect(self.on_files_updated)
 
     def set_directory(self, path):
-        # Validate that the path exists and is a directory
-        if not os.path.exists(path) or not os.path.isdir(path):
-            print(f"Invalid directory path provided to FileView: '{path}'")
-            return
+        try:
+            # Validate that the path exists and is a directory
+            if not os.path.exists(path):
+                show_error_msgbox(
+                    _("ERROR_MSGBOX_TEXT_DIRECTORY_NOT_FOUND").format(directory=path),
+                    _("ERROR_MSGBOX_TITLE")
+                )
+                return
 
-        self.model.setRootPath(path)
-        root_index = self.proxy_model.mapFromSource(self.model.index(path))
-        if not root_index.isValid():
-            print("Invalid index encountered in FileView!")
-            print(f"\tIndex: {root_index}")
-            print(f"\tPath: '{path}'")
-            return
-        self.view.setRootIndex(root_index)
+            if not os.path.isdir(path):
+                show_error_msgbox(
+                    _("ERROR_MSGBOX_TEXT_NOT_A_DIRECTORY").format(path=path),
+                    _("ERROR_MSGBOX_TITLE")
+                )
+                return
+
+            self.model.setRootPath(path)
+            root_index = self.proxy_model.mapFromSource(self.model.index(path))
+            if not root_index.isValid():
+                show_error_msgbox(
+                    _("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=path),
+                    _("ERROR_MSGBOX_TITLE")
+                )
+                return
+            self.view.setRootIndex(root_index)
+        except PermissionError:
+            show_error_msgbox(
+                _("ERROR_MSGBOX_TEXT_PERMISSION_DENIED").format(directory=path),
+                _("ERROR_MSGBOX_TITLE")
+            )
+        except OSError as e:
+            show_error_msgbox(
+                _("ERROR_MSGBOX_TEXT_OPERATION_FAILED").format(error=str(e)),
+                _("ERROR_MSGBOX_TITLE")
+            )
 
     def on_file_selected(self, selected, deselected):
         indexes = selected.indexes()

@@ -440,3 +440,24 @@ msgstr "Scan QR code"
 
 msgid "QR_CONFIG_INSTRUCTION"
 msgstr "Scan the QR code with your RQP Live to apply the current alert limits to the device."
+
+msgid "ERROR_MSGBOX_TEXT_DIRECTORY_NOT_FOUND"
+msgstr "Directory not found: {directory}"
+
+msgid "ERROR_MSGBOX_TEXT_NOT_A_DIRECTORY"
+msgstr "The path is not a directory: {path}"
+
+msgid "ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED"
+msgstr "Failed to load directory: {directory}"
+
+msgid "ERROR_MSGBOX_TEXT_PERMISSION_DENIED"
+msgstr "Permission denied: {directory}"
+
+msgid "ERROR_MSGBOX_TEXT_OPERATION_FAILED"
+msgstr "Operation failed: {error}"
+
+msgid "ERROR_MSGBOX_TEXT_OPEN_EXPLORER_FAILED"
+msgstr "Failed to open file explorer: {error}"
+
+msgid "ERROR_MSGBOX_TEXT_UNSUPPORTED_PLATFORM"
+msgstr "Opening file explorer is not supported on this platform."

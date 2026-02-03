@@ -440,3 +440,24 @@ msgstr "QRコードをスキャン"
 
 msgid "QR_CONFIG_INSTRUCTION"
 msgstr "RQP LiveでこのQRコードをスキャンして、現在のアラート設定をデバイスに適用してください。"
+
+msgid "ERROR_MSGBOX_TEXT_DIRECTORY_NOT_FOUND"
+msgstr "ディレクトリが見つかりません: {directory}"
+
+msgid "ERROR_MSGBOX_TEXT_NOT_A_DIRECTORY"
+msgstr "パスはディレクトリではありません: {path}"
+
+msgid "ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED"
+msgstr "ディレクトリの読み込みに失敗しました: {directory}"
+
+msgid "ERROR_MSGBOX_TEXT_PERMISSION_DENIED"
+msgstr "アクセス権限がありません: {directory}"
+
+msgid "ERROR_MSGBOX_TEXT_OPERATION_FAILED"
+msgstr "操作が失敗しました: {error}"
+
+msgid "ERROR_MSGBOX_TEXT_OPEN_EXPLORER_FAILED"
+msgstr "ファイルエクスプローラーを開けませんでした: {error}"
+
+msgid "ERROR_MSGBOX_TEXT_UNSUPPORTED_PLATFORM"
+msgstr "このプラットフォームではファイルエクスプローラーを開くことができません。"

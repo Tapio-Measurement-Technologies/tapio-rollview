@@ -19,6 +19,7 @@ import settings
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
+from gui.widgets.messagebox import show_error_msgbox
 import os
 from datetime import datetime
 
@@ -90,19 +91,30 @@ class DirectoryView(QWidget):
             print(f"Invalid directory path provided to watch_directory_and_subdirs: '{directory}'")
             return
 
-        # Clear previous watchers
-        if len(self.watcher.directories()):
-            self.watcher.removePaths(self.watcher.directories())
-        if len(self.watcher.files()):
-            self.watcher.removePaths(self.watcher.files())
+        try:
+            # Clear previous watchers
+            if len(self.watcher.directories()):
+                self.watcher.removePaths(self.watcher.directories())
+            if len(self.watcher.files()):
+                self.watcher.removePaths(self.watcher.files())
 
-        # Add the main directory
-        self.watcher.addPath(directory)
+            # Add the main directory
+            self.watcher.addPath(directory)
 
-        # Add all immediate subdirectories
-        for entry in os.scandir(directory):
-            if entry.is_dir():
-                self.watcher.addPath(entry.path)
+            # Add all immediate subdirectories
+            for entry in os.scandir(directory):
+                if entry.is_dir():
+                    self.watcher.addPath(entry.path)
+        except PermissionError:
+            show_error_msgbox(
+                _("ERROR_MSGBOX_TEXT_PERMISSION_DENIED").format(directory=directory),
+                _("ERROR_MSGBOX_TITLE")
+            )
+        except OSError as e:
+            show_error_msgbox(
+                _("ERROR_MSGBOX_TEXT_OPERATION_FAILED").format(error=str(e)),
+                _("ERROR_MSGBOX_TITLE")
+            )
 
     def select_first_directory(self):
         # Get the first child of the current root index
@@ -152,26 +164,49 @@ class DirectoryView(QWidget):
             directory = QFileDialog.getExistingDirectory(self, _("CHANGE_DIRECTORY_DIALOG_TITLE"), current_directory)
 
         if directory:
-            # Validate that the directory path exists and is a directory
-            if not os.path.exists(directory) or not os.path.isdir(directory):
-                print(f"Invalid directory path provided to change_root_directory: '{directory}'")
-                return
+            try:
+                # Validate that the directory path exists and is a directory
+                if not os.path.exists(directory):
+                    show_error_msgbox(
+                        _("ERROR_MSGBOX_TEXT_DIRECTORY_NOT_FOUND").format(directory=directory),
+                        _("ERROR_MSGBOX_TITLE")
+                    )
+                    return
 
-            # Update the root index of the tree view to reflect the new directory
-            self.model.setRootPath(directory)
-            root_index = self.proxy_model.mapFromSource(self.model.index(directory))
-            if not root_index.isValid():
-                print(f"Invalid root index encountered in DirectoryView!")
-                print(f"Path: '{directory}'")
-                return
+                if not os.path.isdir(directory):
+                    show_error_msgbox(
+                        _("ERROR_MSGBOX_TEXT_NOT_A_DIRECTORY").format(path=directory),
+                        _("ERROR_MSGBOX_TITLE")
+                    )
+                    return
 
-            self.treeView.setRootIndex(root_index)
-            self.root_directory_changed.emit(directory)
-            # Watch the new directory and its subdirectories
-            self.watch_directory_and_subdirs(directory)
+                # Update the root index of the tree view to reflect the new directory
+                self.model.setRootPath(directory)
+                root_index = self.proxy_model.mapFromSource(self.model.index(directory))
+                if not root_index.isValid():
+                    show_error_msgbox(
+                        _("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory),
+                        _("ERROR_MSGBOX_TITLE")
+                    )
+                    return
 
-            # Initially select the first directory in the new root
-            self.select_first_directory()
+                self.treeView.setRootIndex(root_index)
+                self.root_directory_changed.emit(directory)
+                # Watch the new directory and its subdirectories
+                self.watch_directory_and_subdirs(directory)
+
+                # Initially select the first directory in the new root
+                self.select_first_directory()
+            except PermissionError:
+                show_error_msgbox(
+                    _("ERROR_MSGBOX_TEXT_PERMISSION_DENIED").format(directory=directory),
+                    _("ERROR_MSGBOX_TITLE")
+                )
+            except OSError as e:
+                show_error_msgbox(
+                    _("ERROR_MSGBOX_TEXT_OPERATION_FAILED").format(error=str(e)),
+                    _("ERROR_MSGBOX_TITLE")
+                )
 
     def on_directory_selected(self, selected, deselected):
         indexes = selected.indexes()
@@ -249,8 +284,13 @@ class CustomFileSystemModel(QFileSystemModel):
                         if latest_date is None or file_modified > latest_date:
                             latest_date = file_modified
             return latest_date
-        except Exception as e:
-            print(f"Error while fetching latest modified date: {e}")
+        except PermissionError:
+            # Silently handle permission errors for individual directories
+            # This is common when traversing directory trees
+            return None
+        except OSError:
+            # Silently handle other OS errors (file deleted, etc.)
+            # These are not critical for display purposes
             return None
 
     def invalidate_cache(self, directory_path):
