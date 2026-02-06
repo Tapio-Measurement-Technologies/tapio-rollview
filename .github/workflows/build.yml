@@ -66,7 +66,7 @@ jobs:
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
-      - name: Azure Login
+      - name: Azure Login (Windows)
         if: runner.os == 'Windows'
         uses: azure/login@v2
         with:
@@ -75,7 +75,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: true
 
-      - name: Sign Windows executable
+      - name: Sign executable (Windows)
         if: runner.os == 'Windows'
         uses: azure/artifact-signing-action@v1
         with:
