@@ -261,8 +261,13 @@ class CustomFileSystemModel(QFileSystemModel):
                     self.modified_date_cache[file_path] = QDateTime(latest_modified_date)
                 else:
                     # No custom date available, get the directory's own modification time
-                    dir_mtime = os.path.getmtime(file_path)
-                    self.modified_date_cache[file_path] = QDateTime(datetime.fromtimestamp(dir_mtime))
+                    try:
+                        dir_mtime = os.path.getmtime(file_path)
+                        self.modified_date_cache[file_path] = QDateTime(datetime.fromtimestamp(dir_mtime))
+                    except (OSError, PermissionError, ValueError):
+                        # Handle problematic paths (root drives, special system paths, etc.)
+                        # Return empty QDateTime for paths that cannot be accessed
+                        self.modified_date_cache[file_path] = QDateTime()
             return self.modified_date_cache.get(file_path)
         return super().data(index, role)
 
