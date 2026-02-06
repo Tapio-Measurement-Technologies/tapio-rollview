@@ -21,7 +21,7 @@ def open_in_file_explorer(folder_path, selected_path=None):
                 # Use explorer.exe with /select to open and select the file
                 # Convert forward slashes to backslashes for Windows
                 selected_path = selected_path.replace('/', '\\')
-                subprocess.run(["explorer", "/select,", selected_path], check=True)
+                subprocess.run(["explorer", "/select,", selected_path])
             else:
                 os.startfile(folder_path)
         elif os_name == "Darwin":
