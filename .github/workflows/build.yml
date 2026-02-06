@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  id_token: write  # Required for OIDC
   contents: write  # Ensures GitHub Actions can create releases
 
 jobs:
@@ -24,6 +25,7 @@ jobs:
             extension: ".exe"
 
     runs-on: ${{ matrix.os }}
+    environment: Production
 
     steps:
       - name: Check out the code
@@ -63,6 +65,28 @@ jobs:
           mv
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+
+      - name: Azure Login
+        if: runner.os == 'Windows'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+      - name: Sign Windows executable
+        if: runner.os == 'Windows'
+        uses: azure/artifact-signing-action@v1
+        with:
+          endpoint: https://neu.codesigning.azure.net/
+          signing-account-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_ARTIFACT_CERTIFICATE_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}/dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
 
       - name: Compress executable (Linux)
         if: runner.os == 'Linux'
