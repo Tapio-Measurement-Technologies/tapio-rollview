@@ -2,6 +2,7 @@ name: Update release information to WordPress
 on:
   release:
     types: [published, edited]
+  workflow_dispatch:
 
 jobs:
   update-wp:
