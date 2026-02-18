@@ -1,0 +1,35 @@
+name: Update release information to WordPress
+on:
+  release:
+    types: [published, edited]
+
+jobs:
+  update-wp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Release Data
+        id: release_data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_JSON=$(gh release view ${{ github.event.release.tag_name }} --json assets,body)
+          EXE_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".exe")) | .url' | head -n 1)
+          BODY=$(echo "$RELEASE_JSON" | jq -r '.body' | jq -sRr @json)
+
+          echo "exe_url=$EXE_URL" >> $GITHUB_OUTPUT
+          echo "body_content=$BODY" >> $GITHUB_OUTPUT
+
+      - name: Update WordPress via REST API
+        env:
+          WP_URL: "https://tapiotechnologies.com/wp-json/wp/v2/pages/3920"
+          WP_AUTH: ${{ secrets.WP_AUTH_B64 }}
+        run: |
+          curl -X POST "$WP_URL" \
+            -H "Authorization: Basic $WP_AUTH" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "meta": {
+                "rollview_release_download_url": "${{ steps.release_data.outputs.exe_url }}",
+                "rollview_release_description": ${{ steps.release_data.outputs.body_content }}
+              }
+            }'
