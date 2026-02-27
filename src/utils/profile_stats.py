@@ -63,14 +63,16 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
     sample_interval = sample_interval if sample_interval is not None else settings.SAMPLE_INTERVAL_M
     fs = 1/sample_interval
 
+    band_pass_low = float(band_pass_low or 0)
+    band_pass_high = max(float(band_pass_high or 0), settings.BAND_PASS_HIGH_MIN)
+
     # Profiles shorter than NUMTAPS cannot be bandpass filtered, so
     # do not take them into account when calculating mean profile
     filtered_profiles = [
         profile for profile in profiles
         if (profile is not None and
             hasattr(profile, 'data') and
-            profile.data is not None and
-            len(profile.data.hardnesses) > settings.FILTER_NUMTAPS)
+            profile.data is not None)
     ]
 
     if not filtered_profiles:
@@ -91,11 +93,11 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
                 values = profile.data.hardnesses
 
                 # Check if this profile is long enough to include in mean
-                if len(values) > settings.FILTER_NUMTAPS:
+                # if len(values) > settings.FILTER_NUMTAPS:
                     # Adjust distances to be continuous
-                    distances_adjusted = distances + current_distance
-                    distances_list.append(distances_adjusted)
-                    values_list.append(values)
+                distances_adjusted = distances + current_distance
+                distances_list.append(distances_adjusted)
+                values_list.append(values)
 
                 # Update current_distance for all profiles (including short ones)
                 current_distance += distances[-1] + settings.SAMPLE_INTERVAL_M

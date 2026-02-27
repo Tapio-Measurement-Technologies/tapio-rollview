@@ -51,11 +51,13 @@ SAMPLE_INTERVAL = 1000  # Samples per meter in raw data
 SAMPLE_INTERVAL_M = 0.001 # 1 mm sample interval
 
 
-FILTER_NUMTAPS = 50
+# Default filter length = 1 meter, but shorter filter is used for shorter data automatically
+FILTER_NUMTAPS = 1000
 
 # Define the band pass filter, units are in cycles per meter
 BAND_PASS_LOW_DEFAULT = 0
-BAND_PASS_HIGH_DEFAULT = 30
+BAND_PASS_HIGH_MIN = 0.1
+BAND_PASS_HIGH_DEFAULT = BAND_PASS_HIGH_MIN
 
 DEFAULT_ENABLED_POSTPROCESSORS = [
     'excel_export',

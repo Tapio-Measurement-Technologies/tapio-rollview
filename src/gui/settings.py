@@ -1,11 +1,10 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtCore import Signal, Slot, Qt
 from utils import preferences
 from utils.translation import _
 from utils import profile_stats
 from utils.excluded_regions import parse_excluded_regions
-from gui.widgets.RangeSlider import RangeSlider
 import settings
 
 class SettingsWindow(QWidget):
@@ -218,9 +217,10 @@ class AlertLimitSetting(QWidget):
 
 class AdvancedSettingsPage(QWidget):
     settings_updated = Signal()
-    BAND_PASS_SLIDER_MIN = 0
+    BAND_PASS_SLIDER_MIN = settings.BAND_PASS_HIGH_MIN
     BAND_PASS_SLIDER_MAX = 100
     BAND_PASS_SLIDER_STEP = 0.1
+    BAND_PASS_SLIDER_SCALE = 10
 
     def __init__(self):
         super().__init__()
@@ -234,19 +234,27 @@ class AdvancedSettingsPage(QWidget):
 
         self.band_pass_slider_layout = QHBoxLayout()
 
-        self.band_pass_slider = RangeSlider(Qt.Orientation.Horizontal)
-        self.band_pass_slider.setMinimum(self.BAND_PASS_SLIDER_MIN)
-        self.band_pass_slider.setMaximum(self.BAND_PASS_SLIDER_MAX)
-        self.band_pass_slider.setSingleStep(self.BAND_PASS_SLIDER_STEP)
-        self.band_pass_slider.setLow(preferences.band_pass_low)
-        self.band_pass_slider.setHigh(preferences.band_pass_high)
-        self.band_pass_slider.sliderMoved.connect(self.on_band_pass_changed)
+        self.band_pass_slider = QSlider(Qt.Orientation.Horizontal)
+        self.band_pass_slider.setMinimum(int(self.BAND_PASS_SLIDER_MIN * self.BAND_PASS_SLIDER_SCALE))
+        self.band_pass_slider.setMaximum(int(self.BAND_PASS_SLIDER_MAX * self.BAND_PASS_SLIDER_SCALE))
+        self.band_pass_slider.setSingleStep(1)
+        band_pass_high = self._clamp_band_pass_high(float(getattr(preferences, "band_pass_high", 0) or 0))
+        self.band_pass_slider.setValue(int(band_pass_high * self.BAND_PASS_SLIDER_SCALE))
+        self.band_pass_slider.valueChanged.connect(self.on_band_pass_changed)
         self.band_pass_slider_layout.addWidget(self.band_pass_slider)
 
-        self.band_pass_value_label = QLabel()
-        self.band_pass_value_label.setFixedWidth(130)
-        self.update_band_pass_label(preferences.band_pass_low, preferences.band_pass_high)
-        self.band_pass_slider_layout.addWidget(self.band_pass_value_label)
+        self.band_pass_low_label = QLabel("0.0 -")
+        self.band_pass_slider_layout.addWidget(self.band_pass_low_label)
+
+        self.band_pass_high_input = QLineEdit()
+        self.band_pass_high_input.setFixedWidth(55)
+        self.band_pass_high_input.setValidator(QDoubleValidator(self.BAND_PASS_SLIDER_MIN, self.BAND_PASS_SLIDER_MAX, 1))
+        self.band_pass_high_input.setText(f"{band_pass_high:.1f}")
+        self.band_pass_high_input.editingFinished.connect(self.on_band_pass_input_changed)
+        self.band_pass_slider_layout.addWidget(self.band_pass_high_input)
+
+        self.band_pass_units_label = QLabel("cycles/m")
+        self.band_pass_slider_layout.addWidget(self.band_pass_units_label)
 
         layout.addLayout(self.band_pass_slider_layout)
 
@@ -312,14 +320,30 @@ class AdvancedSettingsPage(QWidget):
         self.excluded_regions_input.setEnabled(state == Qt.CheckState.Checked.value)
 
     @Slot()
-    def on_band_pass_changed(self, low, high):
-        """Update band pass label when slider moves."""
-        self.update_band_pass_label(low, high)
+    def on_band_pass_changed(self, value):
+        """Update band pass value input when slider moves."""
+        high = value / self.BAND_PASS_SLIDER_SCALE
+        self.band_pass_high_input.setText(f"{high:.1f}")
         self.enable_save_button()
 
-    def update_band_pass_label(self, low, high):
-        """Update the label showing current band pass values."""
-        self.band_pass_value_label.setText(f"{low:.1f} - {high:.1f} cycles/m")
+    @Slot()
+    def on_band_pass_input_changed(self):
+        """Update slider when the user types in a cutoff value."""
+        text = self.band_pass_high_input.text().strip()
+        if not text:
+            high = self.BAND_PASS_SLIDER_MIN
+        else:
+            try:
+                high = self._clamp_band_pass_high(float(text))
+            except ValueError:
+                high = self.BAND_PASS_SLIDER_MIN
+
+        self.band_pass_slider.setValue(int(round(high * self.BAND_PASS_SLIDER_SCALE)))
+        self.band_pass_high_input.setText(f"{high:.1f}")
+        self.enable_save_button()
+
+    def _clamp_band_pass_high(self, value):
+        return max(self.BAND_PASS_SLIDER_MIN, min(float(value), self.BAND_PASS_SLIDER_MAX))
 
     @Slot()
     def save_settings(self):
@@ -340,8 +364,8 @@ class AdvancedSettingsPage(QWidget):
             'flip_profiles': self.flip_profiles_checkbox.isChecked(),
             'excluded_regions_enabled': self.excluded_regions_checkbox.isChecked(),
             'excluded_regions': regions_text,
-            'band_pass_low': self.band_pass_slider.low(),
-            'band_pass_high': self.band_pass_slider.high()
+            'band_pass_low': 0,
+            'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE)
         })
 
         self.apply_button.setEnabled(False)
