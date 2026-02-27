@@ -353,11 +353,16 @@ class ProfileWidget(QWidget):
             max_plotted_value = max(
                 max_plotted_value, max(mean_profile_values))
 
-        #  Only set axis limits if values are finite
-        low = settings.Y_LIM_LOW(0) if hasattr(
-            settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None else None
-        high = settings.Y_LIM_HIGH(max_plotted_value) if hasattr(
-            settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None else None
+        # Use per-user Y-limit overrides if provided, otherwise use default auto limits
+        low = preferences.y_lim_low_override
+        if low is None:
+            low = settings.Y_LIM_LOW(0) if hasattr(
+                settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None else None
+
+        high = preferences.y_lim_high_override
+        if high is None:
+            high = settings.Y_LIM_HIGH(max_plotted_value) if hasattr(
+                settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None else None
 
         if low is not None and np.isfinite(low):
             self.profile_ax.set_ylim(bottom=low)
@@ -369,7 +374,7 @@ class ProfileWidget(QWidget):
         elif high is not None and not np.isfinite(high):
             self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
 
-        self.profile_ax.legend(loc="upper right")
+        # self.profile_ax.legend(loc="upper right")
         self.figure.tight_layout()
         self.canvas.draw()
 

@@ -258,6 +258,34 @@ class AdvancedSettingsPage(QWidget):
 
         layout.addLayout(self.band_pass_slider_layout)
 
+        # Y-axis override section
+        y_override_label = QLabel("Override default Y limits")
+        layout.addWidget(y_override_label)
+
+        y_override_layout = QHBoxLayout()
+        self.y_lim_low_label = QLabel(f"{_('MIN')}:")
+        self.y_lim_low_input = QLineEdit()
+        self.y_lim_low_input.setValidator(QDoubleValidator())
+        self.y_lim_low_input.setPlaceholderText("auto")
+        self.y_lim_low_input.setText(
+            "" if preferences.y_lim_low_override is None else str(preferences.y_lim_low_override)
+        )
+        self.y_lim_low_input.textChanged.connect(self.enable_save_button)
+        y_override_layout.addWidget(self.y_lim_low_label)
+        y_override_layout.addWidget(self.y_lim_low_input)
+
+        self.y_lim_high_label = QLabel(f"{_('MAX')}:")
+        self.y_lim_high_input = QLineEdit()
+        self.y_lim_high_input.setValidator(QDoubleValidator())
+        self.y_lim_high_input.setPlaceholderText("auto")
+        self.y_lim_high_input.setText(
+            "" if preferences.y_lim_high_override is None else str(preferences.y_lim_high_override)
+        )
+        self.y_lim_high_input.textChanged.connect(self.enable_save_button)
+        y_override_layout.addWidget(self.y_lim_high_label)
+        y_override_layout.addWidget(self.y_lim_high_input)
+        layout.addLayout(y_override_layout)
+
         # Show spectrum checkbox
         self.show_spectrum_checkbox = QCheckBox(_("SHOW_SPECTRUM"))
         self.show_spectrum_checkbox.setChecked(preferences.show_spectrum)
@@ -345,6 +373,10 @@ class AdvancedSettingsPage(QWidget):
     def _clamp_band_pass_high(self, value):
         return max(self.BAND_PASS_SLIDER_MIN, min(float(value), self.BAND_PASS_SLIDER_MAX))
 
+    def _parse_optional_float(self, text):
+        stripped = text.strip()
+        return float(stripped) if stripped else None
+
     @Slot()
     def save_settings(self):
         # Validate excluded regions before saving
@@ -364,6 +396,8 @@ class AdvancedSettingsPage(QWidget):
             'flip_profiles': self.flip_profiles_checkbox.isChecked(),
             'excluded_regions_enabled': self.excluded_regions_checkbox.isChecked(),
             'excluded_regions': regions_text,
+            'y_lim_low_override': self._parse_optional_float(self.y_lim_low_input.text()),
+            'y_lim_high_override': self._parse_optional_float(self.y_lim_high_input.text()),
             'band_pass_low': 0,
             'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE)
         })

@@ -19,6 +19,8 @@ _DEFAULTS = {
     'flip_profiles': settings.FLIP_PROFILES_DEFAULT,
     'excluded_regions_enabled': settings.EXCLUDED_REGIONS_ENABLED_DEFAULT,
     'excluded_regions': settings.EXCLUDED_REGIONS_DEFAULT,
+    'y_lim_low_override': settings.Y_LIM_LOW_OVERRIDE_DEFAULT,
+    'y_lim_high_override': settings.Y_LIM_HIGH_OVERRIDE_DEFAULT,
     'band_pass_low': settings.BAND_PASS_LOW_DEFAULT,
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
 }
@@ -47,6 +49,8 @@ show_spectrum = _DEFAULTS['show_spectrum']
 flip_profiles = _DEFAULTS['flip_profiles']
 excluded_regions_enabled = _DEFAULTS['excluded_regions_enabled']
 excluded_regions = _DEFAULTS['excluded_regions']
+y_lim_low_override = _DEFAULTS['y_lim_low_override']
+y_lim_high_override = _DEFAULTS['y_lim_high_override']
 band_pass_low = _DEFAULTS['band_pass_low']
 band_pass_high = _DEFAULTS['band_pass_high']
 
