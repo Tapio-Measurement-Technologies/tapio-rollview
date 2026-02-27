@@ -461,3 +461,14 @@ msgstr "ファイルエクスプローラーを開けませんでした: {error}
 
 msgid "ERROR_MSGBOX_TEXT_UNSUPPORTED_PLATFORM"
 msgstr "このプラットフォームではファイルエクスプローラーを開くことができません。"
+msgid "OVERRIDE_DEFAULT_Y_LIMITS"
+msgstr "Y??????????"
+
+msgid "DEFAULT_Y_AXIS_SCALING"
+msgstr "Y??????????"
+
+msgid "Y_AXIS_SCALING_START_AT_ZERO"
+msgstr "????"
+
+msgid "Y_AXIS_SCALING_FIT_TO_DATA"
+msgstr "????????"

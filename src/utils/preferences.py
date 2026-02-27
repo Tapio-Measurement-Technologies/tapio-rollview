@@ -21,6 +21,7 @@ _DEFAULTS = {
     'excluded_regions': settings.EXCLUDED_REGIONS_DEFAULT,
     'y_lim_low_override': settings.Y_LIM_LOW_OVERRIDE_DEFAULT,
     'y_lim_high_override': settings.Y_LIM_HIGH_OVERRIDE_DEFAULT,
+    'default_y_axis_scaling': settings.Y_AXIS_SCALING_DEFAULT,
     'band_pass_low': settings.BAND_PASS_LOW_DEFAULT,
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
 }
@@ -51,6 +52,7 @@ excluded_regions_enabled = _DEFAULTS['excluded_regions_enabled']
 excluded_regions = _DEFAULTS['excluded_regions']
 y_lim_low_override = _DEFAULTS['y_lim_low_override']
 y_lim_high_override = _DEFAULTS['y_lim_high_override']
+default_y_axis_scaling = _DEFAULTS['default_y_axis_scaling']
 band_pass_low = _DEFAULTS['band_pass_low']
 band_pass_high = _DEFAULTS['band_pass_high']
 

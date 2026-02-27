@@ -258,8 +258,24 @@ class AdvancedSettingsPage(QWidget):
 
         layout.addLayout(self.band_pass_slider_layout)
 
+        # Y-axis scaling mode
+        y_scaling_label = QLabel(_("DEFAULT_Y_AXIS_SCALING"))
+        layout.addWidget(y_scaling_label)
+
+        self.y_axis_scaling_selector = QComboBox()
+        self.y_axis_scaling_modes = {
+            settings.Y_AXIS_SCALING_START_AT_ZERO: _("Y_AXIS_SCALING_START_AT_ZERO"),
+            settings.Y_AXIS_SCALING_FIT_TO_DATA: _("Y_AXIS_SCALING_FIT_TO_DATA")
+        }
+        self.y_axis_scaling_selector.addItems(self.y_axis_scaling_modes.values())
+        current_scaling = getattr(preferences, "default_y_axis_scaling", settings.Y_AXIS_SCALING_DEFAULT)
+        if current_scaling in self.y_axis_scaling_modes:
+            self.y_axis_scaling_selector.setCurrentText(self.y_axis_scaling_modes[current_scaling])
+        self.y_axis_scaling_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self.y_axis_scaling_selector)
+
         # Y-axis override section
-        y_override_label = QLabel("Override default Y limits")
+        y_override_label = QLabel(_("OVERRIDE_DEFAULT_Y_LIMITS"))
         layout.addWidget(y_override_label)
 
         y_override_layout = QHBoxLayout()
@@ -398,6 +414,7 @@ class AdvancedSettingsPage(QWidget):
             'excluded_regions': regions_text,
             'y_lim_low_override': self._parse_optional_float(self.y_lim_low_input.text()),
             'y_lim_high_override': self._parse_optional_float(self.y_lim_high_input.text()),
+            'default_y_axis_scaling': list(self.y_axis_scaling_modes.keys())[self.y_axis_scaling_selector.currentIndex()],
             'band_pass_low': 0,
             'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE)
         })

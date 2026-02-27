@@ -353,16 +353,24 @@ class ProfileWidget(QWidget):
             max_plotted_value = max(
                 max_plotted_value, max(mean_profile_values))
 
-        # Use per-user Y-limit overrides if provided, otherwise use default auto limits
+        # Use per-user Y-limit overrides if provided, otherwise use selected default scaling mode.
+        y_axis_scaling = getattr(preferences, "default_y_axis_scaling", settings.Y_AXIS_SCALING_DEFAULT)
+
         low = preferences.y_lim_low_override
         if low is None:
-            low = settings.Y_LIM_LOW(0) if hasattr(
-                settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None else None
+            if y_axis_scaling == settings.Y_AXIS_SCALING_FIT_TO_DATA:
+                low = None
+            else:
+                low = settings.Y_LIM_LOW(0) if hasattr(
+                    settings, 'Y_LIM_LOW') and settings.Y_LIM_LOW is not None else None
 
         high = preferences.y_lim_high_override
         if high is None:
-            high = settings.Y_LIM_HIGH(max_plotted_value) if hasattr(
-                settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None else None
+            if y_axis_scaling == settings.Y_AXIS_SCALING_FIT_TO_DATA:
+                high = None
+            else:
+                high = settings.Y_LIM_HIGH(max_plotted_value) if hasattr(
+                    settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None else None
 
         if low is not None and np.isfinite(low):
             self.profile_ax.set_ylim(bottom=low)

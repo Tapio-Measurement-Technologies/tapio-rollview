@@ -110,11 +110,11 @@ msgstr "Invalid values: Min must be less than or equal to Max"
 
 #: src/gui/settings.py:95 src/gui/widgets/stats.py:74
 msgid "MIN"
-msgstr "Min"
+msgstr "Lower"
 
 #: src/gui/settings.py:103 src/gui/widgets/stats.py:74
 msgid "MAX"
-msgstr "Max"
+msgstr "Upper"
 
 #: src/gui/widgets/ContextMenuTreeView.py:35
 #: src/gui/widgets/DirectoryView.py:62
@@ -461,3 +461,15 @@ msgstr "Failed to open file explorer: {error}"
 
 msgid "ERROR_MSGBOX_TEXT_UNSUPPORTED_PLATFORM"
 msgstr "Opening file explorer is not supported on this platform."
+
+msgid "OVERRIDE_DEFAULT_Y_LIMITS"
+msgstr "Override default Y limits"
+
+msgid "DEFAULT_Y_AXIS_SCALING"
+msgstr "Default Y axis scaling"
+
+msgid "Y_AXIS_SCALING_START_AT_ZERO"
+msgstr "Start at zero"
+
+msgid "Y_AXIS_SCALING_FIT_TO_DATA"
+msgstr "Fit to data"
