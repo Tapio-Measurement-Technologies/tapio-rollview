@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
-from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex
+from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex, QLocale
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from gui.widgets.messagebox import show_error_msgbox
 from utils.translation import _
@@ -18,7 +18,33 @@ class CustomFilterProxyModel(QSortFilterProxyModel):
             return False
         return super().filterAcceptsRow(source_row, source_parent)
 
+    def lessThan(self, source_left, source_right):
+        # Keep date sorting based on true file timestamps even when display format is custom text.
+        if source_left.column() == 3 and source_right.column() == 3:
+            left_ts = self.sourceModel().fileInfo(source_left).lastModified().toSecsSinceEpoch()
+            right_ts = self.sourceModel().fileInfo(source_right).lastModified().toSecsSinceEpoch()
+            return left_ts < right_ts
+        return super().lessThan(source_left, source_right)
+
 class CustomFileSystemModel(QFileSystemModel):
+    @staticmethod
+    def _format_system_datetime_with_seconds(timestamp):
+        locale = QLocale.system()
+        date_part = locale.toString(timestamp.date(), QLocale.FormatType.ShortFormat)
+        time_format = locale.timeFormat(QLocale.FormatType.ShortFormat)
+
+        # Ensure seconds are included in locale time format.
+        if "s" not in time_format:
+            if "mm" in time_format:
+                time_format = time_format.replace("mm", "mm:ss", 1)
+            elif "m" in time_format:
+                time_format = time_format.replace("m", "m:ss", 1)
+            else:
+                time_format = f"{time_format}:ss"
+
+        time_part = timestamp.time().toString(time_format)
+        return f"{date_part} {time_part}"
+
     def columnCount(self, parent=QModelIndex()):
         # Original columns: Name(0), Size(1), Type(2), Date Modified(3)
         # We add two columns: Profile length(4), Hidden state(5)
@@ -32,14 +58,14 @@ class CustomFileSystemModel(QFileSystemModel):
 
         # Handle original timestamp column
         if column == 3 and role == Qt.ItemDataRole.DisplayRole:
+            file_info = self.fileInfo(index)
+            timestamp = file_info.lastModified()
             if settings.CUSTOM_DATE_FORMAT:
-                file_info = self.fileInfo(index)
-                timestamp = file_info.lastModified()
                 py_datetime = timestamp.toPython()
                 formatted_timestamp = py_datetime.strftime(settings.CUSTOM_DATE_FORMAT)
                 return formatted_timestamp
             else:
-                return super().data(index, role)
+                return self._format_system_datetime_with_seconds(timestamp)
 
         # Profile length column
         if column == 4:
