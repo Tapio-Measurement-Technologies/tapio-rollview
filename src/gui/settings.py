@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider
-from PySide6.QtGui import QDoubleValidator
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator
+from PySide6.QtCore import Signal, Slot, Qt, QLocale, QRegularExpression
 from utils import preferences
 from utils.translation import _
 from utils import profile_stats
@@ -224,6 +224,7 @@ class AdvancedSettingsPage(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.number_locale = QLocale.system()
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -248,7 +249,11 @@ class AdvancedSettingsPage(QWidget):
 
         self.band_pass_high_input = QLineEdit()
         self.band_pass_high_input.setFixedWidth(55)
-        self.band_pass_high_input.setValidator(QDoubleValidator(self.BAND_PASS_SLIDER_MIN, self.BAND_PASS_SLIDER_MAX, 1))
+        # Dot-only numeric input with optional single decimal place (e.g. 2, 2.2, 100.0).
+        band_pass_validator = QRegularExpressionValidator(
+            QRegularExpression(r"^\d{0,3}(?:\.\d?)?$")
+        )
+        self.band_pass_high_input.setValidator(band_pass_validator)
         self.band_pass_high_input.setText(f"{band_pass_high:.1f}")
         self.band_pass_high_input.editingFinished.connect(self.on_band_pass_input_changed)
         self.band_pass_slider_layout.addWidget(self.band_pass_high_input)
@@ -281,7 +286,9 @@ class AdvancedSettingsPage(QWidget):
         y_override_layout = QHBoxLayout()
         self.y_lim_low_label = QLabel(f"{_('MIN')}:")
         self.y_lim_low_input = QLineEdit()
-        self.y_lim_low_input.setValidator(QDoubleValidator())
+        y_lim_low_validator = QDoubleValidator()
+        y_lim_low_validator.setLocale(self.number_locale)
+        self.y_lim_low_input.setValidator(y_lim_low_validator)
         self.y_lim_low_input.setPlaceholderText("auto")
         self.y_lim_low_input.setText(
             "" if preferences.y_lim_low_override is None else str(preferences.y_lim_low_override)
@@ -292,7 +299,9 @@ class AdvancedSettingsPage(QWidget):
 
         self.y_lim_high_label = QLabel(f"{_('MAX')}:")
         self.y_lim_high_input = QLineEdit()
-        self.y_lim_high_input.setValidator(QDoubleValidator())
+        y_lim_high_validator = QDoubleValidator()
+        y_lim_high_validator.setLocale(self.number_locale)
+        self.y_lim_high_input.setValidator(y_lim_high_validator)
         self.y_lim_high_input.setPlaceholderText("auto")
         self.y_lim_high_input.setText(
             "" if preferences.y_lim_high_override is None else str(preferences.y_lim_high_override)
@@ -389,9 +398,21 @@ class AdvancedSettingsPage(QWidget):
     def _clamp_band_pass_high(self, value):
         return max(self.BAND_PASS_SLIDER_MIN, min(float(value), self.BAND_PASS_SLIDER_MAX))
 
+    def _parse_localized_float(self, text):
+        value, ok = self.number_locale.toDouble(text.strip())
+        if ok:
+            return value
+
+        # Fallback accepts the opposite separator when pasted from external sources.
+        normalized = text.strip().replace(",", ".")
+        try:
+            return float(normalized)
+        except ValueError as exc:
+            raise ValueError("Invalid numeric value") from exc
+
     def _parse_optional_float(self, text):
         stripped = text.strip()
-        return float(stripped) if stripped else None
+        return self._parse_localized_float(stripped) if stripped else None
 
     @Slot()
     def save_settings(self):
