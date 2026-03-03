@@ -461,14 +461,15 @@ msgstr "ファイルエクスプローラーを開けませんでした: {error}
 
 msgid "ERROR_MSGBOX_TEXT_UNSUPPORTED_PLATFORM"
 msgstr "このプラットフォームではファイルエクスプローラーを開くことができません。"
+
 msgid "OVERRIDE_DEFAULT_Y_LIMITS"
-msgstr "Y??????????"
+msgstr "デフォルトのY範囲を上書き"
 
 msgid "DEFAULT_Y_AXIS_SCALING"
-msgstr "Y??????????"
+msgstr "デフォルトのY軸スケーリング"
 
 msgid "Y_AXIS_SCALING_START_AT_ZERO"
-msgstr "????"
+msgstr "ゼロから開始"
 
 msgid "Y_AXIS_SCALING_FIT_TO_DATA"
-msgstr "????????"
+msgstr "データに合わせる"
