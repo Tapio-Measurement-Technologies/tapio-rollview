@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
-from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex, QLocale
+from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex, QLocale, QItemSelectionModel, QTimer
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from gui.widgets.messagebox import show_error_msgbox
 from utils.translation import _
@@ -168,6 +168,8 @@ class FileView(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setMaximumHeight(400)
+        self._pending_delete_parent = QPersistentModelIndex()
+        self._pending_delete_row = None
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -192,6 +194,7 @@ class FileView(QWidget):
 
         self.view.selectionModel().selectionChanged.connect(self.on_file_selected)
         self.view.selectionCleared.connect(self.on_selection_cleared)
+        self.view.deleteRequested.connect(self.on_delete_requested)
 
         # Hide file type column
         for i in range(0, self.model.columnCount()):
@@ -212,6 +215,7 @@ class FileView(QWidget):
         layout.addWidget(self.view)
 
         self.model.dataChanged.connect(self.on_files_updated)
+        self.proxy_model.rowsRemoved.connect(self.on_rows_removed)
 
     def set_directory(self, path):
         try:
@@ -257,6 +261,60 @@ class FileView(QWidget):
             source_index = self.proxy_model.mapToSource(selected)
             file_path = self.model.filePath(source_index)
             self.file_selected.emit(file_path)
+
+    @staticmethod
+    def get_row_to_select_after_delete(deleted_row, row_count):
+        if row_count <= 1:
+            return None
+        if deleted_row > 0:
+            return deleted_row - 1
+        return 0
+
+    def on_delete_requested(self, index):
+        proxy_index = index.siblingAtColumn(0)
+        target_row = self.get_row_to_select_after_delete(
+            proxy_index.row(),
+            self.proxy_model.rowCount(proxy_index.parent()),
+        )
+
+        if target_row is None:
+            self._pending_delete_parent = QPersistentModelIndex()
+            self._pending_delete_row = None
+            return
+
+        self._pending_delete_parent = QPersistentModelIndex(proxy_index.parent())
+        self._pending_delete_row = target_row
+
+    def on_rows_removed(self, parent, first, last):
+        if self._pending_delete_row is None:
+            return
+
+        QTimer.singleShot(0, self._restore_selection_after_delete)
+
+    def _restore_selection_after_delete(self):
+        if self._pending_delete_row is None:
+            return
+
+        parent = QModelIndex(self._pending_delete_parent)
+        row_count = self.proxy_model.rowCount(parent)
+        if row_count <= 0:
+            self._pending_delete_parent = QPersistentModelIndex()
+            self._pending_delete_row = None
+            return
+
+        target_row = min(self._pending_delete_row, row_count - 1)
+        target_index = self.proxy_model.index(target_row, 0, parent)
+        if target_index.isValid():
+            selection_flags = (
+                QItemSelectionModel.SelectionFlag.ClearAndSelect
+                | QItemSelectionModel.SelectionFlag.Rows
+                | QItemSelectionModel.SelectionFlag.Current
+            )
+            self.view.selectionModel().setCurrentIndex(target_index, selection_flags)
+            self.view.scrollTo(target_index)
+
+        self._pending_delete_parent = QPersistentModelIndex()
+        self._pending_delete_row = None
 
     def on_files_updated(self, **args):
         self.profile_state_changed.emit()

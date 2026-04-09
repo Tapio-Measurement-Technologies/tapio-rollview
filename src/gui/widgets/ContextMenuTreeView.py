@@ -44,6 +44,7 @@ class RenameDialog(QDialog):
 
 class ContextMenuTreeView(QTreeView):
     rootIndexChanged = Signal()
+    deleteRequested = Signal(QModelIndex)
 
     def __init__(self, model: QFileSystemModel | QSortFilterProxyModel):
         super().__init__()
@@ -124,6 +125,8 @@ class ContextMenuTreeView(QTreeView):
                     QMessageBox.warning(self, _("RENAME_FAILED_MSGBOX_TITLE"), f"{_("RENAME_FAILED_MSGBOX_TEXT")} {old_name}")
 
     def delete_file(self, index: QModelIndex):
+        self.deleteRequested.emit(index)
+
         if self._proxy_model:
             index = self._proxy_model.mapToSource(index)
         file_path = self._model.filePath(index)
