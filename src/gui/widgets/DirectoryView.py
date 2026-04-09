@@ -9,11 +9,13 @@ from PySide6.QtCore import (
     QDir,
     Qt,
     QModelIndex,
+    QPersistentModelIndex,
     QDateTime,
     QSortFilterProxyModel,
     Signal,
     QFileSystemWatcher,
-    QItemSelectionModel
+    QItemSelectionModel,
+    QTimer,
 )
 import settings
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
@@ -39,6 +41,8 @@ class DirectoryView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._pending_delete_parent = QPersistentModelIndex()
+        self._pending_delete_row = None
 
         # Set up the layout
         layout = QVBoxLayout(self)
@@ -54,6 +58,7 @@ class DirectoryView(QWidget):
 
         self.treeView = ContextMenuTreeView(self.proxy_model)
         self.treeView.selectionModel().selectionChanged.connect(self.on_directory_selected)
+        self.treeView.deleteRequested.connect(self.on_delete_requested)
         # Sort the folders by custom modified date
         self.treeView.setSortingEnabled(True)
         self.treeView.header().setSortIndicatorShown(True)
@@ -84,6 +89,15 @@ class DirectoryView(QWidget):
         self.watcher = QFileSystemWatcher(self)
         self.watcher.directoryChanged.connect(self.on_directory_changed)
         self.watcher.fileChanged.connect(self.on_file_changed)
+        self.proxy_model.rowsRemoved.connect(self.on_rows_removed)
+
+    @staticmethod
+    def get_row_to_select_after_delete(deleted_row, row_count):
+        if row_count <= 1:
+            return None
+        if deleted_row > 0:
+            return deleted_row - 1
+        return 0
 
     def watch_directory_and_subdirs(self, directory):
         # Validate that the directory path exists and is a directory
@@ -210,11 +224,53 @@ class DirectoryView(QWidget):
 
     def on_directory_selected(self, selected, deselected):
         indexes = selected.indexes()
+        if not indexes and self._pending_delete_row is not None:
+            return
         # If no selection, just provide root index to avoid invalid state in FileView
         selected_index = indexes[0] if len(indexes) else self.treeView.rootIndex()
         source_index = self.proxy_model.mapToSource(selected_index)
         file_path = self.model.filePath(source_index)
         self.directory_selected.emit(file_path)
+
+    def on_delete_requested(self, index):
+        proxy_index = index.siblingAtColumn(0)
+        target_row = self.get_row_to_select_after_delete(
+            proxy_index.row(),
+            self.proxy_model.rowCount(proxy_index.parent()),
+        )
+
+        if target_row is None:
+            self._pending_delete_parent = QPersistentModelIndex()
+            self._pending_delete_row = None
+            return
+
+        self._pending_delete_parent = QPersistentModelIndex(proxy_index.parent())
+        self._pending_delete_row = target_row
+
+    def on_rows_removed(self, parent, first, last):
+        if self._pending_delete_row is None:
+            return
+        QTimer.singleShot(0, self._restore_selection_after_delete)
+
+    def _restore_selection_after_delete(self):
+        if self._pending_delete_row is None:
+            return
+
+        parent = QModelIndex(self._pending_delete_parent)
+        row_count = self.proxy_model.rowCount(parent)
+        if row_count <= 0:
+            self._pending_delete_parent = QPersistentModelIndex()
+            self._pending_delete_row = None
+            return
+
+        target_row = min(self._pending_delete_row, row_count - 1)
+        target_index = self.proxy_model.index(target_row, 0, parent)
+        if target_index.isValid():
+            self.treeView.selectionModel().select(target_index, selection_flags)
+            self.treeView.scrollTo(target_index)
+
+        self._pending_delete_parent = QPersistentModelIndex()
+        self._pending_delete_row = None
 
     def on_directory_changed(self, path):
         # A directory changed event occurred
