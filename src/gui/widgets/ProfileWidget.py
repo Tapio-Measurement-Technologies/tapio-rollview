@@ -147,6 +147,33 @@ class ProfileWidget(QWidget):
             if action.iconText() not in icons_to_keep:
                 self.toolbar.removeAction(action)
 
+    def _reset_toolbar_history(self):
+        """Reset toolbar navigation history to the current plot state."""
+        nav_stack = getattr(self.toolbar, "_nav_stack", None)
+        if nav_stack is None:
+            return
+
+        nav_stack.clear()
+        self.toolbar.push_current()
+
+    def _sync_toolbar_layout_positions(self):
+        """Keep toolbar Home/Back/Forward layout in sync after resize."""
+        nav_stack = getattr(self.toolbar, "_nav_stack", None)
+        if nav_stack is None or not getattr(nav_stack, "_elements", None):
+            return
+
+        current_positions = {
+            ax: (ax.get_position(True).frozen(), ax.get_position().frozen())
+            for ax in self.figure.axes
+        }
+
+        for nav_state in nav_stack._elements:
+            if nav_state is None:
+                continue
+            for ax, (view, _) in list(nav_state.items()):
+                if ax in current_positions:
+                    nav_state[ax] = (view, current_positions[ax])
+
     def _draw_stats_on_figure(self):
         """Draw statistics as text boxes on the figure, similar to stats widget.
 
@@ -386,8 +413,7 @@ class ProfileWidget(QWidget):
         self.figure.tight_layout()
         self.canvas.draw()
 
-        # Push current view to toolbar's view stack for Home button (correctly reset modifications from custom ZoomPan)
-        self.toolbar.push_current()
+        self._reset_toolbar_history()
 
         self.stats_widget.update_data((self.mean_profile_distances, self.mean_profile))
 
@@ -410,4 +436,5 @@ class ProfileWidget(QWidget):
         """Handle the window resize event to update chart dimensions."""
         super().resizeEvent(event)
         self.figure.tight_layout()
+        self._sync_toolbar_layout_positions()
         self.canvas.draw()
