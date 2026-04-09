@@ -66,6 +66,7 @@ def run(folder_path) -> bool:
 
         mean_distances = mean_profile[0]
         mean_values = mean_profile[1]
+        mean_profile_data = (mean_distances, mean_values)
 
         if RESAMPLE_STEP:
             mean_distances, mean_values = resample_profile(
@@ -77,13 +78,13 @@ def run(folder_path) -> bool:
             'distances':  np.round(mean_distances, EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
             'values':     np.round(mean_values, EXPORT_FLOAT_NUM_DECIMAL_PLACES).tolist(),
             'stats': {
-                'mean_g':   round(stats.mean(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'min_g':    round(stats.min(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'max_g':    round(stats.max(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'stdev_g':  round(stats.std(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'cv_pct':   round(stats.cv(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'pp_g':     round(stats.pp(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'slope_deg': round(stats.slope(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'mean_g':   round(stats.mean(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'min_g':    round(stats.min(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'max_g':    round(stats.max(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'stdev_g':  round(stats.std(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'cv_pct':   round(stats.cv(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'pp_g':     round(stats.pp(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'slope_deg': round(stats.slope(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
             }
         }
 

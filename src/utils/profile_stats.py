@@ -62,14 +62,24 @@ STAT_SPECS = [
 
 def excluded_regions_aware(func):
     """Decorator that applies excluded regions filtering when enabled."""
-    def wrapper(f):
-        if preferences.excluded_regions_enabled and len(f) > 0:
-            included_data, _ = get_included_samples(f, preferences.excluded_regions)
+    def wrapper(profile_data):
+        distances = None
+        data = profile_data
+        if isinstance(profile_data, tuple) and len(profile_data) == 2:
+            distances, data = profile_data
+
+        if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE and len(data) > 0:
+            included_data, _ = get_included_samples(
+                data,
+                preferences.excluded_regions,
+                mode=preferences.excluded_regions_mode,
+                distances=distances,
+            )
             # If all data is excluded, return NaN
             if len(included_data) == 0:
                 return np.nan
             return func(included_data)
-        return func(f)
+        return func(data)
     return wrapper
 
 
@@ -89,15 +99,32 @@ analysis_to_alert_name = {
 stat_units = {spec["name"]: spec["unit"] for spec in STAT_SPECS}
 
 
-def _get_included_data_with_positions(f):
-    data = np.asarray(f, dtype=float)
+def _get_included_data_with_positions(profile_data):
+    distances = None
+    data = profile_data
+    if isinstance(profile_data, tuple) and len(profile_data) == 2:
+        distances, data = profile_data
+
+    data = np.asarray(data, dtype=float)
     if len(data) <= 1:
         positions = np.zeros(len(data), dtype=float)
     else:
-        positions = np.linspace(0.0, 1.0, len(data), dtype=float)
+        if distances is not None and len(distances) == len(data):
+            distances = np.asarray(distances, dtype=float)
+            if distances[-1] > distances[0]:
+                positions = (distances - distances[0]) / (distances[-1] - distances[0])
+            else:
+                positions = np.zeros(len(data), dtype=float)
+        else:
+            positions = np.linspace(0.0, 1.0, len(data), dtype=float)
 
-    if preferences.excluded_regions_enabled and len(data) > 0:
-        included_data, excluded_ranges = get_included_samples(data, preferences.excluded_regions)
+    if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE and len(data) > 0:
+        included_data, excluded_ranges = get_included_samples(
+            data,
+            preferences.excluded_regions,
+            mode=preferences.excluded_regions_mode,
+            distances=distances,
+        )
         if len(included_data) == 0:
             return np.array([], dtype=float), np.array([], dtype=float)
 

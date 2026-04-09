@@ -6,7 +6,7 @@ from models.Profile import Profile
 from utils.zoom_pan import ZoomPan
 from scipy.signal import welch
 from utils.profile_stats import Stats, calc_mean_profile
-from utils.excluded_regions import get_included_samples
+from utils.excluded_regions import get_included_samples, get_visual_excluded_ranges
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
@@ -81,7 +81,8 @@ class ProfileWidget(QWidget):
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.toolbar.setVisible(preferences.show_plot_toolbar)
         self.mean_profile = []
-        self.stats_widget = StatsWidget(self.mean_profile)
+        self.mean_profile_distances = []
+        self.stats_widget = StatsWidget((self.mean_profile_distances, self.mean_profile))
 
         self.layout.addWidget(self.stats_widget)
         self.layout.addWidget(self.warning_label)
@@ -117,30 +118,27 @@ class ProfileWidget(QWidget):
 
     def _draw_excluded_regions_visualization(self, mean_profile_values, mean_profile_distances_converted):
         """Draw excluded regions visualization on the plot."""
-
-        data, excluded_ranges_idx = get_included_samples(mean_profile_values, preferences.excluded_regions)
+        visual_ranges = get_visual_excluded_ranges(
+            preferences.excluded_regions,
+            mode=preferences.excluded_regions_mode,
+            distances=mean_profile_distances_converted,
+        )
 
         # Draw each excluded region
-        for i, (start_idx, end_idx) in enumerate(excluded_ranges_idx):
-            if start_idx < end_idx and start_idx < len(mean_profile_distances_converted) and end_idx <= len(mean_profile_distances_converted):
-                # Shade the excluded region
+        for i, (start_x, end_x) in enumerate(visual_ranges):
+            if start_x < end_x:
                 self.profile_ax.axvspan(
-                    mean_profile_distances_converted[start_idx],
-                    mean_profile_distances_converted[end_idx - 1] if end_idx < len(mean_profile_distances_converted) else mean_profile_distances_converted[-1],
+                    start_x,
+                    end_x,
                     alpha=0.2,
                     color='gray',
-                    label=_("EXCLUDED_REGION") if i == 0 else '',  # Only label first region
+                    label=_("EXCLUDED_REGION") if i == 0 else '',
                     zorder=-1
                 )
-                # Add dashed vertical lines at the edges
-                self.profile_ax.axvline(
-                    mean_profile_distances_converted[start_idx],
-                    **STYLE_AXVLINE
-                )
-                self.profile_ax.axvline(
-                    mean_profile_distances_converted[end_idx - 1] if end_idx < len(mean_profile_distances_converted) else mean_profile_distances_converted[-1],
-                    **STYLE_AXVLINE
-                )
+
+            self.profile_ax.axvline(start_x, **STYLE_AXVLINE)
+            if end_x != start_x:
+                self.profile_ax.axvline(end_x, **STYLE_AXVLINE)
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
@@ -162,13 +160,13 @@ class ProfileWidget(QWidget):
 
         # Get stats values
         stats_data = [
-            (profile_stats.stat_labels[self.stats.mean.name], self.stats.mean(self.mean_profile), self.stats.mean.unit),
-            (profile_stats.stat_labels[self.stats.std.name], self.stats.std(self.mean_profile), self.stats.std.unit),
-            (profile_stats.stat_labels[self.stats.cv.name], self.stats.cv(self.mean_profile), self.stats.cv.unit),
-            (profile_stats.stat_labels[self.stats.min.name], self.stats.min(self.mean_profile), self.stats.min.unit),
-            (profile_stats.stat_labels[self.stats.max.name], self.stats.max(self.mean_profile), self.stats.max.unit),
-            (profile_stats.stat_labels[self.stats.pp.name], self.stats.pp(self.mean_profile), self.stats.pp.unit),
-            (profile_stats.stat_labels[self.stats.slope.name], self.stats.slope(self.mean_profile), self.stats.slope.unit),
+            (profile_stats.stat_labels[self.stats.mean.name], self.stats.mean((self.mean_profile_distances, self.mean_profile)), self.stats.mean.unit),
+            (profile_stats.stat_labels[self.stats.std.name], self.stats.std((self.mean_profile_distances, self.mean_profile)), self.stats.std.unit),
+            (profile_stats.stat_labels[self.stats.cv.name], self.stats.cv((self.mean_profile_distances, self.mean_profile)), self.stats.cv.unit),
+            (profile_stats.stat_labels[self.stats.min.name], self.stats.min((self.mean_profile_distances, self.mean_profile)), self.stats.min.unit),
+            (profile_stats.stat_labels[self.stats.max.name], self.stats.max((self.mean_profile_distances, self.mean_profile)), self.stats.max.unit),
+            (profile_stats.stat_labels[self.stats.pp.name], self.stats.pp((self.mean_profile_distances, self.mean_profile)), self.stats.pp.unit),
+            (profile_stats.stat_labels[self.stats.slope.name], self.stats.slope((self.mean_profile_distances, self.mean_profile)), self.stats.slope.unit),
         ]
 
         # Check limits for highlighting
@@ -301,6 +299,7 @@ class ProfileWidget(QWidget):
                 profile for profile in self.profiles if not profile.hidden]
         mean_profile_distances, mean_profile_values = calc_mean_profile(
             self.profiles)
+        self.mean_profile_distances = mean_profile_distances
         self.mean_profile = mean_profile_values
 
         if len(mean_profile_values) > 0:
@@ -313,7 +312,7 @@ class ProfileWidget(QWidget):
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
 
             # Visualize excluded regions when enabled
-            if preferences.excluded_regions_enabled:
+            if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE:
                 self._draw_excluded_regions_visualization(mean_profile_values, mean_profile_distances_converted)
         else:
             self.warning_label.set_text(
@@ -390,7 +389,7 @@ class ProfileWidget(QWidget):
         # Push current view to toolbar's view stack for Home button (correctly reset modifications from custom ZoomPan)
         self.toolbar.push_current()
 
-        self.stats_widget.update_data(self.mean_profile)
+        self.stats_widget.update_data((self.mean_profile_distances, self.mean_profile))
 
     def update_ticks_wavelength(self, *args):
         primary_ticks = self.spectrum_ax.get_xticks()

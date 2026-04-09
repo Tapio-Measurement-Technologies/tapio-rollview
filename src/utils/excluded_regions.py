@@ -1,8 +1,20 @@
 """
 Utilities for parsing and validating excluded regions format.
-Format: "11-90,5-8" means exclude indices 11-90% and 5-8%
+Format: "11-90,5-8" means exclude the given ranges.
 """
+import re
+
 import numpy as np
+import settings
+
+
+_RANGE_RE = re.compile(
+    r"^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*-\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$"
+)
+
+
+def _clamp(value, lower, upper):
+    return max(lower, min(value, upper))
 
 
 def parse_excluded_regions(regions_str):
@@ -11,13 +23,12 @@ def parse_excluded_regions(regions_str):
 
     - Accepts reversed ranges (e.g., '90-11' becomes '11-90')
     - Accepts overlapping ranges (e.g., '5-10,8-15' is valid)
-    - Validates that values are between 0-100
 
     Args:
-        regions_str: String format like '11-90,5-8' (percent-based ranges)
+        regions_str: String format like '11-90,5-8'
 
     Returns:
-        List of tuples [(start1, end1), (start2, end2), ...] in percent format
+        List of tuples [(start1, end1), (start2, end2), ...]
 
     Raises:
         ValueError: If format is invalid with descriptive error message
@@ -33,84 +44,144 @@ def parse_excluded_regions(regions_str):
         if not range_str:
             continue
 
-        if '-' not in range_str:
+        match = _RANGE_RE.fullmatch(range_str)
+        if not match:
             raise ValueError(f"Invalid range format '{range_str}'. Expected format: 'start-end'")
 
-        parts = range_str.split('-', 1)  # Split only on first dash
-        if len(parts) != 2:
-            raise ValueError(f"Invalid range format '{range_str}'")
-
-        start, end = parts
         try:
-            start_pct = float(start.strip())
-            end_pct = float(end.strip())
+            start_value = float(match.group(1))
+            end_value = float(match.group(2))
         except ValueError:
             raise ValueError(f"Invalid number in range '{range_str}'")
 
-        # Validate range values
-        if not (0 <= start_pct <= 100):
-            raise ValueError(f"Value {start_pct} must be between 0 and 100")
+        if start_value > end_value:
+            start_value, end_value = end_value, start_value
 
-        if not (0 <= end_pct <= 100):
-            raise ValueError(f"Value {end_pct} must be between 0 and 100")
-
-        # Auto-swap if reversed
-        if start_pct > end_pct:
-            start_pct, end_pct = end_pct, start_pct
-
-        # Skip empty ranges
-        if start_pct == end_pct:
+        if start_value == end_value:
             continue
 
-        ranges.append((start_pct, end_pct))
+        ranges.append((start_value, end_value))
 
     return ranges
 
 
-def get_included_samples(data, excluded_regions_str):
+def _get_excluded_ranges_indices_relative(n, excluded_ranges):
+    excluded_ranges_idx = []
+    for start_pct, end_pct in excluded_ranges:
+        start_pct = _clamp(start_pct, 0.0, 100.0)
+        end_pct = _clamp(end_pct, 0.0, 100.0)
+        start_idx = int(n * start_pct / 100)
+        end_idx = int(n * end_pct / 100)
+        start_idx = max(0, min(start_idx, n))
+        end_idx = max(0, min(end_idx, n))
+        if start_idx < end_idx:
+            excluded_ranges_idx.append((start_idx, end_idx))
+    return excluded_ranges_idx
+
+
+def _get_excluded_ranges_indices_absolute(distances, excluded_ranges):
+    if distances is None or len(distances) == 0:
+        return []
+
+    distances = np.asarray(distances, dtype=float)
+    profile_start = float(distances[0])
+    profile_end = float(distances[-1])
+    excluded_ranges_idx = []
+
+    for start_value, end_value in excluded_ranges:
+        start_value = _clamp(start_value, profile_start, profile_end)
+        end_value = _clamp(end_value, profile_start, profile_end)
+        start_idx = int(np.searchsorted(distances, start_value, side='left'))
+        end_idx = int(np.searchsorted(distances, end_value, side='right'))
+        start_idx = max(0, min(start_idx, len(distances)))
+        end_idx = max(0, min(end_idx, len(distances)))
+        if start_idx < end_idx:
+            excluded_ranges_idx.append((start_idx, end_idx))
+
+    return excluded_ranges_idx
+
+
+def get_visual_excluded_ranges(excluded_regions_str, mode=None, distances=None):
+    """Return clamped excluded ranges in the same coordinate system as distances."""
+    if distances is None or len(distances) == 0:
+        return []
+
+    mode = mode or settings.EXCLUDED_REGIONS_MODE_RELATIVE
+    if mode == settings.EXCLUDED_REGIONS_MODE_NONE:
+        return []
+
+    try:
+        excluded_ranges = parse_excluded_regions(excluded_regions_str)
+    except ValueError as e:
+        print(f"Warning: Invalid excluded regions format: {e}")
+        return []
+
+    if not excluded_ranges:
+        return []
+
+    distances = np.asarray(distances, dtype=float)
+    profile_start = float(distances[0])
+    profile_end = float(distances[-1])
+    profile_span = profile_end - profile_start
+    visual_ranges = []
+
+    for start_value, end_value in excluded_ranges:
+        if mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+            start = _clamp(start_value, profile_start, profile_end)
+            end = _clamp(end_value, profile_start, profile_end)
+        else:
+            start_pct = _clamp(start_value, 0.0, 100.0)
+            end_pct = _clamp(end_value, 0.0, 100.0)
+            start = profile_start + profile_span * start_pct / 100.0
+            end = profile_start + profile_span * end_pct / 100.0
+
+        visual_ranges.append((start, end))
+
+    return visual_ranges
+
+
+def get_included_samples(data, excluded_regions_str, mode=None, distances=None):
     """
     Extract samples excluding specified regions.
 
     Args:
         data: 1D numpy array
-        excluded_regions_str: String format like '11-90' (percent-based)
+        excluded_regions_str: String format like '11-90'
+        mode: one of none/relative/absolute
+        distances: optional distance axis in meters for absolute mode
 
     Returns:
         Tuple of (included_data, excluded_ranges_indices) where:
         - included_data: concatenated array of included samples
         - excluded_ranges_indices: list of (start_idx, end_idx) tuples for excluded regions in data indices
     """
+    data = np.asarray(data)
     n = len(data)
     if n == 0:
         return data, []
 
-    # Parse excluded regions, catch errors and return full data if invalid
+    mode = mode or settings.EXCLUDED_REGIONS_MODE_RELATIVE
+    if mode == settings.EXCLUDED_REGIONS_MODE_NONE:
+        return data, []
+
     try:
-        excluded_ranges_pct = parse_excluded_regions(excluded_regions_str)
+        excluded_ranges = parse_excluded_regions(excluded_regions_str)
     except ValueError as e:
         print(f"Warning: Invalid excluded regions format: {e}")
         return data, []
 
-    if not excluded_ranges_pct:
+    if not excluded_ranges:
         return data, []
 
-    # Convert percent to indices
-    excluded_ranges_idx = []
-    for start_pct, end_pct in excluded_ranges_pct:
-        start_idx = int(n * start_pct / 100)
-        end_idx = int(n * end_pct / 100)
-        # Clamp to valid range
-        start_idx = max(0, min(start_idx, n))
-        end_idx = max(0, min(end_idx, n))
-        if start_idx < end_idx:
-            excluded_ranges_idx.append((start_idx, end_idx))
+    if mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+        excluded_ranges_idx = _get_excluded_ranges_indices_absolute(distances, excluded_ranges)
+    else:
+        excluded_ranges_idx = _get_excluded_ranges_indices_relative(n, excluded_ranges)
 
-    # Create mask for included samples
     mask = np.ones(n, dtype=bool)
     for start_idx, end_idx in excluded_ranges_idx:
         mask[start_idx:end_idx] = False
 
-    # Extract included samples
     included_data = data[mask]
 
     return included_data, excluded_ranges_idx

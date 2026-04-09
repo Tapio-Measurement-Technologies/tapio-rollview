@@ -13,6 +13,12 @@ stats = Stats()
 def format_stat_value(value):
     return f"{value:.{settings.STAT_DECIMAL_PLACES}f}"
 
+
+def has_stat_data(data):
+    if isinstance(data, tuple) and len(data) == 2:
+        return len(data[1]) > 0
+    return len(data) > 0
+
 class StatsWidget(QWidget):
     def __init__(self, data):
         super().__init__()
@@ -152,7 +158,7 @@ class StatWidget(QWidget):
 
     def update_data(self, data):
         self.data = data
-        if len(self.data):
+        if has_stat_data(self.data):
             self.value = self.func(self.data)
             self.over_limit = False
 

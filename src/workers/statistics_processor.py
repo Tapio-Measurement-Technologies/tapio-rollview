@@ -110,9 +110,10 @@ class StatisticsProcessorWorker(QObject):
             if roll_dir.mean_profile is not None and len(roll_dir.mean_profile) > 0:
                 # Calculate all stats at once
                 stats = {}
+                profile_data = (roll_dir.distances, roll_dir.mean_profile)
                 for stat_name, stat_func in stat_funcs.items():
                     try:
-                        stats[stat_name] = float(stat_func(roll_dir.mean_profile))
+                        stats[stat_name] = float(stat_func(profile_data))
                     except Exception as e:
                         log.warning(f"Error calculating {stat_name} for {roll_dir.path}: {e}")
                         stats[stat_name] = None

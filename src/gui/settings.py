@@ -225,6 +225,11 @@ class AdvancedSettingsPage(QWidget):
     def __init__(self):
         super().__init__()
         self.number_locale = QLocale.system()
+        self.excluded_regions_modes = {
+            settings.EXCLUDED_REGIONS_MODE_NONE: "None",
+            settings.EXCLUDED_REGIONS_MODE_RELATIVE: "Relative",
+            settings.EXCLUDED_REGIONS_MODE_ABSOLUTE: "Absolute",
+        }
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -330,20 +335,25 @@ class AdvancedSettingsPage(QWidget):
         layout.addWidget(self.flip_profiles_checkbox)
 
         # Excluded regions section
-        self.excluded_regions_checkbox = QCheckBox(_("EXCLUDED_REGIONS_ENABLED"))
-        self.excluded_regions_checkbox.setChecked(preferences.excluded_regions_enabled)
-        self.excluded_regions_checkbox.stateChanged.connect(self.enable_save_button)
-        self.excluded_regions_checkbox.stateChanged.connect(self.on_excluded_regions_enabled_changed)
-        layout.addWidget(self.excluded_regions_checkbox)
+        self.excluded_regions_mode_label = QLabel(_("EXCLUDED_REGIONS_ENABLED"))
+        layout.addWidget(self.excluded_regions_mode_label)
+
+        self.excluded_regions_mode_selector = QComboBox()
+        self.excluded_regions_mode_selector.addItems(self.excluded_regions_modes.values())
+        current_mode = getattr(preferences, "excluded_regions_mode", settings.EXCLUDED_REGIONS_MODE_DEFAULT)
+        if current_mode in self.excluded_regions_modes:
+            self.excluded_regions_mode_selector.setCurrentText(self.excluded_regions_modes[current_mode])
+        self.excluded_regions_mode_selector.currentIndexChanged.connect(self.enable_save_button)
+        self.excluded_regions_mode_selector.currentIndexChanged.connect(self.on_excluded_regions_mode_changed)
+        layout.addWidget(self.excluded_regions_mode_selector)
 
         # Excluded regions input
         regions_layout = QHBoxLayout()
         self.excluded_regions_input = QLineEdit()
-        self.excluded_regions_input.setText(preferences.excluded_regions)
-        self.excluded_regions_input.setPlaceholderText("0-10,90-100")
+        self.excluded_regions_input.setText(self._get_excluded_regions_display_text())
         self.excluded_regions_input.textChanged.connect(self.enable_save_button)
         self.excluded_regions_input.returnPressed.connect(self.save_settings)
-        self.excluded_regions_input.setEnabled(preferences.excluded_regions_enabled)
+        self.excluded_regions_input.setEnabled(current_mode != settings.EXCLUDED_REGIONS_MODE_NONE)
 
         self.excluded_regions_error = QLabel()
         self.excluded_regions_error.setStyleSheet("color: red; font-size: 12px;")
@@ -352,6 +362,7 @@ class AdvancedSettingsPage(QWidget):
         regions_layout.addWidget(self.excluded_regions_input)
         layout.addLayout(regions_layout)
         layout.addWidget(self.excluded_regions_error)
+        self._update_excluded_regions_ui()
 
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
@@ -368,9 +379,54 @@ class AdvancedSettingsPage(QWidget):
         self.apply_button.setEnabled(True)
 
     @Slot()
-    def on_excluded_regions_enabled_changed(self, state):
-        """Enable/disable the excluded regions input based on checkbox state."""
-        self.excluded_regions_input.setEnabled(state == Qt.CheckState.Checked.value)
+    def on_excluded_regions_mode_changed(self):
+        """Update the UI when the excluded-region mode changes."""
+        self.excluded_regions_error.setVisible(False)
+        self._update_excluded_regions_ui()
+
+    def _get_selected_excluded_regions_mode(self):
+        return list(self.excluded_regions_modes.keys())[self.excluded_regions_mode_selector.currentIndex()]
+
+    def _format_excluded_regions_ranges(self, ranges):
+        return ",".join(f"{start:g}-{end:g}" for start, end in ranges)
+
+    def _get_excluded_regions_display_text(self):
+        mode = getattr(preferences, "excluded_regions_mode", settings.EXCLUDED_REGIONS_MODE_DEFAULT)
+        regions_text = preferences.excluded_regions
+        if not regions_text or mode != settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+            return regions_text
+
+        unit_info = preferences.get_distance_unit_info()
+        ranges = parse_excluded_regions(regions_text)
+        converted_ranges = [
+            (start * unit_info.conversion_factor, end * unit_info.conversion_factor)
+            for start, end in ranges
+        ]
+        return self._format_excluded_regions_ranges(converted_ranges)
+
+    def _update_excluded_regions_ui(self):
+        mode = self._get_selected_excluded_regions_mode()
+        self.excluded_regions_input.setEnabled(mode != settings.EXCLUDED_REGIONS_MODE_NONE)
+        if mode == settings.EXCLUDED_REGIONS_MODE_RELATIVE:
+            self.excluded_regions_input.setPlaceholderText("0-10,90-100 (%)")
+        elif mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+            unit_info = preferences.get_distance_unit_info()
+            self.excluded_regions_input.setPlaceholderText(f"0.1-0.5,9.0-10.0 ({unit_info.unit})")
+        else:
+            self.excluded_regions_input.setPlaceholderText("")
+
+    def _serialize_excluded_regions(self, regions_text, mode):
+        if not regions_text:
+            return ""
+
+        ranges = parse_excluded_regions(regions_text)
+        if mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+            unit_info = preferences.get_distance_unit_info()
+            ranges = [
+                (start / unit_info.conversion_factor, end / unit_info.conversion_factor)
+                for start, end in ranges
+            ]
+        return self._format_excluded_regions_ranges(ranges)
 
     @Slot()
     def on_band_pass_changed(self, value):
@@ -418,10 +474,13 @@ class AdvancedSettingsPage(QWidget):
     def save_settings(self):
         # Validate excluded regions before saving
         regions_text = self.excluded_regions_input.text().strip()
-        if regions_text:
+        excluded_regions_mode = self._get_selected_excluded_regions_mode()
+        stored_regions_text = regions_text
+        if regions_text and excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE:
             try:
                 parse_excluded_regions(regions_text)
                 self.excluded_regions_error.setVisible(False)
+                stored_regions_text = self._serialize_excluded_regions(regions_text, excluded_regions_mode)
             except ValueError as e:
                 self.excluded_regions_error.setText(str(e))
                 self.excluded_regions_error.setVisible(True)
@@ -431,8 +490,9 @@ class AdvancedSettingsPage(QWidget):
             'show_spectrum': self.show_spectrum_checkbox.isChecked(),
             'continuous_mode': self.continuous_mode_checkbox.isChecked(),
             'flip_profiles': self.flip_profiles_checkbox.isChecked(),
-            'excluded_regions_enabled': self.excluded_regions_checkbox.isChecked(),
-            'excluded_regions': regions_text,
+            'excluded_regions_enabled': excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE,
+            'excluded_regions_mode': excluded_regions_mode,
+            'excluded_regions': stored_regions_text,
             'y_lim_low_override': self._parse_optional_float(self.y_lim_low_input.text()),
             'y_lim_high_override': self._parse_optional_float(self.y_lim_high_input.text()),
             'default_y_axis_scaling': list(self.y_axis_scaling_modes.keys())[self.y_axis_scaling_selector.currentIndex()],

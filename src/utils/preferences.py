@@ -20,6 +20,7 @@ _DEFAULTS = {
     'flip_profiles': settings.FLIP_PROFILES_DEFAULT,
     'excluded_regions_enabled': settings.EXCLUDED_REGIONS_ENABLED_DEFAULT,
     'excluded_regions': settings.EXCLUDED_REGIONS_DEFAULT,
+    'excluded_regions_mode': settings.EXCLUDED_REGIONS_MODE_DEFAULT,
     'y_lim_low_override': settings.Y_LIM_LOW_OVERRIDE_DEFAULT,
     'y_lim_high_override': settings.Y_LIM_HIGH_OVERRIDE_DEFAULT,
     'default_y_axis_scaling': settings.Y_AXIS_SCALING_DEFAULT,
@@ -84,6 +85,7 @@ show_spectrum = _default_value('show_spectrum')
 flip_profiles = _default_value('flip_profiles')
 excluded_regions_enabled = _default_value('excluded_regions_enabled')
 excluded_regions = _default_value('excluded_regions')
+excluded_regions_mode = _default_value('excluded_regions_mode')
 y_lim_low_override = _default_value('y_lim_low_override')
 y_lim_high_override = _default_value('y_lim_high_override')
 default_y_axis_scaling = _default_value('default_y_axis_scaling')
@@ -159,6 +161,16 @@ def _load_preferences():
           elif key == 'alert_limits':
             value = _normalize_alert_limits(value)
           globals()[key] = value
+
+      if 'excluded_regions_mode' not in loaded_prefs:
+        globals()['excluded_regions_mode'] = (
+          settings.EXCLUDED_REGIONS_MODE_RELATIVE
+          if loaded_prefs.get('excluded_regions_enabled')
+          else settings.EXCLUDED_REGIONS_MODE_NONE
+        )
+      globals()['excluded_regions_enabled'] = (
+        globals()['excluded_regions_mode'] != settings.EXCLUDED_REGIONS_MODE_NONE
+      )
 
       print(f"Loaded preferences from {settings.PREFERENCES_FILE_PATH}")
 

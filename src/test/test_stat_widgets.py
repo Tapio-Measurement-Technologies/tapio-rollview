@@ -2,6 +2,8 @@ import unittest
 import numpy as np
 from PySide6.QtWidgets import QApplication
 from gui.widgets.stats import StatsWidget, MeanWidget, StdWidget, CVWidget, MinWidget, MaxWidget, PeakToPeakWidget, SlopeWidget
+from utils import preferences
+import settings
 
 class TestStatWidgets(unittest.TestCase):
 
@@ -10,6 +12,10 @@ class TestStatWidgets(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
+        self.original_excluded_regions_mode = preferences.excluded_regions_mode
+        self.original_excluded_regions = preferences.excluded_regions
+        preferences.excluded_regions_mode = settings.EXCLUDED_REGIONS_MODE_NONE
+        preferences.excluded_regions = ""
         self.data = np.array([1, 2, 3, 4, 5])
         self.limits = {
             "mean_g": {'name': 'mean_g', 'min': 1.0, 'max': 5.0},
@@ -20,6 +26,10 @@ class TestStatWidgets(unittest.TestCase):
             "pp_g": {'name': 'pp_g', 'min': 3.0, 'max': 4.9},
             "slope_deg": {'name': 'slope_deg', 'min': -10.0, 'max': 10.0}
         }
+
+    def tearDown(self):
+        preferences.excluded_regions_mode = self.original_excluded_regions_mode
+        preferences.excluded_regions = self.original_excluded_regions
 
     def test_mean_widget_initialization(self):
         widget = MeanWidget(self.data)
