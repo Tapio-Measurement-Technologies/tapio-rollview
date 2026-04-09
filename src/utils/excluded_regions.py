@@ -17,6 +17,12 @@ def _clamp(value, lower, upper):
     return max(lower, min(value, upper))
 
 
+def scale_excluded_ranges(excluded_ranges, factor):
+    if factor == 1.0:
+        return excluded_ranges
+    return [(start * factor, end * factor) for start, end in excluded_ranges]
+
+
 def parse_excluded_regions(regions_str):
     """
     Parse excluded regions string format like '11-90,5-8' into list of range tuples.
@@ -101,7 +107,7 @@ def _get_excluded_ranges_indices_absolute(distances, excluded_ranges):
     return excluded_ranges_idx
 
 
-def get_visual_excluded_ranges(excluded_regions_str, mode=None, distances=None):
+def get_visual_excluded_ranges(excluded_regions_str, mode=None, distances=None, absolute_scale=1.0):
     """Return clamped excluded ranges in the same coordinate system as distances."""
     if distances is None or len(distances) == 0:
         return []
@@ -118,6 +124,9 @@ def get_visual_excluded_ranges(excluded_regions_str, mode=None, distances=None):
 
     if not excluded_ranges:
         return []
+
+    if mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+        excluded_ranges = scale_excluded_ranges(excluded_ranges, absolute_scale)
 
     distances = np.asarray(distances, dtype=float)
     profile_start = float(distances[0])
@@ -140,7 +149,7 @@ def get_visual_excluded_ranges(excluded_regions_str, mode=None, distances=None):
     return visual_ranges
 
 
-def get_included_samples(data, excluded_regions_str, mode=None, distances=None):
+def get_included_samples(data, excluded_regions_str, mode=None, distances=None, absolute_scale=1.0):
     """
     Extract samples excluding specified regions.
 
@@ -174,6 +183,7 @@ def get_included_samples(data, excluded_regions_str, mode=None, distances=None):
         return data, []
 
     if mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
+        excluded_ranges = scale_excluded_ranges(excluded_ranges, absolute_scale)
         excluded_ranges_idx = _get_excluded_ranges_indices_absolute(distances, excluded_ranges)
     else:
         excluded_ranges_idx = _get_excluded_ranges_indices_relative(n, excluded_ranges)

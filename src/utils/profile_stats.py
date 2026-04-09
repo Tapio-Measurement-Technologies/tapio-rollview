@@ -69,11 +69,13 @@ def excluded_regions_aware(func):
             distances, data = profile_data
 
         if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE and len(data) > 0:
+            unit_info = preferences.get_distance_unit_info()
             included_data, _ = get_included_samples(
                 data,
                 preferences.excluded_regions,
                 mode=preferences.excluded_regions_mode,
                 distances=distances,
+                absolute_scale=1 / unit_info.conversion_factor,
             )
             # If all data is excluded, return NaN
             if len(included_data) == 0:
@@ -119,11 +121,13 @@ def _get_included_data_with_positions(profile_data):
             positions = np.linspace(0.0, 1.0, len(data), dtype=float)
 
     if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE and len(data) > 0:
+        unit_info = preferences.get_distance_unit_info()
         included_data, excluded_ranges = get_included_samples(
             data,
             preferences.excluded_regions,
             mode=preferences.excluded_regions_mode,
             distances=distances,
+            absolute_scale=1 / unit_info.conversion_factor,
         )
         if len(included_data) == 0:
             return np.array([], dtype=float), np.array([], dtype=float)

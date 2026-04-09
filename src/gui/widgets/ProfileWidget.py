@@ -116,12 +116,24 @@ class ProfileWidget(QWidget):
         self.zoom = zp.zoom_factory(base_scale=1.5)
         self.pan = zp.pan_factory()
 
-    def _draw_excluded_regions_visualization(self, mean_profile_values, mean_profile_distances_converted):
-        """Draw excluded regions visualization on the plot."""
+    def _get_excluded_region_plot_ranges(self, mean_profile_distances, conversion_factor):
+        """Return excluded-region plot ranges in the current display unit."""
         visual_ranges = get_visual_excluded_ranges(
             preferences.excluded_regions,
             mode=preferences.excluded_regions_mode,
-            distances=mean_profile_distances_converted,
+            distances=mean_profile_distances,
+            absolute_scale=1 / conversion_factor,
+        )
+        return [
+            (start * conversion_factor, end * conversion_factor)
+            for start, end in visual_ranges
+        ]
+
+    def _draw_excluded_regions_visualization(self, mean_profile_distances, conversion_factor):
+        """Draw excluded regions visualization on the plot."""
+        visual_ranges = self._get_excluded_region_plot_ranges(
+            mean_profile_distances,
+            conversion_factor,
         )
 
         # Draw each excluded region
@@ -340,7 +352,10 @@ class ProfileWidget(QWidget):
 
             # Visualize excluded regions when enabled
             if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE:
-                self._draw_excluded_regions_visualization(mean_profile_values, mean_profile_distances_converted)
+                self._draw_excluded_regions_visualization(
+                    mean_profile_distances,
+                    unit_info.conversion_factor,
+                )
         else:
             self.warning_label.set_text(
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))

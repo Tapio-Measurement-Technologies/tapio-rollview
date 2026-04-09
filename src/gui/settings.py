@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider
 from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator
-from PySide6.QtCore import Signal, Slot, Qt, QLocale, QRegularExpression
+from PySide6.QtCore import Signal, Slot, Qt, QLocale, QRegularExpression, QSignalBlocker
 from utils import preferences
 from utils.translation import _
 from utils import profile_stats
@@ -114,7 +114,6 @@ class GeneralSettingsPage(QWidget):
         language_changed = selected_lang != self.initial_lang
 
         selected_distance_unit = list(self.distance_units.keys())[self.distance_unit_selector.currentIndex()]
-
         preferences.update_preferences({
             'locale': selected_lang,
             'distance_unit': selected_distance_unit
@@ -234,6 +233,9 @@ class AdvancedSettingsPage(QWidget):
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
+        filter_heading = self._create_section_heading("Filtering")
+        layout.addWidget(filter_heading)
+
         # Band pass filter section
         band_pass_label = QLabel(_("BAND_PASS_FILTER"))
         layout.addWidget(band_pass_label)
@@ -267,6 +269,9 @@ class AdvancedSettingsPage(QWidget):
         self.band_pass_slider_layout.addWidget(self.band_pass_units_label)
 
         layout.addLayout(self.band_pass_slider_layout)
+
+        display_heading = self._create_section_heading("Display")
+        layout.addWidget(display_heading)
 
         # Y-axis scaling mode
         y_scaling_label = QLabel(_("DEFAULT_Y_AXIS_SCALING"))
@@ -322,6 +327,9 @@ class AdvancedSettingsPage(QWidget):
         self.show_spectrum_checkbox.stateChanged.connect(self.enable_save_button)
         layout.addWidget(self.show_spectrum_checkbox)
 
+        profile_heading = self._create_section_heading("Profiles")
+        layout.addWidget(profile_heading)
+
         # Continuous mode checkbox
         self.continuous_mode_checkbox = QCheckBox(_("CONTINUOUS_MODE"))
         self.continuous_mode_checkbox.setChecked(preferences.continuous_mode)
@@ -334,10 +342,13 @@ class AdvancedSettingsPage(QWidget):
         self.flip_profiles_checkbox.stateChanged.connect(self.enable_save_button)
         layout.addWidget(self.flip_profiles_checkbox)
 
-        # Excluded regions section
-        self.excluded_regions_mode_label = QLabel(_("EXCLUDED_REGIONS_ENABLED"))
-        layout.addWidget(self.excluded_regions_mode_label)
+        excluded_regions_heading = self._create_section_heading(_("EXCLUDED_REGIONS_ENABLED"))
+        layout.addWidget(excluded_regions_heading)
 
+        # Excluded regions section
+        excluded_regions_mode_layout = QHBoxLayout()
+        self.excluded_regions_mode_label = QLabel("Exclude regions mode:")
+        self.excluded_regions_mode_label.setMinimumWidth(140)
         self.excluded_regions_mode_selector = QComboBox()
         self.excluded_regions_mode_selector.addItems(self.excluded_regions_modes.values())
         current_mode = getattr(preferences, "excluded_regions_mode", settings.EXCLUDED_REGIONS_MODE_DEFAULT)
@@ -345,10 +356,14 @@ class AdvancedSettingsPage(QWidget):
             self.excluded_regions_mode_selector.setCurrentText(self.excluded_regions_modes[current_mode])
         self.excluded_regions_mode_selector.currentIndexChanged.connect(self.enable_save_button)
         self.excluded_regions_mode_selector.currentIndexChanged.connect(self.on_excluded_regions_mode_changed)
-        layout.addWidget(self.excluded_regions_mode_selector)
+        excluded_regions_mode_layout.addWidget(self.excluded_regions_mode_label)
+        excluded_regions_mode_layout.addWidget(self.excluded_regions_mode_selector)
+        layout.addLayout(excluded_regions_mode_layout)
 
         # Excluded regions input
         regions_layout = QHBoxLayout()
+        self.excluded_regions_label = QLabel(f"{_('EXCLUDED_REGIONS_ENABLED')}:")
+        self.excluded_regions_label.setMinimumWidth(140)
         self.excluded_regions_input = QLineEdit()
         self.excluded_regions_input.setText(self._get_excluded_regions_display_text())
         self.excluded_regions_input.textChanged.connect(self.enable_save_button)
@@ -359,6 +374,7 @@ class AdvancedSettingsPage(QWidget):
         self.excluded_regions_error.setStyleSheet("color: red; font-size: 12px;")
         self.excluded_regions_error.setVisible(False)
 
+        regions_layout.addWidget(self.excluded_regions_label)
         regions_layout.addWidget(self.excluded_regions_input)
         layout.addLayout(regions_layout)
         layout.addWidget(self.excluded_regions_error)
@@ -366,6 +382,10 @@ class AdvancedSettingsPage(QWidget):
 
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
+
+        self.reset_defaults_button = QPushButton("Reset defaults", self)
+        self.reset_defaults_button.clicked.connect(self.reset_to_defaults)
+        self.footer_layout.addWidget(self.reset_defaults_button)
 
         self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
         self.apply_button.setEnabled(False)
@@ -377,6 +397,54 @@ class AdvancedSettingsPage(QWidget):
     @Slot()
     def enable_save_button(self):
         self.apply_button.setEnabled(True)
+
+    def _create_section_heading(self, text):
+        label = QLabel(text)
+        label.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
+        return label
+
+    def _set_selector_value(self, selector, options_by_key, selected_key):
+        if selected_key in options_by_key:
+            selector.setCurrentText(options_by_key[selected_key])
+
+    @Slot()
+    def reset_to_defaults(self):
+        blockers = [
+            QSignalBlocker(self.band_pass_slider),
+            QSignalBlocker(self.band_pass_high_input),
+            QSignalBlocker(self.y_axis_scaling_selector),
+            QSignalBlocker(self.y_lim_low_input),
+            QSignalBlocker(self.y_lim_high_input),
+            QSignalBlocker(self.show_spectrum_checkbox),
+            QSignalBlocker(self.continuous_mode_checkbox),
+            QSignalBlocker(self.flip_profiles_checkbox),
+            QSignalBlocker(self.excluded_regions_mode_selector),
+            QSignalBlocker(self.excluded_regions_input),
+        ]
+
+        default_band_pass_high = self._clamp_band_pass_high(settings.BAND_PASS_HIGH_DEFAULT)
+        self.band_pass_slider.setValue(int(default_band_pass_high * self.BAND_PASS_SLIDER_SCALE))
+        self.band_pass_high_input.setText(f"{default_band_pass_high:.1f}")
+        self._set_selector_value(
+            self.y_axis_scaling_selector,
+            self.y_axis_scaling_modes,
+            settings.Y_AXIS_SCALING_DEFAULT,
+        )
+        self.y_lim_low_input.setText("")
+        self.y_lim_high_input.setText("")
+        self.show_spectrum_checkbox.setChecked(settings.SHOW_SPECTRUM_DEFAULT)
+        self.continuous_mode_checkbox.setChecked(settings.CONTINUOUS_MODE_DEFAULT)
+        self.flip_profiles_checkbox.setChecked(settings.FLIP_PROFILES_DEFAULT)
+        self._set_selector_value(
+            self.excluded_regions_mode_selector,
+            self.excluded_regions_modes,
+            settings.EXCLUDED_REGIONS_MODE_DEFAULT,
+        )
+        self.excluded_regions_input.setText(settings.EXCLUDED_REGIONS_DEFAULT)
+        self.excluded_regions_error.clear()
+        self.excluded_regions_error.setVisible(False)
+        self._update_excluded_regions_ui()
+        self.enable_save_button()
 
     @Slot()
     def on_excluded_regions_mode_changed(self):
@@ -391,18 +459,7 @@ class AdvancedSettingsPage(QWidget):
         return ",".join(f"{start:g}-{end:g}" for start, end in ranges)
 
     def _get_excluded_regions_display_text(self):
-        mode = getattr(preferences, "excluded_regions_mode", settings.EXCLUDED_REGIONS_MODE_DEFAULT)
-        regions_text = preferences.excluded_regions
-        if not regions_text or mode != settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
-            return regions_text
-
-        unit_info = preferences.get_distance_unit_info()
-        ranges = parse_excluded_regions(regions_text)
-        converted_ranges = [
-            (start * unit_info.conversion_factor, end * unit_info.conversion_factor)
-            for start, end in ranges
-        ]
-        return self._format_excluded_regions_ranges(converted_ranges)
+        return preferences.excluded_regions
 
     def _update_excluded_regions_ui(self):
         mode = self._get_selected_excluded_regions_mode()
@@ -420,12 +477,6 @@ class AdvancedSettingsPage(QWidget):
             return ""
 
         ranges = parse_excluded_regions(regions_text)
-        if mode == settings.EXCLUDED_REGIONS_MODE_ABSOLUTE:
-            unit_info = preferences.get_distance_unit_info()
-            ranges = [
-                (start / unit_info.conversion_factor, end / unit_info.conversion_factor)
-                for start, end in ranges
-            ]
         return self._format_excluded_regions_ranges(ranges)
 
     @Slot()
