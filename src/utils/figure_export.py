@@ -2,6 +2,7 @@
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QImage
+from PySide6.QtCore import QRect
 from io import BytesIO
 from gui.widgets.ProfileWidget import ProfileWidget
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
@@ -75,6 +76,20 @@ def _buffer_to_clipboard(buffer):
     clipboard.setImage(image)
 
 
+def _widget_to_clipboard(widget):
+    """Copy the rendered widget appearance to clipboard."""
+    if isinstance(widget, ProfileWidget):
+        included_widgets = [widget.stats_widget, widget.warning_label, widget.canvas]
+        capture_rect = QRect()
+        for child in included_widgets:
+            capture_rect = capture_rect.united(child.geometry())
+        pixmap = widget.grab(capture_rect)
+    else:
+        pixmap = widget.grab()
+    clipboard = QApplication.clipboard()
+    clipboard.setPixmap(pixmap)
+
+
 def copy_plot_widget_to_clipboard(
         widget,
         dpi=settings.PLOT_IMAGE_EXPORT_DPI,
@@ -86,26 +101,11 @@ def copy_plot_widget_to_clipboard(
         widget: The ProfileWidget or StatisticsAnalysisWidget instance
     """
     try:
-        if isinstance(widget, ProfileWidget):
-            figure = widget.figure
-            canvas = widget.canvas
-            annotation_callback = widget._draw_stats_on_figure
-        elif isinstance(widget, StatisticsAnalysisWidget):
-            figure = widget.chart.figure
-            canvas = widget.chart.canvas
-            annotation_callback = widget.chart._draw_info_on_figure
-        else:
+        if not isinstance(widget, (ProfileWidget, StatisticsAnalysisWidget)):
             print(f"Unsupported widget type for clipboard copy: {type(widget)}")
             return
 
-        buffer = export_figure_with_annotations(
-                figure=figure,
-                canvas=canvas,
-                annotation_callback=annotation_callback,
-                dpi=dpi,
-                scale_multiplier=scale_multiplier
-        )
-        _buffer_to_clipboard(buffer)
+        _widget_to_clipboard(widget)
         print("Plot copied to clipboard.")
 
     except Exception as e:

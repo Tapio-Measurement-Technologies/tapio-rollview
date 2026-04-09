@@ -206,7 +206,7 @@ msgstr "Close"
 
 #: src/gui/widgets/chart.py:153
 msgid "CHART_HARDNESS_LABEL"
-msgstr "BC Hardness"
+msgstr "Hardness"
 
 #: src/gui/widgets/chart.py:154
 msgid "CHART_DISTANCE_LABEL"
