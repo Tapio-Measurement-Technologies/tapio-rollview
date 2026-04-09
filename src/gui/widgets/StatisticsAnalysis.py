@@ -8,17 +8,11 @@ from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 from utils.translation import _
 from utils import preferences
+from utils import profile_stats
 from workers.statistics_processor import StatisticsProcessor
 from gui.widgets.LoadingWidget import LoadingWidget
 
-stat_label_map = {
-    _("MEAN_LONG") + " [g]": "mean",
-    _("STDEV_LONG") + " [g]": "std",
-    _("CV_LONG") + " [%]": "cv",
-    _("MIN_LONG") + " [g]": "min",
-    _("MAX_LONG") + " [g]": "max",
-    _("PP_LONG") + " [g]": "pp"
-}
+stat_label_map = profile_stats.analysis_stat_label_map
 
 class StatSelectionDropdown(QComboBox):
     def __init__(self, parent=None):
@@ -77,12 +71,11 @@ class StatisticsAnalysisChart(QWidget):
         # Add alert limit ranges as shaded areas if available (draw behind bars)
         if hasattr(self.parent_widget, 'selected_stat'):
             current_stat = self.parent_widget.selected_stat
-            # Find matching alert limit by checking if stat name is substring of alert name
-            matching_limit = None
-            for limit in preferences.alert_limits:
-                if current_stat in limit['name']:
-                    matching_limit = limit
-                    break
+            alert_name = profile_stats.analysis_to_alert_name.get(current_stat)
+            matching_limit = next(
+                (limit for limit in preferences.alert_limits if limit['name'] == alert_name),
+                None,
+            )
 
             if matching_limit and (matching_limit['min'] is not None or matching_limit['max'] is not None):
                 y_min, y_max = self.ax.get_ylim()
@@ -121,11 +114,10 @@ class StatisticsAnalysisChart(QWidget):
         # Get the selected statistic name for y-axis label
         selected_stat_name = "Statistic Value"  # default
         if hasattr(self.parent_widget, 'selected_stat'):
-            # Reverse lookup to get the display name from the key
-            for display_name, stat_key in stat_label_map.items():
-                if stat_key == self.parent_widget.selected_stat:
-                    selected_stat_name = display_name
-                    break
+            selected_stat_name = profile_stats.analysis_display_labels.get(
+                self.parent_widget.selected_stat,
+                selected_stat_name,
+            )
         self.ax.set_ylabel(selected_stat_name)
 
         self.ax.grid(True, axis='y')  # Only show horizontal grid lines for bar charts
@@ -189,10 +181,10 @@ class StatisticsAnalysisChart(QWidget):
         # Get current stat display name
         stat_display_name = ""
         if hasattr(self.parent_widget, 'selected_stat'):
-            for display_name, stat_key in stat_label_map.items():
-                if stat_key == self.parent_widget.selected_stat:
-                    stat_display_name = display_name
-                    break
+            stat_display_name = profile_stats.analysis_display_labels.get(
+                self.parent_widget.selected_stat,
+                "",
+            )
 
         # Get current filter text
         filter_text = ""

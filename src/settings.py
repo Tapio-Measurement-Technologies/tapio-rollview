@@ -41,6 +41,7 @@ GRID = True
 MEAN_PROFILE_LINE_WIDTH = 2.8
 MEAN_PROFILE_LINE_COLOR = "tab:purple"
 SELECTED_PROFILE_LINE_WIDTH = 2
+STAT_DECIMAL_PLACES = 1
 
 # See python strftime
 # https://docs.python.org/3/library/datetime.html
@@ -113,6 +114,12 @@ ALERT_LIMITS_DEFAULT = [
     {
         "name": "pp_g",
         "units": "g",
+        "min": None,
+        "max": None
+    },
+    {
+        "name": "slope_deg",
+        "units": "g/RL",
         "min": None,
         "max": None
     }

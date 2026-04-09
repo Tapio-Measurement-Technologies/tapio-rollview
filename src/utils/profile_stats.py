@@ -1,12 +1,63 @@
 import numpy as np
-from utils.filter import bandpass_filter
-import numpy as np
 import settings
 from utils import preferences
+from utils.filter import bandpass_filter
 from utils.translation import _
 from utils.excluded_regions import get_included_samples
 
 # Implement here any custom more complicated profile statistics
+
+STAT_SPECS = [
+    {
+        "analysis_key": "mean",
+        "name": "mean_g",
+        "label": _("ALERT_LIMIT_MEAN"),
+        "long_label": _("MEAN_LONG"),
+        "unit": "g",
+    },
+    {
+        "analysis_key": "std",
+        "name": "stdev_g",
+        "label": _("ALERT_LIMIT_STDEV"),
+        "long_label": _("STDEV_LONG"),
+        "unit": "g",
+    },
+    {
+        "analysis_key": "cv",
+        "name": "cv_pct",
+        "label": _("ALERT_LIMIT_CV"),
+        "long_label": _("CV_LONG"),
+        "unit": "%",
+    },
+    {
+        "analysis_key": "min",
+        "name": "min_g",
+        "label": _("ALERT_LIMIT_MIN"),
+        "long_label": _("MIN_LONG"),
+        "unit": "g",
+    },
+    {
+        "analysis_key": "max",
+        "name": "max_g",
+        "label": _("ALERT_LIMIT_MAX"),
+        "long_label": _("MAX_LONG"),
+        "unit": "g",
+    },
+    {
+        "analysis_key": "pp",
+        "name": "pp_g",
+        "label": _("ALERT_LIMIT_PP"),
+        "long_label": _("PP_LONG"),
+        "unit": "g",
+    },
+    {
+        "analysis_key": "slope",
+        "name": "slope_deg",
+        "label": "Slope",
+        "long_label": "Slope",
+        "unit": "g/RL",
+    },
+]
 
 
 def excluded_regions_aware(func):
@@ -21,14 +72,55 @@ def excluded_regions_aware(func):
         return func(f)
     return wrapper
 
-stat_labels = {
-    "mean_g": _("ALERT_LIMIT_MEAN"),
-    "stdev_g": _("ALERT_LIMIT_STDEV"),
-    "min_g": _("ALERT_LIMIT_MIN"),
-    "max_g": _("ALERT_LIMIT_MAX"),
-    "cv_pct": _("ALERT_LIMIT_CV"),
-    "pp_g": _("ALERT_LIMIT_PP")
+
+stat_labels = {spec["name"]: spec["label"] for spec in STAT_SPECS}
+analysis_display_labels = {
+    spec["analysis_key"]: f"{spec['long_label']} [{spec['unit']}]"
+    for spec in STAT_SPECS
 }
+analysis_stat_label_map = {
+    display_label: analysis_key
+    for analysis_key, display_label in analysis_display_labels.items()
+}
+analysis_to_alert_name = {
+    spec["analysis_key"]: spec["name"]
+    for spec in STAT_SPECS
+}
+stat_units = {spec["name"]: spec["unit"] for spec in STAT_SPECS}
+
+
+def _get_included_data_with_positions(f):
+    data = np.asarray(f, dtype=float)
+    if len(data) <= 1:
+        positions = np.zeros(len(data), dtype=float)
+    else:
+        positions = np.linspace(0.0, 1.0, len(data), dtype=float)
+
+    if preferences.excluded_regions_enabled and len(data) > 0:
+        included_data, excluded_ranges = get_included_samples(data, preferences.excluded_regions)
+        if len(included_data) == 0:
+            return np.array([], dtype=float), np.array([], dtype=float)
+
+        if excluded_ranges:
+            mask = np.ones(len(data), dtype=bool)
+            for start_idx, end_idx in excluded_ranges:
+                mask[start_idx:end_idx] = False
+            positions = positions[mask]
+        data = included_data
+
+    return positions, data
+
+
+def calc_slope(f):
+    positions, data = _get_included_data_with_positions(f)
+
+    if len(data) == 0:
+        return np.nan
+    if len(data) < 2:
+        return 0.0
+
+    slope, _ = np.polyfit(positions, data, 1)
+    return float(slope)
 
 
 class Stats:
@@ -39,6 +131,7 @@ class Stats:
         self.max = excluded_regions_aware(np.max)
         self.cv = excluded_regions_aware(lambda f: (np.std(f) / np.mean(f)) * 100)
         self.pp = excluded_regions_aware(lambda f: np.max(f) - np.min(f))
+        self.slope = calc_slope
 
         self.mean.unit = 'g'
         self.std.unit = 'g'
@@ -46,6 +139,7 @@ class Stats:
         self.max.unit = 'g'
         self.cv.unit = '%'
         self.pp.unit = 'g'
+        self.slope.unit = 'g/RL'
 
         self.mean.name = "mean_g"
         self.std.name = "stdev_g"
@@ -53,6 +147,15 @@ class Stats:
         self.max.name = "max_g"
         self.cv.name = "cv_pct"
         self.pp.name = "pp_g"
+        self.slope.name = "slope_deg"
+
+        self.mean.analysis_key = "mean"
+        self.std.analysis_key = "std"
+        self.min.analysis_key = "min"
+        self.max.analysis_key = "max"
+        self.cv.analysis_key = "cv"
+        self.pp.analysis_key = "pp"
+        self.slope.analysis_key = "slope"
 
 
 def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_interval=None):

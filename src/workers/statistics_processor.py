@@ -94,7 +94,8 @@ class StatisticsProcessorWorker(QObject):
             'min': self.stats.min,
             'max': self.stats.max,
             'cv': self.stats.cv,
-            'pp': self.stats.pp
+            'pp': self.stats.pp,
+            'slope': self.stats.slope,
         }
 
         for idx, roll_dir in enumerate(roll_directories):

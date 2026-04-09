@@ -1,4 +1,5 @@
 from PySide6.QtCore import QDir
+import copy
 import settings
 import json
 
@@ -36,25 +37,58 @@ _SAVERS = {
     'pinned_serial_ports': list,
 }
 
+
+def _default_value(key):
+  return copy.deepcopy(_DEFAULTS[key])
+
+
+def _normalize_alert_limits(limits):
+  if not isinstance(limits, list):
+    limits = []
+
+  normalized_limits = []
+  configured_by_name = {
+    limit.get('name'): limit
+    for limit in limits
+    if isinstance(limit, dict) and limit.get('name')
+  }
+
+  for default_limit in settings.ALERT_LIMITS_DEFAULT:
+    existing_limit = configured_by_name.pop(default_limit['name'], {})
+    normalized_limit = copy.deepcopy(default_limit)
+    normalized_limit['units'] = existing_limit.get('units', normalized_limit['units'])
+    normalized_limit['min'] = existing_limit.get('min')
+    normalized_limit['max'] = existing_limit.get('max')
+    normalized_limits.append(normalized_limit)
+
+  for extra_limit in configured_by_name.values():
+    preserved_limit = copy.deepcopy(extra_limit)
+    preserved_limit.setdefault('units', '')
+    preserved_limit.setdefault('min', None)
+    preserved_limit.setdefault('max', None)
+    normalized_limits.append(preserved_limit)
+
+  return normalized_limits
+
 # Initialize module-level variables
-alert_limits = _DEFAULTS['alert_limits']
-enabled_postprocessors = _DEFAULTS['enabled_postprocessors']
-show_all_com_ports = _DEFAULTS['show_all_com_ports']
-show_plot_toolbar = _DEFAULTS['show_plot_toolbar']
-recalculate_mean = _DEFAULTS['recalculate_mean']
-locale = _DEFAULTS['locale']
-pinned_serial_ports = _DEFAULTS['pinned_serial_ports']
-distance_unit = _DEFAULTS['distance_unit']
-continuous_mode = _DEFAULTS['continuous_mode']
-show_spectrum = _DEFAULTS['show_spectrum']
-flip_profiles = _DEFAULTS['flip_profiles']
-excluded_regions_enabled = _DEFAULTS['excluded_regions_enabled']
-excluded_regions = _DEFAULTS['excluded_regions']
-y_lim_low_override = _DEFAULTS['y_lim_low_override']
-y_lim_high_override = _DEFAULTS['y_lim_high_override']
-default_y_axis_scaling = _DEFAULTS['default_y_axis_scaling']
-band_pass_low = _DEFAULTS['band_pass_low']
-band_pass_high = _DEFAULTS['band_pass_high']
+alert_limits = _normalize_alert_limits(_default_value('alert_limits'))
+enabled_postprocessors = _default_value('enabled_postprocessors')
+show_all_com_ports = _default_value('show_all_com_ports')
+show_plot_toolbar = _default_value('show_plot_toolbar')
+recalculate_mean = _default_value('recalculate_mean')
+locale = _default_value('locale')
+pinned_serial_ports = _default_value('pinned_serial_ports')
+distance_unit = _default_value('distance_unit')
+continuous_mode = _default_value('continuous_mode')
+show_spectrum = _default_value('show_spectrum')
+flip_profiles = _default_value('flip_profiles')
+excluded_regions_enabled = _default_value('excluded_regions_enabled')
+excluded_regions = _default_value('excluded_regions')
+y_lim_low_override = _default_value('y_lim_low_override')
+y_lim_high_override = _default_value('y_lim_high_override')
+default_y_axis_scaling = _default_value('default_y_axis_scaling')
+band_pass_low = _default_value('band_pass_low')
+band_pass_high = _default_value('band_pass_high')
 
 def save_preferences_to_file():
   """Save all preferences to file"""
@@ -97,6 +131,8 @@ def update_preferences(updates):
       value = bool(value)
     elif key == 'pinned_serial_ports':
       value = set(value)
+    elif key == 'alert_limits':
+      value = _normalize_alert_limits(value)
 
     globals()[key] = value
 
@@ -120,6 +156,8 @@ def _load_preferences():
           # Apply loader conversion if needed (e.g., list to set)
           if key in _LOADERS:
             value = _LOADERS[key](value)
+          elif key == 'alert_limits':
+            value = _normalize_alert_limits(value)
           globals()[key] = value
 
       print(f"Loaded preferences from {settings.PREFERENCES_FILE_PATH}")

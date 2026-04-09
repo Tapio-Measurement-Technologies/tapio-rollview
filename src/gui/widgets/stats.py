@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout, QMenu, QApplication
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
+import settings
 from utils.profile_stats import Stats
 from utils import preferences, profile_stats
 from utils.translation import _
@@ -8,34 +9,62 @@ from .AlertLimitEditor import AlertLimitEditor
 
 stats = Stats()
 
+
+def format_stat_value(value):
+    return f"{value:.{settings.STAT_DECIMAL_PLACES}f}"
+
 class StatsWidget(QWidget):
     def __init__(self, data):
         super().__init__()
         self.limits = preferences.alert_limits
-        mean_limit  = next((limit for limit in self.limits if limit['name'] == "mean_g"), None)
-        stdev_limit = next((limit for limit in self.limits if limit['name'] == "stdev_g"), None)
-        cv_limit    = next((limit for limit in self.limits if limit['name'] == "cv_pct"), None)
-        min_limit   = next((limit for limit in self.limits if limit['name'] == "min_g"), None)
-        max_limit   = next((limit for limit in self.limits if limit['name'] == "max_g"), None)
-        pp_limit    = next((limit for limit in self.limits if limit['name'] == "pp_g"), None)
+        limit_map = {limit.get('name'): limit for limit in self.limits}
 
-        layout = QGridLayout()
+        self.layout = QGridLayout()
+        self.layout.setContentsMargins(4, 1, 4, 1)
+        self.layout.setHorizontalSpacing(6)
+        self.layout.setVerticalSpacing(3)
         self.widgets = [
-            MeanWidget(data, mean_limit),
-            StdWidget(data, stdev_limit),
-            CVWidget(data, cv_limit),
-            MinWidget(data, min_limit),
-            MaxWidget(data, max_limit),
-            PeakToPeakWidget(data, pp_limit)
+            MeanWidget(data, limit_map.get(stats.mean.name)),
+            StdWidget(data, limit_map.get(stats.std.name)),
+            CVWidget(data, limit_map.get(stats.cv.name)),
+            MinWidget(data, limit_map.get(stats.min.name)),
+            MaxWidget(data, limit_map.get(stats.max.name)),
+            PeakToPeakWidget(data, limit_map.get(stats.pp.name)),
+            SlopeWidget(data, limit_map.get(stats.slope.name)),
         ]
+        self._column_count = 0
+        self._min_cell_width = max(widget.sizeHint().width() for widget in self.widgets)
 
-        for index, widget in enumerate(self.widgets):
-            layout.addWidget(widget, 0, index)
-            layout.setColumnMinimumWidth(index, 80)
-
-        self.setLayout(layout)  # Set the layout for the StatsWidget
+        self.setLayout(self.layout)  # Set the layout for the StatsWidget
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
+        self._relayout_widgets()
+
+    def _calculate_columns(self):
+        available_width = max(self.width(), self.sizeHint().width(), self._min_cell_width)
+        return max(1, available_width // self._min_cell_width)
+
+    def _relayout_widgets(self):
+        column_count = min(len(self.widgets), self._calculate_columns())
+        if column_count == self._column_count:
+            return
+
+        while self.layout.count():
+            self.layout.takeAt(0)
+
+        self._column_count = column_count
+
+        for column in range(column_count):
+            self.layout.setColumnMinimumWidth(column, self._min_cell_width)
+
+        for index, widget in enumerate(self.widgets):
+            row = index // column_count
+            column = index % column_count
+            self.layout.addWidget(widget, row, column)
+
+    def resizeEvent(self, event):
+        self._relayout_widgets()
+        super().resizeEvent(event)
 
     def show_context_menu(self, position):
         """Show context menu with option to copy stats to clipboard."""
@@ -52,7 +81,7 @@ class StatsWidget(QWidget):
         stats_text = []
         for widget in self.widgets:
             if widget.value is not None:
-                stats_text.append(f"{widget.name}: {widget.value:.2f} {widget.units}")
+                stats_text.append(f"{widget.name}: {format_stat_value(widget.value)} {widget.units}")
             else:
                 stats_text.append(f"{widget.name}: --")
 
@@ -80,6 +109,8 @@ class StatWidget(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(6, 3, 6, 3)
+        self.layout.setSpacing(3)
 
         self.label = QLabel(f"{self.name} [{self.units}]")
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -144,31 +175,35 @@ class StatWidget(QWidget):
             else:
                 self.setStyleSheet("")  # Reset the background color if not over limit
 
-            self.value_label.setText(f"{self.value or 0:.2f}")
+            self.value_label.setText(format_stat_value(self.value or 0))
             self.update_tooltip()
         else:
             self.value_label.setText("--")
 
 class MeanWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, profile_stats.stat_labels[stats.mean.name], stats.mean.unit, stats.mean, limit)
+        super().__init__(data, profile_stats.stat_labels.get(stats.mean.name, stats.mean.name), stats.mean.unit, stats.mean, limit)
 
 class StdWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, profile_stats.stat_labels[stats.std.name], stats.std.unit, stats.std, limit)
+        super().__init__(data, profile_stats.stat_labels.get(stats.std.name, stats.std.name), stats.std.unit, stats.std, limit)
 
 class CVWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, profile_stats.stat_labels[stats.cv.name], stats.cv.unit, stats.cv, limit)
+        super().__init__(data, profile_stats.stat_labels.get(stats.cv.name, stats.cv.name), stats.cv.unit, stats.cv, limit)
 
 class MinWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, profile_stats.stat_labels[stats.min.name], stats.min.unit, stats.min, limit)
+        super().__init__(data, profile_stats.stat_labels.get(stats.min.name, stats.min.name), stats.min.unit, stats.min, limit)
 
 class MaxWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, profile_stats.stat_labels[stats.max.name], stats.max.unit, stats.max, limit)
+        super().__init__(data, profile_stats.stat_labels.get(stats.max.name, stats.max.name), stats.max.unit, stats.max, limit)
 
 class PeakToPeakWidget(StatWidget):
     def __init__(self, data, limit=None):
-        super().__init__(data, profile_stats.stat_labels[stats.pp.name], stats.pp.unit, stats.pp, limit)
+        super().__init__(data, profile_stats.stat_labels.get(stats.pp.name, stats.pp.name), stats.pp.unit, stats.pp, limit)
+
+class SlopeWidget(StatWidget):
+    def __init__(self, data, limit=None):
+        super().__init__(data, profile_stats.stat_labels.get(stats.slope.name, stats.slope.name), stats.slope.unit, stats.slope, limit)

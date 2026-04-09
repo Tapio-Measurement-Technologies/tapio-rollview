@@ -8,7 +8,7 @@ from scipy.signal import welch
 from utils.profile_stats import Stats, calc_mean_profile
 from utils.excluded_regions import get_included_samples
 import numpy as np
-from gui.widgets.stats import StatsWidget
+from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
 from PySide6.QtCore import Qt
 from utils.translation import _
@@ -168,12 +168,13 @@ class ProfileWidget(QWidget):
             (profile_stats.stat_labels[self.stats.min.name], self.stats.min(self.mean_profile), self.stats.min.unit),
             (profile_stats.stat_labels[self.stats.max.name], self.stats.max(self.mean_profile), self.stats.max.unit),
             (profile_stats.stat_labels[self.stats.pp.name], self.stats.pp(self.mean_profile), self.stats.pp.unit),
+            (profile_stats.stat_labels[self.stats.slope.name], self.stats.slope(self.mean_profile), self.stats.slope.unit),
         ]
 
         # Check limits for highlighting
         limits = preferences.alert_limits
         limit_dict = {limit['name']: limit for limit in limits}
-        stat_functions = [self.stats.mean, self.stats.std, self.stats.cv, self.stats.min, self.stats.max, self.stats.pp]
+        stat_functions = [self.stats.mean, self.stats.std, self.stats.cv, self.stats.min, self.stats.max, self.stats.pp, self.stats.slope]
 
         # Position stats below title, evenly spaced across width
         num_stats = len(stats_data)
@@ -202,7 +203,7 @@ class ProfileWidget(QWidget):
                     over_limit = True
 
             # Create text box with smaller font
-            text = f"{label} [{unit}]\n{value:.2f}"
+            text = f"{label} [{unit}]\n{format_stat_value(value)}"
 
             # Background color (matplotlib format: (R, G, B, alpha))
             bgcolor = (1.0, 0.0, 0.0, 0.3) if over_limit else 'white'

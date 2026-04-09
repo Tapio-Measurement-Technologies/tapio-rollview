@@ -64,6 +64,7 @@ Available statistics are:
 - **Min [g]:** Smallest hardness value of the mean hardness profile.
 - **Max [g]:** Largest hardness value of the mean hardness profile.
 - **P-p [g]:** Peak-to-peak, the difference between the largest and smallest hardness values in the mean profile.
+- **Slope [g/RL]:** Fitted straight-line slope of the mean profile using normalized roll distance from 0 to 1.
 
 
 ## Settings System

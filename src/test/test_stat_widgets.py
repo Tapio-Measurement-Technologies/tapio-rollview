@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from PySide6.QtWidgets import QApplication
-from gui.widgets.stats import StatsWidget, MeanWidget, StdWidget, CVWidget, MinWidget, MaxWidget, PeakToPeakWidget
+from gui.widgets.stats import StatsWidget, MeanWidget, StdWidget, CVWidget, MinWidget, MaxWidget, PeakToPeakWidget, SlopeWidget
 
 class TestStatWidgets(unittest.TestCase):
 
@@ -17,17 +17,18 @@ class TestStatWidgets(unittest.TestCase):
             "cv_pct": {'name': 'cv_pct', 'min': 10.0, 'max': 50.0},
             "min_g": {'name': 'min_g', 'min': 0.1, 'max': 1.5},
             "max_g": {'name': 'max_g', 'min': 4.5, 'max': 5.0},
-            "pp_g": {'name': 'pp_g', 'min': 3.0, 'max': 4.9}
+            "pp_g": {'name': 'pp_g', 'min': 3.0, 'max': 4.9},
+            "slope_deg": {'name': 'slope_deg', 'min': -10.0, 'max': 10.0}
         }
 
     def test_mean_widget_initialization(self):
         widget = MeanWidget(self.data)
         self.assertAlmostEqual(widget.value, np.mean(self.data))
-        self.assertEqual(widget.value_label.text(), f"{np.mean(self.data):.2f}")
+        self.assertEqual(widget.value_label.text(), f"{np.mean(self.data):.1f}")
 
     def test_stat_widget_tooltip(self):
         widget = MeanWidget(self.data, limit=self.limits['mean_g'])
-        self.assertEqual(widget.toolTip(), "Alert Limits:\nMin: 1.0\nMax: 5.0")
+        self.assertEqual(widget.toolTip(), "Alert limits:\nLower: 1.0\nUpper: 5.0")
 
     def test_stat_widget_limit_exceeded(self):
         widget = MaxWidget(self.data, limit=self.limits['max_g'])
@@ -184,6 +185,30 @@ class TestStatWidgets(unittest.TestCase):
         widget = PeakToPeakWidget(self.data, self.limits['pp_g'])
         widget.update_data([1.0, 6.0])
         self.assertTrue(widget.over_limit)
+
+    def test_slope_widget(self):
+        linear_data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        expected_slope = 4.0
+
+        widget = SlopeWidget(linear_data, self.limits['slope_deg'])
+        self.assertAlmostEqual(widget.value, expected_slope)
+        self.assertFalse(widget.over_limit)
+
+    def test_slope_widget_with_flat_profile(self):
+        flat_data = np.array([3.0, 3.0, 3.0, 3.0])
+
+        widget = SlopeWidget(flat_data, self.limits['slope_deg'])
+        self.assertAlmostEqual(widget.value, 0.0)
+        self.assertFalse(widget.over_limit)
+
+    def test_slope_widget_is_length_normalized(self):
+        short_linear = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        long_linear = np.linspace(1.0, 5.0, 17)
+
+        short_widget = SlopeWidget(short_linear, self.limits['slope_deg'])
+        long_widget = SlopeWidget(long_linear, self.limits['slope_deg'])
+
+        self.assertAlmostEqual(short_widget.value, long_widget.value)
 
 if __name__ == "__main__":
     unittest.main()

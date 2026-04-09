@@ -82,7 +82,8 @@ def run(folder_path) -> bool:
                 'max_g':    round(stats.max(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
                 'stdev_g':  round(stats.std(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
                 'cv_pct':   round(stats.cv(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'pp_g':     round(stats.pp(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES)
+                'pp_g':     round(stats.pp(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'slope_deg': round(stats.slope(mean_values), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
             }
         }
 
