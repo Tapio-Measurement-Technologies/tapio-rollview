@@ -59,6 +59,20 @@ class TestProfileWidget(unittest.TestCase):
         finally:
             widget.close()
 
+    def test_spectrum_plot_data_uses_frequency_limits_in_1m(self):
+        widget = ProfileWidget()
+        try:
+            profile = [0.0] * 8000
+            frequencies, amplitudes = widget._get_spectrum_plot_data(profile)
+
+            self.assertGreater(len(frequencies), 0)
+            self.assertEqual(len(frequencies), len(amplitudes))
+            self.assertGreaterEqual(frequencies[0], settings.SPECTRUM_LOWER_LIMIT_1M)
+            self.assertLessEqual(frequencies[-1], settings.SPECTRUM_UPPER_LIMIT_1M)
+            self.assertAlmostEqual(frequencies[-1], settings.SPECTRUM_UPPER_LIMIT_1M)
+        finally:
+            widget.close()
+
 
 if __name__ == "__main__":
     unittest.main()

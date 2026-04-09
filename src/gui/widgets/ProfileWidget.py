@@ -129,6 +129,19 @@ class ProfileWidget(QWidget):
             for start, end in visual_ranges
         ]
 
+    def _get_spectrum_plot_data(self, mean_profile_values):
+        f, Pxx = welch(mean_profile_values,
+                       fs=(1/settings.SAMPLE_INTERVAL_M),
+                       window='hann',
+                       nperseg=settings.NPERSEG,
+                       noverlap=settings.NOVERLAP,
+                       scaling='spectrum')
+        mask = (
+            (f >= settings.SPECTRUM_LOWER_LIMIT_1M) &
+            (f <= settings.SPECTRUM_UPPER_LIMIT_1M)
+        )
+        return f[mask], np.sqrt(Pxx)[mask]
+
     def _draw_excluded_regions_visualization(self, mean_profile_distances, conversion_factor):
         """Draw excluded regions visualization on the plot."""
         visual_ranges = self._get_excluded_region_plot_ranges(
@@ -361,14 +374,8 @@ class ProfileWidget(QWidget):
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))
 
         if preferences.show_spectrum:
-            f, Pxx = welch(mean_profile_values,
-                           fs=(1/settings.SAMPLE_INTERVAL_M),
-                           window='hann',
-                           nperseg=settings.NPERSEG,
-                           noverlap=settings.NOVERLAP,
-                           scaling='spectrum')
-            self.spectrum_ax.plot(f[settings.SPECTRUM_LOWER_LIMIT:settings.SPECTRUM_UPPER_LIMIT],
-                                  np.sqrt(Pxx)[settings.SPECTRUM_LOWER_LIMIT:settings.SPECTRUM_UPPER_LIMIT])
+            spectrum_frequencies, spectrum_amplitudes = self._get_spectrum_plot_data(mean_profile_values)
+            self.spectrum_ax.plot(spectrum_frequencies, spectrum_amplitudes)
 
             self.spectrum_ax.set_ylabel(f"{_("CHART_AMPLITUDE_LABEL")} [g]")
             self.spectrum_ax.set_xlabel(f"{_("CHART_FREQUENCY_LABEL")} [1/m]")
