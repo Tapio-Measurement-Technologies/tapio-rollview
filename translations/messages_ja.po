@@ -147,12 +147,8 @@ msgid "RENAME_FAILED_MSGBOX_TITLE"
 msgstr "変更に失敗しました"
 
 #. Used in file tree context menu as message text.
-msgid "DELETE_DIALOG_FOLDER_TEXT_1"
-msgstr "全て削除しますか？ "
-
-#. Used in file tree context menu as message text.
-msgid "DELETE_DIALOG_FOLDER_TEXT_2"
-msgstr ""
+msgid "DELETE_DIALOG_FOLDER_CONFIRM"
+msgstr "{path} とその中身をすべて削除しますか？"
 
 #. Used in file tree context menu as window or dialog title.
 msgid "DELETE_DIALOG_TITLE"
@@ -167,8 +163,8 @@ msgid "DELETE_FAILED_MSGBOX_TITLE"
 msgstr "削除に失敗しました"
 
 #. Used in file tree context menu as message text.
-msgid "DELETE_DIALOG_FILE_TEXT"
-msgstr "削除しますか"
+msgid "DELETE_DIALOG_FILE_CONFIRM"
+msgstr "{path} を削除しますか？"
 
 #. Used in directory view as button label.
 msgid "BUTTON_TEXT_CHANGE_DIRECTORY"
@@ -261,13 +257,9 @@ msgstr "固定"
 msgid "SERIAL_UNPIN_PORT"
 msgstr "固定解除"
 
-#. Used in main window as status bar message.
-msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
-msgstr "スキャンが完了しました。検出されたデバイス数："
-
-#. Used in main window as status bar message.
-msgid "SERIAL_SYNC_STATUS_BAR_TEXT_2"
-msgstr "台。"
+#. Used in main window as message text and status bar message.
+msgid "SERIAL_SYNC_STATUS_BAR_TEXT"
+msgstr "スキャンが完了しました。検出されたデバイス数: {count} 台。"
 
 #. Used in stats widget.
 msgid "ALERT_LIMITS_NOT_SET"
@@ -326,12 +318,8 @@ msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
 msgstr "完了"
 
 #. Used in main window as message text.
-msgid "POSTPROCESSORS_ERROR_TEXT_1"
-msgstr "ポストプロセスに失敗しました："
-
-#. Used in main window as message text.
-msgid "POSTPROCESSORS_ERROR_TEXT_2"
-msgstr "フォルダ。"
+msgid "POSTPROCESSORS_ERROR_TEXT"
+msgstr "{count} 個のフォルダでデータ処理に失敗しました。"
 
 #. Used in main window as message text.
 msgid "POSTPROCESSORS_FINISHED_TEXT"
@@ -592,13 +580,9 @@ msgstr "Tapio RollView - 予期しないエラー"
 msgid "CRASH_DIALOG_HEADING"
 msgstr "予期しないエラーが発生しました"
 
-#. Used in crash dialog.
-msgid "CRASH_DIALOG_MESSAGE_LINE_1"
-msgstr "アプリケーションで対処できない問題が発生しました。"
-
-#. Used in crash dialog.
-msgid "CRASH_DIALOG_MESSAGE_LINE_2"
-msgstr "下のボタンで完全なエラーログを保存し、次の宛先に送信してください"
+#. Used in crash dialog as message text.
+msgid "CRASH_DIALOG_MESSAGE"
+msgstr "<p>アプリケーションで対処できない問題が発生しました。<br>下のボタンで完全なエラーログを保存し、<a href='mailto:{email}'>{email}</a> に送信してください。</p>"
 
 #. Used in crash dialog as button label.
 msgid "SAVE_ERROR_LOG"
@@ -675,4 +659,3 @@ msgstr "バイト"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "統計値"
-

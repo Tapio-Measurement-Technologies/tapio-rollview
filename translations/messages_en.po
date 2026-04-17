@@ -147,12 +147,8 @@ msgid "RENAME_FAILED_MSGBOX_TITLE"
 msgstr "Rename Failed"
 
 #. Used in file tree context menu as message text.
-msgid "DELETE_DIALOG_FOLDER_TEXT_1"
-msgstr "Are you sure you want to delete"
-
-#. Used in file tree context menu as message text.
-msgid "DELETE_DIALOG_FOLDER_TEXT_2"
-msgstr "and all its contents"
+msgid "DELETE_DIALOG_FOLDER_CONFIRM"
+msgstr "Are you sure you want to delete {path} and all its contents?"
 
 #. Used in file tree context menu as window or dialog title.
 msgid "DELETE_DIALOG_TITLE"
@@ -167,8 +163,8 @@ msgid "DELETE_FAILED_MSGBOX_TITLE"
 msgstr "Delete Failed"
 
 #. Used in file tree context menu as message text.
-msgid "DELETE_DIALOG_FILE_TEXT"
-msgstr "Are you sure you want to delete"
+msgid "DELETE_DIALOG_FILE_CONFIRM"
+msgstr "Are you sure you want to delete {path}?"
 
 #. Used in directory view as button label.
 msgid "BUTTON_TEXT_CHANGE_DIRECTORY"
@@ -261,13 +257,9 @@ msgstr "Pin"
 msgid "SERIAL_UNPIN_PORT"
 msgstr "Unpin"
 
-#. Used in main window as status bar message.
-msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
-msgstr "Scan complete. Found"
-
-#. Used in main window as status bar message.
-msgid "SERIAL_SYNC_STATUS_BAR_TEXT_2"
-msgstr "device(s)."
+#. Used in main window as message text and status bar message.
+msgid "SERIAL_SYNC_STATUS_BAR_TEXT"
+msgstr "Scan complete. Found {count} device(s)."
 
 #. Used in stats widget.
 msgid "ALERT_LIMITS_NOT_SET"
@@ -326,12 +318,8 @@ msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
 msgstr "Finished"
 
 #. Used in main window as message text.
-msgid "POSTPROCESSORS_ERROR_TEXT_1"
-msgstr "Postprocessing failed for"
-
-#. Used in main window as message text.
-msgid "POSTPROCESSORS_ERROR_TEXT_2"
-msgstr "folder(s)."
+msgid "POSTPROCESSORS_ERROR_TEXT"
+msgstr "Postprocessing failed for {count} folder(s)."
 
 #. Used in main window as message text.
 msgid "POSTPROCESSORS_FINISHED_TEXT"
@@ -592,13 +580,9 @@ msgstr "Tapio Rollview - Unexpected Error"
 msgid "CRASH_DIALOG_HEADING"
 msgstr "An unexpected error has occurred"
 
-#. Used in crash dialog.
-msgid "CRASH_DIALOG_MESSAGE_LINE_1"
-msgstr "The application encountered a problem that it couldn't handle."
-
-#. Used in crash dialog.
-msgid "CRASH_DIALOG_MESSAGE_LINE_2"
-msgstr "Please save the full error log using the button below and send it to"
+#. Used in crash dialog as message text.
+msgid "CRASH_DIALOG_MESSAGE"
+msgstr "<p>The application encountered a problem that it couldn't handle.<br>Please save the full error log using the button below and send it to <a href='mailto:{email}'>{email}</a>.</p>"
 
 #. Used in crash dialog as button label.
 msgid "SAVE_ERROR_LOG"
@@ -675,4 +659,3 @@ msgstr "bytes"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "Statistic Value"
-

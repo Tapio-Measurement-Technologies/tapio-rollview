@@ -23,9 +23,7 @@ class CrashDialog(QDialog):
         # Error message
         error_label = QLabel(
             f"<h3>{_('CRASH_DIALOG_HEADING')}</h3>"
-            f"<p>{_('CRASH_DIALOG_MESSAGE_LINE_1')}<br>"
-            f"{_('CRASH_DIALOG_MESSAGE_LINE_2')} "
-            f"<a href='mailto:{settings.CRASH_DIALOG_CONTACT_EMAIL}'>{settings.CRASH_DIALOG_CONTACT_EMAIL}</a>.</p>"
+            + _("CRASH_DIALOG_MESSAGE").format(email=settings.CRASH_DIALOG_CONTACT_EMAIL)
         )
         error_label.setWordWrap(True)
         error_label.setOpenExternalLinks(True)

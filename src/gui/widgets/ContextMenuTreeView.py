@@ -134,15 +134,25 @@ class ContextMenuTreeView(QTreeView):
 
         if file_info.isDir():
             dir = QDir(file_path)
-            reply = QMessageBox.question(self, _("DELETE_DIALOG_TITLE"), f"{_("DELETE_DIALOG_FOLDER_TEXT_1")} {file_path} {_("DELETE_DIALOG_FOLDER_TEXT_2")}?",
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            reply = QMessageBox.question(
+                self,
+                _("DELETE_DIALOG_TITLE"),
+                _("DELETE_DIALOG_FOLDER_CONFIRM").format(path=file_path),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
 
             if reply == QMessageBox.StandardButton.Yes:
                 if not dir.removeRecursively():
                     QMessageBox.warning(self, _("DELETE_FAILED_MSGBOX_TITLE"), f"{_("DELETE_FAILED_MSGBOX_TEXT")} {file_path}")
         else:
-            reply = QMessageBox.question(self, _("DELETE_DIALOG_TITLE"), f"{_("DELETE_DIALOG_FILE_TEXT")} {file_path}?",
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            reply = QMessageBox.question(
+                self,
+                _("DELETE_DIALOG_TITLE"),
+                _("DELETE_DIALOG_FILE_CONFIRM").format(path=file_path),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
             if reply == QMessageBox.StandardButton.Yes:
                 if not QFile.remove(file_path):
                     QMessageBox.warning(self, _("DELETE_FAILED_MSGBOX_TITLE"), f"{_("DELETE_FAILED_MSGBOX_TEXT")} {file_path}")

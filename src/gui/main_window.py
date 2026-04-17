@@ -360,12 +360,12 @@ class MainWindow(QMainWindow):
         self.postprocess_manager.run_postprocessors(folder_paths)
 
     def on_device_count_changed(self, count):
-        self.status_bar.showMessage(f"{_('SERIAL_SYNC_STATUS_BAR_TEXT_1')} {count} {_('SERIAL_SYNC_STATUS_BAR_TEXT_2')}")
+        self.status_bar.showMessage(_("SERIAL_SYNC_STATUS_BAR_TEXT").format(count=count))
 
     def on_postprocess_finished(self, result: PostprocessResult):
         message = _("POSTPROCESSORS_FINISHED_TEXT")
         if result.failed_folders:
-            message += f" {_('POSTPROCESSORS_ERROR_TEXT_1')} {len(result.failed_folders)} {_('POSTPROCESSORS_ERROR_TEXT_2')}"
+            message += f" {_('POSTPROCESSORS_ERROR_TEXT').format(count=len(result.failed_folders))}"
         self.status_bar.showMessage(message)
 
     def on_file_transfer_finished(self, folder_paths: list[str]):
