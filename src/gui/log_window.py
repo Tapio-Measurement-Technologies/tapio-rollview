@@ -7,13 +7,14 @@ from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QMessageBox
 from utils.logging import LogManager
 from datetime import datetime
+from utils.translation import _
 
 class LogWindow(QWidget):
     closed = Signal()
 
     def __init__(self, log_manager: LogManager):
         super().__init__()
-        self.setWindowTitle("Application logs")
+        self.setWindowTitle(_("APPLICATION_LOGS"))
         self.setMinimumSize(800, 400)
 
         # Use provided log manager or create a new one
@@ -37,9 +38,9 @@ class LogWindow(QWidget):
 
     def init_filters(self):
         self.filter_layout = QHBoxLayout()
-        self.filter_label = QLabel("Filters:")
-        self.check_info = QCheckBox("INFO")
-        self.check_error = QCheckBox("ERROR")
+        self.filter_label = QLabel(_("LOG_FILTERS"))
+        self.check_info = QCheckBox(_("LOG_LEVEL_INFO"))
+        self.check_error = QCheckBox(_("LOG_LEVEL_ERROR"))
 
         self.filter_layout.addWidget(self.filter_label)
         for checkbox in [self.check_info, self.check_error]:
@@ -50,8 +51,8 @@ class LogWindow(QWidget):
         self.filter_layout.addStretch()
 
     def init_buttons(self):
-        self.clear_button = QPushButton("Clear logs")
-        self.export_button = QPushButton("Export to file")
+        self.clear_button = QPushButton(_("CLEAR_LOGS"))
+        self.export_button = QPushButton(_("EXPORT_TO_FILE"))
 
         self.clear_button.setMinimumWidth(200)
         self.export_button.setMinimumWidth(200)
@@ -86,14 +87,14 @@ class LogWindow(QWidget):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = f"log_{timestamp}.log"
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Log", default_name, "Log Files (*.log);;Text Files (*.txt);;All Files (*)"
+            self, _("EXPORT_LOG"), default_name, _("FILE_DIALOG_LOG_FILTER")
         )
         if path:
             (success, msg) = self.log_manager.export_logs(path)
             if success:
-                QMessageBox.information(self, "Success", msg)
+                QMessageBox.information(self, _("SUCCESS"), msg)
             else:
-                QMessageBox.critical(self, "Error", msg)
+                QMessageBox.critical(self, _("ERROR"), msg)
 
     def closeEvent(self, event):
         self.closed.emit()

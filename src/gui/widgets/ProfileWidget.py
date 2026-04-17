@@ -306,7 +306,7 @@ class ProfileWidget(QWidget):
         previous_distance = 0
 
         if len(self.profiles) == 0:
-            self.profile_ax.text(0.5, 0.5, "No data available", ha="center", va="center",
+            self.profile_ax.text(0.5, 0.5, _("NO_DATA_AVAILABLE"), ha="center", va="center",
                                  transform=self.profile_ax.transAxes, fontdict={'size': 16})
             self.canvas.draw()
             return

@@ -83,8 +83,7 @@ class FileTransferDialog(QDialog):
 
     def _format_bytes(self, size_bytes):
         if size_bytes > 1024*1024:
-            return f"{size_bytes / (1024*1024):.2f} MB"
+            return f"{size_bytes / (1024*1024):.2f} {_('UNIT_MB')}"
         if size_bytes > 1024:
-            return f"{size_bytes / 1024:.2f} KB"
-        return f"{size_bytes} bytes"
-
+            return f"{size_bytes / 1024:.2f} {_('UNIT_KB')}"
+        return f"{size_bytes} {_('UNIT_BYTES')}"

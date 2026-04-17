@@ -59,8 +59,8 @@ class GeneralSettingsPage(QWidget):
 
         self.language_selector = QComboBox()
         self.languages = {
-            "en": "English",
-            "ja": "日本語 (Japanese)"
+            "en": _("LANGUAGE_NAME_ENGLISH"),
+            "ja": _("LANGUAGE_NAME_JAPANESE")
         }
 
         current_locale = preferences.locale
@@ -225,15 +225,15 @@ class AdvancedSettingsPage(QWidget):
         super().__init__()
         self.number_locale = QLocale.system()
         self.excluded_regions_modes = {
-            settings.EXCLUDED_REGIONS_MODE_NONE: "None",
-            settings.EXCLUDED_REGIONS_MODE_RELATIVE: "Relative",
-            settings.EXCLUDED_REGIONS_MODE_ABSOLUTE: "Absolute",
+            settings.EXCLUDED_REGIONS_MODE_NONE: _("EXCLUDED_REGIONS_MODE_NONE"),
+            settings.EXCLUDED_REGIONS_MODE_RELATIVE: _("EXCLUDED_REGIONS_MODE_RELATIVE"),
+            settings.EXCLUDED_REGIONS_MODE_ABSOLUTE: _("EXCLUDED_REGIONS_MODE_ABSOLUTE"),
         }
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        filter_heading = self._create_section_heading("Filtering")
+        filter_heading = self._create_section_heading(_("SECTION_HEADING_FILTERING"))
         layout.addWidget(filter_heading)
 
         # Band pass filter section
@@ -265,12 +265,12 @@ class AdvancedSettingsPage(QWidget):
         self.band_pass_high_input.editingFinished.connect(self.on_band_pass_input_changed)
         self.band_pass_slider_layout.addWidget(self.band_pass_high_input)
 
-        self.band_pass_units_label = QLabel("cycles/m")
+        self.band_pass_units_label = QLabel(_("UNIT_CYCLES_PER_METER"))
         self.band_pass_slider_layout.addWidget(self.band_pass_units_label)
 
         layout.addLayout(self.band_pass_slider_layout)
 
-        display_heading = self._create_section_heading("Display")
+        display_heading = self._create_section_heading(_("SECTION_HEADING_DISPLAY"))
         layout.addWidget(display_heading)
 
         # Y-axis scaling mode
@@ -299,7 +299,7 @@ class AdvancedSettingsPage(QWidget):
         y_lim_low_validator = QDoubleValidator()
         y_lim_low_validator.setLocale(self.number_locale)
         self.y_lim_low_input.setValidator(y_lim_low_validator)
-        self.y_lim_low_input.setPlaceholderText("auto")
+        self.y_lim_low_input.setPlaceholderText(_("AUTO"))
         self.y_lim_low_input.setText(
             "" if preferences.y_lim_low_override is None else str(preferences.y_lim_low_override)
         )
@@ -312,7 +312,7 @@ class AdvancedSettingsPage(QWidget):
         y_lim_high_validator = QDoubleValidator()
         y_lim_high_validator.setLocale(self.number_locale)
         self.y_lim_high_input.setValidator(y_lim_high_validator)
-        self.y_lim_high_input.setPlaceholderText("auto")
+        self.y_lim_high_input.setPlaceholderText(_("AUTO"))
         self.y_lim_high_input.setText(
             "" if preferences.y_lim_high_override is None else str(preferences.y_lim_high_override)
         )
@@ -327,7 +327,7 @@ class AdvancedSettingsPage(QWidget):
         self.show_spectrum_checkbox.stateChanged.connect(self.enable_save_button)
         layout.addWidget(self.show_spectrum_checkbox)
 
-        profile_heading = self._create_section_heading("Profiles")
+        profile_heading = self._create_section_heading(_("SECTION_HEADING_PROFILES"))
         layout.addWidget(profile_heading)
 
         # Continuous mode checkbox
@@ -347,7 +347,7 @@ class AdvancedSettingsPage(QWidget):
 
         # Excluded regions section
         excluded_regions_mode_layout = QHBoxLayout()
-        self.excluded_regions_mode_label = QLabel("Exclude regions mode:")
+        self.excluded_regions_mode_label = QLabel(_("EXCLUDE_REGIONS_MODE"))
         self.excluded_regions_mode_label.setMinimumWidth(140)
         self.excluded_regions_mode_selector = QComboBox()
         self.excluded_regions_mode_selector.addItems(self.excluded_regions_modes.values())
@@ -383,7 +383,7 @@ class AdvancedSettingsPage(QWidget):
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
-        self.reset_defaults_button = QPushButton("Reset defaults", self)
+        self.reset_defaults_button = QPushButton(_("RESET_DEFAULTS"), self)
         self.reset_defaults_button.clicked.connect(self.reset_to_defaults)
         self.footer_layout.addWidget(self.reset_defaults_button)
 

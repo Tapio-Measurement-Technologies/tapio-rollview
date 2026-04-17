@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle(f"Tapio RollView {store.app_version}")
+        self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
         self.resize(1050, 600)
 
         self.file_transfer_manager = FileTransferManager()
@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
             self.on_recalculate_mean_changed
         )
 
-        log_window_action = QAction("Application logs", self)
+        log_window_action = QAction(_("APPLICATION_LOGS"), self)
         log_window_action.triggered.connect(self.open_log_window)
 
         view_menu.addAction(show_all_com_ports_checkbox)

@@ -9,7 +9,9 @@ class AlertLimitEditor(QDialog):
         self.stat_name = stat_name
         self.current_limit = current_limit or {'name': stat_name, 'min': None, 'max': None}
 
-        self.setWindowTitle(f"Edit Alert Limits - {profile_stats.stat_labels.get(stat_name, stat_name)}")
+        self.setWindowTitle(
+            f"{_('EDIT_ALERT_LIMITS')} - {profile_stats.stat_labels.get(stat_name, stat_name)}"
+        )
         self.setModal(True)
         self.resize(300, 100)
 

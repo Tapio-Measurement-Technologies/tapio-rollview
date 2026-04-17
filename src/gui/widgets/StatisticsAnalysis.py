@@ -112,7 +112,7 @@ class StatisticsAnalysisChart(QWidget):
         # Formatting
         self.ax.set_xlabel(_("PLOT_TITLE_ROLL"))
         # Get the selected statistic name for y-axis label
-        selected_stat_name = "Statistic Value"  # default
+        selected_stat_name = _("STATISTIC_VALUE")  # default
         if hasattr(self.parent_widget, 'selected_stat'):
             selected_stat_name = profile_stats.analysis_display_labels.get(
                 self.parent_widget.selected_stat,

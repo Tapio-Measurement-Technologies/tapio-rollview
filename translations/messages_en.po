@@ -15,461 +15,664 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
-#: src/gui/filetransferdialog.py:9
+#. Used in file transfer dialog as window or dialog title and window title.
 msgid "FILE_TRANSFER_DIALOG_TITLE"
 msgstr "File Transfer Progress"
 
-#: src/gui/filetransferdialog.py:14 src/gui/widgets/ProgressBarDialog.py:21
-#: src/gui/widgets/ProgressBarDialog.py:50
+#. Used in file transfer dialog and progress dialog as runtime status text and label
+#. text.
 msgid "PROGRESS_DIALOG_STARTING"
 msgstr "Starting..."
 
-#: src/gui/widgets/LoadingWidget.py:17
+#. Used in loading widget as loading label and label text.
 msgid "LOADING"
 msgstr "Loading..."
 
-#: src/gui/filetransferdialog.py:19
+#. Used in file transfer dialog and progress dialog as button label and runtime
+#. status text.
 msgid "BUTTON_TEXT_CANCEL"
 msgstr "Cancel"
 
-#: src/gui/widgets/StatisticsAnalysis.py:223
+#. Used in statistics analysis view as button label.
 msgid "BUTTON_TEXT_REFRESH"
 msgstr "Refresh"
 
-#: src/gui/filetransferdialog.py:44
+#. Used in file transfer dialog as message text and runtime status text.
 msgid "FILE_TRANSFER_DIALOG_RECEIVING"
 msgstr "Receiving file"
 
-#: src/gui/filetransferdialog.py:53
+#. Used in file transfer dialog as group box title.
 msgid "TOTAL_PROGRESS"
 msgstr "Total progress"
 
-#: src/gui/main_window.py:98
+#. Used in main window as menu label and menu title.
 msgid "MENU_BAR_FILE"
 msgstr "File"
 
-#: src/gui/main_window.py:99
+#. Used in main window as menu label and menu action label.
 msgid "MENU_BAR_SETTINGS"
 msgstr "Settings"
 
-#: src/gui/main_window.py:103
+#. Used in main window as menu label and menu title.
 msgid "MENU_BAR_VIEW"
 msgstr "View"
 
-#: src/gui/main_window.py:105
+#. Used in main window as menu label.
 msgid "MENU_BAR_SHOW_ALL_COM_PORTS"
 msgstr "Show all COM ports"
 
-#: src/gui/main_window.py:112
+#. Used in main window as menu label.
 msgid "MENU_BAR_SHOW_PLOT_TOOLBAR"
 msgstr "Show plot toolbar"
 
-#: src/gui/main_window.py:112
+#. Used in main window as menu label.
 msgid "MENU_BAR_RECALCULATE_MEAN"
 msgstr "Recalculate mean on profile show/hide"
 
-#: src/gui/main_window.py:121
+#. Used in main window as menu label and menu title.
 msgid "MENU_BAR_POSTPROCESSORS"
 msgstr "Postprocessors"
 
-#: src/gui/main_window.py:142
+#. Used in main window as menu label and menu action label.
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
 msgstr "Run postprocessors"
 
-#: src/gui/settings.py:12
+#. Used in settings window as window or dialog title and window title.
 msgid "WINDOW_TITLE_SETTINGS"
 msgstr "Settings"
 
-#: src/gui/settings.py:25 src/gui/widgets/stats.py:74
+#. Used in settings window and stats widget as label text and settings page title.
 msgid "ALERT_LIMITS"
 msgstr "Alert limits"
 
-#: src/gui/settings.py:56
+#. Used in settings window as button label.
 msgid "BUTTON_TEXT_SAVE"
 msgstr "Save"
 
-#: src/gui/widgets/AlertLimitEditor.py:25
+#. Used in alert limit editor as input placeholder.
 msgid "NOT_SET"
 msgstr "Not set"
 
-#: src/gui/widgets/AlertLimitEditor.py:57
+#. Used in alert limit editor as save button label.
 msgid "SAVE"
 msgstr "Save"
 
-#: src/gui/widgets/AlertLimitEditor.py:58
+#. Used in alert limit editor as cancel button label.
 msgid "CANCEL"
 msgstr "Cancel"
 
-#: src/gui/widgets/AlertLimitEditor.py:59
+#. Used in alert limit editor as clear button label.
 msgid "CLEAR"
 msgstr "Clear"
 
-#: src/gui/widgets/AlertLimitEditor.py:111
+#. Used in alert limit editor as message text.
 msgid "INVALID_ALERT_LIMIT_VALUES"
 msgstr "Invalid values: Min must be less than or equal to Max"
 
-#: src/gui/settings.py:95 src/gui/widgets/stats.py:74
+#. Used in settings, stats tooltips, and alert limit editor as minimum value label.
 msgid "MIN"
 msgstr "Lower"
 
-#: src/gui/settings.py:103 src/gui/widgets/stats.py:74
+#. Used in settings, stats tooltips, and alert limit editor as maximum value label.
 msgid "MAX"
 msgstr "Upper"
 
-#: src/gui/widgets/ContextMenuTreeView.py:35
-#: src/gui/widgets/DirectoryView.py:62
+#. Used in file tree context menu and directory view as button label and menu action
+#. label.
 msgid "BUTTON_TEXT_OPEN_FILE_EXPLORER"
 msgstr "Open in file explorer"
 
-#: src/gui/widgets/ContextMenuTreeView.py:36
+#. Used in file tree context menu as button label and menu action label.
 msgid "BUTTON_TEXT_RENAME"
 msgstr "Rename"
 
-#: src/gui/widgets/ContextMenuTreeView.py:37
+#. Used in file tree context menu as button label and menu action label.
 msgid "BUTTON_TEXT_DELETE"
 msgstr "Delete"
 
-#: src/gui/widgets/ContextMenuTreeView.py:62
+#. Used in file tree context menu as message text.
 msgid "RENAME_DIALOG_NEW_NAME_TEXT"
 msgstr "New name"
 
-#: src/gui/widgets/ContextMenuTreeView.py:62
+#. Used in file tree context menu as window or dialog title.
 msgid "RENAME_DIALOG_TITLE"
 msgstr "Rename File"
 
-#: src/gui/widgets/ContextMenuTreeView.py:69
+#. Used in file tree context menu as message text and message box title.
 msgid "RENAME_FAILED_MSGBOX_TEXT"
 msgstr "Could not rename"
 
-#: src/gui/widgets/ContextMenuTreeView.py:69
+#. Used in file tree context menu as window or dialog title and message box title.
 msgid "RENAME_FAILED_MSGBOX_TITLE"
 msgstr "Rename Failed"
 
-#: src/gui/widgets/ContextMenuTreeView.py:79
+#. Used in file tree context menu as message text.
 msgid "DELETE_DIALOG_FOLDER_TEXT_1"
 msgstr "Are you sure you want to delete"
 
-#: src/gui/widgets/ContextMenuTreeView.py:79
+#. Used in file tree context menu as message text.
 msgid "DELETE_DIALOG_FOLDER_TEXT_2"
 msgstr "and all its contents"
 
-#: src/gui/widgets/ContextMenuTreeView.py:79
-#: src/gui/widgets/ContextMenuTreeView.py:86
+#. Used in file tree context menu as window or dialog title.
 msgid "DELETE_DIALOG_TITLE"
 msgstr "Confirm Delete"
 
-#: src/gui/widgets/ContextMenuTreeView.py:84
-#: src/gui/widgets/ContextMenuTreeView.py:90
+#. Used in file tree context menu as message text and message box title.
 msgid "DELETE_FAILED_MSGBOX_TEXT"
 msgstr "Could not delete"
 
-#: src/gui/widgets/ContextMenuTreeView.py:84
-#: src/gui/widgets/ContextMenuTreeView.py:90
+#. Used in file tree context menu as window or dialog title and message box title.
 msgid "DELETE_FAILED_MSGBOX_TITLE"
 msgstr "Delete Failed"
 
-#: src/gui/widgets/ContextMenuTreeView.py:86
+#. Used in file tree context menu as message text.
 msgid "DELETE_DIALOG_FILE_TEXT"
 msgstr "Are you sure you want to delete"
 
-#: src/gui/widgets/DirectoryView.py:66
+#. Used in directory view as button label.
 msgid "BUTTON_TEXT_CHANGE_DIRECTORY"
 msgstr "Change directory"
 
-#: src/gui/widgets/DirectoryView.py:124
+#. Used in directory view as window or dialog title and file dialog text.
 msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
 msgstr "Select Directory"
 
-#: src/gui/widgets/DirectoryView.py:172 src/gui/widgets/FileView.py:92
+#. Used in file list view and directory view as column header.
 msgid "TREEVIEW_HEADER_NAME"
 msgstr "Name"
 
-#: src/gui/widgets/DirectoryView.py:174 src/gui/widgets/FileView.py:96
+#. Used in file list view and directory view as column header.
 msgid "TREEVIEW_HEADER_DATE_MODIFIED"
 msgstr "Date modified"
 
-#: src/gui/widgets/FileView.py:94
+#. Used in file list view as column header.
 msgid "TREEVIEW_HEADER_SIZE"
 msgstr "Size"
 
-#: src/gui/widgets/FileView.py:98
+#. Used in file list view as column header.
 msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
 msgstr "Profile length"
 
-#: src/gui/widgets/ProgressBarDialog.py:11
+#. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
 msgstr "Progress"
 
-#: src/gui/widgets/ProgressBarDialog.py:32
+#. Used in QR config dialog, crash dialog, and progress dialog as button label and
+#. runtime status text.
 msgid "BUTTON_TEXT_CLOSE"
 msgstr "Close"
 
-#: src/gui/widgets/chart.py:153
+#. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_HARDNESS_LABEL"
 msgstr "Hardness"
 
-#: src/gui/widgets/chart.py:154
+#. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_DISTANCE_LABEL"
 msgstr "Distance"
 
-#: src/gui/widgets/chart.py:189
+#. Used in profile chart as chart label or message.
 msgid "CHART_MEAN_PROFILE_LABEL"
 msgstr "Mean profile"
 
-#: src/gui/widgets/chart.py:193
+#. Used in profile chart as chart label or message.
 msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
 msgstr "Profiles are too short to calculate mean profile"
 
-#: src/gui/widgets/chart.py:208
+#. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_AMPLITUDE_LABEL"
 msgstr "Amplitude"
 
-#: src/gui/widgets/chart.py:209
+#. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_FREQUENCY_LABEL"
 msgstr "Frequency"
 
-#: src/gui/widgets/chart.py:248
+#. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_WAVELENGTH_LABEL"
 msgstr "Wavelength"
 
-#: src/gui/widgets/messagebox.py:7
+#. Used in file utility dialogs, QR config dialog, file list view, messagebox, and
+#. directory view as window or dialog title, file operation error text, label text,
+#. and message box text.
 msgid "ERROR_MSGBOX_TITLE"
 msgstr "Error"
 
-#: src/gui/widgets/messagebox.py:10
+#. Used in messagebox as window or dialog title and message box text.
 msgid "WARNING_MSGBOX_TITLE"
 msgstr "Warning"
 
-#: src/gui/widgets/serialports.py:46
+#. Used in serial ports widget as label text.
 msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "Devices"
 
-#: src/gui/widgets/serialports.py:48
+#. Used in serial ports widget as message text and button label.
 msgid "SERIAL_SCAN_BUTTON_TEXT"
 msgstr "Scan devices"
 
-#: src/gui/widgets/serialports.py:51
+#. Used in serial ports widget as message text and button label.
 msgid "SERIAL_SYNC_BUTTON_TEXT"
 msgstr "Sync data"
 
-#: src/gui/widgets/serialports.py:35
+#. Used in serial ports widget as menu action label.
 msgid "SERIAL_PIN_PORT"
 msgstr "Pin"
 
-#: src/gui/widgets/serialports.py:37
+#. Used in serial ports widget as menu action label.
 msgid "SERIAL_UNPIN_PORT"
 msgstr "Unpin"
 
+#. Used in main window as status bar message.
 msgid "SERIAL_SYNC_STATUS_BAR_TEXT_1"
 msgstr "Scan complete. Found"
 
+#. Used in main window as status bar message.
 msgid "SERIAL_SYNC_STATUS_BAR_TEXT_2"
 msgstr "device(s)."
 
-#: src/gui/widgets/stats.py:76
+#. Used in stats widget.
 msgid "ALERT_LIMITS_NOT_SET"
 msgstr "No alert limits set"
 
-#: src/postprocessors/excel_export.py:10
+#. Used in Excel postprocessor as postprocessor label.
 msgid "POSTPROCESSOR_NAME_EXCEL_EXPORT"
 msgstr "Export to Excel file"
 
-#: src/postprocessors/json_export.py:14
+#. Used in JSON postprocessor as postprocessor label.
 msgid "POSTPROCESSOR_NAME_JSON_EXPORT"
 msgstr "Export to JSON file"
 
-#: src/postprocessors/plot_export.py:7
+#. Used in plot export postprocessor as postprocessor label.
 msgid "POSTPROCESSOR_NAME_PLOT_EXPORT"
 msgstr "Export plot image"
 
-#: src/settings.py:46 src/utils/profile_stats.py:26
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
 msgid "ALERT_LIMIT_MEAN"
 msgstr "Mean"
 
-#: src/settings.py:53 src/utils/profile_stats.py:27
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
 msgid "ALERT_LIMIT_STDEV"
 msgstr "Stdev"
 
-#: src/settings.py:60 src/utils/profile_stats.py:30
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
 msgid "ALERT_LIMIT_CV"
 msgstr "CV"
 
-#: src/settings.py:67 src/utils/profile_stats.py:28
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
 msgid "ALERT_LIMIT_MIN"
 msgstr "Min"
 
-#: src/settings.py:74 src/utils/profile_stats.py:29
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
 msgid "ALERT_LIMIT_MAX"
 msgstr "Max"
 
-#: src/settings.py:81 src/utils/profile_stats.py:31
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
 msgid "ALERT_LIMIT_PP"
 msgstr "P-p"
 
-#: src/utils/postprocess.py:81
+#. Used in postprocessing progress flow as message text and postprocessing progress
+#. text.
 msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
 msgstr "Running postprocessors"
 
-#: src/utils/postprocess.py:84
+#. Used in postprocessing progress flow as message text and postprocessing progress
+#. text.
 msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
 msgstr "Finished"
 
-#: src/utils/postprocess.py:87
+#. Used in main window as message text.
 msgid "POSTPROCESSORS_ERROR_TEXT_1"
 msgstr "Postprocessing failed for"
 
+#. Used in main window as message text.
 msgid "POSTPROCESSORS_ERROR_TEXT_2"
 msgstr "folder(s)."
 
-#: src/utils/postprocess.py:89
+#. Used in main window as message text.
 msgid "POSTPROCESSORS_FINISHED_TEXT"
 msgstr "Postprocessing complete."
 
-#: src/utils/serial.py:97
+#. Used in port scanner worker as message text and scan progress text.
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
 msgstr "Scanning port"
 
-#: src/workers/port_scanner.py:122
+#. Used in port scanner worker as message text and scan progress text.
 msgid "PORTSCAN_NO_PORTS_FOUND_TEXT"
 msgstr "No COM ports found"
 
-#: src/utils/serial.py:155
+#. Catalog entry for message text; no current source usage found.
 msgid "PORTSCAN_COMPLETE_TEXT"
 msgstr "Scanning complete"
 
+#. Used in settings window as label text.
 msgid "LANGUAGE"
 msgstr "Language"
 
+#. Used in settings window as label text.
 msgid "DISTANCE_UNIT"
 msgstr "Distance Unit"
 
+#. Used in settings window as label text and settings page title.
 msgid "GENERAL_SETTINGS"
 msgstr "General settings"
 
+#. Used in settings window as label text and settings page title.
 msgid "ADVANCED_SETTINGS"
 msgstr "Advanced settings"
 
+#. Used in settings window as label text and checkbox label.
 msgid "SHOW_SPECTRUM"
 msgstr "Show spectrum"
 
+#. Used in settings window as label text and checkbox label.
 msgid "CONTINUOUS_MODE"
 msgstr "Continuous mode"
 
+#. Used in settings window as label text and checkbox label.
 msgid "FLIP_PROFILES"
 msgstr "Flip profiles"
 
+#. Used in settings window as label text.
 msgid "EXCLUDED_REGIONS_ENABLED"
 msgstr "Exclude regions"
 
+#. Used in profile chart.
 msgid "EXCLUDED_REGION"
 msgstr "Excluded region"
 
+#. Used in settings window as label text.
 msgid "BAND_PASS_FILTER"
 msgstr "Band-pass filter"
 
+#. Used in settings window as window or dialog title and window title.
 msgid "RESTART_REQUIRED_MSGBOX_TITLE"
 msgstr "Restart required"
 
+#. Used in settings window as message text and message box text.
 msgid "RESTART_REQUIRED_MSGBOX_TEXT"
 msgstr "Language settings will be applied after restart!"
 
-#: src/gui/widgets/ProgressBarDialog.py:64
+#. Used in progress dialog as button label and runtime status text.
 msgid "BUTTON_TEXT_CANCELLING"
 msgstr "Cancelling..."
 
-#: src/utils/postprocess.py:126
+#. Used in postprocessing progress flow as message text and postprocessing progress
+#. text.
 msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
 msgstr "Processing cancelled."
 
+#. Used in main window as message text and status bar message.
 msgid "FILE_TRANSFER_FINISHED"
 msgstr "File transfer finished!"
 
+#. Used in profile chart as message text and status tip.
 msgid "CHART_STATUS_TIP_TEXT"
 msgstr "Scroll to zoom. Drag with mouse to pan."
 
+#. Used in profile chart and statistics analysis view as chart empty-state text.
 msgid "NO_DATA_AVAILABLE"
 msgstr "No data available"
 
+#. Used in statistics analysis view as dropdown option.
 msgid "FILTER_LAST_7_DAYS"
 msgstr "Last 7 days"
 
+#. Used in statistics analysis view as dropdown option.
 msgid "FILTER_LAST_30_DAYS"
 msgstr "Last 30 days"
 
+#. Used in statistics analysis view as dropdown option.
 msgid "FILTER_SHOW_ALL_ROLLS"
 msgstr "Show all rolls"
 
+#. Used in statistics analysis view as chart axis label.
 msgid "PLOT_TITLE_ROLL"
 msgstr "Roll"
 
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
 msgid "MEAN_LONG"
 msgstr "Mean"
 
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
 msgid "STDEV_LONG"
 msgstr "Standard deviation"
 
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
 msgid "CV_LONG"
 msgstr "Coefficient of variation"
 
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
 msgid "MIN_LONG"
 msgstr "Minimum"
 
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
 msgid "MAX_LONG"
 msgstr "Maximum"
 
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
 msgid "PP_LONG"
 msgstr "Peak to peak"
 
+#. Used in main window as tab title.
 msgid "TAB_TITLE_PROFILES"
 msgstr "Profiles"
 
+#. Used in main window as tab title.
 msgid "TAB_TITLE_STATISTICS"
 msgstr "Statistics"
 
+#. Used in stats widget as menu action label.
 msgid "COPY_STATS_TO_CLIPBOARD"
 msgstr "Copy stats to clipboard"
 
+#. Used in main window as menu label and menu title.
 msgid "MENU_BAR_DEVICE_CONFIG"
 msgstr "Device configuration"
 
+#. Used in main window as menu label and menu action label.
 msgid "MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE"
 msgstr "Apply alert limits to device"
 
+#. Used in QR config dialog as window or dialog title and window title.
 msgid "QR_CONFIG_DIALOG_TITLE"
 msgstr "Scan QR code"
 
+#. Used in QR config dialog as label text.
 msgid "QR_CONFIG_INSTRUCTION"
 msgstr "Scan the QR code with your RQP Live to apply the current alert limits to the device."
 
+#. Used in file utility dialogs, file list view, and directory view as message text
+#. and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_DIRECTORY_NOT_FOUND"
 msgstr "Directory not found: {directory}"
 
+#. Used in file list view and directory view as message text.
 msgid "ERROR_MSGBOX_TEXT_NOT_A_DIRECTORY"
 msgstr "The path is not a directory: {path}"
 
+#. Used in file list view and directory view as message text.
 msgid "ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED"
 msgstr "Failed to load directory: {directory}"
 
+#. Used in file utility dialogs, file list view, and directory view as message text
+#. and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_PERMISSION_DENIED"
 msgstr "Permission denied: {directory}"
 
+#. Used in file utility dialogs, file list view, and directory view as message text
+#. and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_OPERATION_FAILED"
 msgstr "Operation failed: {error}"
 
+#. Used in file utility dialogs as message text and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_OPEN_EXPLORER_FAILED"
 msgstr "Failed to open file explorer: {error}"
 
+#. Used in file utility dialogs as message text and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_UNSUPPORTED_PLATFORM"
 msgstr "Opening file explorer is not supported on this platform."
 
+#. Used in settings window as label text.
 msgid "OVERRIDE_DEFAULT_Y_LIMITS"
 msgstr "Override default Y limits"
 
+#. Used in settings window as label text.
 msgid "DEFAULT_Y_AXIS_SCALING"
 msgstr "Default Y axis scaling"
 
+#. Used in settings window as dropdown option.
 msgid "Y_AXIS_SCALING_START_AT_ZERO"
 msgstr "Start at zero"
 
+#. Used in settings window as dropdown option.
 msgid "Y_AXIS_SCALING_FIT_TO_DATA"
 msgstr "Fit to data"
+
+#. Used in main window as window or dialog title and window title.
+msgid "WINDOW_TITLE_MAIN"
+msgstr "Tapio RollView"
+
+#. Used in log window and main window as window or dialog title, window title, and
+#. menu action label.
+msgid "APPLICATION_LOGS"
+msgstr "Application logs"
+
+#. Used in log window as label text.
+msgid "LOG_FILTERS"
+msgstr "Filters:"
+
+#. Used in log window as checkbox label.
+msgid "LOG_LEVEL_INFO"
+msgstr "INFO"
+
+#. Used in log window as checkbox label.
+msgid "LOG_LEVEL_ERROR"
+msgstr "ERROR"
+
+#. Used in log window as button label.
+msgid "CLEAR_LOGS"
+msgstr "Clear logs"
+
+#. Used in log window as button label.
+msgid "EXPORT_TO_FILE"
+msgstr "Export to file"
+
+#. Used in log window as file dialog title.
+msgid "EXPORT_LOG"
+msgstr "Export Log"
+
+#. Used in log window and crash dialog as file dialog filter text.
+msgid "FILE_DIALOG_LOG_FILTER"
+msgstr "Log Files (*.log);;Text Files (*.txt);;All Files (*)"
+
+#. Used in log and crash dialogs as success message box title.
+msgid "SUCCESS"
+msgstr "Success"
+
+#. Used in log and crash dialogs as error message box title.
+msgid "ERROR"
+msgstr "Error"
+
+#. Used in crash dialog as window or dialog title and window title.
+msgid "CRASH_DIALOG_TITLE"
+msgstr "Tapio Rollview - Unexpected Error"
+
+#. Used in crash dialog.
+msgid "CRASH_DIALOG_HEADING"
+msgstr "An unexpected error has occurred"
+
+#. Used in crash dialog.
+msgid "CRASH_DIALOG_MESSAGE_LINE_1"
+msgstr "The application encountered a problem that it couldn't handle."
+
+#. Used in crash dialog.
+msgid "CRASH_DIALOG_MESSAGE_LINE_2"
+msgstr "Please save the full error log using the button below and send it to"
+
+#. Used in crash dialog as button label.
+msgid "SAVE_ERROR_LOG"
+msgstr "Save Error Log"
+
+#. Used in crash dialog as button label.
+msgid "SAVE_CRASH_LOG"
+msgstr "Save Crash Log"
+
+#. Used in alert limit editor.
+msgid "EDIT_ALERT_LIMITS"
+msgstr "Edit Alert Limits"
+
+#. Used in language selector as English language option label.
+msgid "LANGUAGE_NAME_ENGLISH"
+msgstr "English"
+
+#. Used in language selector as Japanese language option label.
+msgid "LANGUAGE_NAME_JAPANESE"
+msgstr "Japanese"
+
+#. Used in settings window as dropdown option.
+msgid "EXCLUDED_REGIONS_MODE_NONE"
+msgstr "None"
+
+#. Used in settings window as dropdown option.
+msgid "EXCLUDED_REGIONS_MODE_RELATIVE"
+msgstr "Relative"
+
+#. Used in settings window as dropdown option.
+msgid "EXCLUDED_REGIONS_MODE_ABSOLUTE"
+msgstr "Absolute"
+
+#. Used in settings window as label text.
+msgid "SECTION_HEADING_FILTERING"
+msgstr "Filtering"
+
+#. Used in settings window as label text.
+msgid "UNIT_CYCLES_PER_METER"
+msgstr "cycles/m"
+
+#. Used in settings window as label text.
+msgid "SECTION_HEADING_DISPLAY"
+msgstr "Display"
+
+#. Used in advanced settings as placeholder for automatic Y-axis limits.
+msgid "AUTO"
+msgstr "auto"
+
+#. Used in settings window as label text.
+msgid "SECTION_HEADING_PROFILES"
+msgstr "Profiles"
+
+#. Used in settings window as label text.
+msgid "EXCLUDE_REGIONS_MODE"
+msgstr "Exclude regions mode:"
+
+#. Used in settings window as button label.
+msgid "RESET_DEFAULTS"
+msgstr "Reset defaults"
+
+#. Used in file transfer dialog as megabyte unit suffix.
+msgid "UNIT_MB"
+msgstr "MB"
+
+#. Used in file transfer dialog as kilobyte unit suffix.
+msgid "UNIT_KB"
+msgstr "KB"
+
+#. Used in file transfer dialog as byte unit suffix.
+msgid "UNIT_BYTES"
+msgstr "bytes"
+
+#. Used in statistics analysis view as statistic label.
+msgid "STATISTIC_VALUE"
+msgstr "Statistic Value"
+

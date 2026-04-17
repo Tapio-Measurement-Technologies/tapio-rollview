@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
 )
 import settings
 from datetime import datetime
+from utils.translation import _
 
 class CrashDialog(QDialog):
     def __init__(self, log_manager, traceback_text, parent=None):
@@ -13,7 +14,7 @@ class CrashDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("Tapio Rollview - Unexpected Error")
+        self.setWindowTitle(_("CRASH_DIALOG_TITLE"))
         self.setMinimumSize(700, 500)
 
         # Main layout
@@ -21,9 +22,9 @@ class CrashDialog(QDialog):
 
         # Error message
         error_label = QLabel(
-            "<h3>An unexpected error has occurred</h3>"
-            "<p>The application encountered a problem that it couldn't handle.<br>"
-            "Please save the full error log using the button below and send it to "
+            f"<h3>{_('CRASH_DIALOG_HEADING')}</h3>"
+            f"<p>{_('CRASH_DIALOG_MESSAGE_LINE_1')}<br>"
+            f"{_('CRASH_DIALOG_MESSAGE_LINE_2')} "
             f"<a href='mailto:{settings.CRASH_DIALOG_CONTACT_EMAIL}'>{settings.CRASH_DIALOG_CONTACT_EMAIL}</a>.</p>"
         )
         error_label.setWordWrap(True)
@@ -42,10 +43,10 @@ class CrashDialog(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
 
-        self.save_button = QPushButton("Save Error Log")
+        self.save_button = QPushButton(_("SAVE_ERROR_LOG"))
         self.save_button.clicked.connect(self.save_log)
 
-        self.close_button = QPushButton("Close")
+        self.close_button = QPushButton(_("BUTTON_TEXT_CLOSE"))
         self.close_button.clicked.connect(self.reject)
 
         button_layout.addWidget(self.close_button)
@@ -60,14 +61,14 @@ class CrashDialog(QDialog):
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Crash Log",
+            _("SAVE_CRASH_LOG"),
             default_name,
-            "Log Files (*.log);;Text Files (*.txt);;All Files (*)"
+            _("FILE_DIALOG_LOG_FILTER")
         )
 
         if file_path:
             (success, msg) = self.log_manager.export_logs(file_path)
             if success:
-                QMessageBox.information(self, "Success", msg)
+                QMessageBox.information(self, _("SUCCESS"), msg)
             else:
-                QMessageBox.critical(self, "Error", msg)
+                QMessageBox.critical(self, _("ERROR"), msg)
