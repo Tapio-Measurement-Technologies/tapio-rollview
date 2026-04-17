@@ -129,6 +129,10 @@ class TestGeneralSettingsPage(unittest.TestCase):
         self.assertEqual(preferences.distance_unit, "in")
         self.assertEqual(preferences.excluded_regions, "1-2")
 
+    def test_distance_unit_selector_includes_centimeters(self):
+        self.assertIn("cm", self.page.distance_units)
+        self.assertEqual(self.page.distance_units["cm"], "Centimeters (cm)")
+
 
 if __name__ == "__main__":
     unittest.main()

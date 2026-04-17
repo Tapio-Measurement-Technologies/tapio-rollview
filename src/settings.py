@@ -156,8 +156,8 @@ class DistanceUnit:
 
 DISTANCE_UNITS = {
     "m": DistanceUnit("Meters (m)", "m", 1.0),
-    "in": DistanceUnit("Inches (in)", "in", 39.3701),
-    "yd": DistanceUnit("Yards (yd)", "yd", 1.09361)
+    "cm": DistanceUnit("Centimeters (cm)", "cm", 100.0),
+    "in": DistanceUnit("Inches (in)", "in", 39.3701)
 }
 
 DISTANCE_UNIT_DEFAULT = "m"
