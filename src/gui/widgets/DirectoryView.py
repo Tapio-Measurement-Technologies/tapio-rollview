@@ -43,6 +43,9 @@ class DirectoryView(QWidget):
         super().__init__(parent)
         self._pending_delete_parent = QPersistentModelIndex()
         self._pending_delete_row = None
+        self._pending_focus_path = None
+        self._pending_focus_active = False
+        self._focus_restore_scheduled = False
 
         # Set up the layout
         layout = QVBoxLayout(self)
@@ -57,7 +60,7 @@ class DirectoryView(QWidget):
         self.proxy_model.setSourceModel(self.model)
 
         self.treeView = ContextMenuTreeView(self.proxy_model)
-        self.treeView.selectionModel().selectionChanged.connect(self.on_directory_selected)
+        self.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
         self.treeView.deleteRequested.connect(self.on_delete_requested)
         # Sort the folders by custom modified date
         self.treeView.setSortingEnabled(True)
@@ -90,6 +93,10 @@ class DirectoryView(QWidget):
         self.watcher.directoryChanged.connect(self.on_directory_changed)
         self.watcher.fileChanged.connect(self.on_file_changed)
         self.proxy_model.rowsRemoved.connect(self.on_rows_removed)
+        self.proxy_model.rowsAboutToBeInserted.connect(self.on_rows_about_to_be_inserted)
+        self.proxy_model.rowsInserted.connect(self.on_rows_inserted)
+        self.proxy_model.layoutAboutToBeChanged.connect(self.on_layout_about_to_change)
+        self.proxy_model.layoutChanged.connect(self.on_layout_changed)
 
     @staticmethod
     def get_row_to_select_after_delete(deleted_row, row_count):
@@ -137,22 +144,25 @@ class DirectoryView(QWidget):
             print("Invalid root index encountered in DirectoryView while selecting first directory!")
             print(f"\tIndex: {root_index}")
             return
+
         first_child = self.treeView.model().index(0, 0, root_index)
-        if first_child.isValid():
-            selected_index = first_child
-        else:
-            selected_index = root_index
-        self.treeView.selectionModel().select(selected_index, selection_flags)
-        self.treeView.scrollTo(selected_index)
+        if not first_child.isValid():
+            return
+
+        self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+        self.treeView.setCurrentIndex(first_child)
+        self.treeView.selectionModel().setCurrentIndex(first_child, selection_flags)
+        self.treeView.scrollTo(first_child)
 
     def init_selection(self):
-        if not self.treeView.selectionModel().currentIndex().isValid():
+        if not self.get_selected_directory_path():
             self.select_first_directory()
 
     def select_directory_by_path(self, path):
         index = self.proxy_model.mapFromSource(self.model.index(path))
         if index.isValid():
-            self.treeView.selectionModel().select(index, selection_flags)
+            self.treeView.setCurrentIndex(index)
+            self.treeView.selectionModel().setCurrentIndex(index, selection_flags)
             self.treeView.scrollTo(index)
         else:
             print(f"Invalid index provided to select_directory_by_path: '{path}'")
@@ -222,13 +232,14 @@ class DirectoryView(QWidget):
                     _("ERROR_MSGBOX_TITLE")
                 )
 
-    def on_directory_selected(self, selected, deselected):
-        indexes = selected.indexes()
-        if not indexes and self._pending_delete_row is not None:
+    def on_directory_selected(self, current, previous):
+        if not current.isValid():
             return
-        # If no selection, just provide root index to avoid invalid state in FileView
-        selected_index = indexes[0] if len(indexes) else self.treeView.rootIndex()
-        source_index = self.proxy_model.mapToSource(selected_index)
+
+        source_index = self.proxy_model.mapToSource(current)
+        if not source_index.isValid():
+            return
+
         file_path = self.model.filePath(source_index)
         self.directory_selected.emit(file_path)
 
@@ -252,6 +263,82 @@ class DirectoryView(QWidget):
             return
         QTimer.singleShot(0, self._restore_selection_after_delete)
 
+    def get_selected_directory_path(self):
+        selection_model = self.treeView.selectionModel()
+        selected_indexes = selection_model.selectedRows(0)
+        selected_index = selected_indexes[0] if selected_indexes else selection_model.currentIndex()
+        if not selected_index.isValid():
+            return None
+
+        source_index = self.proxy_model.mapToSource(selected_index)
+        if not source_index.isValid():
+            return None
+
+        return self.model.filePath(source_index)
+
+    def preserve_current_directory_focus(self):
+        self._pending_focus_path = self.get_selected_directory_path()
+        self._pending_focus_active = self.treeView.hasFocus()
+
+    def on_rows_about_to_be_inserted(self, parent, first, last):
+        self.preserve_current_directory_focus()
+
+    def on_rows_inserted(self, parent, first, last):
+        self.refresh_inserted_rows(parent, first, last)
+        self.schedule_focus_restore()
+
+    def refresh_inserted_rows(self, parent, first, last):
+        if first > last:
+            return
+
+        for row in range(first, last + 1):
+            source_index = self.proxy_model.mapToSource(self.proxy_model.index(row, 3, parent))
+            if not source_index.isValid():
+                continue
+            self.model.invalidate_cache(self.model.filePath(source_index))
+
+        top_left = self.proxy_model.index(first, 3, parent)
+        bottom_right = self.proxy_model.index(last, 3, parent)
+        if top_left.isValid() and bottom_right.isValid():
+            self.proxy_model.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
+
+        sort_column = self.treeView.header().sortIndicatorSection()
+        sort_order = self.treeView.header().sortIndicatorOrder()
+        self.proxy_model.sort(sort_column, sort_order)
+
+    def on_layout_about_to_change(self):
+        self.preserve_current_directory_focus()
+
+    def on_layout_changed(self):
+        self.schedule_focus_restore()
+
+    def schedule_focus_restore(self):
+        if self._focus_restore_scheduled or not self._pending_focus_path:
+            return
+
+        self._focus_restore_scheduled = True
+        QTimer.singleShot(0, self._restore_focus_after_model_change)
+
+    def _restore_focus_after_model_change(self):
+        self._focus_restore_scheduled = False
+
+        focus_path = self._pending_focus_path
+        self._pending_focus_path = None
+        focus_active = self._pending_focus_active
+        self._pending_focus_active = False
+        if not focus_path or not os.path.isdir(focus_path):
+            return
+
+        current_path = self.get_selected_directory_path()
+        if current_path == focus_path:
+            if focus_active:
+                self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+            return
+
+        self.select_directory_by_path(focus_path)
+        if focus_active:
+            self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+
     def _restore_selection_after_delete(self):
         if self._pending_delete_row is None:
             return
@@ -266,7 +353,8 @@ class DirectoryView(QWidget):
         target_row = min(self._pending_delete_row, row_count - 1)
         target_index = self.proxy_model.index(target_row, 0, parent)
         if target_index.isValid():
-            self.treeView.selectionModel().select(target_index, selection_flags)
+            self.treeView.setCurrentIndex(target_index)
+            self.treeView.selectionModel().setCurrentIndex(target_index, selection_flags)
             self.treeView.scrollTo(target_index)
 
         self._pending_delete_parent = QPersistentModelIndex()
@@ -330,7 +418,6 @@ class CustomFileSystemModel(QFileSystemModel):
     def get_latest_modified_date(self, directory_path):
         # Validate that the directory path exists and is a directory
         if not directory_path or not os.path.exists(directory_path) or not os.path.isdir(directory_path):
-            print(f"Invalid directory path provided to get_latest_modified_date: '{directory_path}'")
             return None
 
         try:

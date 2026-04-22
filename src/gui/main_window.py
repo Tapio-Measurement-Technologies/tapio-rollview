@@ -243,14 +243,12 @@ class MainWindow(QMainWindow):
     def on_directory_selected(self, directory):
         # Validate that the directory path exists and is a directory
         if not directory or not os.path.exists(directory) or not os.path.isdir(directory):
-            print(f"Invalid directory path provided to on_directory_selected: '{directory}'")
             return
 
         self.directory_name = os.path.basename(directory)
         store.selected_directory = directory
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
-        self.directory_view.select_directory_by_path(store.selected_directory)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def load_profiles(self, dir_path):
