@@ -663,7 +663,7 @@ class HighlightedRegionRow(QFrame):
         self.start_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.start_input)
 
-        self.range_separator = QLabel("--")
+        self.range_separator = QLabel("–")
         range_inputs.addWidget(self.range_separator)
 
         self.end_input = QLineEdit()
