@@ -39,6 +39,8 @@ class SettingsWindow(QWidget):
         self.setLayout(main_layout)
 
         self.list_widget = QListWidget()
+        self.list_widget.setMaximumWidth(180)
+        self.list_widget.setMinimumWidth(150)
         main_layout.addWidget(self.list_widget)
 
         self.stacked_widget = QStackedWidget()
@@ -159,7 +161,13 @@ class AlertLimitSettingsPage(QWidget):
         super().__init__()
         layout = QVBoxLayout()
         self.setLayout(layout)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setSpacing(10)
         self.setting_widgets = []
+
+        heading = QLabel(_("ALERT_LIMITS"))
+        heading.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
+        layout.addWidget(heading)
 
         for limit in preferences.alert_limits:
             setting = AlertLimitSetting(limit)
@@ -197,22 +205,42 @@ class AlertLimitSettingsPage(QWidget):
         self.apply_button.setEnabled(False)
         self.settings_updated.emit()
 
-class AlertLimitSetting(QWidget):
+class AlertLimitSetting(QFrame):
     modified = Signal()
+    INPUT_WIDTH = 110
 
     def __init__(self, limit):
         super().__init__()
         self.limit = limit
-        layout = QVBoxLayout()
+        self.setObjectName("alertLimitCard")
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setStyleSheet(
+            """
+            QFrame#alertLimitCard {
+                background-color: rgba(0, 0, 0, 0.03);
+                border: 1px solid rgba(0, 0, 0, 0.12);
+                border-radius: 4px;
+            }
+            """
+        )
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(12)
         self.setLayout(layout)
 
         self.label = QLabel(f"{profile_stats.stat_labels[limit['name']]} [{limit['units']}]")
+        self.label.setMinimumWidth(120)
         layout.addWidget(self.label)
 
+        layout.addStretch()
+
         input_layout = QHBoxLayout()
+        input_layout.setSpacing(8)
 
         self.min_label = QLabel(f"{_("MIN")}:")
         self.min_input = QLineEdit()
+        self.min_input.setMaximumWidth(self.INPUT_WIDTH)
         self.min_input.setValidator(QDoubleValidator())
         self.min_input.setText(str(limit['min']) if limit['min'] is not None else '')
         self.min_input.textChanged.connect(self.emit_modified)
@@ -221,6 +249,7 @@ class AlertLimitSetting(QWidget):
 
         self.max_label = QLabel(f"{_("MAX")}:")
         self.max_input = QLineEdit()
+        self.max_input.setMaximumWidth(self.INPUT_WIDTH)
         self.max_input.setValidator(QDoubleValidator())
         self.max_input.setText(str(limit['max']) if limit['max'] is not None else '')
         self.max_input.textChanged.connect(self.emit_modified)

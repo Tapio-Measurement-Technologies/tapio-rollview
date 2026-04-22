@@ -1,9 +1,10 @@
 import unittest
+import copy
 
 from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
 
 import settings
-from gui.settings import AdvancedSettingsPage, AnnotationsSettingsPage, GeneralSettingsPage, SettingsWindow
+from gui.settings import AlertLimitSettingsPage, AdvancedSettingsPage, AnnotationsSettingsPage, GeneralSettingsPage, SettingsWindow
 from utils.highlighted_regions import ANNOTATION_MODE_ABSOLUTE, HighlightedRegion
 from utils import preferences
 
@@ -95,6 +96,30 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         )
         self.assertEqual(self.page.excluded_regions_input.text(), settings.EXCLUDED_REGIONS_DEFAULT)
         self.assertTrue(self.page.apply_button.isEnabled())
+
+
+class TestAlertLimitSettingsPage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.original_alert_limits = preferences.alert_limits
+        preferences.alert_limits = [
+            copy.deepcopy(settings.ALERT_LIMITS_DEFAULT[0]) | {"min": 1.0, "max": 2.0},
+        ]
+        self.page = AlertLimitSettingsPage()
+
+    def tearDown(self):
+        self.page.close()
+        preferences.alert_limits = self.original_alert_limits
+
+    def test_alert_limit_row_uses_card_layout_and_fixed_inputs(self):
+        row = self.page.setting_widgets[0]
+
+        self.assertIsInstance(row, QFrame)
+        self.assertEqual(row.min_input.maximumWidth(), row.INPUT_WIDTH)
+        self.assertEqual(row.max_input.maximumWidth(), row.INPUT_WIDTH)
 
 
 class TestGeneralSettingsPage(unittest.TestCase):
