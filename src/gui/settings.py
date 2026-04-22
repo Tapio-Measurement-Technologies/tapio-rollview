@@ -1,11 +1,31 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider
-from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider, QScrollArea, QFrame
+from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtCore import Signal, Slot, Qt, QLocale, QRegularExpression, QSignalBlocker
 from utils import preferences
 from utils.translation import _
 from utils import profile_stats
 from utils.excluded_regions import parse_excluded_regions
+from utils.highlighted_regions import (
+    ANNOTATION_MODE_ABSOLUTE,
+    ANNOTATION_MODE_RELATIVE,
+    TABLEAU_COLORS,
+    parse_highlighted_region,
+)
 import settings
+
+TABLEAU_COLOR_HEX = {
+    "tab:blue": "#1f77b4",
+    "tab:orange": "#ff7f0e",
+    "tab:green": "#2ca02c",
+    "tab:red": "#d62728",
+    "tab:purple": "#9467bd",
+    "tab:brown": "#8c564b",
+    "tab:pink": "#e377c2",
+    "tab:gray": "#7f7f7f",
+    "tab:olive": "#bcbd22",
+    "tab:cyan": "#17becf",
+}
+
 
 class SettingsWindow(QWidget):
     settings_updated = Signal()
@@ -32,6 +52,9 @@ class SettingsWindow(QWidget):
 
         self.advanced_settings_page = AdvancedSettingsPage()
         self.add_settings_page(_("ADVANCED_SETTINGS"), self.advanced_settings_page)
+
+        self.annotations_page = AnnotationsSettingsPage()
+        self.add_settings_page(_("ANNOTATIONS"), self.annotations_page)
 
         self.list_widget.currentRowChanged.connect(self.display_page)
         self.list_widget.setCurrentRow(0)
@@ -552,4 +575,356 @@ class AdvancedSettingsPage(QWidget):
         })
 
         self.apply_button.setEnabled(False)
+        self.settings_updated.emit()
+
+
+class HighlightedRegionRow(QFrame):
+    modified = Signal()
+    remove_requested = Signal(QWidget)
+
+    def __init__(self, region=None, parent=None):
+        super().__init__(parent)
+        self.annotation_modes = {
+            ANNOTATION_MODE_RELATIVE: _("ANNOTATION_MODE_RELATIVE"),
+            ANNOTATION_MODE_ABSOLUTE: _("ANNOTATION_MODE_ABSOLUTE"),
+        }
+        self.color_labels = {
+            "tab:blue": _("COLOR_BLUE"),
+            "tab:orange": _("COLOR_ORANGE"),
+            "tab:green": _("COLOR_GREEN"),
+            "tab:red": _("COLOR_RED"),
+            "tab:purple": _("COLOR_PURPLE"),
+            "tab:brown": _("COLOR_BROWN"),
+            "tab:pink": _("COLOR_PINK"),
+            "tab:gray": _("COLOR_GRAY"),
+            "tab:olive": _("COLOR_OLIVE"),
+            "tab:cyan": _("COLOR_CYAN"),
+        }
+
+        self.setObjectName("highlightedRegionRow")
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setStyleSheet(
+            """
+            QFrame#highlightedRegionRow {
+                background-color: rgba(0, 0, 0, 0.03);
+                border: 1px solid rgba(0, 0, 0, 0.12);
+                border-radius: 4px;
+            }
+            """
+        )
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(8)
+        self.setLayout(layout)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(10)
+        layout.addLayout(top_row)
+
+        range_group = self._create_field_group(top_row)
+        self.range_label = QLabel(_("RANGE"))
+        range_group.addWidget(self.range_label)
+
+        range_inputs = QHBoxLayout()
+        range_inputs.setSpacing(6)
+        range_group.addLayout(range_inputs)
+        self.start_input = QLineEdit()
+        self.start_input.setMinimumWidth(48)
+        self.start_input.textChanged.connect(lambda _text: self.modified.emit())
+        range_inputs.addWidget(self.start_input)
+
+        self.range_separator = QLabel("--")
+        range_inputs.addWidget(self.range_separator)
+
+        self.end_input = QLineEdit()
+        self.end_input.setMinimumWidth(48)
+        self.end_input.textChanged.connect(lambda _text: self.modified.emit())
+        range_inputs.addWidget(self.end_input)
+
+        mode_group = self._create_field_group(top_row)
+        self.mode_label = QLabel(_("MODE"))
+        mode_group.addWidget(self.mode_label)
+        self.mode_selector = QComboBox()
+        self.mode_selector.addItems(self.annotation_modes.values())
+        self.mode_selector.currentIndexChanged.connect(self._on_mode_changed)
+        self.mode_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
+        self.mode_selector.setMaximumWidth(150)
+        self.mode_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        mode_group.addWidget(self.mode_selector)
+
+        color_group = self._create_field_group(top_row)
+        self.color_label = QLabel(_("COLOR"))
+        color_group.addWidget(self.color_label)
+        self.color_selector = QComboBox()
+        self._populate_color_selector()
+        self.color_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
+        self.color_selector.setMaximumWidth(130)
+        self.color_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        color_group.addWidget(self.color_selector)
+
+        top_row.addStretch()
+
+        remove_group = self._create_field_group(top_row)
+        self.remove_label_spacer = QLabel("")
+        self.remove_label_spacer.setFixedHeight(self.range_label.sizeHint().height())
+        remove_group.addWidget(self.remove_label_spacer)
+
+        self.remove_button = QPushButton(_("REMOVE"))
+        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
+        self.remove_button.setMaximumWidth(90)
+        remove_group.addWidget(self.remove_button)
+
+        self._set_region(region)
+        self._update_placeholders()
+
+    def _create_field_group(self, parent_layout):
+        field_layout = QVBoxLayout()
+        field_layout.setSpacing(4)
+        field_layout.setContentsMargins(0, 0, 0, 0)
+        parent_layout.addLayout(field_layout)
+        return field_layout
+
+    def _populate_color_selector(self):
+        for color, label in self.color_labels.items():
+            self.color_selector.addItem(self._create_color_icon(color), label)
+
+    def _create_color_icon(self, color_name):
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(TABLEAU_COLOR_HEX[color_name]))
+        painter.drawEllipse(1, 1, 14, 14)
+        painter.end()
+
+        return QIcon(pixmap)
+
+    def _set_region(self, region):
+        if region is None:
+            self.start_input.clear()
+            self.end_input.clear()
+            self.mode_selector.setCurrentText(self.annotation_modes[ANNOTATION_MODE_RELATIVE])
+            self.color_selector.setCurrentText(self.color_labels[TABLEAU_COLORS[0]])
+            return
+
+        self.start_input.setText("" if region.start == float("-inf") else f"{region.start:g}")
+        self.end_input.setText("" if region.end == float("inf") else f"{region.end:g}")
+        self.mode_selector.setCurrentText(self.annotation_modes[region.mode])
+        self.color_selector.setCurrentText(self.color_labels[region.color])
+
+    def _get_selected_mode(self):
+        return list(self.annotation_modes.keys())[self.mode_selector.currentIndex()]
+
+    def _get_selected_color(self):
+        return list(self.color_labels.keys())[self.color_selector.currentIndex()]
+
+    def _update_placeholders(self):
+        start_placeholder = _("MIN")
+        end_placeholder = _("MAX")
+
+        self.start_input.setPlaceholderText(start_placeholder)
+        self.end_input.setPlaceholderText(end_placeholder)
+
+    @Slot()
+    def _on_mode_changed(self):
+        self._update_placeholders()
+
+    def is_empty(self):
+        return not self.start_input.text().strip() and not self.end_input.text().strip()
+
+    def to_highlighted_region(self):
+        return parse_highlighted_region(
+            self.start_input.text(),
+            self.end_input.text(),
+            self._get_selected_mode(),
+            self._get_selected_color(),
+        )
+
+
+class AnnotationsSettingsPage(QWidget):
+    settings_updated = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.rows = []
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        heading = QLabel(_("ANNOTATIONS"))
+        heading.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
+        layout.addWidget(heading)
+
+        self.rows_container = QWidget()
+        self.rows_layout = QVBoxLayout()
+        self.rows_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.rows_layout.setSpacing(10)
+        self.rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.rows_container.setLayout(self.rows_layout)
+        self.empty_state_card = self._create_empty_state_card()
+        self.rows_layout.addWidget(self.empty_state_card)
+
+        self.rows_scroll_area = QScrollArea()
+        self.rows_scroll_area.setWidgetResizable(True)
+        self.rows_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.rows_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.rows_scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.rows_scroll_area.setWidget(self.rows_container)
+        self.rows_scroll_area.setMinimumHeight(220)
+        layout.addWidget(self.rows_scroll_area)
+
+        self.error_label = QLabel()
+        self.error_label.setStyleSheet("color: red; font-size: 12px;")
+        self.error_label.setVisible(False)
+        layout.addWidget(self.error_label)
+
+        controls_layout = QHBoxLayout()
+        self.add_button = QPushButton(_("ADD_REGION"))
+        self.add_button.clicked.connect(self.add_empty_row)
+        controls_layout.addWidget(self.add_button)
+        controls_layout.addStretch()
+        layout.addLayout(controls_layout)
+
+        self.footer_layout = QHBoxLayout()
+        self.footer_layout.addStretch()
+
+        self.reset_defaults_button = QPushButton(_("RESET_DEFAULTS"), self)
+        self.reset_defaults_button.clicked.connect(self.reset_to_defaults)
+        self.footer_layout.addWidget(self.reset_defaults_button)
+
+        self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        self.apply_button.setEnabled(False)
+        self.apply_button.clicked.connect(self.save_settings)
+        self.footer_layout.addWidget(self.apply_button)
+
+        layout.addLayout(self.footer_layout)
+
+        self._load_regions(preferences.highlighted_regions)
+
+    def _create_empty_state_card(self):
+        card = QFrame()
+        card.setObjectName("annotationEmptyStateCard")
+        card.setFrameShape(QFrame.Shape.StyledPanel)
+        card.setStyleSheet(
+            """
+            QFrame#annotationEmptyStateCard {
+                background-color: rgba(0, 0, 0, 0.02);
+                border: 1px dashed rgba(0, 0, 0, 0.18);
+                border-radius: 4px;
+            }
+            """
+        )
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(4)
+        card.setLayout(layout)
+
+        title = QLabel(_("ANNOTATIONS_EMPTY_TITLE"))
+        title.setStyleSheet("font-weight: bold;")
+        layout.addWidget(title)
+
+        description = QLabel(
+            _("ANNOTATIONS_EMPTY_HELP")
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        return card
+
+    def _update_empty_state(self):
+        self.empty_state_card.setVisible(len(self.rows) == 0)
+
+    def _connect_row(self, row):
+        row.modified.connect(self.enable_save_button)
+        row.modified.connect(self._hide_error)
+        row.remove_requested.connect(self.remove_row)
+
+    def _load_regions(self, regions):
+        for row in list(self.rows):
+            self.remove_row(row, enable_save=False)
+
+        for region in regions:
+            self._add_row(region, enable_save=False)
+
+        self._update_empty_state()
+
+    def _add_row(self, region=None, enable_save=True):
+        row = HighlightedRegionRow(region=region)
+        row.start_input.returnPressed.connect(self.save_settings)
+        row.end_input.returnPressed.connect(self.save_settings)
+        self._connect_row(row)
+        self.rows.append(row)
+        self.rows_layout.addWidget(row)
+        self._update_empty_state()
+        if enable_save:
+            self.enable_save_button()
+        return row
+
+    @Slot()
+    def add_empty_row(self):
+        self._add_row()
+
+    @Slot()
+    def enable_save_button(self):
+        self.apply_button.setEnabled(True)
+
+    @Slot()
+    def _hide_error(self):
+        self.error_label.setVisible(False)
+
+    @Slot(QWidget)
+    def remove_row(self, row, enable_save=True):
+        if row not in self.rows:
+            return
+
+        self.rows.remove(row)
+        self.rows_layout.removeWidget(row)
+        row.deleteLater()
+        self._update_empty_state()
+        self._hide_error()
+        if enable_save:
+            self.enable_save_button()
+
+    def _collect_regions(self):
+        regions = []
+        for index, row in enumerate(self.rows, start=1):
+            if row.is_empty():
+                continue
+
+            try:
+                region = row.to_highlighted_region()
+            except ValueError as exc:
+                raise ValueError(f"Row {index}: {exc}") from exc
+
+            if region is not None:
+                regions.append(region)
+
+        return regions
+
+    @Slot()
+    def reset_to_defaults(self):
+        self._load_regions(settings.HIGHLIGHTED_REGIONS_DEFAULT)
+        self.error_label.clear()
+        self.error_label.setVisible(False)
+        self.enable_save_button()
+
+    @Slot()
+    def save_settings(self):
+        try:
+            regions = self._collect_regions()
+        except ValueError as exc:
+            self.error_label.setText(str(exc))
+            self.error_label.setVisible(True)
+            return
+
+        preferences.update_preferences({
+            "highlighted_regions": regions,
+        })
+        self.apply_button.setEnabled(False)
+        self.error_label.setVisible(False)
         self.settings_updated.emit()

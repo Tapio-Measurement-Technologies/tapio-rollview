@@ -1,9 +1,10 @@
 import unittest
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
 
 import settings
-from gui.settings import AdvancedSettingsPage, GeneralSettingsPage
+from gui.settings import AdvancedSettingsPage, AnnotationsSettingsPage, GeneralSettingsPage, SettingsWindow
+from utils.highlighted_regions import ANNOTATION_MODE_ABSOLUTE, HighlightedRegion
 from utils import preferences
 
 
@@ -132,6 +133,109 @@ class TestGeneralSettingsPage(unittest.TestCase):
     def test_distance_unit_selector_includes_centimeters(self):
         self.assertIn("cm", self.page.distance_units)
         self.assertEqual(self.page.distance_units["cm"], "Centimeters (cm)")
+
+
+class TestAnnotationsSettingsPage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.original_highlighted_regions = preferences.highlighted_regions
+        preferences.highlighted_regions = []
+        self.page = AnnotationsSettingsPage()
+
+    def tearDown(self):
+        self.page.close()
+        preferences.highlighted_regions = self.original_highlighted_regions
+
+    def test_add_region_creates_row(self):
+        self.assertEqual(len(self.page.rows), 0)
+        self.assertFalse(self.page.empty_state_card.isHidden())
+
+        self.page.add_empty_row()
+
+        self.assertEqual(len(self.page.rows), 1)
+        self.assertEqual(self.page.rows[0].start_input.text(), "")
+        self.assertEqual(self.page.rows[0].end_input.text(), "")
+        self.assertTrue(self.page.empty_state_card.isHidden())
+        self.assertTrue(self.page.apply_button.isEnabled())
+
+    def test_annotations_page_uses_scroll_area_for_rows(self):
+        self.assertIsInstance(self.page.rows_scroll_area, QScrollArea)
+        self.assertTrue(self.page.rows_scroll_area.widgetResizable())
+        self.assertEqual(self.page.rows_scroll_area.frameShape(), QFrame.Shape.NoFrame)
+
+    def test_save_settings_persists_valid_regions(self):
+        self.page.add_empty_row()
+        row = self.page.rows[0]
+        row.start_input.setText("1")
+        row.end_input.setText("2")
+        row.mode_selector.setCurrentText(row.annotation_modes[ANNOTATION_MODE_ABSOLUTE])
+
+        self.page.save_settings()
+
+        self.assertEqual(
+            preferences.highlighted_regions,
+            [HighlightedRegion(start=1.0, end=2.0, mode="absolute", color="tab:blue")],
+        )
+        self.assertFalse(self.page.apply_button.isEnabled())
+
+    def test_save_settings_supports_open_ended_region(self):
+        self.page.add_empty_row()
+        row = self.page.rows[0]
+        row.end_input.setText("20")
+
+        self.page.save_settings()
+
+        self.assertEqual(preferences.highlighted_regions[0].start, float("-inf"))
+        self.assertEqual(preferences.highlighted_regions[0].end, 20.0)
+
+    def test_invalid_region_blocks_save(self):
+        self.page.add_empty_row()
+        row = self.page.rows[0]
+        row.start_input.setText("abc")
+        row.end_input.setText("2")
+
+        self.page.save_settings()
+
+        self.assertEqual(preferences.highlighted_regions, [])
+        self.assertFalse(self.page.error_label.isHidden())
+
+    def test_reset_to_defaults_clears_rows(self):
+        self.page.add_empty_row()
+
+        self.page.reset_to_defaults()
+
+        self.assertEqual(len(self.page.rows), 0)
+        self.assertFalse(self.page.empty_state_card.isHidden())
+        self.assertTrue(self.page.apply_button.isEnabled())
+
+    def test_region_row_uses_card_frame_and_color_icons(self):
+        self.page.add_empty_row()
+
+        row = self.page.rows[0]
+
+        self.assertIsInstance(row, QFrame)
+        self.assertEqual(row.range_label.text(), "Range")
+        self.assertEqual(row.range_separator.text(), "--")
+        self.assertEqual(row.mode_label.text(), "Mode")
+        self.assertEqual(row.color_label.text(), "Color")
+        self.assertFalse(row.color_selector.itemIcon(0).isNull())
+
+
+class TestSettingsWindow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_settings_window_has_annotations_page(self):
+        window = SettingsWindow()
+        try:
+            page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
+            self.assertIn("Annotations", page_names)
+        finally:
+            window.close()
 
 
 if __name__ == "__main__":

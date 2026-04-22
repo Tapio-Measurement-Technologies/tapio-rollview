@@ -1,6 +1,7 @@
 import unittest
 
 import settings
+from utils.highlighted_regions import HighlightedRegion, normalize_highlighted_regions, serialize_highlighted_regions
 from utils.preferences import _normalize_alert_limits
 
 
@@ -41,6 +42,14 @@ class TestPreferences(unittest.TestCase):
 
         self.assertIn(custom_limit, normalized_limits)
         self.assertEqual(len(normalized_limits), len(settings.ALERT_LIMITS_DEFAULT) + 1)
+
+    def test_highlighted_regions_round_trip_through_normalizers(self):
+        regions = [HighlightedRegion(start=1.0, end=2.0, mode="relative", color="tab:blue")]
+
+        saved_value = serialize_highlighted_regions(regions)
+        loaded_value = normalize_highlighted_regions(saved_value)
+
+        self.assertEqual(loaded_value, regions)
 
 if __name__ == "__main__":
     unittest.main()

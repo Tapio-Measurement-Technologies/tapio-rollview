@@ -1,4 +1,3 @@
-from utils import preferences
 import matplotlib.pyplot as plt
 import settings
 from utils import preferences, profile_stats
@@ -7,6 +6,7 @@ from utils.zoom_pan import ZoomPan
 from scipy.signal import welch
 from utils.profile_stats import Stats, calc_mean_profile
 from utils.excluded_regions import get_included_samples, get_visual_excluded_ranges
+from utils.highlighted_regions import get_visual_highlighted_regions
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
@@ -129,6 +129,17 @@ class ProfileWidget(QWidget):
             for start, end in visual_ranges
         ]
 
+    def _get_highlighted_region_plot_ranges(self, mean_profile_distances, conversion_factor):
+        visual_regions = get_visual_highlighted_regions(
+            preferences.highlighted_regions,
+            mean_profile_distances,
+            absolute_scale=1 / conversion_factor,
+        )
+        return [
+            (region.start * conversion_factor, region.end * conversion_factor, region.color)
+            for region in visual_regions
+        ]
+
     def _get_spectrum_plot_data(self, mean_profile_values):
         f, Pxx = welch(mean_profile_values,
                        fs=(1/settings.SAMPLE_INTERVAL_M),
@@ -164,6 +175,20 @@ class ProfileWidget(QWidget):
             self.profile_ax.axvline(start_x, **STYLE_AXVLINE)
             if end_x != start_x:
                 self.profile_ax.axvline(end_x, **STYLE_AXVLINE)
+
+    def _draw_highlighted_regions_visualization(self, mean_profile_distances, conversion_factor):
+        for start_x, end_x, color in self._get_highlighted_region_plot_ranges(
+            mean_profile_distances,
+            conversion_factor,
+        ):
+            if start_x < end_x:
+                self.profile_ax.axvspan(
+                    start_x,
+                    end_x,
+                    alpha=0.2,
+                    color=color,
+                    zorder=-2,
+                )
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
@@ -362,6 +387,12 @@ class ProfileWidget(QWidget):
                                  label=_("CHART_MEAN_PROFILE_LABEL"),
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
+
+            if preferences.highlighted_regions:
+                self._draw_highlighted_regions_visualization(
+                    mean_profile_distances,
+                    unit_info.conversion_factor,
+                )
 
             # Visualize excluded regions when enabled
             if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE:

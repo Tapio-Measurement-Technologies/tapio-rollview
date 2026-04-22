@@ -117,6 +117,46 @@ msgstr "Lower"
 msgid "MAX"
 msgstr "Upper"
 
+#. Used in annotations settings page as color option label.
+msgid "COLOR_BLUE"
+msgstr "Blue"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_ORANGE"
+msgstr "Orange"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_GREEN"
+msgstr "Green"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_RED"
+msgstr "Red"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_PURPLE"
+msgstr "Purple"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_BROWN"
+msgstr "Brown"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_PINK"
+msgstr "Pink"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_GRAY"
+msgstr "Gray"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_OLIVE"
+msgstr "Olive"
+
+#. Used in annotations settings page as color option label.
+msgid "COLOR_CYAN"
+msgstr "Cyan"
+
 #. Used in file tree context menu and directory view as button label and menu action
 #. label.
 msgid "BUTTON_TEXT_OPEN_FILE_EXPLORER"
@@ -615,6 +655,46 @@ msgstr "Relative"
 #. Used in settings window as dropdown option.
 msgid "EXCLUDED_REGIONS_MODE_ABSOLUTE"
 msgstr "Absolute"
+
+#. Used in annotations settings page as page title.
+msgid "ANNOTATIONS"
+msgstr "Annotations"
+
+#. Used in annotations settings page as dropdown option.
+msgid "ANNOTATION_MODE_RELATIVE"
+msgstr "Relative (%)"
+
+#. Used in annotations settings page as dropdown option.
+msgid "ANNOTATION_MODE_ABSOLUTE"
+msgstr "Absolute"
+
+#. Used in annotations settings page as field label.
+msgid "RANGE"
+msgstr "Range"
+
+#. Used in annotations settings page as field label.
+msgid "MODE"
+msgstr "Mode"
+
+#. Used in annotations settings page as field label.
+msgid "COLOR"
+msgstr "Color"
+
+#. Used in annotations settings page as button label.
+msgid "REMOVE"
+msgstr "Remove"
+
+#. Used in annotations settings page as button label.
+msgid "ADD_REGION"
+msgstr "Add region"
+
+#. Used in annotations settings page as empty state title.
+msgid "ANNOTATIONS_EMPTY_TITLE"
+msgstr "No regions yet"
+
+#. Used in annotations settings page as empty state help text.
+msgid "ANNOTATIONS_EMPTY_HELP"
+msgstr "Add region to create highlighted range for profile plot."
 
 #. Used in settings window as label text.
 msgid "SECTION_HEADING_FILTERING"

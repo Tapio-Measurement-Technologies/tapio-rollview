@@ -2,6 +2,7 @@ from PySide6.QtCore import QDir
 import copy
 import settings
 import json
+from utils.highlighted_regions import normalize_highlighted_regions, serialize_highlighted_regions
 
 preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE_PATH)
 
@@ -21,6 +22,7 @@ _DEFAULTS = {
     'excluded_regions_enabled': settings.EXCLUDED_REGIONS_ENABLED_DEFAULT,
     'excluded_regions': settings.EXCLUDED_REGIONS_DEFAULT,
     'excluded_regions_mode': settings.EXCLUDED_REGIONS_MODE_DEFAULT,
+    'highlighted_regions': settings.HIGHLIGHTED_REGIONS_DEFAULT,
     'y_lim_low_override': settings.Y_LIM_LOW_OVERRIDE_DEFAULT,
     'y_lim_high_override': settings.Y_LIM_HIGH_OVERRIDE_DEFAULT,
     'default_y_axis_scaling': settings.Y_AXIS_SCALING_DEFAULT,
@@ -31,11 +33,13 @@ _DEFAULTS = {
 # Type converters for loading from JSON (for special types like sets)
 _LOADERS = {
     'pinned_serial_ports': set,
+    'highlighted_regions': normalize_highlighted_regions,
 }
 
 # Type converters for saving to JSON (for special types like sets)
 _SAVERS = {
     'pinned_serial_ports': list,
+    'highlighted_regions': serialize_highlighted_regions,
 }
 
 
@@ -86,6 +90,7 @@ flip_profiles = _default_value('flip_profiles')
 excluded_regions_enabled = _default_value('excluded_regions_enabled')
 excluded_regions = _default_value('excluded_regions')
 excluded_regions_mode = _default_value('excluded_regions_mode')
+highlighted_regions = _default_value('highlighted_regions')
 y_lim_low_override = _default_value('y_lim_low_override')
 y_lim_high_override = _default_value('y_lim_high_override')
 default_y_axis_scaling = _default_value('default_y_axis_scaling')
@@ -135,6 +140,8 @@ def update_preferences(updates):
       value = set(value)
     elif key == 'alert_limits':
       value = _normalize_alert_limits(value)
+    elif key == 'highlighted_regions':
+      value = normalize_highlighted_regions(value)
 
     globals()[key] = value
 
