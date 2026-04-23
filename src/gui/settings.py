@@ -6,10 +6,16 @@ from utils.translation import _
 from utils import profile_stats
 from utils.excluded_regions import parse_excluded_regions
 from utils.highlighted_regions import (
-    ANNOTATION_MODE_ABSOLUTE,
-    ANNOTATION_MODE_RELATIVE,
+    AbsoluteMeanOffsetHardnessHighlightRegion,
+    DISTANCE_HIGHLIGHT_MODE_ABSOLUTE,
+    DISTANCE_HIGHLIGHT_MODE_RELATIVE,
+    FixedHardnessHighlightRegion,
+    HARDNESS_HIGHLIGHT_MODE_FIXED,
+    HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE,
+    HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE,
     TABLEAU_COLORS,
-    parse_highlighted_region,
+    parse_distance_highlight_region,
+    parse_hardness_highlight_region,
 )
 import settings
 
@@ -52,11 +58,14 @@ class SettingsWindow(QWidget):
         self.alert_limit_page = AlertLimitSettingsPage()
         self.add_settings_page(_("ALERT_LIMITS"), self.alert_limit_page)
 
+        self.distance_highlights_page = DistanceHighlightsSettingsPage()
+        self.add_settings_page(_("DISTANCE_HIGHLIGHTS"), self.distance_highlights_page)
+
+        self.hardness_highlights_page = HardnessHighlightsSettingsPage()
+        self.add_settings_page(_("HARDNESS_HIGHLIGHTS"), self.hardness_highlights_page)
+
         self.advanced_settings_page = AdvancedSettingsPage()
         self.add_settings_page(_("ADVANCED_SETTINGS"), self.advanced_settings_page)
-
-        self.annotations_page = AnnotationsSettingsPage()
-        self.add_settings_page(_("ANNOTATIONS"), self.annotations_page)
 
         self.list_widget.currentRowChanged.connect(self.display_page)
         self.list_widget.setCurrentRow(0)
@@ -607,16 +616,12 @@ class AdvancedSettingsPage(QWidget):
         self.settings_updated.emit()
 
 
-class HighlightedRegionRow(QFrame):
+class HighlightRegionRowBase(QFrame):
     modified = Signal()
     remove_requested = Signal(QWidget)
 
-    def __init__(self, region=None, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.annotation_modes = {
-            ANNOTATION_MODE_RELATIVE: _("ANNOTATION_MODE_RELATIVE"),
-            ANNOTATION_MODE_ABSOLUTE: _("ANNOTATION_MODE_ABSOLUTE"),
-        }
         self.color_labels = {
             "tab:blue": _("COLOR_BLUE"),
             "tab:orange": _("COLOR_ORANGE"),
@@ -642,70 +647,15 @@ class HighlightedRegionRow(QFrame):
             """
         )
 
+    def _create_card_layout(self):
         layout = QVBoxLayout()
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
         self.setLayout(layout)
-
         top_row = QHBoxLayout()
         top_row.setSpacing(10)
         layout.addLayout(top_row)
-
-        range_group = self._create_field_group(top_row)
-        self.range_label = QLabel(_("RANGE"))
-        range_group.addWidget(self.range_label)
-
-        range_inputs = QHBoxLayout()
-        range_inputs.setSpacing(6)
-        range_group.addLayout(range_inputs)
-        self.start_input = QLineEdit()
-        self.start_input.setMinimumWidth(48)
-        self.start_input.textChanged.connect(lambda _text: self.modified.emit())
-        range_inputs.addWidget(self.start_input)
-
-        self.range_separator = QLabel("–")
-        range_inputs.addWidget(self.range_separator)
-
-        self.end_input = QLineEdit()
-        self.end_input.setMinimumWidth(48)
-        self.end_input.textChanged.connect(lambda _text: self.modified.emit())
-        range_inputs.addWidget(self.end_input)
-
-        mode_group = self._create_field_group(top_row)
-        self.mode_label = QLabel(_("MODE"))
-        mode_group.addWidget(self.mode_label)
-        self.mode_selector = QComboBox()
-        self.mode_selector.addItems(self.annotation_modes.values())
-        self.mode_selector.currentIndexChanged.connect(self._on_mode_changed)
-        self.mode_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
-        self.mode_selector.setMaximumWidth(150)
-        self.mode_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        mode_group.addWidget(self.mode_selector)
-
-        color_group = self._create_field_group(top_row)
-        self.color_label = QLabel(_("COLOR"))
-        color_group.addWidget(self.color_label)
-        self.color_selector = QComboBox()
-        self._populate_color_selector()
-        self.color_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
-        self.color_selector.setMaximumWidth(130)
-        self.color_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        color_group.addWidget(self.color_selector)
-
-        top_row.addStretch()
-
-        remove_group = self._create_field_group(top_row)
-        self.remove_label_spacer = QLabel("")
-        self.remove_label_spacer.setFixedHeight(self.range_label.sizeHint().height())
-        remove_group.addWidget(self.remove_label_spacer)
-
-        self.remove_button = QPushButton(_("REMOVE"))
-        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
-        self.remove_button.setMaximumWidth(90)
-        remove_group.addWidget(self.remove_button)
-
-        self._set_region(region)
-        self._update_placeholders()
+        return top_row
 
     def _create_field_group(self, parent_layout):
         field_layout = QVBoxLayout()
@@ -731,31 +681,97 @@ class HighlightedRegionRow(QFrame):
 
         return QIcon(pixmap)
 
+    def _get_selected_color(self):
+        return list(self.color_labels.keys())[self.color_selector.currentIndex()]
+
+    def _add_color_and_remove(self, top_row, spacer_label):
+        color_group = self._create_field_group(top_row)
+        self.color_label = QLabel(_("COLOR"))
+        color_group.addWidget(self.color_label)
+        self.color_selector = QComboBox()
+        self._populate_color_selector()
+        self.color_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
+        self.color_selector.setMaximumWidth(130)
+        self.color_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        color_group.addWidget(self.color_selector)
+
+        top_row.addStretch()
+
+        remove_group = self._create_field_group(top_row)
+        self.remove_label_spacer = QLabel("")
+        self.remove_label_spacer.setFixedHeight(spacer_label.sizeHint().height())
+        remove_group.addWidget(self.remove_label_spacer)
+
+        self.remove_button = QPushButton(_("REMOVE"))
+        self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
+        self.remove_button.setMaximumWidth(90)
+        remove_group.addWidget(self.remove_button)
+
+
+class DistanceHighlightRow(HighlightRegionRowBase):
+    def __init__(self, region=None, parent=None):
+        super().__init__(parent)
+        self.modes = {
+            DISTANCE_HIGHLIGHT_MODE_RELATIVE: _("ANNOTATION_MODE_RELATIVE"),
+            DISTANCE_HIGHLIGHT_MODE_ABSOLUTE: _("ANNOTATION_MODE_ABSOLUTE"),
+        }
+
+        top_row = self._create_card_layout()
+
+        range_group = self._create_field_group(top_row)
+        self.range_label = QLabel(_("RANGE"))
+        range_group.addWidget(self.range_label)
+
+        range_inputs = QHBoxLayout()
+        range_inputs.setSpacing(6)
+        range_group.addLayout(range_inputs)
+        self.start_input = QLineEdit()
+        self.start_input.setMinimumWidth(48)
+        self.start_input.textChanged.connect(lambda _text: self.modified.emit())
+        range_inputs.addWidget(self.start_input)
+
+        self.range_separator = QLabel("--")
+        range_inputs.addWidget(self.range_separator)
+
+        self.end_input = QLineEdit()
+        self.end_input.setMinimumWidth(48)
+        self.end_input.textChanged.connect(lambda _text: self.modified.emit())
+        range_inputs.addWidget(self.end_input)
+
+        mode_group = self._create_field_group(top_row)
+        self.mode_label = QLabel(_("MODE"))
+        mode_group.addWidget(self.mode_label)
+        self.mode_selector = QComboBox()
+        self.mode_selector.addItems(self.modes.values())
+        self.mode_selector.currentIndexChanged.connect(self._on_mode_changed)
+        self.mode_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
+        self.mode_selector.setMaximumWidth(150)
+        self.mode_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        mode_group.addWidget(self.mode_selector)
+
+        self._add_color_and_remove(top_row, self.range_label)
+        self._set_region(region)
+        self._update_placeholders()
+
     def _set_region(self, region):
         if region is None:
             self.start_input.clear()
             self.end_input.clear()
-            self.mode_selector.setCurrentText(self.annotation_modes[ANNOTATION_MODE_RELATIVE])
+            self.mode_selector.setCurrentText(self.modes[DISTANCE_HIGHLIGHT_MODE_RELATIVE])
             self.color_selector.setCurrentText(self.color_labels[TABLEAU_COLORS[0]])
             return
 
         self.start_input.setText("" if region.start == float("-inf") else f"{region.start:g}")
         self.end_input.setText("" if region.end == float("inf") else f"{region.end:g}")
-        self.mode_selector.setCurrentText(self.annotation_modes[region.mode])
+        self.mode_selector.setCurrentText(self.modes[region.mode])
         self.color_selector.setCurrentText(self.color_labels[region.color])
 
     def _get_selected_mode(self):
-        return list(self.annotation_modes.keys())[self.mode_selector.currentIndex()]
-
-    def _get_selected_color(self):
-        return list(self.color_labels.keys())[self.color_selector.currentIndex()]
+        return list(self.modes.keys())[self.mode_selector.currentIndex()]
 
     def _update_placeholders(self):
-        start_placeholder = _("MIN")
-        end_placeholder = _("MAX")
-
-        self.start_input.setPlaceholderText(start_placeholder)
-        self.end_input.setPlaceholderText(end_placeholder)
+        self.start_input.setPlaceholderText(_("MIN"))
+        self.end_input.setPlaceholderText(_("MAX"))
 
     @Slot()
     def _on_mode_changed(self):
@@ -764,8 +780,8 @@ class HighlightedRegionRow(QFrame):
     def is_empty(self):
         return not self.start_input.text().strip() and not self.end_input.text().strip()
 
-    def to_highlighted_region(self):
-        return parse_highlighted_region(
+    def to_region(self):
+        return parse_distance_highlight_region(
             self.start_input.text(),
             self.end_input.text(),
             self._get_selected_mode(),
@@ -773,20 +789,124 @@ class HighlightedRegionRow(QFrame):
         )
 
 
-class AnnotationsSettingsPage(QWidget):
+class HardnessHighlightRow(HighlightRegionRowBase):
+    def __init__(self, region=None, parent=None):
+        super().__init__(parent)
+        self.modes = {
+            HARDNESS_HIGHLIGHT_MODE_FIXED: _("HARDNESS_HIGHLIGHT_MODE_FIXED"),
+            HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE: _("HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE"),
+            HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE: _("HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE"),
+        }
+
+        top_row = self._create_card_layout()
+
+        first_group = self._create_field_group(top_row)
+        self.first_label = QLabel(_("MIN"))
+        first_group.addWidget(self.first_label)
+        self.first_input = QLineEdit()
+        self.first_input.setMinimumWidth(56)
+        self.first_input.textChanged.connect(lambda _text: self.modified.emit())
+        first_group.addWidget(self.first_input)
+
+        second_group = self._create_field_group(top_row)
+        self.second_label = QLabel(_("MAX"))
+        second_group.addWidget(self.second_label)
+        self.second_input = QLineEdit()
+        self.second_input.setMinimumWidth(56)
+        self.second_input.textChanged.connect(lambda _text: self.modified.emit())
+        second_group.addWidget(self.second_input)
+
+        mode_group = self._create_field_group(top_row)
+        self.mode_label = QLabel(_("MODE"))
+        mode_group.addWidget(self.mode_label)
+        self.mode_selector = QComboBox()
+        self.mode_selector.addItems(self.modes.values())
+        self.mode_selector.currentIndexChanged.connect(self._on_mode_changed)
+        self.mode_selector.currentIndexChanged.connect(lambda _index: self.modified.emit())
+        self.mode_selector.setMaximumWidth(200)
+        self.mode_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        mode_group.addWidget(self.mode_selector)
+
+        self._add_color_and_remove(top_row, self.first_label)
+        self._set_region(region)
+        self._update_labels()
+
+    def _set_region(self, region):
+        if region is None:
+            self.first_input.clear()
+            self.second_input.clear()
+            self.mode_selector.setCurrentText(self.modes[HARDNESS_HIGHLIGHT_MODE_FIXED])
+            self.color_selector.setCurrentText(self.color_labels[TABLEAU_COLORS[0]])
+            return
+
+        self.mode_selector.setCurrentText(self.modes[region.mode])
+        self.color_selector.setCurrentText(self.color_labels[region.color])
+        if isinstance(region, FixedHardnessHighlightRegion):
+            self.first_input.setText("" if region.min_value is None else f"{region.min_value:g}")
+            self.second_input.setText("" if region.max_value is None else f"{region.max_value:g}")
+        elif isinstance(region, AbsoluteMeanOffsetHardnessHighlightRegion):
+            self.first_input.setText("" if region.below_offset is None else f"{region.below_offset:g}")
+            self.second_input.setText("" if region.above_offset is None else f"{region.above_offset:g}")
+        else:
+            self.first_input.setText("" if region.below_percent is None else f"{region.below_percent:g}")
+            self.second_input.setText("" if region.above_percent is None else f"{region.above_percent:g}")
+
+    def _get_selected_mode(self):
+        return list(self.modes.keys())[self.mode_selector.currentIndex()]
+
+    def _update_labels(self):
+        mode = self._get_selected_mode()
+        if mode == HARDNESS_HIGHLIGHT_MODE_FIXED:
+            self.first_label.setText(_("MIN"))
+            self.second_label.setText(_("MAX"))
+        else:
+            self.first_label.setText(_("BELOW"))
+            self.second_label.setText(_("ABOVE"))
+
+        if mode == HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE:
+            self.first_input.setPlaceholderText("%")
+            self.second_input.setPlaceholderText("%")
+        else:
+            self.first_input.setPlaceholderText(_("MIN"))
+            self.second_input.setPlaceholderText(_("MAX"))
+
+    @Slot()
+    def _on_mode_changed(self):
+        self._update_labels()
+
+    def is_empty(self):
+        return not self.first_input.text().strip() and not self.second_input.text().strip()
+
+    def to_region(self):
+        return parse_hardness_highlight_region(
+            self.first_input.text(),
+            self.second_input.text(),
+            self._get_selected_mode(),
+            self._get_selected_color(),
+        )
+
+
+class HighlightRegionsSettingsPageBase(QWidget):
     settings_updated = Signal()
 
-    def __init__(self):
+    def __init__(self, title_key, description_key, add_button_key, row_factory, preference_key, defaults_value, empty_title_key, empty_help_key):
         super().__init__()
         self.rows = []
+        self.row_factory = row_factory
+        self.preference_key = preference_key
+        self.defaults_value = defaults_value
 
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        heading = QLabel(_("ANNOTATIONS"))
+        heading = QLabel(_(title_key))
         heading.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
         layout.addWidget(heading)
+
+        description = QLabel(_(description_key))
+        description.setWordWrap(True)
+        layout.addWidget(description)
 
         self.rows_container = QWidget()
         self.rows_layout = QVBoxLayout()
@@ -794,7 +914,8 @@ class AnnotationsSettingsPage(QWidget):
         self.rows_layout.setSpacing(10)
         self.rows_layout.setContentsMargins(0, 0, 0, 0)
         self.rows_container.setLayout(self.rows_layout)
-        self.empty_state_card = self._create_empty_state_card()
+
+        self.empty_state_card = self._create_empty_state_card(empty_title_key, empty_help_key)
         self.rows_layout.addWidget(self.empty_state_card)
 
         self.rows_scroll_area = QScrollArea()
@@ -812,7 +933,7 @@ class AnnotationsSettingsPage(QWidget):
         layout.addWidget(self.error_label)
 
         controls_layout = QHBoxLayout()
-        self.add_button = QPushButton(_("ADD_REGION"))
+        self.add_button = QPushButton(_(add_button_key))
         self.add_button.clicked.connect(self.add_empty_row)
         controls_layout.addWidget(self.add_button)
         controls_layout.addStretch()
@@ -832,9 +953,9 @@ class AnnotationsSettingsPage(QWidget):
 
         layout.addLayout(self.footer_layout)
 
-        self._load_regions(preferences.highlighted_regions)
+        self._load_regions(getattr(preferences, self.preference_key))
 
-    def _create_empty_state_card(self):
+    def _create_empty_state_card(self, title_key, help_key):
         card = QFrame()
         card.setObjectName("annotationEmptyStateCard")
         card.setFrameShape(QFrame.Shape.StyledPanel)
@@ -853,16 +974,13 @@ class AnnotationsSettingsPage(QWidget):
         layout.setSpacing(4)
         card.setLayout(layout)
 
-        title = QLabel(_("ANNOTATIONS_EMPTY_TITLE"))
+        title = QLabel(_(title_key))
         title.setStyleSheet("font-weight: bold;")
         layout.addWidget(title)
 
-        description = QLabel(
-            _("ANNOTATIONS_EMPTY_HELP")
-        )
+        description = QLabel(_(help_key))
         description.setWordWrap(True)
         layout.addWidget(description)
-
         return card
 
     def _update_empty_state(self):
@@ -878,15 +996,20 @@ class AnnotationsSettingsPage(QWidget):
             self.remove_row(row, enable_save=False)
 
         for region in regions:
-            self._add_row(region, enable_save=False)
+            self._add_row(region=region, enable_save=False)
 
         self._update_empty_state()
 
     def _add_row(self, region=None, enable_save=True):
-        row = HighlightedRegionRow(region=region)
-        row.start_input.returnPressed.connect(self.save_settings)
-        row.end_input.returnPressed.connect(self.save_settings)
+        row = self.row_factory(region=region)
         self._connect_row(row)
+        if hasattr(row, "start_input"):
+            row.start_input.returnPressed.connect(self.save_settings)
+            row.end_input.returnPressed.connect(self.save_settings)
+        else:
+            row.first_input.returnPressed.connect(self.save_settings)
+            row.second_input.returnPressed.connect(self.save_settings)
+
         self.rows.append(row)
         self.rows_layout.addWidget(row)
         self._update_empty_state()
@@ -924,20 +1047,17 @@ class AnnotationsSettingsPage(QWidget):
         for index, row in enumerate(self.rows, start=1):
             if row.is_empty():
                 continue
-
             try:
-                region = row.to_highlighted_region()
+                region = row.to_region()
             except ValueError as exc:
                 raise ValueError(f"Row {index}: {exc}") from exc
-
             if region is not None:
                 regions.append(region)
-
         return regions
 
     @Slot()
     def reset_to_defaults(self):
-        self._load_regions(settings.HIGHLIGHTED_REGIONS_DEFAULT)
+        self._load_regions(self.defaults_value)
         self.error_label.clear()
         self.error_label.setVisible(False)
         self.enable_save_button()
@@ -952,8 +1072,36 @@ class AnnotationsSettingsPage(QWidget):
             return
 
         preferences.update_preferences({
-            "highlighted_regions": regions,
+            self.preference_key: regions,
         })
         self.apply_button.setEnabled(False)
         self.error_label.setVisible(False)
         self.settings_updated.emit()
+
+
+class DistanceHighlightsSettingsPage(HighlightRegionsSettingsPageBase):
+    def __init__(self):
+        super().__init__(
+            title_key="DISTANCE_HIGHLIGHTS",
+            description_key="DISTANCE_HIGHLIGHTS_HELP",
+            add_button_key="ADD_DISTANCE_HIGHLIGHT",
+            row_factory=DistanceHighlightRow,
+            preference_key="distance_highlight_regions",
+            defaults_value=settings.DISTANCE_HIGHLIGHT_REGIONS_DEFAULT,
+            empty_title_key="DISTANCE_HIGHLIGHTS_EMPTY_TITLE",
+            empty_help_key="DISTANCE_HIGHLIGHTS_EMPTY_HELP",
+        )
+
+
+class HardnessHighlightsSettingsPage(HighlightRegionsSettingsPageBase):
+    def __init__(self):
+        super().__init__(
+            title_key="HARDNESS_HIGHLIGHTS",
+            description_key="HARDNESS_HIGHLIGHTS_HELP",
+            add_button_key="ADD_HARDNESS_HIGHLIGHT",
+            row_factory=HardnessHighlightRow,
+            preference_key="hardness_highlight_regions",
+            defaults_value=settings.HARDNESS_HIGHLIGHT_REGIONS_DEFAULT,
+            empty_title_key="HARDNESS_HIGHLIGHTS_EMPTY_TITLE",
+            empty_help_key="HARDNESS_HIGHLIGHTS_EMPTY_HELP",
+        )

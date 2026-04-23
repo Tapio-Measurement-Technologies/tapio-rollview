@@ -4,7 +4,12 @@ import settings
 from PySide6.QtWidgets import QApplication
 
 from gui.widgets.ProfileWidget import ProfileWidget
-from utils.highlighted_regions import HighlightedRegion
+from utils.highlighted_regions import (
+    AbsoluteMeanOffsetHardnessHighlightRegion,
+    DISTANCE_HIGHLIGHT_MODE_ABSOLUTE,
+    HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE,
+    DistanceHighlightRegion,
+)
 from utils import preferences
 
 
@@ -16,13 +21,15 @@ class TestProfileWidget(unittest.TestCase):
     def setUp(self):
         self.original_excluded_regions_mode = preferences.excluded_regions_mode
         self.original_excluded_regions = preferences.excluded_regions
-        self.original_highlighted_regions = preferences.highlighted_regions
+        self.original_distance_highlight_regions = preferences.distance_highlight_regions
+        self.original_hardness_highlight_regions = preferences.hardness_highlight_regions
         self.original_distance_unit = preferences.distance_unit
 
     def tearDown(self):
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
         preferences.excluded_regions = self.original_excluded_regions
-        preferences.highlighted_regions = self.original_highlighted_regions
+        preferences.distance_highlight_regions = self.original_distance_highlight_regions
+        preferences.hardness_highlight_regions = self.original_hardness_highlight_regions
         preferences.distance_unit = self.original_distance_unit
 
     def test_sync_toolbar_layout_positions_updates_saved_home_geometry(self):
@@ -76,18 +83,38 @@ class TestProfileWidget(unittest.TestCase):
         finally:
             widget.close()
 
-    def test_absolute_highlighted_region_plot_ranges_follow_selected_distance_unit(self):
-        preferences.highlighted_regions = [
-            HighlightedRegion(start=1.0, end=2.0, mode="absolute", color="tab:orange")
+    def test_absolute_distance_highlight_region_plot_ranges_follow_selected_distance_unit(self):
+        preferences.distance_highlight_regions = [
+            DistanceHighlightRegion(start=1.0, end=2.0, mode=DISTANCE_HIGHLIGHT_MODE_ABSOLUTE, color="tab:orange")
         ]
         preferences.distance_unit = "in"
 
         widget = ProfileWidget()
         try:
             conversion_factor = preferences.get_distance_unit_info().conversion_factor
-            plot_ranges = widget._get_highlighted_region_plot_ranges([0.0, 1.0, 2.0, 3.0], conversion_factor)
+            plot_ranges = widget._get_distance_highlight_region_plot_ranges([0.0, 1.0, 2.0, 3.0], conversion_factor)
 
             self.assertEqual(plot_ranges, [(1.0, 2.0, "tab:orange")])
+        finally:
+            widget.close()
+
+    def test_hardness_highlight_region_plot_ranges_use_mean_profile_mean(self):
+        preferences.hardness_highlight_regions = [
+            AbsoluteMeanOffsetHardnessHighlightRegion(
+                color="tab:orange",
+                below_offset=1.0,
+                above_offset=2.0,
+            )
+        ]
+
+        widget = ProfileWidget()
+        try:
+            plot_ranges = widget._get_hardness_highlight_region_plot_ranges(
+                [0.0, 1.0, 2.0],
+                [9.0, 10.0, 11.0],
+            )
+
+            self.assertEqual(plot_ranges, [(9.0, 12.0, "tab:orange")])
         finally:
             widget.close()
 

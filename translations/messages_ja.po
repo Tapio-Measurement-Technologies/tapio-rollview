@@ -677,6 +677,14 @@ msgid "MODE"
 msgstr "モード"
 
 #. Used in annotations settings page as field label.
+msgid "BELOW"
+msgstr "下"
+
+#. Used in annotations settings page as field label.
+msgid "ABOVE"
+msgstr "上"
+
+#. Used in annotations settings page as field label.
 msgid "COLOR"
 msgstr "色"
 
@@ -695,6 +703,58 @@ msgstr "領域はまだありません"
 #. Used in annotations settings page as empty state help text.
 msgid "ANNOTATIONS_EMPTY_HELP"
 msgstr "プロファイルプロット用の強調範囲を作るには領域を追加します。"
+
+#. Used in annotations settings page as section title.
+msgid "DISTANCE_HIGHLIGHTS"
+msgstr "距離ハイライト"
+
+#. Used in distance highlights settings page as explanation text.
+msgid "DISTANCE_HIGHLIGHTS_HELP"
+msgstr "プロファイルの距離軸に沿った領域を強調表示します。"
+
+#. Used in annotations settings page as section title.
+msgid "HARDNESS_HIGHLIGHTS"
+msgstr "硬さハイライト"
+
+#. Used in hardness highlights settings page as explanation text.
+msgid "HARDNESS_HIGHLIGHTS_HELP"
+msgstr "プロファイルの値軸上、または平均プロファイル平均値の周りの領域を強調表示します。"
+
+#. Used in annotations settings page as button label.
+msgid "ADD_DISTANCE_HIGHLIGHT"
+msgstr "距離ハイライトを追加"
+
+#. Used in annotations settings page as button label.
+msgid "ADD_HARDNESS_HIGHLIGHT"
+msgstr "硬さハイライトを追加"
+
+#. Used in annotations settings page as empty state title.
+msgid "DISTANCE_HIGHLIGHTS_EMPTY_TITLE"
+msgstr "距離ハイライトはまだありません"
+
+#. Used in annotations settings page as empty state help text.
+msgid "DISTANCE_HIGHLIGHTS_EMPTY_HELP"
+msgstr "プロファイル長の範囲を塗るには距離ハイライトを追加します。"
+
+#. Used in annotations settings page as empty state title.
+msgid "HARDNESS_HIGHLIGHTS_EMPTY_TITLE"
+msgstr "硬さハイライトはまだありません"
+
+#. Used in annotations settings page as empty state help text.
+msgid "HARDNESS_HIGHLIGHTS_EMPTY_HELP"
+msgstr "値の範囲を塗るには硬さハイライトを追加します。"
+
+#. Used in annotations settings page as dropdown option.
+msgid "HARDNESS_HIGHLIGHT_MODE_FIXED"
+msgstr "固定"
+
+#. Used in annotations settings page as dropdown option.
+msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE"
+msgstr "平均周り (絶対値)"
+
+#. Used in annotations settings page as dropdown option.
+msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE"
+msgstr "平均周り (%)"
 
 #. Used in settings window as label text.
 msgid "SECTION_HEADING_FILTERING"

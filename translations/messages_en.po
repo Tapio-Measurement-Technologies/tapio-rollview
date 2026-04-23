@@ -677,6 +677,14 @@ msgid "MODE"
 msgstr "Mode"
 
 #. Used in annotations settings page as field label.
+msgid "BELOW"
+msgstr "Below"
+
+#. Used in annotations settings page as field label.
+msgid "ABOVE"
+msgstr "Above"
+
+#. Used in annotations settings page as field label.
 msgid "COLOR"
 msgstr "Color"
 
@@ -695,6 +703,58 @@ msgstr "No regions yet"
 #. Used in annotations settings page as empty state help text.
 msgid "ANNOTATIONS_EMPTY_HELP"
 msgstr "Add region to create highlighted range for profile plot."
+
+#. Used in annotations settings page as section title.
+msgid "DISTANCE_HIGHLIGHTS"
+msgstr "Distance highlights"
+
+#. Used in distance highlights settings page as explanation text.
+msgid "DISTANCE_HIGHLIGHTS_HELP"
+msgstr "Highlight regions along the profile distance axis."
+
+#. Used in annotations settings page as section title.
+msgid "HARDNESS_HIGHLIGHTS"
+msgstr "Hardness highlights"
+
+#. Used in hardness highlights settings page as explanation text.
+msgid "HARDNESS_HIGHLIGHTS_HELP"
+msgstr "Highlight regions along the profile value axis or around the mean profile mean value."
+
+#. Used in annotations settings page as button label.
+msgid "ADD_DISTANCE_HIGHLIGHT"
+msgstr "Add distance highlight"
+
+#. Used in annotations settings page as button label.
+msgid "ADD_HARDNESS_HIGHLIGHT"
+msgstr "Add hardness highlight"
+
+#. Used in annotations settings page as empty state title.
+msgid "DISTANCE_HIGHLIGHTS_EMPTY_TITLE"
+msgstr "No distance highlights yet"
+
+#. Used in annotations settings page as empty state help text.
+msgid "DISTANCE_HIGHLIGHTS_EMPTY_HELP"
+msgstr "Add a distance highlight to shade a profile-length range."
+
+#. Used in annotations settings page as empty state title.
+msgid "HARDNESS_HIGHLIGHTS_EMPTY_TITLE"
+msgstr "No hardness highlights yet"
+
+#. Used in annotations settings page as empty state help text.
+msgid "HARDNESS_HIGHLIGHTS_EMPTY_HELP"
+msgstr "Add a hardness highlight to shade a value range."
+
+#. Used in annotations settings page as dropdown option.
+msgid "HARDNESS_HIGHLIGHT_MODE_FIXED"
+msgstr "Fixed"
+
+#. Used in annotations settings page as dropdown option.
+msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE"
+msgstr "Around Mean (Absolute)"
+
+#. Used in annotations settings page as dropdown option.
+msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE"
+msgstr "Around Mean (%)"
 
 #. Used in settings window as label text.
 msgid "SECTION_HEADING_FILTERING"

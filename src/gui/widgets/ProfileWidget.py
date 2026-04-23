@@ -6,7 +6,10 @@ from utils.zoom_pan import ZoomPan
 from scipy.signal import welch
 from utils.profile_stats import Stats, calc_mean_profile
 from utils.excluded_regions import get_included_samples, get_visual_excluded_ranges
-from utils.highlighted_regions import get_visual_highlighted_regions
+from utils.highlighted_regions import (
+    get_visual_distance_highlight_regions,
+    get_visual_hardness_highlight_regions,
+)
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
@@ -129,14 +132,28 @@ class ProfileWidget(QWidget):
             for start, end in visual_ranges
         ]
 
-    def _get_highlighted_region_plot_ranges(self, mean_profile_distances, conversion_factor):
-        visual_regions = get_visual_highlighted_regions(
-            preferences.highlighted_regions,
+    def _get_distance_highlight_region_plot_ranges(self, mean_profile_distances, conversion_factor):
+        visual_regions = get_visual_distance_highlight_regions(
+            preferences.distance_highlight_regions,
             mean_profile_distances,
             absolute_scale=1 / conversion_factor,
         )
         return [
             (region.start * conversion_factor, region.end * conversion_factor, region.color)
+            for region in visual_regions
+        ]
+
+    def _get_hardness_highlight_region_plot_ranges(self, mean_profile_distances, mean_profile_values):
+        if len(mean_profile_values) == 0:
+            return []
+
+        mean_value = self.stats.mean((mean_profile_distances, mean_profile_values))
+        visual_regions = get_visual_hardness_highlight_regions(
+            preferences.hardness_highlight_regions,
+            mean_value,
+        )
+        return [
+            (region.start, region.end, region.color)
             for region in visual_regions
         ]
 
@@ -176,8 +193,8 @@ class ProfileWidget(QWidget):
             if end_x != start_x:
                 self.profile_ax.axvline(end_x, **STYLE_AXVLINE)
 
-    def _draw_highlighted_regions_visualization(self, mean_profile_distances, conversion_factor):
-        for start_x, end_x, color in self._get_highlighted_region_plot_ranges(
+    def _draw_distance_highlight_regions_visualization(self, mean_profile_distances, conversion_factor):
+        for start_x, end_x, color in self._get_distance_highlight_region_plot_ranges(
             mean_profile_distances,
             conversion_factor,
         ):
@@ -188,6 +205,20 @@ class ProfileWidget(QWidget):
                     alpha=0.2,
                     color=color,
                     zorder=-2,
+                )
+
+    def _draw_hardness_highlight_regions_visualization(self, mean_profile_distances, mean_profile_values):
+        for start_y, end_y, color in self._get_hardness_highlight_region_plot_ranges(
+            mean_profile_distances,
+            mean_profile_values,
+        ):
+            if start_y < end_y:
+                self.profile_ax.axhspan(
+                    start_y,
+                    end_y,
+                    alpha=0.15,
+                    color=color,
+                    zorder=-3,
                 )
 
     def customize_toolbar(self):
@@ -388,10 +419,16 @@ class ProfileWidget(QWidget):
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
 
-            if preferences.highlighted_regions:
-                self._draw_highlighted_regions_visualization(
+            if preferences.distance_highlight_regions:
+                self._draw_distance_highlight_regions_visualization(
                     mean_profile_distances,
                     unit_info.conversion_factor,
+                )
+
+            if preferences.hardness_highlight_regions:
+                self._draw_hardness_highlight_regions_visualization(
+                    mean_profile_distances,
+                    mean_profile_values,
                 )
 
             # Visualize excluded regions when enabled

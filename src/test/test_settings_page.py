@@ -4,8 +4,19 @@ import copy
 from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
 
 import settings
-from gui.settings import AlertLimitSettingsPage, AdvancedSettingsPage, AnnotationsSettingsPage, GeneralSettingsPage, SettingsWindow
-from utils.highlighted_regions import ANNOTATION_MODE_ABSOLUTE, HighlightedRegion
+from gui.settings import (
+    AlertLimitSettingsPage,
+    AdvancedSettingsPage,
+    DistanceHighlightsSettingsPage,
+    GeneralSettingsPage,
+    HardnessHighlightsSettingsPage,
+    SettingsWindow,
+)
+from utils.highlighted_regions import (
+    FixedHardnessHighlightRegion,
+    DISTANCE_HIGHLIGHT_MODE_ABSOLUTE,
+    DistanceHighlightRegion,
+)
 from utils import preferences
 
 
@@ -160,21 +171,21 @@ class TestGeneralSettingsPage(unittest.TestCase):
         self.assertEqual(self.page.distance_units["cm"], "Centimeters (cm)")
 
 
-class TestAnnotationsSettingsPage(unittest.TestCase):
+class TestDistanceHighlightsSettingsPage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        self.original_highlighted_regions = preferences.highlighted_regions
-        preferences.highlighted_regions = []
-        self.page = AnnotationsSettingsPage()
+        self.original_distance_highlight_regions = preferences.distance_highlight_regions
+        preferences.distance_highlight_regions = []
+        self.page = DistanceHighlightsSettingsPage()
 
     def tearDown(self):
         self.page.close()
-        preferences.highlighted_regions = self.original_highlighted_regions
+        preferences.distance_highlight_regions = self.original_distance_highlight_regions
 
-    def test_add_region_creates_row(self):
+    def test_add_distance_highlight_creates_row(self):
         self.assertEqual(len(self.page.rows), 0)
         self.assertFalse(self.page.empty_state_card.isHidden())
 
@@ -186,35 +197,35 @@ class TestAnnotationsSettingsPage(unittest.TestCase):
         self.assertTrue(self.page.empty_state_card.isHidden())
         self.assertTrue(self.page.apply_button.isEnabled())
 
-    def test_annotations_page_uses_scroll_area_for_rows(self):
+    def test_distance_page_uses_scroll_area_for_rows(self):
         self.assertIsInstance(self.page.rows_scroll_area, QScrollArea)
         self.assertTrue(self.page.rows_scroll_area.widgetResizable())
         self.assertEqual(self.page.rows_scroll_area.frameShape(), QFrame.Shape.NoFrame)
 
-    def test_save_settings_persists_valid_regions(self):
+    def test_save_settings_persists_valid_distance_regions(self):
         self.page.add_empty_row()
         row = self.page.rows[0]
         row.start_input.setText("1")
         row.end_input.setText("2")
-        row.mode_selector.setCurrentText(row.annotation_modes[ANNOTATION_MODE_ABSOLUTE])
+        row.mode_selector.setCurrentText(row.modes[DISTANCE_HIGHLIGHT_MODE_ABSOLUTE])
 
         self.page.save_settings()
 
         self.assertEqual(
-            preferences.highlighted_regions,
-            [HighlightedRegion(start=1.0, end=2.0, mode="absolute", color="tab:blue")],
+            preferences.distance_highlight_regions,
+            [DistanceHighlightRegion(start=1.0, end=2.0, mode="absolute", color="tab:blue")],
         )
         self.assertFalse(self.page.apply_button.isEnabled())
 
-    def test_save_settings_supports_open_ended_region(self):
+    def test_save_settings_supports_open_ended_distance_region(self):
         self.page.add_empty_row()
         row = self.page.rows[0]
         row.end_input.setText("20")
 
         self.page.save_settings()
 
-        self.assertEqual(preferences.highlighted_regions[0].start, float("-inf"))
-        self.assertEqual(preferences.highlighted_regions[0].end, 20.0)
+        self.assertEqual(preferences.distance_highlight_regions[0].start, float("-inf"))
+        self.assertEqual(preferences.distance_highlight_regions[0].end, 20.0)
 
     def test_invalid_region_blocks_save(self):
         self.page.add_empty_row()
@@ -224,7 +235,7 @@ class TestAnnotationsSettingsPage(unittest.TestCase):
 
         self.page.save_settings()
 
-        self.assertEqual(preferences.highlighted_regions, [])
+        self.assertEqual(preferences.distance_highlight_regions, [])
         self.assertFalse(self.page.error_label.isHidden())
 
     def test_reset_to_defaults_clears_rows(self):
@@ -236,7 +247,7 @@ class TestAnnotationsSettingsPage(unittest.TestCase):
         self.assertFalse(self.page.empty_state_card.isHidden())
         self.assertTrue(self.page.apply_button.isEnabled())
 
-    def test_region_row_uses_card_frame_and_color_icons(self):
+    def test_distance_region_row_uses_card_frame_and_color_icons(self):
         self.page.add_empty_row()
 
         row = self.page.rows[0]
@@ -249,16 +260,54 @@ class TestAnnotationsSettingsPage(unittest.TestCase):
         self.assertFalse(row.color_selector.itemIcon(0).isNull())
 
 
+class TestHardnessHighlightsSettingsPage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.original_hardness_highlight_regions = preferences.hardness_highlight_regions
+        preferences.hardness_highlight_regions = []
+        self.page = HardnessHighlightsSettingsPage()
+
+    def tearDown(self):
+        self.page.close()
+        preferences.hardness_highlight_regions = self.original_hardness_highlight_regions
+
+    def test_hardness_region_row_updates_labels_for_mode(self):
+        self.page.add_empty_row()
+
+        row = self.page.rows[0]
+        row.mode_selector.setCurrentText(row.modes["mean_offset_absolute"])
+
+        self.assertEqual(row.first_label.text(), "Below")
+        self.assertEqual(row.second_label.text(), "Above")
+
+    def test_save_settings_persists_valid_hardness_regions(self):
+        self.page.add_empty_row()
+        row = self.page.rows[0]
+        row.first_input.setText("1")
+        row.second_input.setText("2")
+
+        self.page.save_settings()
+
+        self.assertEqual(
+            preferences.hardness_highlight_regions,
+            [FixedHardnessHighlightRegion(color="tab:blue", min_value=1.0, max_value=2.0)],
+        )
+
+
 class TestSettingsWindow(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_settings_window_has_annotations_page(self):
+    def test_settings_window_has_distance_and_hardness_pages(self):
         window = SettingsWindow()
         try:
             page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
-            self.assertIn("Annotations", page_names)
+            self.assertIn("Distance Highlights", page_names)
+            self.assertIn("Hardness Highlights", page_names)
         finally:
             window.close()
 
