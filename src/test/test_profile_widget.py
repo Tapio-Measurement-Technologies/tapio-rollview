@@ -1,4 +1,5 @@
 import unittest
+import copy
 from unittest.mock import patch
 
 import settings
@@ -25,6 +26,7 @@ class TestProfileWidget(unittest.TestCase):
         self.original_distance_highlight_regions = preferences.distance_highlight_regions
         self.original_hardness_highlight_regions = preferences.hardness_highlight_regions
         self.original_distance_unit = preferences.distance_unit
+        self.original_alert_limits = copy.deepcopy(preferences.alert_limits)
 
     def tearDown(self):
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
@@ -32,6 +34,7 @@ class TestProfileWidget(unittest.TestCase):
         preferences.distance_highlight_regions = self.original_distance_highlight_regions
         preferences.hardness_highlight_regions = self.original_hardness_highlight_regions
         preferences.distance_unit = self.original_distance_unit
+        preferences.alert_limits = self.original_alert_limits
 
     def test_sync_toolbar_layout_positions_updates_saved_home_geometry(self):
         widget = ProfileWidget()
@@ -148,6 +151,28 @@ class TestProfileWidget(unittest.TestCase):
                 widget._draw_hardness_highlight_regions_visualization([0.0, 1.0, 2.0], [9.0, 10.0, 11.0])
 
             self.assertEqual(axhline_mock.call_count, 3)
+        finally:
+            widget.close()
+
+    def test_stats_widget_refreshes_alert_limits_after_preferences_change(self):
+        widget = ProfileWidget()
+        try:
+            original_mean_limit = next(
+                limit for limit in preferences.alert_limits if limit["name"] == "mean_g"
+            )
+            original_mean_limit["max"] = 10.0
+
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+            self.assertEqual(widget.stats_widget.widgets[0].limit["max"], 10.0)
+
+            preferences.alert_limits = [
+                copy.deepcopy(limit) if limit["name"] != "mean_g"
+                else copy.deepcopy(limit) | {"max": 2.5}
+                for limit in preferences.alert_limits
+            ]
+
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+            self.assertEqual(widget.stats_widget.widgets[0].limit["max"], 2.5)
         finally:
             widget.close()
 

@@ -53,6 +53,10 @@ msgstr "ファイル"
 msgid "MENU_BAR_SETTINGS"
 msgstr "設定"
 
+#. Used in main window as menu label and menu action label.
+msgid "MENU_BAR_LOAD_SETTINGS_FILE"
+msgstr "設定ファイルを読み込む..."
+
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_VIEW"
 msgstr "表示"
@@ -276,6 +280,34 @@ msgstr "エラー"
 #. Used in messagebox as window or dialog title and message box text.
 msgid "WARNING_MSGBOX_TITLE"
 msgstr "警告"
+
+#. Used in settings-file load dialog as window or dialog title.
+msgid "LOAD_SETTINGS_FILE_DIALOG_TITLE"
+msgstr "設定ファイルを読み込む"
+
+#. Used in settings-file load dialog as file filter.
+msgid "LOAD_SETTINGS_FILE_DIALOG_FILTER"
+msgstr "JSONファイル (*.json);;すべてのファイル (*)"
+
+#. Used in settings-file load flow as confirmation dialog title.
+msgid "LOAD_SETTINGS_FILE_OVERWRITE_TITLE"
+msgstr "設定ファイルを上書きしますか？"
+
+#. Used in settings-file load flow as invalid-file reason text.
+msgid "LOAD_SETTINGS_FILE_INVALID_TEXT"
+msgstr "ファイル内容が不正です。"
+
+#. Used in settings-file load flow as empty-file reason text.
+msgid "LOAD_SETTINGS_FILE_EMPTY_TEXT"
+msgstr "ファイルが空です。"
+
+#. Used in settings-file load flow as overwrite confirmation dialog text.
+msgid "LOAD_SETTINGS_FILE_OVERWRITE_PROMPT"
+msgstr "選択した設定ファイルを読み込めませんでした。\n\nパス: {path}\n理由: {reason}\n\nデフォルト設定でファイルを上書きしますか？"
+
+#. Used in settings-file load flow as error dialog text.
+msgid "LOAD_SETTINGS_FILE_ERROR_TEXT"
+msgstr "設定ファイルの読み込みに失敗しました:\n{path}"
 
 #. Used in serial ports widget as label text.
 msgid "SERIAL_DEVICE_LIST_TITLE"

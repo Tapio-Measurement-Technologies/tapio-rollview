@@ -53,6 +53,10 @@ msgstr "File"
 msgid "MENU_BAR_SETTINGS"
 msgstr "Settings"
 
+#. Used in main window as menu label and menu action label.
+msgid "MENU_BAR_LOAD_SETTINGS_FILE"
+msgstr "Load settings file..."
+
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_VIEW"
 msgstr "View"
@@ -276,6 +280,34 @@ msgstr "Error"
 #. Used in messagebox as window or dialog title and message box text.
 msgid "WARNING_MSGBOX_TITLE"
 msgstr "Warning"
+
+#. Used in settings-file load dialog as window or dialog title.
+msgid "LOAD_SETTINGS_FILE_DIALOG_TITLE"
+msgstr "Load settings file"
+
+#. Used in settings-file load dialog as file filter.
+msgid "LOAD_SETTINGS_FILE_DIALOG_FILTER"
+msgstr "JSON files (*.json);;All files (*)"
+
+#. Used in settings-file load flow as confirmation dialog title.
+msgid "LOAD_SETTINGS_FILE_OVERWRITE_TITLE"
+msgstr "Overwrite settings file?"
+
+#. Used in settings-file load flow as invalid-file reason text.
+msgid "LOAD_SETTINGS_FILE_INVALID_TEXT"
+msgstr "File contents are invalid."
+
+#. Used in settings-file load flow as empty-file reason text.
+msgid "LOAD_SETTINGS_FILE_EMPTY_TEXT"
+msgstr "File is empty."
+
+#. Used in settings-file load flow as overwrite confirmation dialog text.
+msgid "LOAD_SETTINGS_FILE_OVERWRITE_PROMPT"
+msgstr "Selected settings file cannot be loaded.\n\nPath: {path}\nReason: {reason}\n\nOverwrite file with default settings?"
+
+#. Used in settings-file load flow as error dialog text.
+msgid "LOAD_SETTINGS_FILE_ERROR_TEXT"
+msgstr "Failed to load settings file:\n{path}"
 
 #. Used in serial ports widget as label text.
 msgid "SERIAL_DEVICE_LIST_TITLE"

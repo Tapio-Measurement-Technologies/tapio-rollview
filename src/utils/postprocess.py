@@ -27,6 +27,11 @@ for module_name, postprocessor in postprocessors.items():
     postprocessor.enabled = module_name in preferences.enabled_postprocessors
 
 
+def sync_postprocessors_with_preferences():
+    for module_name, postprocessor in postprocessors.items():
+        postprocessor.enabled = module_name in preferences.enabled_postprocessors
+
+
 class PostprocessThread(QThread):
     now_processing = Signal(str, str)  # folder name, postprocessor name
     processing_successful = Signal(str)  # folder name
@@ -101,10 +106,18 @@ class PostprocessManager(QObject):
         self.dialog = None
         self.error_paths = set()
         self.success_paths = set()
-        self.enabled_postprocessors = [postprocessor for postprocessor in postprocessors.values() if postprocessor.enabled]
+        self.enabled_postprocessors = []
         self.total_items_to_process = 0
+        self.refresh_enabled_postprocessors()
+
+    def refresh_enabled_postprocessors(self):
+        sync_postprocessors_with_preferences()
+        self.enabled_postprocessors = [
+            postprocessor for postprocessor in postprocessors.values() if postprocessor.enabled
+        ]
 
     def run_postprocessors(self, folder_paths):
+        self.refresh_enabled_postprocessors()
         self._thread = PostprocessThread(folder_paths)
         self.error_paths = set()
         self.dialog = ProgressBarDialog(auto_close=True)

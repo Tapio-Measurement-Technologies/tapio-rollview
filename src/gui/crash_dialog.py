@@ -57,7 +57,7 @@ class CrashDialog(QDialog):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = f"tapio_crash_{timestamp}.log"
 
-        file_path, _ = QFileDialog.getSaveFileName(
+        file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
             _("SAVE_CRASH_LOG"),
             default_name,

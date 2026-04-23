@@ -86,7 +86,7 @@ class LogWindow(QWidget):
     def export_log(self):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = f"log_{timestamp}.log"
-        path, _ = QFileDialog.getSaveFileName(
+        path, selected_filter = QFileDialog.getSaveFileName(
             self, _("EXPORT_LOG"), default_name, _("FILE_DIALOG_LOG_FILTER")
         )
         if path:

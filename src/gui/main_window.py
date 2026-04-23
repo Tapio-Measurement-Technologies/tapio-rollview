@@ -8,9 +8,9 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar
+from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction
-from PySide6.QtCore import QDir, Qt
+from PySide6.QtCore import QDir, Qt, QSignalBlocker
 
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
@@ -45,6 +45,8 @@ class MainWindow(QMainWindow):
         self.postprocess_manager = PostprocessManager()
         self.log_window = None
         self.settings_window = None
+        self.view_menu_checkboxes = {}
+        self.postprocessor_checkboxes = {}
 
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
@@ -143,9 +145,14 @@ class MainWindow(QMainWindow):
     def init_menu(self):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu(_('MENU_BAR_FILE'))
+
         settings_action = QAction(_('MENU_BAR_SETTINGS'), self)
         settings_action.triggered.connect(self.open_settings_window)
         file_menu.addAction(settings_action)
+
+        self.load_settings_file_action = QAction(_('MENU_BAR_LOAD_SETTINGS_FILE'), self)
+        self.load_settings_file_action.triggered.connect(self.load_settings_file)
+        file_menu.addAction(self.load_settings_file_action)
 
         view_menu = menu_bar.addMenu(_('MENU_BAR_VIEW'))
         show_all_com_ports_checkbox = self.create_checkbox_menu_item(
@@ -155,6 +162,8 @@ class MainWindow(QMainWindow):
             preferences.show_all_com_ports,
             self.on_show_all_com_ports_changed
         )
+        self.view_menu_checkboxes['show_all_com_ports'] = show_all_com_ports_checkbox.defaultWidget().findChild(QCheckBox)
+
         show_plot_toolbar_checkbox = self.create_checkbox_menu_item(
             _('MENU_BAR_SHOW_PLOT_TOOLBAR'),
             # 'Show toolbar',
@@ -162,6 +171,8 @@ class MainWindow(QMainWindow):
             preferences.show_plot_toolbar,
             self.on_show_plot_toolbar_changed
         )
+        self.view_menu_checkboxes['show_plot_toolbar'] = show_plot_toolbar_checkbox.defaultWidget().findChild(QCheckBox)
+
         recalculate_mean_checkbox = self.create_checkbox_menu_item(
             _('MENU_BAR_RECALCULATE_MEAN'),
             # 'Recalculate mean on profile show/hide',
@@ -169,6 +180,7 @@ class MainWindow(QMainWindow):
             preferences.recalculate_mean,
             self.on_recalculate_mean_changed
         )
+        self.view_menu_checkboxes['recalculate_mean'] = recalculate_mean_checkbox.defaultWidget().findChild(QCheckBox)
 
         log_window_action = QAction(_("APPLICATION_LOGS"), self)
         log_window_action.triggered.connect(self.open_log_window)
@@ -197,6 +209,7 @@ class MainWindow(QMainWindow):
                 lambda checked, module=module: toggle_postprocessor(module)
             )
             postprocessors_menu.addAction(checkbox_widget)
+            self.postprocessor_checkboxes[module_name] = checkbox_widget.defaultWidget().findChild(QCheckBox)
 
         # Add the 'Run postprocessors' item
         run_postprocessors_action = QAction(_('MENU_BAR_RUN_POSTPROCESSORS'), self)
@@ -239,6 +252,114 @@ class MainWindow(QMainWindow):
     def on_recalculate_mean_changed(self, checked):
         preferences.update_preferences({'recalculate_mean': checked})
         self.refresh_plot()
+
+    def load_settings_file(self):
+        dialog = QFileDialog(
+            self,
+            _('LOAD_SETTINGS_FILE_DIALOG_TITLE'),
+            preferences.get_preferences_file_path(),
+            _('LOAD_SETTINGS_FILE_DIALOG_FILTER'),
+        )
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+
+        if not dialog.exec():
+            return
+
+        selected_files = dialog.selectedFiles()
+        if not selected_files:
+            return
+
+        self.load_settings_file_from_path(selected_files[0])
+
+    def load_settings_file_from_path(self, path):
+        result = preferences.load_preferences_from_file(path)
+
+        if result.status in (
+            preferences.LOAD_STATUS_LOADED,
+            preferences.LOAD_STATUS_CREATED_DEFAULTS,
+        ):
+            self.apply_loaded_preferences()
+            return result
+
+        if result.status in (
+            preferences.LOAD_STATUS_EMPTY,
+            preferences.LOAD_STATUS_INVALID,
+        ):
+            if not self.confirm_overwrite_settings_file(path, result.status, result.error):
+                return result
+
+            overwrite_result = preferences.overwrite_preferences_file_with_defaults(path)
+            if overwrite_result.status == preferences.LOAD_STATUS_CREATED_DEFAULTS:
+                self.apply_loaded_preferences()
+                return overwrite_result
+
+            self.show_settings_file_error(path, overwrite_result.error)
+            return overwrite_result
+
+        self.show_settings_file_error(path, result.error)
+        return result
+
+    def confirm_overwrite_settings_file(self, path, status, error=None):
+        reason_key = (
+            'LOAD_SETTINGS_FILE_EMPTY_TEXT'
+            if status == preferences.LOAD_STATUS_EMPTY
+            else 'LOAD_SETTINGS_FILE_INVALID_TEXT'
+        )
+        message = _("LOAD_SETTINGS_FILE_OVERWRITE_PROMPT").format(
+            path=path,
+            reason=_(reason_key),
+        )
+        if error:
+            message = f"{message}\n\n{error}"
+
+        reply = QMessageBox.question(
+            self,
+            _('LOAD_SETTINGS_FILE_OVERWRITE_TITLE'),
+            message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return reply == QMessageBox.StandardButton.Yes
+
+    def show_settings_file_error(self, path, error=None):
+        message = _("LOAD_SETTINGS_FILE_ERROR_TEXT").format(path=path)
+        if error:
+            message = f"{message}\n\n{error}"
+        QMessageBox.critical(
+            self,
+            _('ERROR_MSGBOX_TITLE'),
+            message,
+        )
+
+    def apply_loaded_preferences(self):
+        self.postprocess_manager.refresh_enabled_postprocessors()
+        self._sync_menu_checkbox_states()
+        self.profile_widget.set_toolbar_visible(preferences.show_plot_toolbar)
+        self.serial_widget.view.model.applyFilter()
+        if self.settings_window:
+            self.settings_window.close()
+            self.settings_window = None
+        self.refresh_plot()
+
+    def _sync_menu_checkbox_states(self):
+        checkbox_states = {
+            'show_all_com_ports': preferences.show_all_com_ports,
+            'show_plot_toolbar': preferences.show_plot_toolbar,
+            'recalculate_mean': preferences.recalculate_mean,
+        }
+        for key, checked in checkbox_states.items():
+            checkbox = self.view_menu_checkboxes.get(key)
+            if checkbox is None:
+                continue
+            blocker = QSignalBlocker(checkbox)
+            checkbox.setChecked(checked)
+            del blocker
+
+        for module_name, checkbox in self.postprocessor_checkboxes.items():
+            blocker = QSignalBlocker(checkbox)
+            checkbox.setChecked(module_name in preferences.enabled_postprocessors)
+            del blocker
 
     def on_directory_selected(self, directory):
         # Validate that the directory path exists and is a directory

@@ -22,8 +22,7 @@ def has_stat_data(data):
 class StatsWidget(QWidget):
     def __init__(self, data):
         super().__init__()
-        self.limits = preferences.alert_limits
-        limit_map = {limit.get('name'): limit for limit in self.limits}
+        limit_map = self._get_limit_map()
 
         self.layout = QGridLayout()
         self.layout.setContentsMargins(4, 1, 4, 1)
@@ -45,6 +44,15 @@ class StatsWidget(QWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self._relayout_widgets()
+
+    def _get_limit_map(self):
+        return {limit.get('name'): limit for limit in preferences.alert_limits}
+
+    def _refresh_limits(self):
+        limit_map = self._get_limit_map()
+        for widget in self.widgets:
+            stat_name = getattr(widget.func, 'name', None)
+            widget.limit = limit_map.get(stat_name)
 
     def _calculate_columns(self):
         available_width = max(self.width(), self.sizeHint().width(), self._min_cell_width)
@@ -96,6 +104,7 @@ class StatsWidget(QWidget):
         print("Statistics copied to clipboard.")
 
     def update_data(self, data):
+        self._refresh_limits()
         for widget in self.widgets:
             widget.update_data(data)
 
