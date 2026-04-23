@@ -185,8 +185,8 @@ def load_local_settings(local_settings_path):
     return {}
 
 
-# Check if a local_settings.py path is provided as a parameter
-if len(sys.argv) > 1:
+# Check if a local_settings.py path is provided as a positional parameter
+if len(sys.argv) > 1 and not sys.argv[1].startswith('-'):
     supplied_local_settings = sys.argv[1]
     if os.path.exists(supplied_local_settings):
         print(

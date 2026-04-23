@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self.postprocess_manager = PostprocessManager()
         self.log_window = None
         self.settings_window = None
+        self.directory_name = None
         self.view_menu_checkboxes = {}
         self.postprocessor_checkboxes = {}
 
@@ -396,6 +397,9 @@ class MainWindow(QMainWindow):
         self.on_directory_selected(store.selected_directory)
 
     def refresh_plot(self):
+        if not store.selected_directory:
+            return
+
         # Store which profiles are currently hidden
         # TODO: refactor this later, this was introduced only because flip feature was added
         hidden_names = set()

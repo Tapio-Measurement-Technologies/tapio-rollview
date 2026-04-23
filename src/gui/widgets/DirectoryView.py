@@ -46,6 +46,7 @@ class DirectoryView(QWidget):
         self._pending_focus_path = None
         self._pending_focus_active = False
         self._focus_restore_scheduled = False
+        self._root_directory = None
 
         # Set up the layout
         layout = QVBoxLayout(self)
@@ -141,8 +142,6 @@ class DirectoryView(QWidget):
         # Get the first child of the current root index
         root_index = self.treeView.rootIndex()
         if not root_index.isValid():
-            print("Invalid root index encountered in DirectoryView while selecting first directory!")
-            print(f"\tIndex: {root_index}")
             return
 
         first_child = self.treeView.model().index(0, 0, root_index)
@@ -154,8 +153,19 @@ class DirectoryView(QWidget):
         self.treeView.selectionModel().setCurrentIndex(first_child, selection_flags)
         self.treeView.scrollTo(first_child)
 
+    def _apply_root_index(self):
+        if not self._root_directory:
+            return False
+        root_index = self.proxy_model.mapFromSource(self.model.index(self._root_directory))
+        if not root_index.isValid():
+            return False
+        self.treeView.setRootIndex(root_index)
+        return True
+
     def init_selection(self):
-        if not self.get_selected_directory_path():
+        if not self.treeView.rootIndex().isValid():
+            self._apply_root_index()
+        if not self.get_selected_directory_path() and self.treeView.rootIndex().isValid():
             self.select_first_directory()
 
     def select_directory_by_path(self, path):
@@ -215,6 +225,7 @@ class DirectoryView(QWidget):
                     return
 
                 self.treeView.setRootIndex(root_index)
+                self._root_directory = directory
                 self.root_directory_changed.emit(directory)
                 # Watch the new directory and its subdirectories
                 self.watch_directory_and_subdirs(directory)

@@ -36,9 +36,14 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 def main():
+    import argparse
     from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QIcon
     from gui.main_window import MainWindow
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--settings-file', metavar='PATH', help='Path to a settings JSON file to load on startup. Created with defaults if it does not exist.')
+    args, _ = parser.parse_known_args()
 
     # Fix Windows taskbar icon
     if sys.platform == 'win32':
@@ -54,6 +59,10 @@ def main():
     window.setWindowIcon(app_icon)
 
     window.show()
+
+    if args.settings_file:
+        window.load_settings_file_from_path(args.settings_file)
+
     return app.exec()
 
 # Show splash screen on standalone pyinstaller executable

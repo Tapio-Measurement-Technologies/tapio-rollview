@@ -129,6 +129,18 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.assertFalse(self.window.postprocessor_checkboxes[module_name].isChecked())
         self.assertEqual(self.window.postprocess_manager.enabled_postprocessors, [])
 
+    def test_directory_name_initialized_before_load_settings_file(self):
+        self.assertIsNone(self.window.directory_name)
+
+    def test_load_settings_file_from_path_without_prior_directory_selection(self):
+        # Verifies no crash (AttributeError on directory_name / refresh_plot guard) occurs
+        # when load is triggered before any directory is selected.
+        self.window.refresh_plot = self.main_window_class.refresh_plot.__get__(self.window)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "prefs.json")
+            result = self.window.load_settings_file_from_path(path)
+            self.assertEqual(result.status, preferences.LOAD_STATUS_CREATED_DEFAULTS)
+
 
 if __name__ == "__main__":
     unittest.main()
