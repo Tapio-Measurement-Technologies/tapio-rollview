@@ -2,9 +2,11 @@ import unittest
 import copy
 from unittest.mock import patch
 
+import numpy as np
 import settings
 from PySide6.QtWidgets import QApplication
 
+from models.Profile import Profile, ProfileData, ProfileHeader
 from gui.widgets.ProfileWidget import ProfileWidget
 from utils.highlighted_regions import (
     AbsoluteMeanOffsetHardnessHighlightRegion,
@@ -151,6 +153,71 @@ class TestProfileWidget(unittest.TestCase):
                 widget._draw_hardness_highlight_regions_visualization([0.0, 1.0, 2.0], [9.0, 10.0, 11.0])
 
             self.assertEqual(axhline_mock.call_count, 3)
+        finally:
+            widget.close()
+
+    def test_hardness_highlight_visualization_does_not_expand_short_profile_x_range(self):
+        profile = Profile(
+            path="short.prof",
+            data=ProfileData(
+                distances=np.array([0.0, 0.2, 0.4]),
+                hardnesses=np.array([9.0, 10.0, 11.0]),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=0,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            preferences.hardness_highlight_regions = []
+            widget.update_plot([profile], "dir")
+            x_limits_without_highlight = widget.profile_ax.get_xlim()
+
+            preferences.hardness_highlight_regions = [
+                AbsoluteMeanOffsetHardnessHighlightRegion(
+                    color="tab:orange",
+                    lower_offset=-1.0,
+                    upper_offset=1.0,
+                )
+            ]
+            widget.update_plot([profile], "dir")
+            x_limits_with_highlight = widget.profile_ax.get_xlim()
+
+            self.assertEqual(x_limits_with_highlight, x_limits_without_highlight)
+        finally:
+            widget.close()
+
+    def test_distance_highlight_visualization_does_not_expand_short_profile_x_range(self):
+        profile = Profile(
+            path="short.prof",
+            data=ProfileData(
+                distances=np.array([0.0, 0.2, 0.4]),
+                hardnesses=np.array([9.0, 10.0, 11.0]),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=0,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            preferences.distance_highlight_regions = []
+            widget.update_plot([profile], "dir")
+            x_limits_without_highlight = widget.profile_ax.get_xlim()
+
+            preferences.distance_highlight_regions = [
+                DistanceHighlightRegion(
+                    start=0.1,
+                    end=0.3,
+                    mode=DISTANCE_HIGHLIGHT_MODE_ABSOLUTE,
+                    color="tab:orange",
+                )
+            ]
+            widget.update_plot([profile], "dir")
+            x_limits_with_highlight = widget.profile_ax.get_xlim()
+
+            self.assertEqual(x_limits_with_highlight, x_limits_without_highlight)
         finally:
             widget.close()
 

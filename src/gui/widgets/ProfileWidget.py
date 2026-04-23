@@ -464,17 +464,21 @@ class ProfileWidget(QWidget):
                                  lw=settings.MEAN_PROFILE_LINE_WIDTH,
                                  color=settings.MEAN_PROFILE_LINE_COLOR)
 
+            x_limits_before_distance_highlights = self.profile_ax.get_xlim()
             if preferences.distance_highlight_regions:
                 self._draw_distance_highlight_regions_visualization(
                     mean_profile_distances,
                     unit_info.conversion_factor,
                 )
+                self.profile_ax.set_xlim(x_limits_before_distance_highlights)
 
+            x_limits_before_hardness_highlights = self.profile_ax.get_xlim()
             if preferences.hardness_highlight_regions:
                 self._draw_hardness_highlight_regions_visualization(
                     mean_profile_distances,
                     mean_profile_values,
                 )
+                self.profile_ax.set_xlim(x_limits_before_hardness_highlights)
 
             # Visualize excluded regions when enabled
             if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE:
