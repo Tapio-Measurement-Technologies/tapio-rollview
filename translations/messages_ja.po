@@ -57,6 +57,10 @@ msgstr "設定"
 msgid "MENU_BAR_LOAD_SETTINGS_FILE"
 msgstr "設定ファイルを読み込む..."
 
+#. Used in main window as menu label and menu action label.
+msgid "MENU_BAR_EXPORT_SETTINGS_FILE"
+msgstr "設定ファイルをエクスポート..."
+
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_VIEW"
 msgstr "表示"
@@ -284,6 +288,18 @@ msgstr "警告"
 #. Used in settings-file load dialog as window or dialog title.
 msgid "LOAD_SETTINGS_FILE_DIALOG_TITLE"
 msgstr "設定ファイルを読み込む"
+
+#. Used in settings-file export dialog as window or dialog title.
+msgid "EXPORT_SETTINGS_FILE_DIALOG_TITLE"
+msgstr "設定ファイルをエクスポート"
+
+#. Used in settings-file export flow as error dialog title.
+msgid "EXPORT_SETTINGS_FILE_ERROR_TITLE"
+msgstr "エクスポート失敗"
+
+#. Used in settings-file export flow as error dialog text.
+msgid "EXPORT_SETTINGS_FILE_ERROR_TEXT"
+msgstr "設定ファイルのエクスポートに失敗しました:\n{path}"
 
 #. Used in settings-file load dialog as file filter.
 msgid "LOAD_SETTINGS_FILE_DIALOG_FILTER"

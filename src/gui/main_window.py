@@ -155,6 +155,10 @@ class MainWindow(QMainWindow):
         self.load_settings_file_action.triggered.connect(self.load_settings_file)
         file_menu.addAction(self.load_settings_file_action)
 
+        export_settings_action = QAction(_('MENU_BAR_EXPORT_SETTINGS_FILE'), self)
+        export_settings_action.triggered.connect(self.export_settings_file)
+        file_menu.addAction(export_settings_action)
+
         view_menu = menu_bar.addMenu(_('MENU_BAR_VIEW'))
         show_all_com_ports_checkbox = self.create_checkbox_menu_item(
             _('MENU_BAR_SHOW_ALL_COM_PORTS'),
@@ -272,6 +276,33 @@ class MainWindow(QMainWindow):
             return
 
         self.load_settings_file_from_path(selected_files[0])
+
+    def export_settings_file(self):
+        dialog = QFileDialog(
+            self,
+            _('EXPORT_SETTINGS_FILE_DIALOG_TITLE'),
+            preferences.get_preferences_file_path(),
+            _('LOAD_SETTINGS_FILE_DIALOG_FILTER'),
+        )
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setDefaultSuffix('json')
+
+        if not dialog.exec():
+            return
+
+        selected_files = dialog.selectedFiles()
+        if not selected_files:
+            return
+
+        path = selected_files[0]
+        success = preferences.save_preferences_to_file(path)
+        if not success:
+            QMessageBox.critical(
+                self,
+                _('EXPORT_SETTINGS_FILE_ERROR_TITLE'),
+                _('EXPORT_SETTINGS_FILE_ERROR_TEXT').format(path=path),
+            )
 
     def load_settings_file_from_path(self, path):
         locale_before = preferences.locale

@@ -57,6 +57,10 @@ msgstr "Settings"
 msgid "MENU_BAR_LOAD_SETTINGS_FILE"
 msgstr "Load settings file..."
 
+#. Used in main window as menu label and menu action label.
+msgid "MENU_BAR_EXPORT_SETTINGS_FILE"
+msgstr "Export settings file..."
+
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_VIEW"
 msgstr "View"
@@ -284,6 +288,18 @@ msgstr "Warning"
 #. Used in settings-file load dialog as window or dialog title.
 msgid "LOAD_SETTINGS_FILE_DIALOG_TITLE"
 msgstr "Load settings file"
+
+#. Used in settings-file export dialog as window or dialog title.
+msgid "EXPORT_SETTINGS_FILE_DIALOG_TITLE"
+msgstr "Export settings file"
+
+#. Used in settings-file export flow as error dialog title.
+msgid "EXPORT_SETTINGS_FILE_ERROR_TITLE"
+msgstr "Export failed"
+
+#. Used in settings-file export flow as error dialog text.
+msgid "EXPORT_SETTINGS_FILE_ERROR_TEXT"
+msgstr "Failed to export settings file:\n{path}"
 
 #. Used in settings-file load dialog as file filter.
 msgid "LOAD_SETTINGS_FILE_DIALOG_FILTER"
