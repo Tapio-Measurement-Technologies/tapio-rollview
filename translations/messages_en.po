@@ -309,6 +309,14 @@ msgstr "Selected settings file cannot be loaded.\n\nPath: {path}\nReason: {reaso
 msgid "LOAD_SETTINGS_FILE_ERROR_TEXT"
 msgstr "Failed to load settings file:\n{path}"
 
+#. Used in settings-file load flow when locale key is ignored at runtime.
+msgid "LOAD_SETTINGS_FILE_LOCALE_IGNORED_TITLE"
+msgstr "Language setting ignored"
+
+#. Used in settings-file load flow when locale key is ignored at runtime.
+msgid "LOAD_SETTINGS_FILE_LOCALE_IGNORED_TEXT"
+msgstr "Changing the language at runtime is not yet supported. The language setting in the loaded file was ignored.\n\nTo use a different language, restart the application with the --settings-file flag."
+
 #. Used in serial ports widget as label text.
 msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "Devices"

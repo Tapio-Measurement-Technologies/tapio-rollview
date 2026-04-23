@@ -274,12 +274,20 @@ class MainWindow(QMainWindow):
         self.load_settings_file_from_path(selected_files[0])
 
     def load_settings_file_from_path(self, path):
+        locale_before = preferences.locale
         result = preferences.load_preferences_from_file(path)
 
         if result.status in (
             preferences.LOAD_STATUS_LOADED,
             preferences.LOAD_STATUS_CREATED_DEFAULTS,
         ):
+            if preferences.locale != locale_before:
+                preferences.update_preferences({'locale': locale_before})
+                QMessageBox.information(
+                    self,
+                    _('LOAD_SETTINGS_FILE_LOCALE_IGNORED_TITLE'),
+                    _('LOAD_SETTINGS_FILE_LOCALE_IGNORED_TEXT'),
+                )
             self.apply_loaded_preferences()
             return result
 
