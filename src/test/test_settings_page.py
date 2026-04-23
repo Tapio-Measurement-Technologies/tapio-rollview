@@ -306,8 +306,8 @@ class TestSettingsWindow(unittest.TestCase):
         window = SettingsWindow()
         try:
             page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
-            self.assertIn("Distance Highlights", page_names)
-            self.assertIn("Hardness Highlights", page_names)
+            self.assertIn("Distance highlights", page_names)
+            self.assertIn("Hardness highlights", page_names)
         finally:
             window.close()
 

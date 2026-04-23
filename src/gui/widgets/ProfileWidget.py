@@ -7,6 +7,8 @@ from scipy.signal import welch
 from utils.profile_stats import Stats, calc_mean_profile
 from utils.excluded_regions import get_included_samples, get_visual_excluded_ranges
 from utils.highlighted_regions import (
+    AbsoluteMeanOffsetHardnessHighlightRegion,
+    RelativeMeanOffsetHardnessHighlightRegion,
     get_visual_distance_highlight_regions,
     get_visual_hardness_highlight_regions,
 )
@@ -31,6 +33,24 @@ STYLE_AXVLINE = {
     'alpha': 0.7,
     'zorder': 0
 }
+
+STYLE_HIGHLIGHT_MEAN_LINE = {
+    'color': 'dimgray',
+    'linestyle': '--',
+    'linewidth': 1.2,
+    'alpha': 0.5,
+    'zorder': -1,
+}
+
+
+def _highlight_edge_style(color):
+    return {
+        'color': color,
+        'linestyle': '--',
+        'linewidth': 0.9,
+        'alpha': 0.55,
+        'zorder': -1,
+    }
 
 
 # Add support for Japanese characters
@@ -148,14 +168,67 @@ class ProfileWidget(QWidget):
             return []
 
         mean_value = self.stats.mean((mean_profile_distances, mean_profile_values))
-        visual_regions = get_visual_hardness_highlight_regions(
-            preferences.hardness_highlight_regions,
-            mean_value,
-        )
-        return [
-            (region.start, region.end, region.color)
-            for region in visual_regions
-        ]
+        plot_ranges = []
+        for source_region in preferences.hardness_highlight_regions:
+            visual_regions = get_visual_hardness_highlight_regions([source_region], mean_value)
+            for region in visual_regions:
+                plot_ranges.append(
+                    (
+                        region.start,
+                        region.end,
+                        region.color,
+                        isinstance(source_region, (AbsoluteMeanOffsetHardnessHighlightRegion, RelativeMeanOffsetHardnessHighlightRegion)),
+                        mean_value,
+                    )
+                )
+        return plot_ranges
+
+    def _draw_distance_highlight_region_edges(self, start_x, end_x, color):
+        self.profile_ax.axvline(start_x, **_highlight_edge_style(color))
+        if end_x != start_x:
+            self.profile_ax.axvline(end_x, **_highlight_edge_style(color))
+
+    def _draw_hardness_highlight_region_edges(self, start_y, end_y, color):
+        self.profile_ax.axhline(start_y, **_highlight_edge_style(color))
+        if end_y != start_y:
+            self.profile_ax.axhline(end_y, **_highlight_edge_style(color))
+
+    def _draw_hardness_highlight_mean_line(self, mean_value):
+        self.profile_ax.axhline(mean_value, **STYLE_HIGHLIGHT_MEAN_LINE)
+
+    def _draw_distance_highlight_regions_visualization(self, mean_profile_distances, conversion_factor):
+        for start_x, end_x, color in self._get_distance_highlight_region_plot_ranges(
+            mean_profile_distances,
+            conversion_factor,
+        ):
+            if start_x < end_x:
+                self.profile_ax.axvspan(
+                    start_x,
+                    end_x,
+                    alpha=0.2,
+                    color=color,
+                    zorder=-2,
+                )
+                self._draw_distance_highlight_region_edges(start_x, end_x, color)
+
+    def _draw_hardness_highlight_regions_visualization(self, mean_profile_distances, mean_profile_values):
+        mean_line_drawn = False
+        for start_y, end_y, color, is_around_mean, mean_value in self._get_hardness_highlight_region_plot_ranges(
+            mean_profile_distances,
+            mean_profile_values,
+        ):
+            if start_y < end_y:
+                self.profile_ax.axhspan(
+                    start_y,
+                    end_y,
+                    alpha=0.15,
+                    color=color,
+                    zorder=-3,
+                )
+                self._draw_hardness_highlight_region_edges(start_y, end_y, color)
+                if is_around_mean and not mean_line_drawn:
+                    self._draw_hardness_highlight_mean_line(mean_value)
+                    mean_line_drawn = True
 
     def _get_spectrum_plot_data(self, mean_profile_values):
         f, Pxx = welch(mean_profile_values,
@@ -192,34 +265,6 @@ class ProfileWidget(QWidget):
             self.profile_ax.axvline(start_x, **STYLE_AXVLINE)
             if end_x != start_x:
                 self.profile_ax.axvline(end_x, **STYLE_AXVLINE)
-
-    def _draw_distance_highlight_regions_visualization(self, mean_profile_distances, conversion_factor):
-        for start_x, end_x, color in self._get_distance_highlight_region_plot_ranges(
-            mean_profile_distances,
-            conversion_factor,
-        ):
-            if start_x < end_x:
-                self.profile_ax.axvspan(
-                    start_x,
-                    end_x,
-                    alpha=0.2,
-                    color=color,
-                    zorder=-2,
-                )
-
-    def _draw_hardness_highlight_regions_visualization(self, mean_profile_distances, mean_profile_values):
-        for start_y, end_y, color in self._get_hardness_highlight_region_plot_ranges(
-            mean_profile_distances,
-            mean_profile_values,
-        ):
-            if start_y < end_y:
-                self.profile_ax.axhspan(
-                    start_y,
-                    end_y,
-                    alpha=0.15,
-                    color=color,
-                    zorder=-3,
-                )
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()

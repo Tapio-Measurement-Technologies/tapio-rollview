@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import settings
 from PySide6.QtWidgets import QApplication
@@ -114,7 +115,39 @@ class TestProfileWidget(unittest.TestCase):
                 [9.0, 10.0, 11.0],
             )
 
-            self.assertEqual(plot_ranges, [(9.0, 12.0, "tab:orange")])
+            self.assertEqual(plot_ranges, [(9.0, 12.0, "tab:orange", True, 10.0)])
+        finally:
+            widget.close()
+
+    def test_distance_highlight_visualization_draws_edge_vlines(self):
+        preferences.distance_highlight_regions = [
+            DistanceHighlightRegion(start=1.0, end=2.0, mode=DISTANCE_HIGHLIGHT_MODE_ABSOLUTE, color="tab:orange")
+        ]
+
+        widget = ProfileWidget()
+        try:
+            with patch.object(widget.profile_ax, "axvline") as axvline_mock:
+                widget._draw_distance_highlight_regions_visualization([0.0, 1.0, 2.0, 3.0], 1.0)
+
+            self.assertEqual(axvline_mock.call_count, 2)
+        finally:
+            widget.close()
+
+    def test_hardness_highlight_visualization_draws_edges_and_mean_line(self):
+        preferences.hardness_highlight_regions = [
+            AbsoluteMeanOffsetHardnessHighlightRegion(
+                color="tab:orange",
+                below_offset=1.0,
+                above_offset=2.0,
+            )
+        ]
+
+        widget = ProfileWidget()
+        try:
+            with patch.object(widget.profile_ax, "axhline") as axhline_mock:
+                widget._draw_hardness_highlight_regions_visualization([0.0, 1.0, 2.0], [9.0, 10.0, 11.0])
+
+            self.assertEqual(axhline_mock.call_count, 3)
         finally:
             widget.close()
 
