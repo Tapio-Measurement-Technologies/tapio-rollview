@@ -7,6 +7,23 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+# Must load custom settings before any other import, because the import chain
+# (utils.logging -> gui.crash_dialog -> utils.translation) reads preferences.locale
+# at module level to initialize the global _() translation function.
+import sys as _sys
+_settings_file_arg = None
+for _i, _arg in enumerate(_sys.argv[1:], 1):
+    if _arg == '--settings-file' and _i < len(_sys.argv) - 1:
+        _settings_file_arg = _sys.argv[_i + 1]
+        break
+    if _arg.startswith('--settings-file='):
+        _settings_file_arg = _arg.split('=', 1)[1]
+        break
+if _settings_file_arg:
+    from utils import preferences as _prefs  # noqa: E402
+    _prefs.load_preferences_from_file(_settings_file_arg)
+
 from utils.log_stream import EmittingStream, EmittingStreamType
 
 # Replaces sys.stdout and sys.stderr
