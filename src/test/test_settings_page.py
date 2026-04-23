@@ -254,7 +254,7 @@ class TestDistanceHighlightsSettingsPage(unittest.TestCase):
 
         self.assertIsInstance(row, QFrame)
         self.assertEqual(row.range_label.text(), "Range")
-        self.assertEqual(row.range_separator.text(), "--")
+        self.assertEqual(row.range_separator.text(), "–")
         self.assertEqual(row.mode_label.text(), "Mode")
         self.assertEqual(row.color_label.text(), "Color")
         self.assertFalse(row.color_selector.itemIcon(0).isNull())
@@ -280,8 +280,8 @@ class TestHardnessHighlightsSettingsPage(unittest.TestCase):
         row = self.page.rows[0]
         row.mode_selector.setCurrentText(row.modes["mean_offset_absolute"])
 
-        self.assertEqual(row.first_label.text(), "Below")
-        self.assertEqual(row.second_label.text(), "Above")
+        self.assertEqual(row.range_label.text(), "Range")
+        self.assertEqual(row.range_separator.text(), "–")
 
     def test_save_settings_persists_valid_hardness_regions(self):
         self.page.add_empty_row()

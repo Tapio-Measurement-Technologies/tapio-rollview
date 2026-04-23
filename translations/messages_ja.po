@@ -684,6 +684,14 @@ msgstr "下"
 msgid "ABOVE"
 msgstr "上"
 
+#. Used in hardness highlights settings page as field label.
+msgid "LOWER"
+msgstr "下限"
+
+#. Used in hardness highlights settings page as field label.
+msgid "UPPER"
+msgstr "上限"
+
 #. Used in annotations settings page as field label.
 msgid "COLOR"
 msgstr "色"
@@ -750,11 +758,11 @@ msgstr "固定"
 
 #. Used in annotations settings page as dropdown option.
 msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE"
-msgstr "平均周り (絶対値)"
+msgstr "平均値基準"
 
 #. Used in annotations settings page as dropdown option.
 msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE"
-msgstr "平均周り (%)"
+msgstr "平均値基準 (%)"
 
 #. Used in settings window as label text.
 msgid "SECTION_HEADING_FILTERING"

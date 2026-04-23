@@ -684,6 +684,14 @@ msgstr "Below"
 msgid "ABOVE"
 msgstr "Above"
 
+#. Used in hardness highlights settings page as field label.
+msgid "LOWER"
+msgstr "Lower"
+
+#. Used in hardness highlights settings page as field label.
+msgid "UPPER"
+msgstr "Upper"
+
 #. Used in annotations settings page as field label.
 msgid "COLOR"
 msgstr "Color"
@@ -750,11 +758,11 @@ msgstr "Fixed"
 
 #. Used in annotations settings page as dropdown option.
 msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE"
-msgstr "Around Mean (Absolute)"
+msgstr "Relative to Mean"
 
 #. Used in annotations settings page as dropdown option.
 msgid "HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE"
-msgstr "Around Mean (%)"
+msgstr "Relative to Mean (%)"
 
 #. Used in settings window as label text.
 msgid "SECTION_HEADING_FILTERING"

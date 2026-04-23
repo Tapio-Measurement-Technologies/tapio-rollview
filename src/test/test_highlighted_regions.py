@@ -87,8 +87,8 @@ class TestHardnessHighlightedRegions(unittest.TestCase):
         regions = [
             AbsoluteMeanOffsetHardnessHighlightRegion(
                 color="tab:orange",
-                below_offset=1.0,
-                above_offset=2.0,
+                lower_offset=-1.0,
+                upper_offset=2.0,
             )
         ]
 
@@ -112,8 +112,8 @@ class TestHardnessHighlightedRegions(unittest.TestCase):
             region,
             AbsoluteMeanOffsetHardnessHighlightRegion(
                 color="tab:blue",
-                below_offset=None,
-                above_offset=2.0,
+                lower_offset=None,
+                upper_offset=2.0,
             ),
         )
 
@@ -135,8 +135,8 @@ class TestHardnessHighlightedRegions(unittest.TestCase):
         regions = [
             AbsoluteMeanOffsetHardnessHighlightRegion(
                 color="tab:green",
-                below_offset=2.0,
-                above_offset=3.0,
+                lower_offset=-2.0,
+                upper_offset=3.0,
             )
         ]
 
@@ -149,8 +149,8 @@ class TestHardnessHighlightedRegions(unittest.TestCase):
         regions = [
             RelativeMeanOffsetHardnessHighlightRegion(
                 color="tab:green",
-                below_percent=10.0,
-                above_percent=20.0,
+                lower_percent=-10.0,
+                upper_percent=20.0,
             )
         ]
 
@@ -163,8 +163,8 @@ class TestHardnessHighlightedRegions(unittest.TestCase):
         empty = parse_hardness_highlight_region("", "", HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE, "tab:blue")
         zero = RelativeMeanOffsetHardnessHighlightRegion(
             color="tab:blue",
-            below_percent=10.0,
-            above_percent=None,
+            lower_percent=-10.0,
+            upper_percent=None,
         )
 
         self.assertIsNone(empty)

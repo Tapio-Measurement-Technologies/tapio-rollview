@@ -60,15 +60,15 @@ class FixedHardnessHighlightRegionDict(TypedDict):
 class AbsoluteMeanOffsetHardnessHighlightRegionDict(TypedDict, total=False):
     mode: Literal["mean_offset_absolute"]
     color: TableauColor
-    below_offset: float
-    above_offset: float
+    lower_offset: float
+    upper_offset: float
 
 
 class RelativeMeanOffsetHardnessHighlightRegionDict(TypedDict, total=False):
     mode: Literal["mean_offset_relative"]
     color: TableauColor
-    below_percent: float
-    above_percent: float
+    lower_percent: float
+    upper_percent: float
 
 
 HardnessHighlightRegionDict = (
@@ -138,19 +138,19 @@ class FixedHardnessHighlightRegion:
 @dataclass(frozen=True)
 class AbsoluteMeanOffsetHardnessHighlightRegion:
     color: TableauColor
-    below_offset: float | None = None
-    above_offset: float | None = None
+    lower_offset: float | None = None
+    upper_offset: float | None = None
     mode: Literal["mean_offset_absolute"] = HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE
 
     def normalized(self) -> AbsoluteMeanOffsetHardnessHighlightRegion | None:
-        below_offset = _normalize_optional_non_negative(self.below_offset)
-        above_offset = _normalize_optional_non_negative(self.above_offset)
-        if below_offset is None and above_offset is None:
+        lower_offset = _coerce_optional_float(self.lower_offset)
+        upper_offset = _coerce_optional_float(self.upper_offset)
+        if lower_offset is None and upper_offset is None:
             return None
         return AbsoluteMeanOffsetHardnessHighlightRegion(
             color=self.color,
-            below_offset=below_offset,
-            above_offset=above_offset,
+            lower_offset=lower_offset,
+            upper_offset=upper_offset,
         )
 
     def to_dict(self) -> AbsoluteMeanOffsetHardnessHighlightRegionDict:
@@ -158,29 +158,29 @@ class AbsoluteMeanOffsetHardnessHighlightRegion:
             "mode": self.mode,
             "color": self.color,
         }
-        if self.below_offset is not None:
-            payload["below_offset"] = self.below_offset
-        if self.above_offset is not None:
-            payload["above_offset"] = self.above_offset
+        if self.lower_offset is not None:
+            payload["lower_offset"] = self.lower_offset
+        if self.upper_offset is not None:
+            payload["upper_offset"] = self.upper_offset
         return payload
 
 
 @dataclass(frozen=True)
 class RelativeMeanOffsetHardnessHighlightRegion:
     color: TableauColor
-    below_percent: float | None = None
-    above_percent: float | None = None
+    lower_percent: float | None = None
+    upper_percent: float | None = None
     mode: Literal["mean_offset_relative"] = HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE
 
     def normalized(self) -> RelativeMeanOffsetHardnessHighlightRegion | None:
-        below_percent = _normalize_optional_non_negative(self.below_percent)
-        above_percent = _normalize_optional_non_negative(self.above_percent)
-        if below_percent is None and above_percent is None:
+        lower_percent = _coerce_optional_float(self.lower_percent)
+        upper_percent = _coerce_optional_float(self.upper_percent)
+        if lower_percent is None and upper_percent is None:
             return None
         return RelativeMeanOffsetHardnessHighlightRegion(
             color=self.color,
-            below_percent=below_percent,
-            above_percent=above_percent,
+            lower_percent=lower_percent,
+            upper_percent=upper_percent,
         )
 
     def to_dict(self) -> RelativeMeanOffsetHardnessHighlightRegionDict:
@@ -188,10 +188,10 @@ class RelativeMeanOffsetHardnessHighlightRegion:
             "mode": self.mode,
             "color": self.color,
         }
-        if self.below_percent is not None:
-            payload["below_percent"] = self.below_percent
-        if self.above_percent is not None:
-            payload["above_percent"] = self.above_percent
+        if self.lower_percent is not None:
+            payload["lower_percent"] = self.lower_percent
+        if self.upper_percent is not None:
+            payload["upper_percent"] = self.upper_percent
         return payload
 
 
@@ -207,16 +207,6 @@ class VisualHighlightRegion:
     start: float
     end: float
     color: TableauColor
-
-
-def _normalize_optional_non_negative(value: float | None) -> float | None:
-    if value is None:
-        return None
-    normalized_value = float(value)
-    if normalized_value < 0:
-        raise ValueError("Highlight range values must be non-negative.")
-    return normalized_value
-
 
 def _is_valid_distance_mode(value: Any) -> bool:
     return value in (DISTANCE_HIGHLIGHT_MODE_RELATIVE, DISTANCE_HIGHLIGHT_MODE_ABSOLUTE)
@@ -309,14 +299,14 @@ def parse_hardness_highlight_region(
         if mode == HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE:
             return AbsoluteMeanOffsetHardnessHighlightRegion(
                 color=color,
-                below_offset=first_value,
-                above_offset=second_value,
+                lower_offset=first_value,
+                upper_offset=second_value,
             ).normalized()
 
         return RelativeMeanOffsetHardnessHighlightRegion(
             color=color,
-            below_percent=first_value,
-            above_percent=second_value,
+            lower_percent=first_value,
+            upper_percent=second_value,
         ).normalized()
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
@@ -407,14 +397,14 @@ def normalize_hardness_highlight_regions(value: Any) -> list[HardnessHighlightRe
             elif mode == HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_ABSOLUTE:
                 region = AbsoluteMeanOffsetHardnessHighlightRegion(
                     color=color,
-                    below_offset=_coerce_optional_float(item.get("below_offset")),
-                    above_offset=_coerce_optional_float(item.get("above_offset")),
+                    lower_offset=_coerce_optional_float(item.get("lower_offset")),
+                    upper_offset=_coerce_optional_float(item.get("upper_offset")),
                 ).normalized()
             else:
                 region = RelativeMeanOffsetHardnessHighlightRegion(
                     color=color,
-                    below_percent=_coerce_optional_float(item.get("below_percent")),
-                    above_percent=_coerce_optional_float(item.get("above_percent")),
+                    lower_percent=_coerce_optional_float(item.get("lower_percent")),
+                    upper_percent=_coerce_optional_float(item.get("upper_percent")),
                 ).normalized()
         except (TypeError, ValueError):
             continue
@@ -482,11 +472,11 @@ def get_visual_hardness_highlight_regions(
             lower = region.min_value
             upper = region.max_value
         elif isinstance(region, AbsoluteMeanOffsetHardnessHighlightRegion):
-            lower = mean_value - region.below_offset if region.below_offset is not None else mean_value
-            upper = mean_value + region.above_offset if region.above_offset is not None else mean_value
+            lower = mean_value + region.lower_offset if region.lower_offset is not None else mean_value
+            upper = mean_value + region.upper_offset if region.upper_offset is not None else mean_value
         else:
-            lower = mean_value - mean_magnitude * region.below_percent / 100.0 if region.below_percent is not None else mean_value
-            upper = mean_value + mean_magnitude * region.above_percent / 100.0 if region.above_percent is not None else mean_value
+            lower = mean_value + mean_magnitude * region.lower_percent / 100.0 if region.lower_percent is not None else mean_value
+            upper = mean_value + mean_magnitude * region.upper_percent / 100.0 if region.upper_percent is not None else mean_value
 
         numeric_range = normalize_numeric_range(lower, upper)
         if numeric_range is None:

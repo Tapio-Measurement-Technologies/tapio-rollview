@@ -727,14 +727,16 @@ class DistanceHighlightRow(HighlightRegionRowBase):
         range_group.addLayout(range_inputs)
         self.start_input = QLineEdit()
         self.start_input.setMinimumWidth(48)
+        self.start_input.setMaximumWidth(60)
         self.start_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.start_input)
 
-        self.range_separator = QLabel("--")
+        self.range_separator = QLabel("–")
         range_inputs.addWidget(self.range_separator)
 
         self.end_input = QLineEdit()
         self.end_input.setMinimumWidth(48)
+        self.end_input.setMaximumWidth(60)
         self.end_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.end_input)
 
@@ -800,21 +802,27 @@ class HardnessHighlightRow(HighlightRegionRowBase):
 
         top_row = self._create_card_layout()
 
-        first_group = self._create_field_group(top_row)
-        self.first_label = QLabel(_("MIN"))
-        first_group.addWidget(self.first_label)
+        range_group = self._create_field_group(top_row)
+        self.range_label = QLabel(_("RANGE"))
+        range_group.addWidget(self.range_label)
+
+        range_inputs = QHBoxLayout()
+        range_inputs.setSpacing(6)
+        range_group.addLayout(range_inputs)
         self.first_input = QLineEdit()
         self.first_input.setMinimumWidth(56)
+        self.first_input.setMaximumWidth(60)
         self.first_input.textChanged.connect(lambda _text: self.modified.emit())
-        first_group.addWidget(self.first_input)
+        range_inputs.addWidget(self.first_input)
 
-        second_group = self._create_field_group(top_row)
-        self.second_label = QLabel(_("MAX"))
-        second_group.addWidget(self.second_label)
+        self.range_separator = QLabel("–")
+        range_inputs.addWidget(self.range_separator)
+
         self.second_input = QLineEdit()
         self.second_input.setMinimumWidth(56)
+        self.second_input.setMaximumWidth(60)
         self.second_input.textChanged.connect(lambda _text: self.modified.emit())
-        second_group.addWidget(self.second_input)
+        range_inputs.addWidget(self.second_input)
 
         mode_group = self._create_field_group(top_row)
         self.mode_label = QLabel(_("MODE"))
@@ -827,7 +835,7 @@ class HardnessHighlightRow(HighlightRegionRowBase):
         self.mode_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         mode_group.addWidget(self.mode_selector)
 
-        self._add_color_and_remove(top_row, self.first_label)
+        self._add_color_and_remove(top_row, self.range_label)
         self._set_region(region)
         self._update_labels()
 
@@ -845,30 +853,23 @@ class HardnessHighlightRow(HighlightRegionRowBase):
             self.first_input.setText("" if region.min_value is None else f"{region.min_value:g}")
             self.second_input.setText("" if region.max_value is None else f"{region.max_value:g}")
         elif isinstance(region, AbsoluteMeanOffsetHardnessHighlightRegion):
-            self.first_input.setText("" if region.below_offset is None else f"{region.below_offset:g}")
-            self.second_input.setText("" if region.above_offset is None else f"{region.above_offset:g}")
+            self.first_input.setText("" if region.lower_offset is None else f"{region.lower_offset:g}")
+            self.second_input.setText("" if region.upper_offset is None else f"{region.upper_offset:g}")
         else:
-            self.first_input.setText("" if region.below_percent is None else f"{region.below_percent:g}")
-            self.second_input.setText("" if region.above_percent is None else f"{region.above_percent:g}")
+            self.first_input.setText("" if region.lower_percent is None else f"{region.lower_percent:g}")
+            self.second_input.setText("" if region.upper_percent is None else f"{region.upper_percent:g}")
 
     def _get_selected_mode(self):
         return list(self.modes.keys())[self.mode_selector.currentIndex()]
 
     def _update_labels(self):
         mode = self._get_selected_mode()
-        if mode == HARDNESS_HIGHLIGHT_MODE_FIXED:
-            self.first_label.setText(_("MIN"))
-            self.second_label.setText(_("MAX"))
-        else:
-            self.first_label.setText(_("BELOW"))
-            self.second_label.setText(_("ABOVE"))
-
         if mode == HARDNESS_HIGHLIGHT_MODE_MEAN_OFFSET_RELATIVE:
-            self.first_input.setPlaceholderText("%")
-            self.second_input.setPlaceholderText("%")
+            self.first_input.setPlaceholderText(_("LOWER") + " %")
+            self.second_input.setPlaceholderText(_("UPPER") + " %")
         else:
-            self.first_input.setPlaceholderText(_("MIN"))
-            self.second_input.setPlaceholderText(_("MAX"))
+            self.first_input.setPlaceholderText(_("LOWER"))
+            self.second_input.setPlaceholderText(_("UPPER"))
 
     @Slot()
     def _on_mode_changed(self):

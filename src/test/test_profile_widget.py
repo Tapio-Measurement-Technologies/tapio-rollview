@@ -103,8 +103,8 @@ class TestProfileWidget(unittest.TestCase):
         preferences.hardness_highlight_regions = [
             AbsoluteMeanOffsetHardnessHighlightRegion(
                 color="tab:orange",
-                below_offset=1.0,
-                above_offset=2.0,
+                lower_offset=-1.0,
+                upper_offset=2.0,
             )
         ]
 
@@ -137,8 +137,8 @@ class TestProfileWidget(unittest.TestCase):
         preferences.hardness_highlight_regions = [
             AbsoluteMeanOffsetHardnessHighlightRegion(
                 color="tab:orange",
-                below_offset=1.0,
-                above_offset=2.0,
+                lower_offset=-1.0,
+                upper_offset=2.0,
             )
         ]
 
