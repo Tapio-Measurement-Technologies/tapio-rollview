@@ -69,6 +69,10 @@ _SAVERS = {
     'hardness_highlight_regions': serialize_hardness_highlight_regions,
 }
 
+_ALERT_LIMIT_NAME_ALIASES = {
+    'slope_deg': 'slope_g_per_rl',
+}
+
 
 def _default_value(key):
     return copy.deepcopy(_DEFAULTS[key])
@@ -80,7 +84,7 @@ def _normalize_alert_limits(limits):
 
     normalized_limits = []
     configured_by_name = {
-        limit.get('name'): limit
+        _ALERT_LIMIT_NAME_ALIASES.get(limit.get('name'), limit.get('name')): limit
         for limit in limits
         if isinstance(limit, dict) and limit.get('name')
     }

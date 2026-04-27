@@ -403,6 +403,11 @@ msgstr "Max"
 msgid "ALERT_LIMIT_PP"
 msgstr "P-p"
 
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
+msgid "ALERT_LIMIT_SLOPE"
+msgstr "Slope"
+
 #. Used in postprocessing progress flow as message text and postprocessing progress
 #. text.
 msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
@@ -547,6 +552,11 @@ msgstr "Maximum"
 #. label.
 msgid "PP_LONG"
 msgstr "Peak to peak"
+
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
+msgid "SLOPE_LONG"
+msgstr "Slope"
 
 #. Used in main window as tab title.
 msgid "TAB_TITLE_PROFILES"

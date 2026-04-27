@@ -52,9 +52,9 @@ STAT_SPECS = [
     },
     {
         "analysis_key": "slope",
-        "name": "slope_deg",
-        "label": "Slope",
-        "long_label": "Slope",
+        "name": "slope_g_per_rl",
+        "label": _("ALERT_LIMIT_SLOPE"),
+        "long_label": _("SLOPE_LONG"),
         "unit": "g/RL",
     },
 ]
@@ -178,7 +178,7 @@ class Stats:
         self.max.name = "max_g"
         self.cv.name = "cv_pct"
         self.pp.name = "pp_g"
-        self.slope.name = "slope_deg"
+        self.slope.name = "slope_g_per_rl"
 
         self.mean.analysis_key = "mean"
         self.std.analysis_key = "std"

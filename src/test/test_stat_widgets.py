@@ -24,7 +24,7 @@ class TestStatWidgets(unittest.TestCase):
             "min_g": {'name': 'min_g', 'min': 0.1, 'max': 1.5},
             "max_g": {'name': 'max_g', 'min': 4.5, 'max': 5.0},
             "pp_g": {'name': 'pp_g', 'min': 3.0, 'max': 4.9},
-            "slope_deg": {'name': 'slope_deg', 'min': -10.0, 'max': 10.0}
+            "slope_g_per_rl": {'name': 'slope_g_per_rl', 'min': -10.0, 'max': 10.0}
         }
 
     def tearDown(self):
@@ -200,14 +200,14 @@ class TestStatWidgets(unittest.TestCase):
         linear_data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         expected_slope = 4.0
 
-        widget = SlopeWidget(linear_data, self.limits['slope_deg'])
+        widget = SlopeWidget(linear_data, self.limits['slope_g_per_rl'])
         self.assertAlmostEqual(widget.value, expected_slope)
         self.assertFalse(widget.over_limit)
 
     def test_slope_widget_with_flat_profile(self):
         flat_data = np.array([3.0, 3.0, 3.0, 3.0])
 
-        widget = SlopeWidget(flat_data, self.limits['slope_deg'])
+        widget = SlopeWidget(flat_data, self.limits['slope_g_per_rl'])
         self.assertAlmostEqual(widget.value, 0.0)
         self.assertFalse(widget.over_limit)
 
@@ -215,8 +215,8 @@ class TestStatWidgets(unittest.TestCase):
         short_linear = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         long_linear = np.linspace(1.0, 5.0, 17)
 
-        short_widget = SlopeWidget(short_linear, self.limits['slope_deg'])
-        long_widget = SlopeWidget(long_linear, self.limits['slope_deg'])
+        short_widget = SlopeWidget(short_linear, self.limits['slope_g_per_rl'])
+        long_widget = SlopeWidget(long_linear, self.limits['slope_g_per_rl'])
 
         self.assertAlmostEqual(short_widget.value, long_widget.value)
 

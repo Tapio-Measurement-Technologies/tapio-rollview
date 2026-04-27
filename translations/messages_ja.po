@@ -403,6 +403,11 @@ msgstr "最大値"
 msgid "ALERT_LIMIT_PP"
 msgstr "最大最小差"
 
+#. Used in statistics label definitions and QR config dialog as statistic label and
+#. QR config label.
+msgid "ALERT_LIMIT_SLOPE"
+msgstr "傾き"
+
 #. Used in postprocessing progress flow as message text and postprocessing progress
 #. text.
 msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
@@ -547,6 +552,11 @@ msgstr "最大値"
 #. label.
 msgid "PP_LONG"
 msgstr "最大最小差"
+
+#. Used in statistics label definitions as statistic label and long-form statistic
+#. label.
+msgid "SLOPE_LONG"
+msgstr "傾き"
 
 #. Used in main window as tab title.
 msgid "TAB_TITLE_PROFILES"

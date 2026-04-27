@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         self.tab_view = QTabWidget()
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.statistics_analysis_widget.directory_selected.connect(self.on_directory_selected)
+        self.statistics_analysis_widget.directory_selected.connect(self.directory_view.select_directory_by_path)
         self.profile_widget = ProfileWidget()
         self.tab_view.addTab(self.profile_widget, _("TAB_TITLE_PROFILES"))
         self.tab_view.addTab(self.statistics_analysis_widget, _("TAB_TITLE_STATISTICS"))

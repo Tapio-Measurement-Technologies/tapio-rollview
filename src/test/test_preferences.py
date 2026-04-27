@@ -38,9 +38,9 @@ class TestPreferences(unittest.TestCase):
         normalized_limits = _normalize_alert_limits(legacy_limits)
         normalized_names = [limit["name"] for limit in normalized_limits]
 
-        self.assertIn("slope_deg", normalized_names)
+        self.assertIn("slope_g_per_rl", normalized_names)
 
-        slope_limit = next(limit for limit in normalized_limits if limit["name"] == "slope_deg")
+        slope_limit = next(limit for limit in normalized_limits if limit["name"] == "slope_g_per_rl")
         self.assertEqual(slope_limit["units"], "g/RL")
         self.assertIsNone(slope_limit["min"])
         self.assertIsNone(slope_limit["max"])

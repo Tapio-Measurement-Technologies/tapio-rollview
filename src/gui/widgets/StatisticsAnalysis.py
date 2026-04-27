@@ -291,6 +291,7 @@ class StatisticsAnalysisWidget(QWidget):
 
     @Slot(str)
     def on_point_selected(self, label: str):
+        self.highlight_point(label)
         self.directory_selected.emit(label)
 
     @Slot(str)

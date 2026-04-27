@@ -84,7 +84,7 @@ def run(folder_path) -> bool:
                 'stdev_g':  round(stats.std(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
                 'cv_pct':   round(stats.cv(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
                 'pp_g':     round(stats.pp(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
-                'slope_deg': round(stats.slope(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
+                'slope_g_per_rl': round(stats.slope(mean_profile_data), EXPORT_FLOAT_NUM_DECIMAL_PLACES),
             }
         }
 
