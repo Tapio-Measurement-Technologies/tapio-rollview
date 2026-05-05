@@ -19,17 +19,26 @@ if os.path.exists(builtin_postprocessors_path):
 
 # Load user postprocessors
 user_postprocessors_path = os.path.join(settings.ROOT_DIRECTORY, 'postprocessors')
+
+
+def sync_postprocessors_with_preferences():
+    valid_enabled_postprocessors = [
+        module_name
+        for module_name in preferences.enabled_postprocessors
+        if module_name in postprocessors
+    ]
+    if valid_enabled_postprocessors != preferences.enabled_postprocessors:
+        preferences.enabled_postprocessors = valid_enabled_postprocessors
+
+    for module_name, postprocessor in postprocessors.items():
+        postprocessor.enabled = module_name in preferences.enabled_postprocessors
+
+
 if os.path.exists(user_postprocessors_path):
     print("Loading user postprocessors")
     postprocessors.update(load_modules_from_folder(user_postprocessors_path))
 
-for module_name, postprocessor in postprocessors.items():
-    postprocessor.enabled = module_name in preferences.enabled_postprocessors
-
-
-def sync_postprocessors_with_preferences():
-    for module_name, postprocessor in postprocessors.items():
-        postprocessor.enabled = module_name in preferences.enabled_postprocessors
+sync_postprocessors_with_preferences()
 
 
 class PostprocessThread(QThread):

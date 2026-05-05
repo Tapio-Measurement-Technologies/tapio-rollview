@@ -129,6 +129,17 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.assertFalse(self.window.postprocessor_checkboxes[module_name].isChecked())
         self.assertEqual(self.window.postprocess_manager.enabled_postprocessors, [])
 
+    def test_apply_loaded_preferences_drops_unknown_postprocessor_names(self):
+        postprocessors = get_postprocessors()
+        module_name = next(iter(postprocessors))
+        preferences.enabled_postprocessors = [module_name, "missing_postprocessor"]
+
+        self.window.apply_loaded_preferences()
+
+        self.assertEqual(preferences.enabled_postprocessors, [module_name])
+        self.assertTrue(postprocessors[module_name].enabled)
+        self.assertTrue(self.window.postprocessor_checkboxes[module_name].isChecked())
+
     def test_directory_name_initialized_before_load_settings_file(self):
         self.assertIsNone(self.window.directory_name)
 
