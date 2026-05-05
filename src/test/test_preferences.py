@@ -49,7 +49,7 @@ class TestPreferences(unittest.TestCase):
         self.assertEqual(mean_limit["min"], 1.0)
         self.assertEqual(mean_limit["max"], 5.0)
 
-    def test_custom_extra_alert_limits_are_preserved(self):
+    def test_custom_extra_alert_limits_are_ignored(self):
         custom_limit = {
             "name": "custom_stat",
             "units": "arb",
@@ -59,8 +59,8 @@ class TestPreferences(unittest.TestCase):
 
         normalized_limits = _normalize_alert_limits([custom_limit])
 
-        self.assertIn(custom_limit, normalized_limits)
-        self.assertEqual(len(normalized_limits), len(settings.ALERT_LIMITS_DEFAULT) + 1)
+        self.assertNotIn(custom_limit, normalized_limits)
+        self.assertEqual(len(normalized_limits), len(settings.ALERT_LIMITS_DEFAULT))
 
     def test_distance_highlight_regions_round_trip_through_normalizers(self):
         regions = [DistanceHighlightRegion(start=1.0, end=2.0, mode=DISTANCE_HIGHLIGHT_MODE_RELATIVE, color="tab:blue")]
@@ -187,11 +187,12 @@ class TestPreferences(unittest.TestCase):
                 json.dump(
                     {
                         "enabled_postprocessors": None,
+                        "locale": "missing-locale",
                         "show_plot_toolbar": "false",
                         "show_spectrum": [],
                         "pinned_serial_ports": "COM1",
                         "distance_unit": "yards",
-                        "excluded_regions": 123,
+                        "excluded_regions": "bad-range",
                         "excluded_regions_mode": "bad-mode",
                         "default_y_axis_scaling": "bad-scaling",
                         "y_lim_low_override": "5.5",
@@ -205,6 +206,7 @@ class TestPreferences(unittest.TestCase):
 
             self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
             self.assertEqual(preferences.enabled_postprocessors, settings.DEFAULT_ENABLED_POSTPROCESSORS)
+            self.assertEqual(preferences.locale, settings.LOCALE_DEFAULT)
             self.assertFalse(preferences.show_plot_toolbar)
             self.assertEqual(preferences.show_spectrum, settings.SHOW_SPECTRUM_DEFAULT)
             self.assertEqual(preferences.pinned_serial_ports, settings.PINNED_SERIAL_PORTS_DEFAULT)
@@ -214,6 +216,39 @@ class TestPreferences(unittest.TestCase):
             self.assertEqual(preferences.default_y_axis_scaling, settings.Y_AXIS_SCALING_DEFAULT)
             self.assertEqual(preferences.y_lim_low_override, 5.5)
             self.assertEqual(preferences.y_lim_high_override, settings.Y_LIM_HIGH_OVERRIDE_DEFAULT)
+            self.assertEqual(preferences.band_pass_high, settings.BAND_PASS_HIGH_DEFAULT)
+
+    def test_invalid_cross_field_values_fall_back_to_defaults(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "bad-cross-field-values.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "band_pass_low": 50,
+                        "band_pass_high": 10,
+                        "y_lim_low_override": 20,
+                        "y_lim_high_override": 10,
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            self.assertEqual(preferences.band_pass_low, settings.BAND_PASS_LOW_DEFAULT)
+            self.assertEqual(preferences.band_pass_high, 10)
+            self.assertEqual(preferences.y_lim_low_override, settings.Y_LIM_LOW_OVERRIDE_DEFAULT)
+            self.assertEqual(preferences.y_lim_high_override, settings.Y_LIM_HIGH_OVERRIDE_DEFAULT)
+
+    def test_band_pass_high_outside_supported_range_uses_default(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "bad-band-pass.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump({"band_pass_high": 1000}, handle)
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
             self.assertEqual(preferences.band_pass_high, settings.BAND_PASS_HIGH_DEFAULT)
 
     def test_legacy_excluded_regions_enabled_string_false_keeps_mode_none(self):
@@ -252,6 +287,90 @@ class TestPreferences(unittest.TestCase):
             mean_limit = next(limit for limit in preferences.alert_limits if limit["name"] == "mean_g")
             self.assertIsNone(mean_limit["min"])
             self.assertEqual(mean_limit["max"], 2.5)
+
+    def test_invalid_alert_limit_units_and_ranges_use_defaults(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "bad-alert-limit-values.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "alert_limits": [
+                            {
+                                "name": "slope_deg",
+                                "units": "wrong",
+                                "min": 10,
+                                "max": -10,
+                            }
+                        ]
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            slope_limit = next(limit for limit in preferences.alert_limits if limit["name"] == "slope_deg")
+            self.assertEqual(slope_limit["units"], "g/RL")
+            self.assertIsNone(slope_limit["min"])
+            self.assertIsNone(slope_limit["max"])
+
+    def test_update_preferences_does_not_save_unknown_alert_limit_names(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            preferences.preferences_file_path = os.path.join(tmpdir, "prefs.json")
+
+            preferences.update_preferences(
+                {
+                    "alert_limits": [
+                        {
+                            "name": "slope_dag",
+                            "units": "g/RL",
+                            "min": -10,
+                            "max": 10,
+                        },
+                        {
+                            "name": "slope_deg",
+                            "units": "g/RL",
+                            "min": -5,
+                            "max": 5,
+                        },
+                    ]
+                }
+            )
+
+            self.assertNotIn("slope_dag", [limit["name"] for limit in preferences.alert_limits])
+            with open(preferences.preferences_file_path, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            self.assertNotIn("slope_dag", [limit["name"] for limit in data["alert_limits"]])
+            slope_limit = next(limit for limit in data["alert_limits"] if limit["name"] == "slope_deg")
+            self.assertEqual(slope_limit["min"], -5.0)
+            self.assertEqual(slope_limit["max"], 5.0)
+
+    def test_malformed_slope_alert_limit_name_is_dropped(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "bad-slope-key.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "alert_limits": [
+                            {
+                                "name": "slope_dag",
+                                "units": "g/RL",
+                                "min": "-10",
+                                "max": "10",
+                            }
+                        ]
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            self.assertNotIn("slope_dag", [limit["name"] for limit in preferences.alert_limits])
+            slope_limit = next(limit for limit in preferences.alert_limits if limit["name"] == "slope_deg")
+            self.assertEqual(slope_limit["units"], "g/RL")
+            self.assertIsNone(slope_limit["min"])
+            self.assertIsNone(slope_limit["max"])
 
     def test_unknown_json_keys_are_ignored(self):
         with tempfile.TemporaryDirectory() as tmpdir:

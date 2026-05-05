@@ -132,6 +132,21 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         self.assertEqual(row.min_input.maximumWidth(), row.INPUT_WIDTH)
         self.assertEqual(row.max_input.maximumWidth(), row.INPUT_WIDTH)
 
+    def test_unknown_alert_limit_name_does_not_crash_settings_page(self):
+        self.page.close()
+        preferences.alert_limits = [
+            {
+                "name": "slope_dag",
+                "units": "g/RL",
+                "min": None,
+                "max": None,
+            }
+        ]
+
+        self.page = AlertLimitSettingsPage()
+
+        self.assertEqual(self.page.setting_widgets[0].label.text(), "slope_dag [g/RL]")
+
 
 class TestGeneralSettingsPage(unittest.TestCase):
     @classmethod

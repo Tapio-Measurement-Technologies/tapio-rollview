@@ -238,7 +238,9 @@ class AlertLimitSetting(QFrame):
         layout.setSpacing(12)
         self.setLayout(layout)
 
-        self.label = QLabel(f"{profile_stats.stat_labels[limit['name']]} [{limit['units']}]")
+        limit_name = limit.get('name', '')
+        limit_units = limit.get('units', '')
+        self.label = QLabel(f"{profile_stats.stat_labels.get(limit_name, limit_name)} [{limit_units}]")
         self.label.setMinimumWidth(120)
         layout.addWidget(self.label)
 

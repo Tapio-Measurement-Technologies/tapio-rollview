@@ -13,6 +13,7 @@ from utils.highlighted_regions import (
     serialize_distance_highlight_regions,
     serialize_hardness_highlight_regions,
 )
+from utils.range_utils import parse_numeric_ranges
 
 default_preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE_PATH)
 preferences_file_path = default_preferences_file_path
@@ -29,6 +30,7 @@ LOAD_STATUS_LOADED = "loaded"
 LOAD_STATUS_CREATED_DEFAULTS = "created_defaults"
 LOAD_STATUS_EMPTY = "empty"
 LOAD_STATUS_INVALID = "invalid"
+BAND_PASS_HIGH_MAX = 100.0
 
 
 # Default values with type converters for special handling
@@ -80,26 +82,26 @@ def _normalize_alert_limits(limits):
         limits = []
 
     normalized_limits = []
+    default_names = {limit['name'] for limit in settings.ALERT_LIMITS_DEFAULT}
     configured_by_name = {
         limit.get('name'): limit
         for limit in limits
-        if isinstance(limit, dict) and limit.get('name')
+        if isinstance(limit, dict) and limit.get('name') in default_names
     }
 
     for default_limit in settings.ALERT_LIMITS_DEFAULT:
         existing_limit = configured_by_name.pop(default_limit['name'], {})
         normalized_limit = copy.deepcopy(default_limit)
-        normalized_limit['units'] = existing_limit.get('units', normalized_limit['units'])
         normalized_limit['min'] = _coerce_optional_float(existing_limit.get('min'), None)
         normalized_limit['max'] = _coerce_optional_float(existing_limit.get('max'), None)
+        if (
+            normalized_limit['min'] is not None
+            and normalized_limit['max'] is not None
+            and normalized_limit['min'] > normalized_limit['max']
+        ):
+            normalized_limit['min'] = None
+            normalized_limit['max'] = None
         normalized_limits.append(normalized_limit)
-
-    for extra_limit in configured_by_name.values():
-        preserved_limit = copy.deepcopy(extra_limit)
-        preserved_limit.setdefault('units', '')
-        preserved_limit['min'] = _coerce_optional_float(preserved_limit.get('min'), None)
-        preserved_limit['max'] = _coerce_optional_float(preserved_limit.get('max'), None)
-        normalized_limits.append(preserved_limit)
 
     return normalized_limits
 
@@ -156,6 +158,53 @@ def _coerce_choice(value, choices, default):
     return value if value in choices else default
 
 
+def _available_locales():
+    try:
+        return {
+            name
+            for name in os.listdir(settings.LOCALE_FILES_PATH)
+            if os.path.isdir(os.path.join(settings.LOCALE_FILES_PATH, name))
+        }
+    except OSError:
+        return {settings.LOCALE_DEFAULT}
+
+
+def _coerce_locale(value, default):
+    if not isinstance(value, str):
+        return default
+    locale = value[:2]
+    return locale if locale in _available_locales() else default
+
+
+def _coerce_excluded_regions(value, default):
+    if not isinstance(value, str):
+        return default
+    try:
+        parse_numeric_ranges(value)
+    except ValueError:
+        return default
+    return value
+
+
+def _coerce_band_pass_high(value, default):
+    coerced = _coerce_float(value, default)
+    if coerced < settings.BAND_PASS_HIGH_MIN or coerced > BAND_PASS_HIGH_MAX:
+        return default
+    return coerced
+
+
+def _sanitize_cross_field_preferences():
+    if band_pass_low < 0 or band_pass_low >= band_pass_high:
+        globals()['band_pass_low'] = settings.BAND_PASS_LOW_DEFAULT
+    if (
+        y_lim_low_override is not None
+        and y_lim_high_override is not None
+        and y_lim_low_override >= y_lim_high_override
+    ):
+        globals()['y_lim_low_override'] = settings.Y_LIM_LOW_OVERRIDE_DEFAULT
+        globals()['y_lim_high_override'] = settings.Y_LIM_HIGH_OVERRIDE_DEFAULT
+
+
 def _coerce_preference_value(key, value):
     default = _default_value(key)
 
@@ -172,13 +221,13 @@ def _coerce_preference_value(key, value):
     if key == 'enabled_postprocessors':
         return _coerce_string_list(value, key)
     if key == 'locale':
-        return _coerce_string(value, default)
+        return _coerce_locale(value, default)
     if key == 'pinned_serial_ports':
         return _coerce_string_set(value, key)
     if key == 'distance_unit':
         return _coerce_choice(value, settings.DISTANCE_UNITS.keys(), default)
     if key == 'excluded_regions':
-        return _coerce_string(value, default)
+        return _coerce_excluded_regions(value, default)
     if key == 'excluded_regions_mode':
         return _coerce_choice(
             value,
@@ -200,8 +249,10 @@ def _coerce_preference_value(key, value):
         )
     if key in ('y_lim_low_override', 'y_lim_high_override'):
         return _coerce_optional_float(value, default)
-    if key in ('band_pass_low', 'band_pass_high'):
+    if key == 'band_pass_low':
         return _coerce_float(value, default)
+    if key == 'band_pass_high':
+        return _coerce_band_pass_high(value, default)
     if key == 'alert_limits':
         return _normalize_alert_limits(value)
     if key == 'distance_highlight_regions':
@@ -258,6 +309,7 @@ def _apply_loaded_preferences(loaded_prefs):
     globals()['excluded_regions_enabled'] = (
         globals()['excluded_regions_mode'] != settings.EXCLUDED_REGIONS_MODE_NONE
     )
+    _sanitize_cross_field_preferences()
 
 
 def _ensure_parent_directory(path):
@@ -341,6 +393,7 @@ def update_preferences(updates):
     for key, value in updates.items():
         globals()[key] = _coerce_preference_value(key, value)
 
+    _sanitize_cross_field_preferences()
     save_preferences_to_file()
 
 
