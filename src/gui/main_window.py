@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
 
         self.tab_view = QTabWidget()
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
-        self.statistics_analysis_widget.directory_selected.connect(self.on_directory_selected)
+        self.statistics_analysis_widget.directory_selected.connect(self.on_statistics_directory_selected)
         self.profile_widget = ProfileWidget()
         self.tab_view.addTab(self.profile_widget, _("TAB_TITLE_PROFILES"))
         self.tab_view.addTab(self.statistics_analysis_widget, _("TAB_TITLE_STATISTICS"))
@@ -411,6 +411,14 @@ class MainWindow(QMainWindow):
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
+
+    def on_statistics_directory_selected(self, directory):
+        self.on_directory_selected(directory)
+        self.statistics_analysis_widget.highlight_point(directory)
+
+        blocker = QSignalBlocker(self.directory_view)
+        self.directory_view.select_directory_by_path(directory)
+        del blocker
 
     def load_profiles(self, dir_path):
         # Validate that the directory path exists and is a directory

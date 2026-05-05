@@ -208,7 +208,6 @@ class StatisticsAnalysisChart(QWidget):
         return added_texts
 
     def on_pick(self, event):
-        vis = self.annot.get_visible()
         if event.artist not in self.bars:
             return True
 
@@ -216,6 +215,7 @@ class StatisticsAnalysisChart(QWidget):
         bar_index = list(self.bars).index(event.artist)
         point = self.stat_data[bar_index]
 
+        self.highlight_point(point['label'])
         self.point_selected.emit(point['path'])
 
 class StatisticsAnalysisWidget(QWidget):

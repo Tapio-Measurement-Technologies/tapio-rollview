@@ -152,6 +152,27 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             result = self.window.load_settings_file_from_path(path)
             self.assertEqual(result.status, preferences.LOAD_STATUS_CREATED_DEFAULTS)
 
+    def test_statistics_directory_selection_updates_app_plot_and_tree(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            selected_directory = os.path.join(tmpdir, "roll-1")
+            os.mkdir(selected_directory)
+            self.window.on_directory_selected = MagicMock()
+            self.window.statistics_analysis_widget.highlight_point = MagicMock()
+
+            signal_block_states = []
+
+            def capture_signal_block_state(path):
+                signal_block_states.append(self.window.directory_view.signalsBlocked())
+
+            self.window.directory_view.select_directory_by_path = MagicMock(side_effect=capture_signal_block_state)
+
+            self.window.on_statistics_directory_selected(selected_directory)
+
+            self.window.on_directory_selected.assert_called_once_with(selected_directory)
+            self.window.statistics_analysis_widget.highlight_point.assert_called_once_with(selected_directory)
+            self.window.directory_view.select_directory_by_path.assert_called_once_with(selected_directory)
+            self.assertEqual(signal_block_states, [True])
+
 
 if __name__ == "__main__":
     unittest.main()
