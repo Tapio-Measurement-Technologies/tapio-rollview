@@ -215,6 +215,26 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             view.close()
 
+    def test_on_directory_renamed_emits_new_selected_path(self):
+        view = DirectoryView()
+        try:
+            view._root_directory = "/tmp/root"
+            view.get_selected_directory_path = MagicMock(return_value="/tmp/root/new")
+            view.watch_directory_and_subdirs = MagicMock()
+            view.model.invalidate_cache = MagicMock()
+            emitted_paths = []
+            view.directory_selected.connect(emitted_paths.append)
+
+            with patch("gui.widgets.DirectoryView.os.path.isdir", return_value=True):
+                view.on_directory_renamed("/tmp/root", "old", "new")
+
+            view.model.invalidate_cache.assert_any_call("/tmp/root/old")
+            view.model.invalidate_cache.assert_any_call("/tmp/root/new")
+            view.watch_directory_and_subdirs.assert_called_once_with("/tmp/root")
+            self.assertEqual(emitted_paths, ["/tmp/root/new"])
+        finally:
+            view.close()
+
 
 if __name__ == "__main__":
     unittest.main()

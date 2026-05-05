@@ -13,7 +13,6 @@ from PySide6.QtCore import QDir, Signal, Qt, QFile, QModelIndex, QFileInfo, QSor
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
-import os
 
 
 class RenameDialog(QDialog):
@@ -58,6 +57,9 @@ class ContextMenuTreeView(QTreeView):
         else:
             self._proxy_model = None
             self._model = model
+
+        if isinstance(self._model, QFileSystemModel):
+            self._model.setReadOnly(False)
 
         # Add F2 shortcut for rename
         self.rename_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
@@ -108,6 +110,7 @@ class ContextMenuTreeView(QTreeView):
             self.rename_file(indexes[0])
 
     def rename_file(self, index: QModelIndex):
+        index = index.siblingAtColumn(0)
         if self._proxy_model:
             index = self._proxy_model.mapToSource(index)
         old_name = self._model.fileName(index)
@@ -117,11 +120,7 @@ class ContextMenuTreeView(QTreeView):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             new_name = dialog.text_value()
             if new_name and new_name != old_name:
-                old_path = self._model.filePath(index)
-                parent_path = self._model.filePath(index.parent())
-                new_path = os.path.join(parent_path, new_name)
-
-                if not QFile.rename(old_path, new_path):
+                if not self._model.setData(index, new_name, Qt.ItemDataRole.EditRole):
                     QMessageBox.warning(self, _("RENAME_FAILED_MSGBOX_TITLE"), f"{_("RENAME_FAILED_MSGBOX_TEXT")} {old_name}")
 
     def delete_file(self, index: QModelIndex):

@@ -215,6 +215,7 @@ class FileView(QWidget):
         layout.addWidget(self.view)
 
         self.model.dataChanged.connect(self.on_files_updated)
+        self.model.fileRenamed.connect(self.on_file_renamed)
         self.proxy_model.rowsRemoved.connect(self.on_rows_removed)
 
     def set_directory(self, path):
@@ -261,6 +262,10 @@ class FileView(QWidget):
             source_index = self.proxy_model.mapToSource(selected)
             file_path = self.model.filePath(source_index)
             self.file_selected.emit(file_path)
+
+    def on_file_renamed(self, path, old_name, new_name):
+        if store.selected_profile == old_name:
+            self.file_selected.emit(os.path.join(path, new_name))
 
     @staticmethod
     def get_row_to_select_after_delete(deleted_row, row_count):

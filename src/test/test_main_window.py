@@ -29,6 +29,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         }
         self.original_preferences_file_path = preferences.preferences_file_path
         self.original_store_selected_directory = store.selected_directory
+        self.original_store_selected_profile = store.selected_profile
         self.original_store_profiles = store.profiles
 
         with patch.object(self.main_window_class, "on_directory_selected"), \
@@ -49,6 +50,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             preferences.__dict__[key] = value
         preferences.preferences_file_path = self.original_preferences_file_path
         store.selected_directory = self.original_store_selected_directory
+        store.selected_profile = self.original_store_selected_profile
         store.profiles = self.original_store_profiles
 
     def test_file_menu_contains_load_settings_action(self):
@@ -172,6 +174,33 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             self.window.statistics_analysis_widget.highlight_point.assert_called_once_with(selected_directory)
             self.window.directory_view.select_directory_by_path.assert_called_once_with(selected_directory)
             self.assertEqual(signal_block_states, [True])
+
+    def test_directory_selection_clears_selected_profile_when_directory_changes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_directory = os.path.join(tmpdir, "old")
+            new_directory = os.path.join(tmpdir, "new")
+            os.mkdir(old_directory)
+            os.mkdir(new_directory)
+
+            store.selected_directory = old_directory
+            store.selected_profile = "selected.prof"
+            self.window.fileView.set_directory = MagicMock()
+            self.window.profile_widget.update_plot = MagicMock()
+
+            self.window.on_directory_selected(new_directory)
+
+            self.assertIsNone(store.selected_profile)
+
+    def test_directory_selection_keeps_selected_profile_when_directory_is_same(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store.selected_directory = tmpdir
+            store.selected_profile = "selected.prof"
+            self.window.fileView.set_directory = MagicMock()
+            self.window.profile_widget.update_plot = MagicMock()
+
+            self.window.on_directory_selected(tmpdir)
+
+            self.assertEqual(store.selected_profile, "selected.prof")
 
 
 if __name__ == "__main__":

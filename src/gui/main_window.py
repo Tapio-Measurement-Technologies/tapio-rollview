@@ -406,8 +406,11 @@ class MainWindow(QMainWindow):
         if not directory or not os.path.exists(directory) or not os.path.isdir(directory):
             return
 
+        directory_changed = store.selected_directory != directory
         self.directory_name = os.path.basename(directory)
         store.selected_directory = directory
+        if directory_changed:
+            store.selected_profile = None
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
         self.profile_widget.update_plot(store.profiles, self.directory_name)

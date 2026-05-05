@@ -56,6 +56,7 @@ class DirectoryView(QWidget):
         self.model.setRootPath(QDir.homePath())
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
         self.model.directoryLoaded.connect(self.init_selection)
+        self.model.fileRenamed.connect(self.on_directory_renamed)
 
         self.proxy_model = DirectorySortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -253,6 +254,21 @@ class DirectoryView(QWidget):
 
         file_path = self.model.filePath(source_index)
         self.directory_selected.emit(file_path)
+
+    def on_directory_renamed(self, path, old_name, new_name):
+        old_path = os.path.join(path, old_name)
+        new_path = os.path.join(path, new_name)
+        if not os.path.isdir(new_path):
+            return
+
+        self.model.invalidate_cache(old_path)
+        self.model.invalidate_cache(new_path)
+        if self._root_directory:
+            self.watch_directory_and_subdirs(self._root_directory)
+
+        current_path = self.get_selected_directory_path()
+        if current_path in (old_path, new_path):
+            self.directory_selected.emit(new_path)
 
     def on_delete_requested(self, index):
         proxy_index = index.siblingAtColumn(0)
