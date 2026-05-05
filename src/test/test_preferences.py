@@ -180,5 +180,138 @@ class TestPreferences(unittest.TestCase):
             self.assertEqual(preferences.distance_unit, "cm")
             self.assertEqual(preferences.show_spectrum, settings.SHOW_SPECTRUM_DEFAULT)
 
+    def test_invalid_preference_values_fall_back_to_defaults(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "invalid-values.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "enabled_postprocessors": None,
+                        "show_plot_toolbar": "false",
+                        "show_spectrum": [],
+                        "pinned_serial_ports": "COM1",
+                        "distance_unit": "yards",
+                        "excluded_regions": 123,
+                        "excluded_regions_mode": "bad-mode",
+                        "default_y_axis_scaling": "bad-scaling",
+                        "y_lim_low_override": "5.5",
+                        "y_lim_high_override": "nan",
+                        "band_pass_high": "fast",
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            self.assertEqual(preferences.enabled_postprocessors, settings.DEFAULT_ENABLED_POSTPROCESSORS)
+            self.assertFalse(preferences.show_plot_toolbar)
+            self.assertEqual(preferences.show_spectrum, settings.SHOW_SPECTRUM_DEFAULT)
+            self.assertEqual(preferences.pinned_serial_ports, settings.PINNED_SERIAL_PORTS_DEFAULT)
+            self.assertEqual(preferences.distance_unit, settings.DISTANCE_UNIT_DEFAULT)
+            self.assertEqual(preferences.excluded_regions, settings.EXCLUDED_REGIONS_DEFAULT)
+            self.assertEqual(preferences.excluded_regions_mode, settings.EXCLUDED_REGIONS_MODE_DEFAULT)
+            self.assertEqual(preferences.default_y_axis_scaling, settings.Y_AXIS_SCALING_DEFAULT)
+            self.assertEqual(preferences.y_lim_low_override, 5.5)
+            self.assertEqual(preferences.y_lim_high_override, settings.Y_LIM_HIGH_OVERRIDE_DEFAULT)
+            self.assertEqual(preferences.band_pass_high, settings.BAND_PASS_HIGH_DEFAULT)
+
+    def test_legacy_excluded_regions_enabled_string_false_keeps_mode_none(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "legacy.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump({"excluded_regions_enabled": "false"}, handle)
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            self.assertEqual(preferences.excluded_regions_mode, settings.EXCLUDED_REGIONS_MODE_NONE)
+            self.assertFalse(preferences.excluded_regions_enabled)
+
+    def test_invalid_alert_limit_numbers_are_ignored(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "alert-limits.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "alert_limits": [
+                            {
+                                "name": "mean_g",
+                                "units": "g",
+                                "min": "bad",
+                                "max": "2.5",
+                            }
+                        ]
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            mean_limit = next(limit for limit in preferences.alert_limits if limit["name"] == "mean_g")
+            self.assertIsNone(mean_limit["min"])
+            self.assertEqual(mean_limit["max"], 2.5)
+
+    def test_unknown_json_keys_are_ignored(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "unknown-key.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "distance_unit": "in",
+                        "future_setting": {"unexpected": True},
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            self.assertEqual(preferences.distance_unit, "in")
+            self.assertNotIn("future_setting", preferences.__dict__)
+
+    def test_top_level_json_must_be_object(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "list.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump([], handle)
+
+            preferences.preferences_file_path = os.path.join(tmpdir, "active.json")
+            preferences.distance_unit = "cm"
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_INVALID)
+            self.assertIn("Top-level JSON must be an object", result.error)
+            self.assertEqual(preferences.distance_unit, "cm")
+            self.assertEqual(preferences.get_preferences_file_path(), os.path.join(tmpdir, "active.json"))
+
+    def test_invalid_highlight_region_values_are_ignored(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            custom_path = os.path.join(tmpdir, "bad-highlights.json")
+            with open(custom_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "distance_highlight_regions": [
+                            {"start": "bad", "end": 2, "mode": "absolute", "color": "tab:blue"},
+                            {"start": 1, "end": 2, "mode": "absolute", "color": "tab:red"},
+                        ],
+                        "hardness_highlight_regions": [
+                            {"mode": "fixed", "color": "tab:blue", "min_value": "bad", "max_value": 2},
+                            {"mode": "mean_offset_absolute", "color": "tab:green", "lower_offset": -1},
+                        ],
+                    },
+                    handle,
+                )
+
+            result = preferences.load_preferences_from_file(custom_path)
+
+            self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
+            self.assertEqual(len(preferences.distance_highlight_regions), 1)
+            self.assertEqual(preferences.distance_highlight_regions[0].color, "tab:red")
+            self.assertEqual(len(preferences.hardness_highlight_regions), 1)
+            self.assertEqual(preferences.hardness_highlight_regions[0].color, "tab:green")
+
 if __name__ == "__main__":
     unittest.main()
