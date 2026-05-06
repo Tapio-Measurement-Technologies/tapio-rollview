@@ -125,7 +125,7 @@ ALERT_LIMITS_DEFAULT = [
     },
     {
         "name": "slope_deg",
-        "units": "g/RL",
+        "units": "g",
         "min": None,
         "max": None
     }

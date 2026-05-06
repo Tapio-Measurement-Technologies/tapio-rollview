@@ -137,7 +137,7 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         preferences.alert_limits = [
             {
                 "name": "slope_dag",
-                "units": "g/RL",
+                "units": "g",
                 "min": None,
                 "max": None,
             }
@@ -145,7 +145,7 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
 
         self.page = AlertLimitSettingsPage()
 
-        self.assertEqual(self.page.setting_widgets[0].label.text(), "slope_dag [g/RL]")
+        self.assertEqual(self.page.setting_widgets[0].label.text(), "slope_dag [g]")
 
 
 class TestGeneralSettingsPage(unittest.TestCase):

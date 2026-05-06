@@ -55,7 +55,7 @@ STAT_SPECS = [
         "name": "slope_deg",
         "label": "Slope",
         "long_label": "Slope",
-        "unit": "g/RL",
+        "unit": "g",
     },
 ]
 
@@ -170,7 +170,7 @@ class Stats:
         self.max.unit = 'g'
         self.cv.unit = '%'
         self.pp.unit = 'g'
-        self.slope.unit = 'g/RL'
+        self.slope.unit = 'g'
 
         self.mean.name = "mean_g"
         self.std.name = "stdev_g"

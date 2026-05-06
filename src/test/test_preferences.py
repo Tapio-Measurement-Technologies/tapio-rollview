@@ -41,7 +41,7 @@ class TestPreferences(unittest.TestCase):
         self.assertIn("slope_deg", normalized_names)
 
         slope_limit = next(limit for limit in normalized_limits if limit["name"] == "slope_deg")
-        self.assertEqual(slope_limit["units"], "g/RL")
+        self.assertEqual(slope_limit["units"], "g")
         self.assertIsNone(slope_limit["min"])
         self.assertIsNone(slope_limit["max"])
 
@@ -310,7 +310,7 @@ class TestPreferences(unittest.TestCase):
 
             self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
             slope_limit = next(limit for limit in preferences.alert_limits if limit["name"] == "slope_deg")
-            self.assertEqual(slope_limit["units"], "g/RL")
+            self.assertEqual(slope_limit["units"], "g")
             self.assertIsNone(slope_limit["min"])
             self.assertIsNone(slope_limit["max"])
 
@@ -323,13 +323,13 @@ class TestPreferences(unittest.TestCase):
                     "alert_limits": [
                         {
                             "name": "slope_dag",
-                            "units": "g/RL",
+                            "units": "g",
                             "min": -10,
                             "max": 10,
                         },
                         {
                             "name": "slope_deg",
-                            "units": "g/RL",
+                            "units": "g",
                             "min": -5,
                             "max": 5,
                         },
@@ -354,7 +354,7 @@ class TestPreferences(unittest.TestCase):
                         "alert_limits": [
                             {
                                 "name": "slope_dag",
-                                "units": "g/RL",
+                                "units": "g",
                                 "min": "-10",
                                 "max": "10",
                             }
@@ -368,7 +368,7 @@ class TestPreferences(unittest.TestCase):
             self.assertEqual(result.status, preferences.LOAD_STATUS_LOADED)
             self.assertNotIn("slope_dag", [limit["name"] for limit in preferences.alert_limits])
             slope_limit = next(limit for limit in preferences.alert_limits if limit["name"] == "slope_deg")
-            self.assertEqual(slope_limit["units"], "g/RL")
+            self.assertEqual(slope_limit["units"], "g")
             self.assertIsNone(slope_limit["min"])
             self.assertIsNone(slope_limit["max"])
 
