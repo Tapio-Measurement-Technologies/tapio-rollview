@@ -43,7 +43,7 @@ msgstr "受信中"
 
 #. Used in file transfer dialog as group box title.
 msgid "TOTAL_PROGRESS"
-msgstr "全体の進捗"
+msgstr "実行中"
 
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_FILE"
@@ -196,7 +196,7 @@ msgstr "変更に失敗しました"
 
 #. Used in file tree context menu as message text.
 msgid "DELETE_DIALOG_FOLDER_CONFIRM"
-msgstr "{path} とその中身をすべて削除しますか？"
+msgstr "フォルダとその中身をすべて削除しますか？"
 
 #. Used in file tree context menu as window or dialog title.
 msgid "DELETE_DIALOG_TITLE"
@@ -240,7 +240,7 @@ msgstr "測定長"
 
 #. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
-msgstr "Progress"
+msgstr "実行中"
 
 #. Used in QR config dialog, crash dialog, and progress dialog as button label and
 #. runtime status text.
@@ -554,7 +554,7 @@ msgstr "プロファイル"
 
 #. Used in main window as tab title.
 msgid "TAB_TITLE_STATISTICS"
-msgstr "履歴"
+msgstr "統計"
 
 #. Used in stats widget as menu action label.
 msgid "COPY_STATS_TO_CLIPBOARD"
@@ -574,7 +574,7 @@ msgstr "QRコードをスキャン"
 
 #. Used in QR config dialog as label text.
 msgid "QR_CONFIG_INSTRUCTION"
-msgstr "RQP LiveでこのQRコードをスキャンして、現在のアラート設定をデバイスに適用してください。"
+msgstr "RQP LiveでこのQRコードをスキャンして、現在のアラート設定をデバイスに適用します。"
 
 #. Used in file utility dialogs, file list view, and directory view as message text
 #. and file operation error text.
@@ -597,7 +597,7 @@ msgstr "アクセス権限がありません: {directory}"
 #. Used in file utility dialogs, file list view, and directory view as message text
 #. and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_OPERATION_FAILED"
-msgstr "操作が失敗しました: {error}"
+msgstr "操作に失敗しました: {error}"
 
 #. Used in file utility dialogs as message text and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_OPEN_EXPLORER_FAILED"
@@ -609,11 +609,11 @@ msgstr "このプラットフォームではファイルエクスプローラー
 
 #. Used in settings window as label text.
 msgid "OVERRIDE_DEFAULT_Y_LIMITS"
-msgstr "デフォルトのY範囲を上書き"
+msgstr "デフォルトのY軸設定を上書き"
 
 #. Used in settings window as label text.
 msgid "DEFAULT_Y_AXIS_SCALING"
-msgstr "デフォルトのY軸スケーリング"
+msgstr "デフォルトのY軸スケール"
 
 #. Used in settings window as dropdown option.
 msgid "Y_AXIS_SCALING_START_AT_ZERO"
@@ -621,7 +621,7 @@ msgstr "ゼロから開始"
 
 #. Used in settings window as dropdown option.
 msgid "Y_AXIS_SCALING_FIT_TO_DATA"
-msgstr "データに合わせる"
+msgstr "値に合わせて調整"
 
 #. Used in main window as window or dialog title and window title.
 msgid "WINDOW_TITLE_MAIN"
@@ -650,11 +650,11 @@ msgstr "ログをクリア"
 
 #. Used in log window as button label.
 msgid "EXPORT_TO_FILE"
-msgstr "ファイルに書き出す"
+msgstr "ファイルの出力"
 
 #. Used in log window as file dialog title.
 msgid "EXPORT_LOG"
-msgstr "ログを書き出す"
+msgstr "ログの出力"
 
 #. Used in log window and crash dialog as file dialog filter text.
 msgid "FILE_DIALOG_LOG_FILTER"
@@ -694,7 +694,7 @@ msgstr "アラート制限を編集"
 
 #. Used in language selector as English language option label.
 msgid "LANGUAGE_NAME_ENGLISH"
-msgstr "英語"
+msgstr "English"
 
 #. Used in language selector as Japanese language option label.
 msgid "LANGUAGE_NAME_JAPANESE"
@@ -706,11 +706,11 @@ msgstr "なし"
 
 #. Used in settings window as dropdown option.
 msgid "EXCLUDED_REGIONS_MODE_RELATIVE"
-msgstr "相対"
+msgstr "相対値"
 
 #. Used in settings window as dropdown option.
 msgid "EXCLUDED_REGIONS_MODE_ABSOLUTE"
-msgstr "絶対"
+msgstr "絶対値"
 
 #. Used in annotations settings page as page title.
 msgid "ANNOTATIONS"
