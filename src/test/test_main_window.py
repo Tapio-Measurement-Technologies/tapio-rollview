@@ -202,6 +202,85 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
             self.assertEqual(store.selected_profile, "selected.prof")
 
+    def test_root_directory_change_points_file_view_at_root_when_nothing_selected(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store.selected_directory = None
+            store.selected_profile = "selected.prof"
+            store.profiles = ["stale"]
+            self.window.fileView.set_directory = MagicMock()
+            self.window.profile_widget.clear_plot_display = MagicMock()
+
+            self.window.on_root_directory_changed(tmpdir)
+
+            self.assertEqual(store.root_directory, tmpdir)
+            self.assertIsNone(store.selected_directory)
+            self.assertIsNone(store.selected_profile)
+            self.assertEqual(store.profiles, [])
+            self.window.fileView.set_directory.assert_called_once_with(tmpdir)
+            self.window.profile_widget.clear_plot_display.assert_called_once()
+
+    def test_root_directory_change_does_not_blank_plot_when_profile_folders_exist(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.mkdir(os.path.join(tmpdir, "roll-1"))
+            store.selected_directory = None
+            self.window.fileView.set_directory = MagicMock()
+            self.window.profile_widget.clear_plot_display = MagicMock()
+
+            self.window.on_root_directory_changed(tmpdir)
+
+            self.window.fileView.set_directory.assert_called_once_with(tmpdir)
+            self.window.profile_widget.clear_plot_display.assert_not_called()
+
+    def test_directory_contents_changed_clears_plot_when_last_folder_deleted(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store.root_directory = tmpdir
+            store.selected_directory = os.path.join(tmpdir, "deleted")
+            store.selected_profile = "selected.prof"
+            store.profiles = ["stale"]
+            self.window.fileView.set_directory = MagicMock()
+            self.window.profile_widget.clear_plot_display = MagicMock()
+
+            self.window.on_directory_contents_changed()
+
+            self.assertIsNone(store.selected_directory)
+            self.assertIsNone(store.selected_profile)
+            self.assertEqual(store.profiles, [])
+            self.window.fileView.set_directory.assert_called_once_with(tmpdir)
+            self.window.profile_widget.clear_plot_display.assert_called_once()
+
+    def test_directory_contents_changed_selects_first_folder_when_selected_folder_deleted(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.mkdir(os.path.join(tmpdir, "remaining"))
+            store.root_directory = tmpdir
+            store.selected_directory = os.path.join(tmpdir, "deleted")
+            self.window.directory_view.select_first_directory = MagicMock()
+            self.window.profile_widget.clear_plot_display = MagicMock()
+
+            self.window.on_directory_contents_changed()
+
+            self.window.directory_view.select_first_directory.assert_called_once()
+            self.window.profile_widget.clear_plot_display.assert_not_called()
+
+    def test_file_transfer_finished_refreshes_directory_dates_before_postprocessing(self):
+        folder_paths = ["/tmp/roll-1"]
+        call_order = []
+        self.window.directory_view.refresh_directory_dates = MagicMock(
+            side_effect=lambda paths: call_order.append("refresh")
+        )
+        self.window.postprocess_manager.run_postprocessors = MagicMock(
+            side_effect=lambda paths: call_order.append("postprocess")
+        )
+        self.window.on_directory_contents_changed = MagicMock(
+            side_effect=lambda: call_order.append("reload")
+        )
+
+        self.window.on_file_transfer_finished(folder_paths)
+
+        self.window.directory_view.refresh_directory_dates.assert_called_once_with(folder_paths)
+        self.window.postprocess_manager.run_postprocessors.assert_called_once_with(folder_paths)
+        self.window.on_directory_contents_changed.assert_called_once()
+        self.assertEqual(call_order, ["refresh", "postprocess", "reload"])
+
 
 if __name__ == "__main__":
     unittest.main()

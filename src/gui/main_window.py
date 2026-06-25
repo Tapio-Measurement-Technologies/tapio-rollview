@@ -443,8 +443,17 @@ class MainWindow(QMainWindow):
         self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_directory_contents_changed(self):
-        # Reload the selected directory and redraw plot
-        self.on_directory_selected(store.selected_directory)
+        # Reload the selected directory and redraw plot. If the selected folder
+        # was removed and no profile folders remain, leave the profile tab blank.
+        if store.selected_directory and os.path.isdir(store.selected_directory):
+            self.on_directory_selected(store.selected_directory)
+            return
+
+        if not self._root_has_profile_directories(store.root_directory):
+            self._clear_profile_selection(store.root_directory)
+            return
+
+        self.directory_view.select_first_directory()
 
     def refresh_plot(self):
         if not store.selected_directory:
@@ -474,6 +483,49 @@ class MainWindow(QMainWindow):
 
     def on_root_directory_changed(self, directory):
         store.root_directory = directory
+        if not self._path_is_within_directory(store.selected_directory, directory):
+            self._clear_profile_selection(
+                directory,
+                clear_plot=not self._root_has_profile_directories(directory),
+            )
+
+    def _clear_profile_selection(self, root_directory=None, clear_plot=True):
+        store.selected_directory = None
+        store.selected_profile = None
+        store.profiles = []
+        self.directory_name = None
+        if root_directory and os.path.isdir(root_directory):
+            self.fileView.set_directory(root_directory)
+        if clear_plot:
+            self.profile_widget.clear_plot_display()
+
+    @staticmethod
+    def _root_has_profile_directories(directory):
+        if not directory or not os.path.isdir(directory):
+            return False
+
+        try:
+            for entry in os.scandir(directory):
+                if entry.is_dir() and entry.name not in settings.IGNORE_FOLDERS:
+                    return True
+        except (OSError, PermissionError):
+            return False
+
+        return False
+
+    @staticmethod
+    def _path_is_within_directory(path, directory):
+        if not path or not directory:
+            return False
+
+        try:
+            path_abs = os.path.abspath(path)
+            directory_abs = os.path.abspath(directory)
+            common_path = os.path.commonpath([path_abs, directory_abs])
+        except (OSError, ValueError):
+            return False
+
+        return os.path.normcase(common_path) == os.path.normcase(directory_abs)
 
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
@@ -543,6 +595,7 @@ class MainWindow(QMainWindow):
 
     def on_file_transfer_finished(self, folder_paths: list[str]):
         self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+        self.directory_view.refresh_directory_dates(folder_paths)
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
 

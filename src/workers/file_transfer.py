@@ -140,6 +140,7 @@ class FileTransferManager(QObject):
         self.transferStarted.emit()
 
         self.model.removeItems()
+        self.synced_folders = []
         self.sync_folder_path = folder_path
         self._on_complete_callback = on_complete
 

@@ -193,6 +193,9 @@ class StatWidget(QWidget):
             self.value_label.setText(format_stat_value(self.value or 0))
             self.update_tooltip()
         else:
+            self.value = None
+            self.over_limit = False
+            self.setStyleSheet("")
             self.value_label.setText("--")
 
 class MeanWidget(StatWidget):

@@ -1,3 +1,5 @@
+import os
+import tempfile
 import unittest
 
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt
@@ -5,7 +7,11 @@ from PySide6.QtWidgets import QApplication
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from gui.widgets.DirectoryView import DirectoryView, selection_flags
+from gui.widgets.DirectoryView import (
+    CustomFileSystemModel,
+    DirectoryView,
+    selection_flags,
+)
 
 
 class TestDirectoryView(unittest.TestCase):
@@ -234,6 +240,105 @@ class TestDirectoryView(unittest.TestCase):
             self.assertEqual(emitted_paths, ["/tmp/root/new"])
         finally:
             view.close()
+
+    def test_change_root_directory_logs_instead_of_dialog_when_model_index_not_ready(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                view.watch_directory_and_subdirs = MagicMock()
+                view.select_first_directory = MagicMock()
+                view._note_directory_load_failed = MagicMock()
+                emitted_directories = []
+                view.root_directory_changed.connect(emitted_directories.append)
+
+                with patch.object(view.proxy_model, "mapFromSource", return_value=QModelIndex()), \
+                     patch("gui.widgets.DirectoryView.show_error_msgbox") as show_error_mock:
+                    view.change_root_directory(tmpdir)
+
+                view._note_directory_load_failed.assert_called_once_with(tmpdir)
+                show_error_mock.assert_not_called()
+                self.assertEqual(view._root_directory, tmpdir)
+                self.assertEqual(emitted_directories, [tmpdir])
+                view.watch_directory_and_subdirs.assert_called_once_with(tmpdir)
+                view.select_first_directory.assert_not_called()
+        finally:
+            view.close()
+
+    def test_directory_date_refresh_paths_include_synced_folder_ancestors(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                roll_dir = os.path.join(tmpdir, "roll-1")
+                nested_dir = os.path.join(roll_dir, "nested")
+                os.makedirs(nested_dir)
+                view._root_directory = tmpdir
+
+                refresh_paths = view._directory_date_refresh_paths([nested_dir])
+
+                self.assertEqual(
+                    [DirectoryView._normalized_path_key(path) for path in refresh_paths],
+                    [
+                        DirectoryView._normalized_path_key(nested_dir),
+                        DirectoryView._normalized_path_key(roll_dir),
+                        DirectoryView._normalized_path_key(tmpdir),
+                    ],
+                )
+        finally:
+            view.close()
+
+    def test_refresh_directory_dates_invalidates_emits_sorts_and_rewatches(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                roll_dir = os.path.join(tmpdir, "roll-1")
+                os.mkdir(roll_dir)
+                view._root_directory = tmpdir
+                view.preserve_current_directory_focus = MagicMock()
+                view.watch_directory_and_subdirs = MagicMock()
+                view.model.invalidate_cache = MagicMock()
+                view._emit_directory_date_changed = MagicMock()
+                view.proxy_model.sort = MagicMock()
+                view.schedule_focus_restore = MagicMock()
+                view.treeView.header().sortIndicatorSection = MagicMock(return_value=3)
+                view.treeView.header().sortIndicatorOrder = MagicMock(return_value=Qt.SortOrder.DescendingOrder)
+
+                view.refresh_directory_dates([roll_dir])
+
+                view.preserve_current_directory_focus.assert_called_once()
+                view.model.invalidate_cache.assert_any_call(roll_dir)
+                view.model.invalidate_cache.assert_any_call(tmpdir)
+                view._emit_directory_date_changed.assert_any_call(roll_dir)
+                view.watch_directory_and_subdirs.assert_called_once_with(tmpdir)
+                view.proxy_model.sort.assert_called_once_with(3, Qt.SortOrder.DescendingOrder)
+                view.schedule_focus_restore.assert_called_once()
+        finally:
+            view.close()
+
+    def test_latest_modified_date_uses_only_real_profile_files(self):
+        model = CustomFileSystemModel()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                roll_dir = os.path.join(tmpdir, "roll-1")
+                os.mkdir(roll_dir)
+                profile_path = os.path.join(roll_dir, "a.prof")
+                mean_path = os.path.join(roll_dir, "mean.prof")
+                unrelated_path = os.path.join(roll_dir, "newer.prof.txt")
+
+                for path in (profile_path, mean_path, unrelated_path):
+                    with open(path, "wb") as handle:
+                        handle.write(b"data")
+
+                profile_mtime = 1_700_000_000
+                os.utime(profile_path, (profile_mtime, profile_mtime))
+                os.utime(mean_path, (profile_mtime + 100, profile_mtime + 100))
+                os.utime(unrelated_path, (profile_mtime + 200, profile_mtime + 200))
+
+                latest_date = model.get_latest_modified_date(roll_dir)
+
+                self.assertIsNotNone(latest_date)
+                self.assertAlmostEqual(latest_date.timestamp(), profile_mtime, delta=1)
+        finally:
+            model.deleteLater()
 
 
 if __name__ == "__main__":

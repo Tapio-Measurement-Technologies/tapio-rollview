@@ -92,6 +92,11 @@ class ProfileWidget(QWidget):
         self.layout = QVBoxLayout(self)
         self.figure = Figure()
         self.warning_label = WarningLabel()
+        self.empty_state_label = QLabel()
+        self.empty_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_state_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.empty_state_label.setStyleSheet("font-size: 16px;")
+        self.empty_state_label.setHidden(True)
         self.canvas = FigureCanvas(self.figure)
         self.stats = Stats()
 
@@ -109,6 +114,7 @@ class ProfileWidget(QWidget):
 
         self.layout.addWidget(self.stats_widget)
         self.layout.addWidget(self.warning_label)
+        self.layout.addWidget(self.empty_state_label)
         self.layout.addWidget(self.canvas)
         self.layout.addWidget(self.toolbar)
 
@@ -383,7 +389,50 @@ class ProfileWidget(QWidget):
             self.spectrum_ax.clear()
             self.spectrum_ax.figure.canvas.draw()
 
+    def clear_plot_display(self):
+        self.profiles = []
+        self.mean_profile = []
+        self.mean_profile_distances = []
+        self.directory_name = None
+        self.figure.clear()
+        self.warning_label.clear()
+        self.empty_state_label.clear()
+        self.empty_state_label.setHidden(True)
+        self.stats_widget.update_data(([], []))
+        self.stats_widget.setVisible(False)
+        self.canvas.setVisible(False)
+        self.toolbar.setVisible(False)
+        self.canvas.draw()
+
+    def _show_no_profile_files_message(self, directory_name):
+        self.profiles = []
+        self.mean_profile = []
+        self.mean_profile_distances = []
+        self.directory_name = directory_name
+        self.figure.clear()
+        self.warning_label.clear()
+        self.stats_widget.update_data(([], []))
+        self.stats_widget.setVisible(True)
+        self.empty_state_label.setText(_("No profile files in selected folder"))
+        self.empty_state_label.setVisible(True)
+        self.canvas.setVisible(False)
+        self.toolbar.setVisible(False)
+        self.canvas.draw()
+
     def update_plot(self, profiles: list[Profile], directory_name):
+        self.stats_widget.setVisible(True)
+        self.canvas.setVisible(True)
+        self.empty_state_label.clear()
+        self.empty_state_label.setHidden(True)
+
+        # Filter empty profiles before drawing any axes. If there are no usable
+        # profile files, the profile tab should show a UI message, not a plot.
+        self.profiles = [
+            profile for profile in profiles if profile.data is not None]
+        if len(self.profiles) == 0:
+            self._show_no_profile_files_message(directory_name)
+            return
+
         # Reconfigure axes layout
         self._setup_axes()
 
@@ -393,9 +442,6 @@ class ProfileWidget(QWidget):
         self.clear()
         self.figure.suptitle(directory_name)
 
-        # Filter empty profiles
-        self.profiles = [
-            profile for profile in profiles if profile.data is not None]
         self.directory_name = directory_name
         selected_profile_in_current_directory = store.selected_profile in [ p.name for p in self.profiles ]
 
@@ -405,12 +451,6 @@ class ProfileWidget(QWidget):
         self.profile_ax.set_ylabel(f"{_("CHART_HARDNESS_LABEL")} [g]")
         self.profile_ax.set_xlabel(f"{_("CHART_DISTANCE_LABEL")} [{unit_info.unit}]")
         previous_distance = 0
-
-        if len(self.profiles) == 0:
-            self.profile_ax.text(0.5, 0.5, _("NO_DATA_AVAILABLE"), ha="center", va="center",
-                                 transform=self.profile_ax.transAxes, fontdict={'size': 16})
-            self.canvas.draw()
-            return
 
         for i, profile in enumerate(self.profiles):
 
