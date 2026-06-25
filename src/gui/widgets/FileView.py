@@ -11,9 +11,56 @@ import os
 PROF_FILE_HEADER_SIZE = 128
 
 class CustomFilterProxyModel(QSortFilterProxyModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._root_paths = set()
+
+    @staticmethod
+    def _path_key(path):
+        if not path:
+            return None
+        normalized = os.path.normpath(os.path.abspath(path))
+        if os.name != "nt":
+            normalized = "/" + normalized.lstrip("/")
+        return os.path.normcase(normalized)
+
+    def _refresh_filter(self):
+        if hasattr(self, "invalidateRowsFilter"):
+            self.invalidateRowsFilter()
+        else:
+            self.invalidateFilter()
+
+    def add_root_path(self, path):
+        path_key = self._path_key(path)
+        if path_key is None:
+            return
+
+        added_path = False
+        current_path = os.path.abspath(path)
+        while current_path:
+            current_key = self._path_key(current_path)
+            if current_key is not None and current_key not in self._root_paths:
+                self._root_paths.add(current_key)
+                added_path = True
+
+            parent_path = os.path.dirname(current_path)
+            if parent_path == current_path:
+                break
+            current_path = parent_path
+
+        if added_path:
+            self._refresh_filter()
+
+    def _is_root_path(self, path):
+        path_key = self._path_key(path)
+        return path_key is not None and path_key in self._root_paths
+
     def filterAcceptsRow(self, source_row, source_parent):
         index = self.sourceModel().index(source_row, 0, source_parent)
         file_name = self.sourceModel().fileName(index)
+        file_info = self.sourceModel().fileInfo(index)
+        if not file_info.isFile():
+            return self._is_root_path(file_info.filePath())
         if file_name == "mean.prof":
             return False
         return super().filterAcceptsRow(source_row, source_parent)
@@ -170,6 +217,7 @@ class FileView(QWidget):
         self.setMaximumHeight(400)
         self._pending_delete_parent = QPersistentModelIndex()
         self._pending_delete_row = None
+        self._pending_directory = None
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -178,15 +226,20 @@ class FileView(QWidget):
         self.model = CustomFileSystemModel()
         # Set initial root path to prevent showing filesystem root (C:\ on Windows)
         # This will be overridden when set_directory() is called
-        self.model.setRootPath(QDir.homePath())
-        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.Files)
+        initial_root_path = QDir.homePath()
+        self.model.setRootPath(initial_root_path)
+        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
         self.model.setNameFilters(["*.prof"])  # Set the filter for .prof files
         self.model.setNameFilterDisables(False)  # Enable the name filter
 
         self.proxy_model = CustomFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
+        self.proxy_model.add_root_path(initial_root_path)
 
         self.view = FileTreeView(self.proxy_model)
+        initial_root_index = self.proxy_model.mapFromSource(self.model.index(initial_root_path))
+        if initial_root_index.isValid():
+            self.view.setRootIndex(initial_root_index)
         self.view.setSortingEnabled(True)
         self.view.header().sortIndicatorChanged.connect(self.on_sort_changed)
         self.view.header().setSortIndicatorShown(True)
@@ -215,8 +268,36 @@ class FileView(QWidget):
         layout.addWidget(self.view)
 
         self.model.dataChanged.connect(self.on_files_updated)
+        self.model.directoryLoaded.connect(self._apply_pending_directory)
         self.model.fileRenamed.connect(self.on_file_renamed)
         self.proxy_model.rowsRemoved.connect(self.on_rows_removed)
+
+    @staticmethod
+    def _same_path(first_path, second_path):
+        if not first_path or not second_path:
+            return False
+        return (
+            os.path.normcase(os.path.abspath(first_path)) ==
+            os.path.normcase(os.path.abspath(second_path))
+        )
+
+    def _note_directory_load_failed(self, directory):
+        print(_("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory))
+
+    def _set_root_index_for_path(self, path):
+        root_index = self.proxy_model.mapFromSource(self.model.index(path))
+        if not root_index.isValid():
+            return False
+
+        self.view.setRootIndex(root_index)
+        return True
+
+    def _apply_pending_directory(self, loaded_path):
+        if not self._same_path(self._pending_directory, loaded_path):
+            return
+
+        if self._set_root_index_for_path(self._pending_directory):
+            self._pending_directory = None
 
     def set_directory(self, path):
         try:
@@ -235,15 +316,13 @@ class FileView(QWidget):
                 )
                 return
 
+            self._pending_directory = path
+            self.proxy_model.add_root_path(path)
             self.model.setRootPath(path)
-            root_index = self.proxy_model.mapFromSource(self.model.index(path))
-            if not root_index.isValid():
-                show_error_msgbox(
-                    _("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=path),
-                    _("ERROR_MSGBOX_TITLE")
-                )
-                return
-            self.view.setRootIndex(root_index)
+            if self._set_root_index_for_path(path):
+                self._pending_directory = None
+            else:
+                self._note_directory_load_failed(path)
         except PermissionError:
             show_error_msgbox(
                 _("ERROR_MSGBOX_TEXT_PERMISSION_DENIED").format(directory=path),

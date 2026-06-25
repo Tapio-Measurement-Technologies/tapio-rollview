@@ -243,6 +243,64 @@ class TestProfileWidget(unittest.TestCase):
         finally:
             widget.close()
 
+    def test_clear_plot_display_hides_graph_until_next_update(self):
+        profile = Profile(
+            path="short.prof",
+            data=ProfileData(
+                distances=np.array([0.0, 0.2, 0.4]),
+                hardnesses=np.array([9.0, 10.0, 11.0]),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=0,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            widget.clear_plot_display()
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertTrue(widget.toolbar.isHidden())
+            self.assertTrue(widget.stats_widget.isHidden())
+            self.assertTrue(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.figure.axes, [])
+
+            widget.update_plot([profile], "dir")
+
+            self.assertFalse(widget.canvas.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertTrue(widget.empty_state_label.isHidden())
+            self.assertGreater(len(widget.figure.axes), 0)
+        finally:
+            widget.close()
+
+    def test_update_plot_without_profiles_shows_message_outside_plot_and_resets_stats(self):
+        profile = Profile(
+            path="empty.prof",
+            data=None,
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=0,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+
+            widget.update_plot([profile], "empty-dir")
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertTrue(widget.toolbar.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertFalse(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.empty_state_label.text(), "No profile files in selected folder")
+            self.assertEqual(widget.figure.axes, [])
+            for stat_widget in widget.stats_widget.widgets:
+                self.assertIsNone(stat_widget.value)
+                self.assertEqual(stat_widget.value_label.text(), "--")
+        finally:
+            widget.close()
+
 
 if __name__ == "__main__":
     unittest.main()

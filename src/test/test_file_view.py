@@ -1,12 +1,15 @@
 import os
+import tempfile
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QModelIndex
+from unittest.mock import MagicMock, patch
 
 import store
-from gui.widgets.FileView import FileView
+from gui.widgets.FileView import CustomFilterProxyModel, FileView
 
 
 class TestFileView(unittest.TestCase):
@@ -39,6 +42,58 @@ class TestFileView(unittest.TestCase):
             view.on_file_renamed("/tmp/roll", "old.prof", "new.prof")
 
             self.assertEqual(emitted_paths, ["/tmp/roll/new.prof"])
+        finally:
+            view.close()
+
+    def test_initial_root_index_is_valid(self):
+        view = FileView()
+        try:
+            self.assertTrue(view.view.rootIndex().isValid())
+        finally:
+            view.close()
+
+    def test_filter_rejects_non_files(self):
+        proxy_model = CustomFilterProxyModel()
+        source_model = MagicMock()
+        file_info = MagicMock()
+        file_info.isFile.return_value = False
+        file_info.filePath.return_value = "C:/"
+        source_model.index.return_value = MagicMock()
+        source_model.fileName.return_value = "C:"
+        source_model.fileInfo.return_value = file_info
+        proxy_model.sourceModel = MagicMock(return_value=source_model)
+
+        self.assertFalse(proxy_model.filterAcceptsRow(0, QModelIndex()))
+
+    def test_filter_accepts_configured_root_directory_for_proxy_mapping(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proxy_model = CustomFilterProxyModel()
+            source_model = MagicMock()
+            file_info = MagicMock()
+            file_info.isFile.return_value = False
+            file_info.filePath.return_value = tmpdir
+            source_model.index.return_value = MagicMock()
+            source_model.fileName.return_value = os.path.basename(tmpdir)
+            source_model.fileInfo.return_value = file_info
+            proxy_model.sourceModel = MagicMock(return_value=source_model)
+
+            proxy_model.add_root_path(tmpdir)
+
+            self.assertTrue(proxy_model.filterAcceptsRow(0, QModelIndex()))
+
+    def test_set_directory_logs_instead_of_dialog_when_model_index_not_ready(self):
+        view = FileView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                view._set_root_index_for_path = MagicMock(return_value=False)
+                view._note_directory_load_failed = MagicMock()
+
+                with patch("gui.widgets.FileView.show_error_msgbox") as show_error_mock:
+                    view.set_directory(tmpdir)
+
+                view._note_directory_load_failed.assert_called_once_with(tmpdir)
+                show_error_mock.assert_not_called()
+                self.assertEqual(view._pending_directory, tmpdir)
         finally:
             view.close()
 
