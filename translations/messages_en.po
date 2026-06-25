@@ -222,6 +222,14 @@ msgstr "Change directory"
 msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
 msgstr "Select Directory"
 
+#. Used in directory view roll filter input as placeholder text.
+msgid "ROLL_FILTER_PLACEHOLDER"
+msgstr "Filter rolls"
+
+#. Used in regex filter inputs as tooltip text when pattern is invalid.
+msgid "REGEX_FILTER_INVALID_TOOLTIP"
+msgstr "Invalid regex: {error}"
+
 #. Used in file list view and directory view as column header.
 msgid "TREEVIEW_HEADER_NAME"
 msgstr "Name"
@@ -513,6 +521,10 @@ msgstr "Last 30 days"
 #. Used in statistics analysis view as dropdown option.
 msgid "FILTER_SHOW_ALL_ROLLS"
 msgstr "Show all rolls"
+
+#. Used in statistics analysis view chart/export annotation as roll filter label.
+msgid "STATISTICS_ROLL_FILTER_LABEL"
+msgstr "Roll filter"
 
 #. Used in statistics analysis view as chart axis label.
 msgid "PLOT_TITLE_ROLL"

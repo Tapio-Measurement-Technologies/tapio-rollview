@@ -1,17 +1,38 @@
 import os
+import re
 import tempfile
 import unittest
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt
+from PySide6.QtCore import QAbstractListModel, QModelIndex, QPersistentModelIndex, Qt
 from PySide6.QtWidgets import QApplication
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from gui.widgets.DirectoryView import (
     CustomFileSystemModel,
+    DirectorySortFilterProxyModel,
     DirectoryView,
     selection_flags,
 )
+from gui.widgets.RegexFilterLineEdit import RegexFilterLineEdit
+from utils.translation import _
+
+
+class FakeDirectoryModel(QAbstractListModel):
+    def __init__(self, paths):
+        super().__init__()
+        self.paths = paths
+
+    def rowCount(self, parent=QModelIndex()):
+        return len(self.paths)
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self.paths[index.row()]
+        return None
+
+    def filePath(self, index):
+        return self.paths[index.row()]
 
 
 class TestDirectoryView(unittest.TestCase):
@@ -90,7 +111,7 @@ class TestDirectoryView(unittest.TestCase):
             selected_paths = []
             view._pending_focus_path = "/tmp/selected"
             view.get_selected_directory_path = lambda: "/tmp/other"
-            view.select_directory_by_path = selected_paths.append
+            view.select_directory_by_path = lambda path, warn=True: selected_paths.append(path) or True
 
             with patch("gui.widgets.DirectoryView.os.path.isdir", return_value=True):
                 view._restore_focus_after_model_change()
@@ -106,7 +127,7 @@ class TestDirectoryView(unittest.TestCase):
             selected_paths = []
             view._pending_focus_path = "/tmp/selected"
             view.get_selected_directory_path = lambda: "/tmp/selected"
-            view.select_directory_by_path = selected_paths.append
+            view.select_directory_by_path = lambda path, warn=True: selected_paths.append(path) or True
 
             with patch("gui.widgets.DirectoryView.os.path.isdir", return_value=True):
                 view._restore_focus_after_model_change()
@@ -339,6 +360,93 @@ class TestDirectoryView(unittest.TestCase):
                 self.assertAlmostEqual(latest_date.timestamp(), profile_mtime, delta=1)
         finally:
             model.deleteLater()
+
+    def test_directory_proxy_filters_folder_names_by_regex(self):
+        proxy = DirectorySortFilterProxyModel()
+        proxy.excluded_folders = []
+        model = FakeDirectoryModel([
+            "/tmp/Roll-123",
+            "/tmp/sample",
+        ])
+        proxy.setSourceModel(model)
+        proxy.set_roll_filter(re.compile(r"roll-\d+", re.IGNORECASE))
+
+        self.assertTrue(proxy.filterAcceptsRow(0, QModelIndex()))
+        self.assertFalse(proxy.filterAcceptsRow(1, QModelIndex()))
+
+    def test_directory_proxy_keeps_ignored_folders_hidden_when_regex_matches(self):
+        proxy = DirectorySortFilterProxyModel()
+        proxy.excluded_folders = ["Roll-123"]
+        model = FakeDirectoryModel(["/tmp/Roll-123"])
+        proxy.setSourceModel(model)
+        proxy.set_roll_filter(re.compile(r"roll-\d+", re.IGNORECASE))
+
+        self.assertFalse(proxy.filterAcceptsRow(0, QModelIndex()))
+
+    def test_directory_proxy_does_not_apply_roll_regex_to_root_directory(self):
+        proxy = DirectorySortFilterProxyModel()
+        proxy.excluded_folders = []
+        model = FakeDirectoryModel(["/tmp/root"])
+        proxy.setSourceModel(model)
+        proxy.set_root_directory("/tmp/root")
+        proxy.set_roll_filter(re.compile(r"roll-\d+", re.IGNORECASE))
+
+        self.assertTrue(proxy.filterAcceptsRow(0, QModelIndex()))
+
+    def test_directory_proxy_does_not_apply_roll_regex_to_root_ancestors(self):
+        proxy = DirectorySortFilterProxyModel()
+        proxy.excluded_folders = []
+        model = FakeDirectoryModel(["/tmp"])
+        proxy.setSourceModel(model)
+        proxy.set_root_directory("/tmp/root")
+        proxy.set_roll_filter(re.compile(r"roll-\d+", re.IGNORECASE))
+
+        self.assertTrue(proxy.filterAcceptsRow(0, QModelIndex()))
+
+    def test_set_roll_filter_reapplies_root_index_after_proxy_invalidation(self):
+        view = DirectoryView()
+        try:
+            view._root_directory = "/tmp/root"
+            view._apply_root_index = MagicMock(return_value=True)
+
+            view.set_roll_filter("roll", re.compile("roll", re.IGNORECASE))
+
+            view._apply_root_index.assert_called_once()
+        finally:
+            view.close()
+
+    def test_regex_filter_line_edit_keeps_previous_valid_filter_on_invalid_regex(self):
+        widget = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"))
+        try:
+            emitted = []
+            widget.filter_changed.connect(lambda pattern, regex: emitted.append((pattern, regex)))
+
+            widget.setText("roll")
+            widget.apply_filter_text()
+            widget.setText("[")
+            widget.apply_filter_text()
+
+            self.assertEqual([pattern for pattern, _ in emitted], ["roll"])
+            self.assertEqual(widget.active_pattern, "roll")
+            self.assertTrue(widget.toolTip())
+        finally:
+            widget.close()
+
+    def test_regex_filter_line_edit_debounces_rapid_typing(self):
+        from PySide6.QtTest import QTest
+
+        widget = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"), debounce_ms=200)
+        try:
+            emitted = []
+            widget.filter_changed.connect(lambda pattern, regex: emitted.append(pattern))
+
+            widget.setText("ro")
+            widget.setText("roll")
+            QTest.qWait(250)
+
+            self.assertEqual(emitted, ["roll"])
+        finally:
+            widget.close()
 
 
 if __name__ == "__main__":

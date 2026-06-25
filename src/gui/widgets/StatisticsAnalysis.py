@@ -190,6 +190,8 @@ class StatisticsAnalysisChart(QWidget):
         filter_text = ""
         if hasattr(self.parent_widget, 'filter_dropdown'):
             filter_text = self.parent_widget.filter_dropdown.currentText()
+        if getattr(self.parent_widget, 'roll_filter_pattern', ""):
+            filter_text = f"{filter_text}\n{_('STATISTICS_ROLL_FILTER_LABEL')}: {self.parent_widget.roll_filter_pattern}"
 
         # Create info text
         info_text = f"{stat_display_name}\n{filter_text}"
@@ -231,6 +233,8 @@ class StatisticsAnalysisWidget(QWidget):
         # Cache for processed roll data
         self.cached_roll_data = []
         self.cache_valid = False
+        self.roll_filter_pattern = ""
+        self.roll_filter_regex = None
 
         # Create horizontal layout for dropdowns and refresh button
         # Wrap dropdowns in a container widget so they can be captured together
@@ -289,6 +293,12 @@ class StatisticsAnalysisWidget(QWidget):
     def on_filter_changed(self, filter_option: str):
         self.update_chart()
 
+    def set_roll_filter(self, pattern: str, compiled_regex):
+        self.roll_filter_pattern = pattern
+        self.roll_filter_regex = compiled_regex
+        if self.cache_valid and self.isVisible():
+            self.update_chart()
+
     @Slot(str)
     def on_point_selected(self, label: str):
         self.directory_selected.emit(label)
@@ -345,12 +355,19 @@ class StatisticsAnalysisWidget(QWidget):
         self.stacked_widget.setCurrentWidget(self.chart)
 
     def apply_filters(self, roll_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Apply time filter to roll data."""
+        """Apply roll-name and time filters to roll data."""
+        filtered_data = roll_data
+        if self.roll_filter_regex:
+            filtered_data = [
+                roll for roll in filtered_data
+                if self.roll_filter_regex.search(str(roll.get('label', '')))
+            ]
+
         filter_text = self.filter_dropdown.currentText()
 
         # No time filtering needed for "show all"
         if filter_text == _("FILTER_SHOW_ALL_ROLLS"):
-            return roll_data
+            return filtered_data
 
         # Calculate cutoff time
         now = datetime.now()
@@ -359,12 +376,12 @@ class StatisticsAnalysisWidget(QWidget):
         elif filter_text == _("FILTER_LAST_30_DAYS"):
             cutoff = now - timedelta(days=30)
         else:
-            return roll_data
+            return filtered_data
 
         cutoff_timestamp = cutoff.timestamp()
 
         # Filter by timestamp
-        return [roll for roll in roll_data if roll['timestamp'] >= cutoff_timestamp]
+        return [roll for roll in filtered_data if roll['timestamp'] >= cutoff_timestamp]
 
     def prepare_chart_data(self, roll_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Convert roll data to chart format for the selected statistic."""

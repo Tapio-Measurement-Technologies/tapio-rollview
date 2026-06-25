@@ -74,6 +74,7 @@ class MainWindow(QMainWindow):
         self.directory_view.root_directory_changed.connect(self.statistics_analysis_widget.update)
         self.directory_view.directory_contents_changed.connect(self.on_directory_contents_changed)
         self.directory_view.directory_contents_changed.connect(self.statistics_analysis_widget.update)
+        self.directory_view.roll_filter_changed.connect(self.statistics_analysis_widget.set_roll_filter)
 
         # Attempt to create default root dir if it does not exist
         if QDir().mkpath(store.root_directory):

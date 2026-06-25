@@ -19,6 +19,7 @@ from PySide6.QtCore import (
 )
 import settings
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
+from gui.widgets.RegexFilterLineEdit import RegexFilterLineEdit
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
 from gui.widgets.messagebox import show_error_msgbox
@@ -38,6 +39,7 @@ class DirectoryView(QWidget):
     root_directory_changed = Signal(str)
     directory_selected     = Signal(str)
     directory_contents_changed = Signal()
+    roll_filter_changed = Signal(str, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,6 +49,8 @@ class DirectoryView(QWidget):
         self._pending_focus_active = False
         self._focus_restore_scheduled = False
         self._root_directory = None
+        self.active_roll_filter_pattern = ""
+        self.active_roll_filter_regex = None
 
         # Set up the layout
         layout = QVBoxLayout(self)
@@ -78,6 +82,9 @@ class DirectoryView(QWidget):
             if i != 3:  # Assuming column 3 is the "Date Modified" column
                 self.treeView.setColumnHidden(i, True)
 
+        self.rollFilterInput = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"))
+        self.rollFilterInput.filter_changed.connect(self.set_roll_filter)
+
         self.openDirButton = QPushButton(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"))
         self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
 
@@ -86,6 +93,7 @@ class DirectoryView(QWidget):
         self.changeDirButton.clicked.connect(self.change_root_directory)
 
         # Add widgets to the layout
+        layout.addWidget(self.rollFilterInput)
         layout.addWidget(self.treeView)
         layout.addWidget(self.openDirButton)
         layout.addWidget(self.changeDirButton)
@@ -157,6 +165,7 @@ class DirectoryView(QWidget):
     def _apply_root_index(self):
         if not self._root_directory:
             return False
+        self.proxy_model.set_root_directory(self._root_directory)
         root_index = self.proxy_model.mapFromSource(self.model.index(self._root_directory))
         if not root_index.isValid():
             return False
@@ -166,20 +175,31 @@ class DirectoryView(QWidget):
     def _note_directory_load_failed(self, directory):
         print(_("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory))
 
+    def set_roll_filter(self, pattern, compiled_regex):
+        self.preserve_current_directory_focus()
+        self.active_roll_filter_pattern = pattern
+        self.active_roll_filter_regex = compiled_regex
+        self.proxy_model.set_roll_filter(compiled_regex)
+        self._apply_root_index()
+        self.schedule_focus_restore()
+        self.roll_filter_changed.emit(pattern, compiled_regex)
+
     def init_selection(self):
         if not self.treeView.rootIndex().isValid():
             self._apply_root_index()
         if not self.get_selected_directory_path() and self.treeView.rootIndex().isValid():
             self.select_first_directory()
 
-    def select_directory_by_path(self, path):
+    def select_directory_by_path(self, path, warn=True):
         index = self.proxy_model.mapFromSource(self.model.index(path))
         if index.isValid():
             self.treeView.setCurrentIndex(index)
             self.treeView.selectionModel().setCurrentIndex(index, selection_flags)
             self.treeView.scrollTo(index)
-        else:
+            return True
+        if warn:
             print(f"Invalid index provided to select_directory_by_path: '{path}'")
+        return False
 
     def open_directory_in_file_explorer(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
@@ -223,6 +243,7 @@ class DirectoryView(QWidget):
                 # initially invalid index is not a blocking user-facing error.
                 self._root_directory = directory
                 self.model.setRootPath(directory)
+                self.proxy_model.set_root_directory(directory)
                 root_index = self.proxy_model.mapFromSource(self.model.index(directory))
                 root_index_valid = root_index.isValid()
                 if root_index_valid:
@@ -367,7 +388,8 @@ class DirectoryView(QWidget):
                 self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
             return
 
-        self.select_directory_by_path(focus_path)
+        if not self.select_directory_by_path(focus_path, warn=False):
+            self.select_first_directory()
         if focus_active:
             self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
 
@@ -581,6 +603,32 @@ class DirectorySortFilterProxyModel(QSortFilterProxyModel):
         super().__init__(parent)
         # Define folders to exclude
         self.excluded_folders = settings.IGNORE_FOLDERS
+        self.roll_filter_regex = None
+        self.root_directory = None
+
+    def set_roll_filter(self, roll_filter_regex):
+        self.roll_filter_regex = roll_filter_regex
+        self.invalidateFilter()
+
+    def set_root_directory(self, root_directory):
+        if self.root_directory == root_directory:
+            return
+        self.root_directory = root_directory
+        self.invalidateFilter()
+
+    def is_root_or_root_ancestor(self, file_path):
+        if not self.root_directory:
+            return False
+
+        try:
+            normalized_path = os.path.normcase(os.path.abspath(file_path))
+            normalized_root = os.path.normcase(os.path.abspath(self.root_directory))
+            return (
+                normalized_path == normalized_root
+                or os.path.commonpath([normalized_path, normalized_root]) == normalized_path
+            )
+        except ValueError:
+            return False
 
     def filterAcceptsRow(self, source_row, source_parent):
         source_model = self.sourceModel()
@@ -588,8 +636,14 @@ class DirectorySortFilterProxyModel(QSortFilterProxyModel):
         file_path = source_model.filePath(index)
         dir_name = os.path.basename(file_path)
 
+        if self.is_root_or_root_ancestor(file_path):
+            return super().filterAcceptsRow(source_row, source_parent)
+
         # Skip excluded folders
         if dir_name in self.excluded_folders:
+            return False
+
+        if self.roll_filter_regex and not self.roll_filter_regex.search(dir_name):
             return False
 
         return super().filterAcceptsRow(source_row, source_parent)
