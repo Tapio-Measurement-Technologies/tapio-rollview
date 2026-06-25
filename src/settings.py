@@ -137,6 +137,8 @@ SPECTRUM_LOWER_LIMIT_1M = 0
 SPECTRUM_UPPER_LIMIT_1M = 60
 SPECTRUM_WAVELENGTH_TICKS = False
 PINNED_SERIAL_PORTS_DEFAULT = set()
+ALLOWED_SERIAL_USB_IDS = {(0x16C0, 0x0483)}
+SERIAL_BLUETOOTH_PORT_MARKERS = ("bluetooth", "bthenum", "bthmodem", "rfcomm")
 
 # Default values for plot export (copy to clipboard and postprocessor)
 PLOT_IMAGE_EXPORT_DPI = 300
