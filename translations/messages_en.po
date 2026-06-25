@@ -246,6 +246,14 @@ msgstr "Size"
 msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
 msgstr "Profile length"
 
+#. Used in directory view as empty-state text.
+msgid "No folders in selected directory"
+msgstr "No folders in selected directory"
+
+#. Used in file list view and profile chart as empty-state text.
+msgid "No profile files in selected folder"
+msgstr "No profile files in selected folder"
+
 #. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
 msgstr "Progress"
@@ -344,6 +352,10 @@ msgstr "Changing the language at runtime is not yet supported. The language sett
 #. Used in serial ports widget as label text.
 msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "Devices"
+
+#. Used in serial ports widget as empty-state text.
+msgid "No devices found"
+msgstr "No devices found"
 
 #. Used in serial ports widget as message text and button label.
 msgid "SERIAL_SCAN_BUTTON_TEXT"

@@ -66,6 +66,7 @@ class DirectoryView(QWidget):
         self.proxy_model.setSourceModel(self.model)
 
         self.treeView = ContextMenuTreeView(self.proxy_model)
+        self.treeView.set_empty_message(_("No folders in selected directory"))
         self.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
         self.treeView.deleteRequested.connect(self.on_delete_requested)
         # Sort the folders by custom modified date

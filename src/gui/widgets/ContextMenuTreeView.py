@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDir, Signal, Qt, QFile, QModelIndex, QFileInfo, QSortFilterProxyModel
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from gui.widgets.EmptyStateView import draw_empty_view_text
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
 
@@ -47,6 +48,7 @@ class ContextMenuTreeView(QTreeView):
 
     def __init__(self, model: QFileSystemModel | QSortFilterProxyModel):
         super().__init__()
+        self._empty_message = ""
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_context_menu)
         self.setModel(model)
@@ -65,6 +67,17 @@ class ContextMenuTreeView(QTreeView):
         self.rename_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
         self.rename_shortcut.activated.connect(self._rename_selected)
         self.rename_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
+    def set_empty_message(self, message):
+        self._empty_message = message
+        self.viewport().update()
+
+    def empty_message(self):
+        return self._empty_message
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        draw_empty_view_text(self, self._empty_message)
 
     def open_context_menu(self, position):
         indexes = self.selectedIndexes()

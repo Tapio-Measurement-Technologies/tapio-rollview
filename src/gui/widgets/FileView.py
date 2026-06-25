@@ -237,6 +237,7 @@ class FileView(QWidget):
         self.proxy_model.add_root_path(initial_root_path)
 
         self.view = FileTreeView(self.proxy_model)
+        self.view.set_empty_message(_("No profile files in selected folder"))
         initial_root_index = self.proxy_model.mapFromSource(self.model.index(initial_root_path))
         if initial_root_index.isValid():
             self.view.setRootIndex(initial_root_index)

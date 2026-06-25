@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLabel, QMenu
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
+from gui.widgets.EmptyStateView import draw_empty_view_text
 from models.SerialPort import SerialPortModel, SerialPortItem, list_ports_common
 from gui.filetransferdialog import FileTransferDialog
 from workers.file_transfer import FileTransferManager
@@ -12,6 +13,7 @@ import store
 class SerialPortView(QListView):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._empty_message = _("No devices found")
 
         # Set up the model
         self.model = SerialPortModel()
@@ -20,6 +22,13 @@ class SerialPortView(QListView):
         # Enable context menu
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
+
+    def empty_message(self):
+        return self._empty_message
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        draw_empty_view_text(self, self._empty_message)
 
     def show_context_menu(self, position):
         index = self.indexAt(position)

@@ -246,6 +246,14 @@ msgstr "サイズ"
 msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
 msgstr "測定長"
 
+#. Used in directory view as empty-state text.
+msgid "No folders in selected directory"
+msgstr "選択したディレクトリにフォルダがありません"
+
+#. Used in file list view and profile chart as empty-state text.
+msgid "No profile files in selected folder"
+msgstr "選択したフォルダにプロファイルファイルがありません"
+
 #. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
 msgstr "実行中"
@@ -344,6 +352,10 @@ msgstr "実行中の言語変更はまだサポートされていません。読
 #. Used in serial ports widget as label text.
 msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "ペアリング済みデバイス"
+
+#. Used in serial ports widget as empty-state text.
+msgid "No devices found"
+msgstr "デバイスが見つかりません"
 
 #. Used in serial ports widget as message text and button label.
 msgid "SERIAL_SCAN_BUTTON_TEXT"
