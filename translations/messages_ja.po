@@ -423,6 +423,10 @@ msgstr "最大値"
 msgid "ALERT_LIMIT_PP"
 msgstr "最大最小差"
 
+#. Used in statistics label definitions as statistic label.
+msgid "ALERT_LIMIT_SLOPE"
+msgstr "回帰勾配"
+
 #. Used in postprocessing progress flow as message text and postprocessing progress
 #. text.
 msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
@@ -571,6 +575,10 @@ msgstr "最大値"
 #. label.
 msgid "PP_LONG"
 msgstr "最大最小差"
+
+#. Used in statistics label definitions as long-form statistic label.
+msgid "SLOPE_LONG"
+msgstr "回帰勾配"
 
 #. Used in main window as tab title.
 msgid "TAB_TITLE_PROFILES"

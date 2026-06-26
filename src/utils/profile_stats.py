@@ -53,8 +53,8 @@ STAT_SPECS = [
     {
         "analysis_key": "slope",
         "name": "slope_deg",
-        "label": "Slope",
-        "long_label": "Slope",
+        "label": _("ALERT_LIMIT_SLOPE"),
+        "long_label": _("SLOPE_LONG"),
         "unit": "g",
     },
 ]
