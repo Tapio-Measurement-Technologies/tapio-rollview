@@ -51,6 +51,7 @@ class DirectoryView(QWidget):
         self._root_directory = None
         self.active_roll_filter_pattern = ""
         self.active_roll_filter_regex = None
+        self._suppress_directory_contents_signal = False
 
         # Set up the layout
         layout = QVBoxLayout(self)
@@ -180,8 +181,12 @@ class DirectoryView(QWidget):
         self.preserve_current_directory_focus()
         self.active_roll_filter_pattern = pattern
         self.active_roll_filter_regex = compiled_regex
-        self.proxy_model.set_roll_filter(compiled_regex)
-        self._apply_root_index()
+        self._suppress_directory_contents_signal = True
+        try:
+            self.proxy_model.set_roll_filter(compiled_regex)
+            self._apply_root_index()
+        finally:
+            self._suppress_directory_contents_signal = False
         self.schedule_focus_restore()
         self.roll_filter_changed.emit(pattern, compiled_regex)
 
@@ -312,6 +317,8 @@ class DirectoryView(QWidget):
         self._pending_delete_row = target_row
 
     def on_rows_removed(self, parent, first, last):
+        if self._suppress_directory_contents_signal:
+            return
         if self._pending_delete_row is None:
             QTimer.singleShot(0, lambda: self.directory_contents_changed.emit())
             return

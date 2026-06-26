@@ -415,6 +415,31 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             view.close()
 
+    def test_set_roll_filter_does_not_emit_directory_contents_changed_for_proxy_rows(self):
+        view = DirectoryView()
+        try:
+            proxy = DirectorySortFilterProxyModel()
+            proxy.excluded_folders = []
+            proxy.setSourceModel(FakeDirectoryModel([
+                "/tmp/Roll-123",
+                "/tmp/sample",
+                "/tmp/Other",
+            ]))
+            proxy.rowsRemoved.connect(view.on_rows_removed)
+            view.proxy_model = proxy
+            view._apply_root_index = MagicMock(return_value=True)
+            emitted = []
+            view.directory_contents_changed.connect(lambda: emitted.append(True))
+
+            self.assertEqual(proxy.rowCount(), 3)
+            view.set_roll_filter("roll", re.compile("roll", re.IGNORECASE))
+            QApplication.processEvents()
+
+            self.assertEqual(proxy.rowCount(), 1)
+            self.assertEqual(emitted, [])
+        finally:
+            view.close()
+
     def test_regex_filter_line_edit_keeps_previous_valid_filter_on_invalid_regex(self):
         widget = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"))
         try:
