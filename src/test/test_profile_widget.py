@@ -293,7 +293,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertTrue(widget.toolbar.isHidden())
             self.assertFalse(widget.stats_widget.isHidden())
             self.assertFalse(widget.empty_state_label.isHidden())
-            self.assertEqual(widget.empty_state_label.text(), "No profile files in selected folder")
+            self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
             self.assertEqual(widget.figure.axes, [])
             for stat_widget in widget.stats_widget.widgets:
                 self.assertIsNone(stat_widget.value)
@@ -311,7 +311,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertTrue(widget.canvas.isHidden())
             self.assertFalse(widget.stats_widget.isHidden())
             self.assertFalse(widget.empty_state_label.isHidden())
-            self.assertEqual(widget.empty_state_label.text(), "No profile files in selected folder")
+            self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
             for stat_widget in widget.stats_widget.widgets:
                 self.assertIsNone(stat_widget.value)
                 self.assertEqual(stat_widget.value_label.text(), "--")

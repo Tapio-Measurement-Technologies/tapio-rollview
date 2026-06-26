@@ -414,7 +414,7 @@ class ProfileWidget(QWidget):
         self.warning_label.clear()
         self.stats_widget.update_data(([], []))
         self.stats_widget.setVisible(True)
-        self.empty_state_label.setText(_("No profile files in selected folder"))
+        self.empty_state_label.setText(_("PROFILE_EMPTY_STATE_NO_PROFILES"))
         self.empty_state_label.setVisible(True)
         self.canvas.setVisible(False)
         self.toolbar.setVisible(False)

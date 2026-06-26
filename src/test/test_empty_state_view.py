@@ -37,7 +37,7 @@ class TestEmptyStateView(unittest.TestCase):
         try:
             self.assertEqual(serial_view.empty_message(), "No devices found")
             self.assertEqual(directory_view.treeView.empty_message(), "No folders in selected directory")
-            self.assertEqual(file_view.view.empty_message(), "No profile files in selected folder")
+            self.assertEqual(file_view.view.empty_message(), "No profiles in selected folder")
         finally:
             serial_view.close()
             directory_view.close()

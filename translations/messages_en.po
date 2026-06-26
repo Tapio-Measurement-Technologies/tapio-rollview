@@ -247,12 +247,12 @@ msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
 msgstr "Profile length"
 
 #. Used in directory view as empty-state text.
-msgid "No folders in selected directory"
+msgid "DIRECTORY_EMPTY_STATE_NO_FOLDERS"
 msgstr "No folders in selected directory"
 
 #. Used in file list view and profile chart as empty-state text.
-msgid "No profile files in selected folder"
-msgstr "No profile files in selected folder"
+msgid "PROFILE_EMPTY_STATE_NO_PROFILES"
+msgstr "No profiles in selected folder"
 
 #. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
@@ -354,7 +354,7 @@ msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "Devices"
 
 #. Used in serial ports widget as empty-state text.
-msgid "No devices found"
+msgid "SERIAL_EMPTY_STATE_NO_DEVICES"
 msgstr "No devices found"
 
 #. Used in serial ports widget as message text and button label.

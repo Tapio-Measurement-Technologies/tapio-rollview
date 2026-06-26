@@ -82,7 +82,7 @@ class DirectoryView(QWidget):
         self.proxy_model.setSourceModel(self.model)
 
         self.treeView = DirectoryTreeView(self.proxy_model)
-        self.treeView.set_empty_message(_("No folders in selected directory"))
+        self.treeView.set_empty_message(_("DIRECTORY_EMPTY_STATE_NO_FOLDERS"))
         self.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
         self.treeView.selectionCleared.connect(self.on_selection_cleared)
         self.treeView.deleteRequested.connect(self.on_delete_requested)

@@ -13,7 +13,7 @@ import store
 class SerialPortView(QListView):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._empty_message = _("No devices found")
+        self._empty_message = _("SERIAL_EMPTY_STATE_NO_DEVICES")
 
         # Set up the model
         self.model = SerialPortModel()
