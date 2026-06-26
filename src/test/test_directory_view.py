@@ -149,7 +149,7 @@ class TestDirectoryView(unittest.TestCase):
         try:
             selected_paths = []
             view._pending_focus_path = "/tmp/selected"
-            view.get_selected_directory_path = lambda: "/tmp/other"
+            view._get_visible_selected_directory_path = lambda: "/tmp/other"
             view.select_directory_by_path = lambda path, warn=True: selected_paths.append(path) or True
 
             with patch("gui.widgets.DirectoryView.os.path.isdir", return_value=True):
@@ -165,7 +165,7 @@ class TestDirectoryView(unittest.TestCase):
         try:
             selected_paths = []
             view._pending_focus_path = "/tmp/selected"
-            view.get_selected_directory_path = lambda: "/tmp/selected"
+            view._get_visible_selected_directory_path = lambda: "/tmp/selected"
             view.select_directory_by_path = lambda path, warn=True: selected_paths.append(path) or True
 
             with patch("gui.widgets.DirectoryView.os.path.isdir", return_value=True):
@@ -181,7 +181,7 @@ class TestDirectoryView(unittest.TestCase):
         try:
             view._pending_focus_path = "/tmp/selected"
             view._pending_focus_active = False
-            view.get_selected_directory_path = lambda: "/tmp/other"
+            view._get_visible_selected_directory_path = lambda: "/tmp/other"
             view.select_directory_by_path = MagicMock(return_value=False)
             view.select_first_directory = MagicMock()
             view.treeView.setFocus = MagicMock()
@@ -230,7 +230,7 @@ class TestDirectoryView(unittest.TestCase):
         try:
             view._pending_focus_path = "/tmp/selected"
             view._pending_focus_active = True
-            view.get_selected_directory_path = lambda: "/tmp/selected"
+            view._get_visible_selected_directory_path = lambda: "/tmp/selected"
             view.select_directory_by_path = MagicMock()
             view.treeView.setFocus = MagicMock()
 
@@ -539,6 +539,38 @@ class TestDirectoryView(unittest.TestCase):
 
             self.assertEqual(proxy.rowCount(), 1)
             self.assertEqual(emitted, [])
+        finally:
+            view.close()
+
+    def test_set_roll_filter_does_not_select_matching_folder_when_current_hidden(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                selected_dir = os.path.join(tmpdir, "aaa-selected")
+                matched_dir = os.path.join(tmpdir, "zzz-match")
+                os.mkdir(selected_dir)
+                os.mkdir(matched_dir)
+                emitted = []
+                view.directory_selected.connect(emitted.append)
+
+                view.change_root_directory(tmpdir)
+                self.assertTrue(self.wait_until(
+                    lambda: view.proxy_model.mapFromSource(view.model.index(selected_dir)).isValid()
+                ))
+                self.assertTrue(view.select_directory_by_path(selected_dir, warn=False))
+                emitted.clear()
+                view.set_roll_filter("zzz", re.compile("zzz", re.IGNORECASE))
+                QApplication.processEvents()
+
+                self.assertEqual(view.get_selected_directory_path(), selected_dir)
+                self.assertIsNone(view._get_visible_selected_directory_path())
+                self.assertEqual(emitted, [])
+
+                view.set_roll_filter("", None)
+                QApplication.processEvents()
+                self.assertEqual(view.get_selected_directory_path(), selected_dir)
+                self.assertEqual(view._get_visible_selected_directory_path(), selected_dir)
+                self.assertEqual(emitted, [])
         finally:
             view.close()
 

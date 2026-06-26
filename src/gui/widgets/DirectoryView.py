@@ -16,6 +16,7 @@ from PySide6.QtCore import (
     QFileSystemWatcher,
     QItemSelectionModel,
     QTimer,
+    QSignalBlocker,
 )
 import settings
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
@@ -64,6 +65,7 @@ class DirectoryView(QWidget):
         self._pending_focus_active = False
         self._focus_restore_scheduled = False
         self._root_directory = None
+        self._selected_directory_path = None
         self.active_roll_filter_pattern = ""
         self.active_roll_filter_regex = None
         self._suppress_directory_contents_signal = False
@@ -194,11 +196,13 @@ class DirectoryView(QWidget):
     def _note_directory_load_failed(self, directory):
         print(_("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory))
 
-    def _clear_current_selection(self):
+    def _clear_current_selection(self, clear_logical_selection=False):
         selection_model = self.treeView.selectionModel()
         selection_model.clear()
         selection_model.clearCurrentIndex()
         self.treeView.setCurrentIndex(QModelIndex())
+        if clear_logical_selection:
+            self._selected_directory_path = None
 
     def _clear_pending_focus_restore(self):
         self._pending_focus_path = None
@@ -206,16 +210,19 @@ class DirectoryView(QWidget):
         self._focus_restore_scheduled = False
 
     def set_roll_filter(self, pattern, compiled_regex):
-        self.preserve_current_directory_focus()
+        selected_path = self.get_selected_directory_path()
         self.active_roll_filter_pattern = pattern
         self.active_roll_filter_regex = compiled_regex
         self._suppress_directory_contents_signal = True
+        selection_blocker = QSignalBlocker(self.treeView.selectionModel())
         try:
             self.proxy_model.set_roll_filter(compiled_regex)
             self._apply_root_index()
+            self._selected_directory_path = selected_path
+            self._sync_selection_after_filter()
         finally:
             self._suppress_directory_contents_signal = False
-        self.schedule_focus_restore()
+            del selection_blocker
         self.roll_filter_changed.emit(pattern, compiled_regex)
 
     def init_selection(self):
@@ -227,6 +234,7 @@ class DirectoryView(QWidget):
     def select_directory_by_path(self, path, warn=True):
         index = self.proxy_model.mapFromSource(self.model.index(path))
         if index.isValid():
+            self._selected_directory_path = path
             self.treeView.setCurrentIndex(index)
             self.treeView.selectionModel().setCurrentIndex(index, selection_flags)
             self.treeView.scrollTo(index)
@@ -239,14 +247,7 @@ class DirectoryView(QWidget):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
         current_directory = self.model.filePath(current_index)
 
-        # Get the selected directory to highlight it in explorer
-        selected_indexes = self.treeView.selectionModel().selectedIndexes()
-        selected_path = None
-        if selected_indexes:
-            selected_index = self.proxy_model.mapToSource(selected_indexes[0])
-            selected_path = self.model.filePath(selected_index)
-
-        open_in_file_explorer(current_directory, selected_path)
+        open_in_file_explorer(current_directory, self.get_selected_directory_path())
 
     def change_root_directory(self, directory = None):
         if not directory:
@@ -276,7 +277,7 @@ class DirectoryView(QWidget):
                 # QFileSystemModel can resolve indexes asynchronously, so an
                 # initially invalid index is not a blocking user-facing error.
                 self._root_directory = directory
-                self._clear_current_selection()
+                self._clear_current_selection(clear_logical_selection=True)
                 self._clear_pending_focus_restore()
                 self.model.setRootPath(directory)
                 self.proxy_model.set_root_directory(directory)
@@ -314,10 +315,12 @@ class DirectoryView(QWidget):
             return
 
         file_path = self.model.filePath(source_index)
+        self._selected_directory_path = file_path
         self.directory_selected.emit(file_path)
 
     def on_selection_cleared(self):
         if self._root_directory and os.path.isdir(self._root_directory):
+            self._selected_directory_path = self._root_directory
             self.directory_selected.emit(self._root_directory)
 
     def on_directory_renamed(self, path, old_name, new_name):
@@ -333,6 +336,7 @@ class DirectoryView(QWidget):
 
         current_path = self.get_selected_directory_path()
         if current_path in (old_path, new_path):
+            self._selected_directory_path = new_path
             self.directory_selected.emit(new_path)
 
     def on_delete_requested(self, index):
@@ -358,7 +362,7 @@ class DirectoryView(QWidget):
             return
         QTimer.singleShot(0, self._restore_selection_after_delete)
 
-    def get_selected_directory_path(self):
+    def _get_visible_selected_directory_path(self):
         selection_model = self.treeView.selectionModel()
         selected_indexes = selection_model.selectedRows(0)
         selected_index = selected_indexes[0] if selected_indexes else selection_model.currentIndex()
@@ -378,7 +382,29 @@ class DirectoryView(QWidget):
 
         return selected_path
 
+    def _is_selectable_directory_path(self, path):
+        return (
+            path
+            and os.path.isdir(path)
+            and (
+                not self._root_directory
+                or self._path_is_within_directory(path, self._root_directory)
+            )
+        )
+
+    def get_selected_directory_path(self):
+        if self._is_selectable_directory_path(self._selected_directory_path):
+            return self._selected_directory_path
+        self._selected_directory_path = None
+
+        selected_path = self._get_visible_selected_directory_path()
+        if selected_path:
+            self._selected_directory_path = selected_path
+        return selected_path
+
     def preserve_current_directory_focus(self):
+        if self._suppress_directory_contents_signal:
+            return
         self._pending_focus_path = self.get_selected_directory_path()
         self._pending_focus_active = self.treeView.hasFocus()
 
@@ -415,6 +441,8 @@ class DirectoryView(QWidget):
         self.schedule_focus_restore()
 
     def schedule_focus_restore(self):
+        if self._suppress_directory_contents_signal:
+            return
         if self._focus_restore_scheduled or not self._pending_focus_path:
             return
 
@@ -431,16 +459,31 @@ class DirectoryView(QWidget):
         if not focus_path or not os.path.isdir(focus_path):
             return
 
-        current_path = self.get_selected_directory_path()
+        current_path = self._get_visible_selected_directory_path()
         if current_path == focus_path:
             if focus_active:
                 self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
             return
 
         if not self.select_directory_by_path(focus_path, warn=False):
-            self.select_first_directory(set_focus=False)
+            if self.active_roll_filter_regex:
+                self._clear_current_selection()
+            else:
+                self.select_first_directory(set_focus=False)
         if focus_active:
             self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _sync_selection_after_filter(self):
+        selected_path = self.get_selected_directory_path()
+        if not selected_path:
+            self._clear_current_selection()
+            return
+        if self._root_directory and self._same_path(selected_path, self._root_directory):
+            self._clear_current_selection()
+            return
+
+        if not self.select_directory_by_path(selected_path, warn=False):
+            self._clear_current_selection()
 
     def _restore_selection_after_delete(self):
         if self._pending_delete_row is None:
