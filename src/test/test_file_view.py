@@ -77,9 +77,30 @@ class TestFileView(unittest.TestCase):
             source_model.fileInfo.return_value = file_info
             proxy_model.sourceModel = MagicMock(return_value=source_model)
 
-            proxy_model.add_root_path(tmpdir)
+            proxy_model.set_root_path(tmpdir)
 
             self.assertTrue(proxy_model.filterAcceptsRow(0, QModelIndex()))
+
+    def test_filter_rejects_previous_root_directory_after_root_changes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            previous_root = os.path.join(tmpdir, "previous")
+            current_root = tmpdir
+            os.mkdir(previous_root)
+
+            proxy_model = CustomFilterProxyModel()
+            source_model = MagicMock()
+            file_info = MagicMock()
+            file_info.isFile.return_value = False
+            file_info.filePath.return_value = previous_root
+            source_model.index.return_value = MagicMock()
+            source_model.fileName.return_value = os.path.basename(previous_root)
+            source_model.fileInfo.return_value = file_info
+            proxy_model.sourceModel = MagicMock(return_value=source_model)
+
+            proxy_model.set_root_path(previous_root)
+            proxy_model.set_root_path(current_root)
+
+            self.assertFalse(proxy_model.filterAcceptsRow(0, QModelIndex()))
 
     def test_set_directory_logs_instead_of_dialog_when_model_index_not_ready(self):
         view = FileView()

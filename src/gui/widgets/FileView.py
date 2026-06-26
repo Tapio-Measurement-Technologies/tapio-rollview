@@ -30,25 +30,25 @@ class CustomFilterProxyModel(QSortFilterProxyModel):
         else:
             self.invalidateFilter()
 
-    def add_root_path(self, path):
+    def set_root_path(self, path):
         path_key = self._path_key(path)
         if path_key is None:
             return
 
-        added_path = False
+        root_paths = set()
         current_path = os.path.abspath(path)
         while current_path:
             current_key = self._path_key(current_path)
-            if current_key is not None and current_key not in self._root_paths:
-                self._root_paths.add(current_key)
-                added_path = True
+            if current_key is not None:
+                root_paths.add(current_key)
 
             parent_path = os.path.dirname(current_path)
             if parent_path == current_path:
                 break
             current_path = parent_path
 
-        if added_path:
+        if root_paths != self._root_paths:
+            self._root_paths = root_paths
             self._refresh_filter()
 
     def _is_root_path(self, path):
@@ -234,7 +234,7 @@ class FileView(QWidget):
 
         self.proxy_model = CustomFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
-        self.proxy_model.add_root_path(initial_root_path)
+        self.proxy_model.set_root_path(initial_root_path)
 
         self.view = FileTreeView(self.proxy_model)
         self.view.set_empty_message(_("No profile files in selected folder"))
@@ -318,7 +318,7 @@ class FileView(QWidget):
                 return
 
             self._pending_directory = path
-            self.proxy_model.add_root_path(path)
+            self.proxy_model.set_root_path(path)
             self.model.setRootPath(path)
             if self._set_root_index_for_path(path):
                 self._pending_directory = None
