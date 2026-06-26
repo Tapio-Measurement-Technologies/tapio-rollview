@@ -31,6 +31,10 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
     :return: Array-like, the filtered data.
     """
 
+    data = np.asarray(data)
+    if len(data) == 0:
+        return data
+
     original_mean = np.mean(data)
 
     data_length = len(data)
@@ -89,6 +93,8 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
         filtered_data = filtered_data[numtaps:-numtaps]
 
     if correct_mean:
+        if len(filtered_data) == 0:
+            return filtered_data
         filtered_data = filtered_data - np.mean(filtered_data)
         filtered_data += original_mean
 

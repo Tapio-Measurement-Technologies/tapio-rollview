@@ -301,6 +301,36 @@ class TestProfileWidget(unittest.TestCase):
         finally:
             widget.close()
 
+    def test_update_plot_with_empty_profile_data_shows_message_and_resets_stats(self):
+        profile = Profile(
+            path="header-only.prof",
+            data=ProfileData(
+                distances=np.array([]),
+                hardnesses=np.array([]),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=128,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+
+            widget.update_plot([profile], "empty-dir")
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertTrue(widget.toolbar.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertFalse(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
+            self.assertEqual(widget.figure.axes, [])
+            for stat_widget in widget.stats_widget.widgets:
+                self.assertIsNone(stat_widget.value)
+                self.assertEqual(stat_widget.value_label.text(), "--")
+        finally:
+            widget.close()
+
     def test_update_plot_with_no_profiles_shows_message_and_placeholder_stats(self):
         widget = ProfileWidget()
         try:

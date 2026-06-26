@@ -4,7 +4,7 @@ from utils import preferences, profile_stats
 from models.Profile import Profile
 from utils.zoom_pan import ZoomPan
 from scipy.signal import welch
-from utils.profile_stats import Stats, calc_mean_profile
+from utils.profile_stats import Stats, calc_mean_profile, has_profile_samples
 from utils.excluded_regions import get_included_samples, get_visual_excluded_ranges
 from utils.highlighted_regions import (
     AbsoluteMeanOffsetHardnessHighlightRegion,
@@ -429,7 +429,7 @@ class ProfileWidget(QWidget):
         # Filter empty profiles before drawing any axes. If there are no usable
         # profile files, the profile tab should show a UI message, not a plot.
         self.profiles = [
-            profile for profile in profiles if profile.data is not None]
+            profile for profile in profiles if has_profile_samples(profile)]
         if len(self.profiles) == 0:
             self.show_no_profile_files_message(directory_name)
             return

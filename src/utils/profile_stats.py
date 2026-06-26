@@ -68,6 +68,9 @@ def excluded_regions_aware(func):
         if isinstance(profile_data, tuple) and len(profile_data) == 2:
             distances, data = profile_data
 
+        if len(data) == 0:
+            return np.nan
+
         if preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE and len(data) > 0:
             unit_info = preferences.get_distance_unit_info()
             included_data, _ = get_included_samples(
@@ -99,6 +102,17 @@ analysis_to_alert_name = {
     for spec in STAT_SPECS
 }
 stat_units = {spec["name"]: spec["unit"] for spec in STAT_SPECS}
+
+
+def has_profile_samples(profile):
+    if (profile is None or
+        not hasattr(profile, 'data') or
+        profile.data is None):
+        return False
+
+    distances = getattr(profile.data, 'distances', [])
+    hardnesses = getattr(profile.data, 'hardnesses', [])
+    return len(distances) > 0 and len(hardnesses) > 0
 
 
 def _get_included_data_with_positions(profile_data):
@@ -204,9 +218,7 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
     # do not take them into account when calculating mean profile
     filtered_profiles = [
         profile for profile in profiles
-        if (profile is not None and
-            hasattr(profile, 'data') and
-            profile.data is not None)
+        if has_profile_samples(profile)
     ]
 
     if not filtered_profiles:
@@ -219,9 +231,7 @@ def calc_mean_profile(profiles, band_pass_low=None, band_pass_high=None, sample_
 
         # Track distance offsets from all profiles, including those too short
         for profile in profiles:
-            if (profile is not None and
-                hasattr(profile, 'data') and
-                profile.data is not None):
+            if has_profile_samples(profile):
 
                 distances = profile.data.distances
                 values = profile.data.hardnesses
