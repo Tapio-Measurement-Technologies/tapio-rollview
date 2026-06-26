@@ -100,7 +100,7 @@ class DirectoryView(QWidget):
             if i != 3:  # Assuming column 3 is the "Date Modified" column
                 self.treeView.setColumnHidden(i, True)
 
-        self.rollFilterInput = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"))
+        self.rollFilterInput = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
         self.rollFilterInput.filter_changed.connect(self.set_roll_filter)
 
         self.openDirButton = QPushButton(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"))

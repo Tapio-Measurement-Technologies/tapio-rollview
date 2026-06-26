@@ -222,9 +222,9 @@ msgstr "Change directory"
 msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
 msgstr "Select Directory"
 
-#. Used in directory view roll filter input as placeholder text.
-msgid "ROLL_FILTER_PLACEHOLDER"
-msgstr "Filter rolls"
+#. Used in directory view folder filter input as placeholder text.
+msgid "FOLDER_FILTER_PLACEHOLDER"
+msgstr "Filter folders"
 
 #. Used in regex filter inputs as tooltip text when pattern is invalid.
 msgid "REGEX_FILTER_INVALID_TOOLTIP"

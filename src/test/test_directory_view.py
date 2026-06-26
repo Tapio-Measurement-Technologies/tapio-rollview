@@ -543,7 +543,7 @@ class TestDirectoryView(unittest.TestCase):
             view.close()
 
     def test_regex_filter_line_edit_keeps_previous_valid_filter_on_invalid_regex(self):
-        widget = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"))
+        widget = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
         try:
             emitted = []
             widget.filter_changed.connect(lambda pattern, regex: emitted.append((pattern, regex)))
@@ -562,7 +562,7 @@ class TestDirectoryView(unittest.TestCase):
     def test_regex_filter_line_edit_debounces_rapid_typing(self):
         from PySide6.QtTest import QTest
 
-        widget = RegexFilterLineEdit(_("ROLL_FILTER_PLACEHOLDER"), debounce_ms=200)
+        widget = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"), debounce_ms=200)
         try:
             emitted = []
             widget.filter_changed.connect(lambda pattern, regex: emitted.append(pattern))
