@@ -506,9 +506,10 @@ class MainWindow(QMainWindow):
             return False
 
         try:
-            for entry in os.scandir(directory):
-                if entry.is_dir() and entry.name not in settings.IGNORE_FOLDERS:
-                    return True
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if entry.is_dir() and entry.name not in settings.IGNORE_FOLDERS:
+                        return True
         except (OSError, PermissionError):
             return False
 
