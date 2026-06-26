@@ -39,7 +39,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
-        self.resize(1050, 600)
+        self.resize(1100, 650)
 
         self.file_transfer_manager = FileTransferManager()
         self.postprocess_manager = PostprocessManager()
