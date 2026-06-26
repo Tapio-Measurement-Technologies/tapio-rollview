@@ -178,6 +178,17 @@ class DirectoryView(QWidget):
     def _note_directory_load_failed(self, directory):
         print(_("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory))
 
+    def _clear_current_selection(self):
+        selection_model = self.treeView.selectionModel()
+        selection_model.clear()
+        selection_model.clearCurrentIndex()
+        self.treeView.setCurrentIndex(QModelIndex())
+
+    def _clear_pending_focus_restore(self):
+        self._pending_focus_path = None
+        self._pending_focus_active = False
+        self._focus_restore_scheduled = False
+
     def set_roll_filter(self, pattern, compiled_regex):
         self.preserve_current_directory_focus()
         self.active_roll_filter_pattern = pattern
@@ -249,6 +260,8 @@ class DirectoryView(QWidget):
                 # QFileSystemModel can resolve indexes asynchronously, so an
                 # initially invalid index is not a blocking user-facing error.
                 self._root_directory = directory
+                self._clear_current_selection()
+                self._clear_pending_focus_restore()
                 self.model.setRootPath(directory)
                 self.proxy_model.set_root_directory(directory)
                 root_index = self.proxy_model.mapFromSource(self.model.index(directory))
@@ -336,7 +349,14 @@ class DirectoryView(QWidget):
         if not source_index.isValid():
             return None
 
-        return self.model.filePath(source_index)
+        selected_path = self.model.filePath(source_index)
+        if (
+            self._root_directory
+            and not self._path_is_within_directory(selected_path, self._root_directory)
+        ):
+            return None
+
+        return selected_path
 
     def preserve_current_directory_focus(self):
         self._pending_focus_path = self.get_selected_directory_path()

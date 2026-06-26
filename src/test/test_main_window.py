@@ -202,13 +202,14 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
             self.assertEqual(store.selected_profile, "selected.prof")
 
-    def test_root_directory_change_points_file_view_at_root_when_nothing_selected(self):
+    def test_root_directory_change_shows_empty_profile_state_when_root_has_no_folders(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             store.selected_directory = None
             store.selected_profile = "selected.prof"
             store.profiles = ["stale"]
             self.window.fileView.set_directory = MagicMock()
             self.window.profile_widget.clear_plot_display = MagicMock()
+            self.window.profile_widget.show_no_profile_files_message = MagicMock()
 
             self.window.on_root_directory_changed(tmpdir)
 
@@ -217,7 +218,10 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             self.assertIsNone(store.selected_profile)
             self.assertEqual(store.profiles, [])
             self.window.fileView.set_directory.assert_called_once_with(tmpdir)
-            self.window.profile_widget.clear_plot_display.assert_called_once()
+            self.window.profile_widget.clear_plot_display.assert_not_called()
+            self.window.profile_widget.show_no_profile_files_message.assert_called_once_with(
+                os.path.basename(tmpdir)
+            )
 
     def test_root_directory_change_does_not_blank_plot_when_profile_folders_exist(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -485,10 +485,13 @@ class MainWindow(QMainWindow):
     def on_root_directory_changed(self, directory):
         store.root_directory = directory
         if not self._path_is_within_directory(store.selected_directory, directory):
+            root_has_profile_directories = self._root_has_profile_directories(directory)
             self._clear_profile_selection(
                 directory,
-                clear_plot=not self._root_has_profile_directories(directory),
+                clear_plot=False,
             )
+            if not root_has_profile_directories:
+                self.profile_widget.show_no_profile_files_message(os.path.basename(directory))
 
     def _clear_profile_selection(self, root_directory=None, clear_plot=True):
         store.selected_directory = None

@@ -405,7 +405,7 @@ class ProfileWidget(QWidget):
         self.toolbar.setVisible(False)
         self.canvas.draw()
 
-    def _show_no_profile_files_message(self, directory_name):
+    def show_no_profile_files_message(self, directory_name):
         self.profiles = []
         self.mean_profile = []
         self.mean_profile_distances = []
@@ -431,7 +431,7 @@ class ProfileWidget(QWidget):
         self.profiles = [
             profile for profile in profiles if profile.data is not None]
         if len(self.profiles) == 0:
-            self._show_no_profile_files_message(directory_name)
+            self.show_no_profile_files_message(directory_name)
             return
 
         # Reconfigure axes layout

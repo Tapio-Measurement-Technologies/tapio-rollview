@@ -40,6 +40,17 @@ class TestDirectoryView(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def wait_until(self, predicate, timeout_ms=1000):
+        from PySide6.QtTest import QTest
+
+        for _ in range(max(1, timeout_ms // 50)):
+            QApplication.processEvents()
+            if predicate():
+                return True
+            QTest.qWait(50)
+        QApplication.processEvents()
+        return predicate()
+
     def test_delete_selects_previous_row_when_available(self):
         self.assertEqual(DirectoryView.get_row_to_select_after_delete(3, 5), 2)
 
@@ -329,6 +340,36 @@ class TestDirectoryView(unittest.TestCase):
                 self.assertEqual(emitted_directories, [tmpdir])
                 view.watch_directory_and_subdirs.assert_called_once_with(tmpdir)
                 view.select_first_directory.assert_not_called()
+        finally:
+            view.close()
+
+    def test_root_change_discards_stale_selection_before_async_initial_selection(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                old_root = os.path.join(tmpdir, "old-root")
+                old_roll = os.path.join(old_root, "old-roll")
+                empty_root = os.path.join(tmpdir, "empty-root")
+                new_root = os.path.join(tmpdir, "new-root")
+                new_roll = os.path.join(new_root, "new-roll")
+                for directory in (old_roll, empty_root, new_roll):
+                    os.makedirs(directory)
+
+                emitted_paths = []
+                view.directory_selected.connect(emitted_paths.append)
+
+                view.change_root_directory(old_root)
+                self.assertTrue(self.wait_until(lambda: view.get_selected_directory_path() == old_roll))
+
+                emitted_paths.clear()
+                view.change_root_directory(empty_root)
+                self.assertTrue(self.wait_until(lambda: view.proxy_model.rowCount(view.treeView.rootIndex()) == 0))
+                self.assertIsNone(view.get_selected_directory_path())
+                self.assertEqual(emitted_paths, [])
+
+                view.change_root_directory(new_root)
+                self.assertTrue(self.wait_until(lambda: view.get_selected_directory_path() == new_roll))
+                self.assertEqual(emitted_paths, [new_roll])
         finally:
             view.close()
 
