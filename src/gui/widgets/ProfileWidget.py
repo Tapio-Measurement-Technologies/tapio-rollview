@@ -69,6 +69,7 @@ class WarningLabel(QLabel):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("""
             background-color: lightgoldenrodyellow;
+            color: black;
             border-radius: 4px;
             border: 2px;
         """)
