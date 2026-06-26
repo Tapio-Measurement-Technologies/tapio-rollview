@@ -35,6 +35,21 @@ selection_flags = (
     QItemSelectionModel.SelectionFlag.Rows
 )
 
+class DirectoryTreeView(ContextMenuTreeView):
+    selectionCleared = Signal()
+
+    def mousePressEvent(self, event):
+        index = self.indexAt(event.pos())
+        if event.button() == Qt.MouseButton.LeftButton and not index.isValid():
+            self.selectionModel().clear()
+            self.selectionModel().clearCurrentIndex()
+            self.setCurrentIndex(QModelIndex())
+            self.selectionCleared.emit()
+            return
+
+        super().mousePressEvent(event)
+
+
 class DirectoryView(QWidget):
     root_directory_changed = Signal(str)
     directory_selected     = Signal(str)
@@ -66,9 +81,10 @@ class DirectoryView(QWidget):
         self.proxy_model = DirectorySortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
 
-        self.treeView = ContextMenuTreeView(self.proxy_model)
+        self.treeView = DirectoryTreeView(self.proxy_model)
         self.treeView.set_empty_message(_("No folders in selected directory"))
         self.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
+        self.treeView.selectionCleared.connect(self.on_selection_cleared)
         self.treeView.deleteRequested.connect(self.on_delete_requested)
         # Sort the folders by custom modified date
         self.treeView.setSortingEnabled(True)
@@ -299,6 +315,10 @@ class DirectoryView(QWidget):
 
         file_path = self.model.filePath(source_index)
         self.directory_selected.emit(file_path)
+
+    def on_selection_cleared(self):
+        if self._root_directory and os.path.isdir(self._root_directory):
+            self.directory_selected.emit(self._root_directory)
 
     def on_directory_renamed(self, path, old_name, new_name):
         old_path = os.path.join(path, old_name)

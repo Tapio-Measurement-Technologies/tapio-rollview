@@ -300,6 +300,20 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             view.close()
 
+    def test_selection_cleared_emits_root_directory(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                view._root_directory = tmpdir
+                emitted_paths = []
+                view.directory_selected.connect(emitted_paths.append)
+
+                view.on_selection_cleared()
+
+                self.assertEqual(emitted_paths, [tmpdir])
+        finally:
+            view.close()
+
     def test_on_directory_renamed_emits_new_selected_path(self):
         view = DirectoryView()
         try:
