@@ -149,7 +149,7 @@ class DirectoryView(QWidget):
                 _("ERROR_MSGBOX_TITLE")
             )
 
-    def select_first_directory(self):
+    def select_first_directory(self, set_focus=True):
         # Get the first child of the current root index
         root_index = self.treeView.rootIndex()
         if not root_index.isValid():
@@ -159,7 +159,8 @@ class DirectoryView(QWidget):
         if not first_child.isValid():
             return
 
-        self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+        if set_focus:
+            self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
         self.treeView.setCurrentIndex(first_child)
         self.treeView.selectionModel().setCurrentIndex(first_child, selection_flags)
         self.treeView.scrollTo(first_child)
@@ -397,7 +398,7 @@ class DirectoryView(QWidget):
             return
 
         if not self.select_directory_by_path(focus_path, warn=False):
-            self.select_first_directory()
+            self.select_first_directory(set_focus=False)
         if focus_active:
             self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
 

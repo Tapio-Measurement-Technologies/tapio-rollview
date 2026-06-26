@@ -77,6 +77,34 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             view.close()
 
+    def test_select_first_directory_can_leave_current_focus_unchanged(self):
+        view = DirectoryView()
+        try:
+            root_index = MagicMock(spec=QModelIndex)
+            root_index.isValid.return_value = True
+            first_child = MagicMock(spec=QModelIndex)
+            first_child.isValid.return_value = True
+
+            selection_model = MagicMock()
+            tree_model = MagicMock()
+            tree_model.index.return_value = first_child
+
+            view.treeView.rootIndex = MagicMock(return_value=root_index)
+            view.treeView.model = MagicMock(return_value=tree_model)
+            view.treeView.selectionModel = MagicMock(return_value=selection_model)
+            view.treeView.setCurrentIndex = MagicMock()
+            view.treeView.setFocus = MagicMock()
+            view.treeView.scrollTo = MagicMock()
+
+            view.select_first_directory(set_focus=False)
+
+            view.treeView.setFocus.assert_not_called()
+            view.treeView.setCurrentIndex.assert_called_once_with(first_child)
+            selection_model.setCurrentIndex.assert_called_once_with(first_child, selection_flags)
+            view.treeView.scrollTo.assert_called_once_with(first_child)
+        finally:
+            view.close()
+
     def test_select_first_directory_skips_when_no_rows(self):
         view = DirectoryView()
         try:
@@ -134,6 +162,25 @@ class TestDirectoryView(unittest.TestCase):
 
             self.assertEqual(selected_paths, [])
             self.assertIsNone(view._pending_focus_path)
+        finally:
+            view.close()
+
+    def test_restore_focus_selects_first_directory_without_stealing_input_focus(self):
+        view = DirectoryView()
+        try:
+            view._pending_focus_path = "/tmp/selected"
+            view._pending_focus_active = False
+            view.get_selected_directory_path = lambda: "/tmp/other"
+            view.select_directory_by_path = MagicMock(return_value=False)
+            view.select_first_directory = MagicMock()
+            view.treeView.setFocus = MagicMock()
+
+            with patch("gui.widgets.DirectoryView.os.path.isdir", return_value=True):
+                view._restore_focus_after_model_change()
+
+            view.select_directory_by_path.assert_called_once_with("/tmp/selected", warn=False)
+            view.select_first_directory.assert_called_once_with(set_focus=False)
+            view.treeView.setFocus.assert_not_called()
         finally:
             view.close()
 
