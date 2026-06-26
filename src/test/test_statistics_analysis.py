@@ -19,20 +19,52 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def test_plot_without_data_shows_message_outside_plot(self):
+        chart = StatisticsAnalysisChart()
+        try:
+            chart.plot([])
+
+            self.assertTrue(chart.canvas.isHidden())
+            self.assertFalse(chart.empty_state_label.isHidden())
+            self.assertEqual(chart.empty_state_label.text(), _("NO_DATA_AVAILABLE"))
+            self.assertEqual(len(chart.bars), 0)
+            axis_texts = [text.get_text() for text in chart.ax.texts]
+            self.assertNotIn(_("NO_DATA_AVAILABLE"), axis_texts)
+        finally:
+            chart.close()
+
+    def test_plot_with_data_restores_canvas_after_empty_state(self):
+        chart = StatisticsAnalysisChart()
+        try:
+            chart.plot([])
+            chart.plot([
+                {"x": 1, "y": 10.0, "label": "roll-1", "path": "/tmp/roll-1"},
+            ])
+
+            self.assertFalse(chart.canvas.isHidden())
+            self.assertTrue(chart.empty_state_label.isHidden())
+            self.assertEqual(chart.empty_state_label.text(), "")
+            self.assertEqual(len(chart.bars), 1)
+        finally:
+            chart.close()
+
     def test_pick_selects_clicked_bar_and_emits_directory_path(self):
         chart = StatisticsAnalysisChart()
-        emitted_paths = []
-        chart.point_selected.connect(emitted_paths.append)
-        chart.plot([
-            {"x": 1, "y": 10.0, "label": "roll-1", "path": "/tmp/roll-1"},
-            {"x": 2, "y": 20.0, "label": "roll-2", "path": "/tmp/roll-2"},
-        ])
+        try:
+            emitted_paths = []
+            chart.point_selected.connect(emitted_paths.append)
+            chart.plot([
+                {"x": 1, "y": 10.0, "label": "roll-1", "path": "/tmp/roll-1"},
+                {"x": 2, "y": 20.0, "label": "roll-2", "path": "/tmp/roll-2"},
+            ])
 
-        chart.on_pick(SimpleNamespace(artist=chart.bars[1]))
+            chart.on_pick(SimpleNamespace(artist=chart.bars[1]))
 
-        self.assertEqual(emitted_paths, ["/tmp/roll-2"])
-        self.assertEqual(chart.highlighted_point, "roll-2")
-        self.assertEqual(chart.bars[1].get_facecolor(), to_rgba("tab:orange"))
+            self.assertEqual(emitted_paths, ["/tmp/roll-2"])
+            self.assertEqual(chart.highlighted_point, "roll-2")
+            self.assertEqual(chart.bars[1].get_facecolor(), to_rgba("tab:orange"))
+        finally:
+            chart.close()
 
 
 class TestStatisticsAnalysisWidget(unittest.TestCase):

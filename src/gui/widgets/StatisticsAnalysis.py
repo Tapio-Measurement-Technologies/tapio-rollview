@@ -1,5 +1,14 @@
-from PySide6.QtWidgets import QWidget, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget, QPushButton
-from PySide6.QtCore import Slot, Signal
+from PySide6.QtWidgets import (
+    QWidget,
+    QComboBox,
+    QVBoxLayout,
+    QHBoxLayout,
+    QStackedWidget,
+    QPushButton,
+    QLabel,
+    QSizePolicy,
+)
+from PySide6.QtCore import Slot, Signal, Qt
 import store
 import os
 from typing import List, Dict, Any
@@ -33,12 +42,22 @@ class StatisticsAnalysisChart(QWidget):
         self.parent_widget = parent  # Store direct reference
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
+        self.empty_state_label = QLabel()
+        self.empty_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_state_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
+        self.empty_state_label.setStyleSheet("font-size: 16px;")
+        self.empty_state_label.setHidden(True)
         self.ax = self.figure.add_subplot(111)
         self.stat_data = []
+        self.bars = []
         self.highlighted_point = None
         self.current_filter = None  # Track current filter for display
 
         layout = QVBoxLayout()
+        layout.addWidget(self.empty_state_label)
         layout.addWidget(self.canvas)
         self.setLayout(layout)
 
@@ -52,16 +71,22 @@ class StatisticsAnalysisChart(QWidget):
     def plot(self, stat_data: List[Dict[str, Any]]):
         self.stat_data = stat_data
         self.ax.clear()
+        self.bars = []
         self.annot = self.ax.annotate("", xy=(0,0), xytext=(0,10),
                             textcoords="offset points",
                             bbox=dict(boxstyle="round", fc="w"))
         self.annot.set_visible(False)
 
         if not stat_data:
-            self.ax.text(0.5, 0.5, _("NO_DATA_AVAILABLE"), ha="center", va="center", transform=self.ax.transAxes, fontdict={'size': 16})
-            self.ax.axis('off')
+            self.empty_state_label.setText(_("NO_DATA_AVAILABLE"))
+            self.empty_state_label.setVisible(True)
+            self.canvas.setVisible(False)
             self.canvas.draw()
             return
+
+        self.empty_state_label.clear()
+        self.empty_state_label.setHidden(True)
+        self.canvas.setVisible(True)
 
         # Use enumerated indices for x-axis instead of timestamps
         x_indices = list(range(len(stat_data)))
