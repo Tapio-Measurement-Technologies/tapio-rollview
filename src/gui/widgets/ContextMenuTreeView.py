@@ -63,10 +63,14 @@ class ContextMenuTreeView(QTreeView):
         if isinstance(self._model, QFileSystemModel):
             self._model.setReadOnly(False)
 
-        # Add F2 shortcut for rename
+        # Add shortcuts for item actions
         self.rename_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
         self.rename_shortcut.activated.connect(self._rename_selected)
         self.rename_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
+        self.delete_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self)
+        self.delete_shortcut.activated.connect(self._delete_selected)
+        self.delete_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
 
     def set_empty_message(self, message):
         self._empty_message = message
@@ -89,8 +93,9 @@ class ContextMenuTreeView(QTreeView):
         rename_action = QAction(_("BUTTON_TEXT_RENAME"), self)
         delete_action = QAction(_("BUTTON_TEXT_DELETE"), self)
 
-        # Add F2 shortcut hint to rename action
+        # Add shortcut hints to item actions
         rename_action.setShortcut(QKeySequence("F2"))
+        delete_action.setShortcut(QKeySequence(Qt.Key.Key_Delete))
 
         open_action.triggered.connect(lambda: self.open_file_explorer(indexes[0]))
         rename_action.triggered.connect(lambda: self.rename_file(indexes[0]))
@@ -121,6 +126,12 @@ class ContextMenuTreeView(QTreeView):
         indexes = self.selectedIndexes()
         if indexes:
             self.rename_file(indexes[0])
+
+    def _delete_selected(self):
+        """Delete the currently selected item when Delete is pressed."""
+        indexes = self.selectedIndexes()
+        if indexes:
+            self.delete_file(indexes[0])
 
     def rename_file(self, index: QModelIndex):
         index = index.siblingAtColumn(0)
