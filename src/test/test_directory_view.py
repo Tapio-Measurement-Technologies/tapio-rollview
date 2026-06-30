@@ -437,6 +437,20 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             view.close()
 
+    def test_directory_changed_uses_directory_date_refresh(self):
+        view = DirectoryView()
+        try:
+            emitted = []
+            view.refresh_directory_dates = MagicMock()
+            view.directory_contents_changed.connect(lambda: emitted.append(True))
+
+            view.on_directory_changed("/tmp/roll-1")
+
+            view.refresh_directory_dates.assert_called_once_with(["/tmp/roll-1"])
+            self.assertEqual(emitted, [True])
+        finally:
+            view.close()
+
     def test_latest_modified_date_uses_only_real_profile_files(self):
         model = CustomFileSystemModel()
         try:

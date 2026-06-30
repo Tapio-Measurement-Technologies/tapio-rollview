@@ -509,18 +509,7 @@ class DirectoryView(QWidget):
         self.directory_contents_changed.emit()
 
     def on_directory_changed(self, path):
-        # A directory changed event occurred
-        # Invalidate cache for this directory in the model
-        self.model.invalidate_cache(path)
-
-        # Since data might have changed, force the view to update
-        # We'll find the directory index and emit dataChanged accordingly
-        index = self.model.index(path)
-        if index.isValid():
-            # The "Date Modified" column is 3
-            top_left = self.proxy_model.mapFromSource(self.model.index(index.row(), 3, index.parent()))
-            bottom_right = top_left
-            self.proxy_model.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
+        self.refresh_directory_dates([path])
         self.directory_contents_changed.emit()
 
     def on_file_changed(self, path):
