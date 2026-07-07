@@ -34,6 +34,12 @@ For support, training, instruments and customizations please contact us at:
 - Email: [info@tapiotechnologies.com](mailto:info@tapiotechnologies.com)
 - Visit: [https://www.tapiotechnologies.com](https://www.tapiotechnologies.com)
 
+## Security
+
+Report security issues to [security@tapiotechnologies.com](mailto:security@tapiotechnologies.com). See [SECURITY.md](SECURITY.md) for supported releases and vulnerability handling.
+
+Release builds include CycloneDX JSON SBOM files named `rollview-${version}-${platform}.cdx.json`.
+
 
 ## Installation instructions
 
@@ -79,4 +85,3 @@ Tapio RollView is free software: you can redistribute it and/or modify it under 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with this program. If not, see [GNU General Public License](https://www.gnu.org/licenses/).
-

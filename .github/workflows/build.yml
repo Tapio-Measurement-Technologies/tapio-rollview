@@ -114,6 +114,17 @@ jobs:
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
+      - name: Install SBOM tooling
+        run: pip install --require-hashes -r requirements-dev.txt
+
+      - name: Generate SBOM
+        run: >
+          python scripts/generate_sbom.py
+          --version "${{ github.ref_name }}"
+          --platform "${{ matrix.platform }}"
+          --commit-sha "${{ github.sha }}"
+          --output "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.cdx.json"
+
       - name: Azure Login (Windows)
         if: runner.os == 'Windows'
         uses: azure/login@v2
@@ -156,6 +167,7 @@ jobs:
           path: |
             dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
             dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.zip
+            dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.cdx.json
 
       - name: Clean up version file
         if: always()
@@ -204,6 +216,16 @@ jobs:
           asset_name: rollview-${{ github.ref_name }}-linux.zip
           asset_content_type: application/zip
 
+      - name: Upload Release Asset (Linux SBOM)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/rollview-${{ github.ref_name }}-linux.cdx.json
+          asset_name: rollview-${{ github.ref_name }}-linux.cdx.json
+          asset_content_type: application/vnd.cyclonedx+json
+
       - name: Upload Release Asset (Windows zip)
         uses: actions/upload-release-asset@v1
         env:
@@ -213,6 +235,16 @@ jobs:
           asset_path: dist/rollview-${{ github.ref_name }}-windows.zip
           asset_name: rollview-${{ github.ref_name }}-windows.zip
           asset_content_type: application/zip
+
+      - name: Upload Release Asset (Windows SBOM)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/rollview-${{ github.ref_name }}-windows.cdx.json
+          asset_name: rollview-${{ github.ref_name }}-windows.cdx.json
+          asset_content_type: application/vnd.cyclonedx+json
 
       - name: Upload Release Executable (Windows EXE)
         uses: actions/upload-release-asset@v1
