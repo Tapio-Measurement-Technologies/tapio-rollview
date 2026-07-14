@@ -60,6 +60,9 @@ class FileTransferWorker(QObject):
             Path(self.folder_path),
             progress=self._on_progress,
             cancel_event=self._cancel_event,
+            # Full 8-frame window: Bluetooth SPP bridge latency stalls
+            # smaller windows well below the link rate.
+            window=8,
         )
         try:
             result = client.sync_from_peer(delete_remote=False)
