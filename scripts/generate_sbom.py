@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -61,6 +62,57 @@ def upsert_property(properties: list[dict[str, str]], name: str, value: str) -> 
     properties.append({"name": name, "value": value})
 
 
+def normalized_package_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def direct_requirement_names(requirements: Path) -> set[str]:
+    names: set[str] = set()
+    for raw_line in requirements.read_text(encoding="utf-8").splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line or line.startswith("-"):
+            continue
+        match = re.match(r"^[A-Za-z0-9][A-Za-z0-9._-]*", line)
+        if match is None:
+            raise ValueError(f"Cannot parse direct requirement: {raw_line}")
+        names.add(normalized_package_name(match.group()))
+    return names
+
+
+def connect_root_dependencies(
+    bom: dict,
+    root_ref: str,
+    direct_requirements: Path,
+) -> None:
+    direct_names = direct_requirement_names(direct_requirements)
+    direct_refs = sorted(
+        component["bom-ref"]
+        for component in bom.get("components", [])
+        if normalized_package_name(component.get("name", "")) in direct_names
+    )
+    found_names = {
+        normalized_package_name(component.get("name", ""))
+        for component in bom.get("components", [])
+        if component.get("bom-ref") in direct_refs
+    }
+    missing_names = direct_names - found_names
+    if missing_names:
+        raise ValueError(
+            "Direct requirements missing from generated SBOM: "
+            + ", ".join(sorted(missing_names))
+        )
+
+    dependencies = bom.setdefault("dependencies", [])
+    root_dependency = next(
+        (dependency for dependency in dependencies if dependency.get("ref") == root_ref),
+        None,
+    )
+    if root_dependency is None:
+        root_dependency = {"ref": root_ref}
+        dependencies.append(root_dependency)
+    root_dependency["dependsOn"] = direct_refs
+
+
 def run_cyclonedx(requirements: Path, output: Path, spec_version: str) -> None:
     cmd = [
         sys.executable,
@@ -86,6 +138,7 @@ def stamp_bom(
     build_platform: str,
     build_timestamp: str,
     requirements: Path,
+    direct_requirements: Path,
 ) -> None:
     with bom_path.open("r", encoding="utf-8") as file:
         bom = json.load(file)
@@ -94,7 +147,7 @@ def stamp_bom(
     metadata["timestamp"] = build_timestamp
 
     component = metadata.setdefault("component", {})
-    component_ref = component.get("bom-ref") or f"pkg:generic/{PACKAGE_NAME}@{version}"
+    component_ref = f"pkg:generic/{PACKAGE_NAME}@{version}"
     component.update(
         {
             "type": "application",
@@ -116,6 +169,8 @@ def stamp_bom(
     upsert_property(properties, "tapio:sbom:platform", build_platform)
     upsert_property(properties, "tapio:sbom:requirements-file", str(requirements))
     upsert_property(properties, "tapio:sbom:generator", "cyclonedx-py")
+
+    connect_root_dependencies(bom, component_ref, direct_requirements)
 
     validate_bom(bom)
     serialized = json.dumps(bom, indent=2, sort_keys=True)
@@ -139,6 +194,18 @@ def validate_bom(bom: dict) -> None:
     if component.get("name") != PRODUCT_NAME:
         raise ValueError("Generated CycloneDX BOM has wrong root component")
 
+    root_ref = component.get("bom-ref")
+    root_dependency = next(
+        (
+            dependency
+            for dependency in bom.get("dependencies", [])
+            if dependency.get("ref") == root_ref
+        ),
+        None,
+    )
+    if not root_dependency or not root_dependency.get("dependsOn"):
+        raise ValueError("Generated CycloneDX BOM has no root dependency graph")
+
 
 def validate_cyclonedx_schema(serialized_bom: str, spec_version: str) -> None:
     schema_versions = {
@@ -154,6 +221,11 @@ def validate_cyclonedx_schema(serialized_bom: str, spec_version: str) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate Tapio RollView CycloneDX SBOM.")
     parser.add_argument("--requirements", default="requirements.txt", help="Requirements file to inventory.")
+    parser.add_argument(
+        "--direct-requirements",
+        default="requirements.in",
+        help="Direct requirements file used to connect the root dependency graph.",
+    )
     parser.add_argument("--output", required=True, help="Output CycloneDX JSON path.")
     parser.add_argument("--version", default=os.environ.get("GITHUB_REF_NAME", "0.0.0+local"))
     parser.add_argument("--commit-sha", default=git_commit())
@@ -166,10 +238,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     requirements = Path(args.requirements)
+    direct_requirements = Path(args.direct_requirements)
     output = Path(args.output)
 
     if not requirements.exists():
         raise FileNotFoundError(f"Requirements file not found: {requirements}")
+    if not direct_requirements.exists():
+        raise FileNotFoundError(
+            f"Direct requirements file not found: {direct_requirements}"
+        )
 
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
@@ -189,6 +266,7 @@ def main() -> int:
             build_platform=args.platform,
             build_timestamp=args.build_timestamp,
             requirements=requirements,
+            direct_requirements=direct_requirements,
         )
         temp_path.replace(output)
     finally:
