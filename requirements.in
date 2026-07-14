@@ -1,0 +1,12 @@
+--index-url https://pypi.org/simple
+--only-binary :all:
+
+matplotlib==3.9.0
+numpy==2.2.2
+pandas==2.2.2
+pillow==12.3.0
+pyserial==3.5
+PySide6==6.8.1.1
+qrcode==8.2
+scipy==1.13.1
+XlsxWriter==3.2.0
