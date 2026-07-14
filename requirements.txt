@@ -162,6 +162,9 @@ pytz==2024.2 \
 qrcode==8.2 \
     --hash=sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f
     # via -r requirements.in
+rqft @ https://github.com/Tapio-Measurement-Technologies/rqft/releases/download/v1.0.0/rqft-1.0.0-py3-none-any.whl \
+    --hash=sha256:6a2dd92dbf11f8bd9aebf8d11ac1950e53c7aa962d7e69f492e93ea23400e138
+    # via -r requirements.in
 scipy==1.13.1 \
     --hash=sha256:cdd7dacfb95fea358916410ec61bbc20440f7860333aee6d882bb8046264e949 \
     --hash=sha256:de3ade0e53bc1f21358aa74ff4830235d716211d7d077e340c7349bc3542e884
