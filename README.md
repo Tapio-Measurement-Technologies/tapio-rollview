@@ -67,16 +67,15 @@ cd tapio-rollview
 
 ### Updating dependency locks
 
-Runtime, build, and development dependencies are declared in the corresponding `requirements-*.in` files. Generate all hashed lock files with Python 3.12:
+Runtime and build dependencies are declared in `requirements.in` and `requirements-build.in`. Install `tapio-build-tooling` 0.1.0 from its pinned repository commit, then generate both hashed lock files with Python 3.12:
 
 ```bash
-python -m pip install -r requirements-dev.txt
-python scripts/compile_requirements.py
+tapio-build --project . python requirements compile
 ```
 
-Edit direct dependency versions in the `.in` files, then run the script. Use `python scripts/compile_requirements.py --upgrade` to refresh all transitive dependencies allowed by those pins. User installation remains `pip install -r requirements.txt`.
+Edit direct dependency versions in the `.in` files, then run the command. Add `--upgrade` to refresh all transitive dependencies allowed by those pins. User installation remains `pip install -r requirements.txt`.
 
-Use `python scripts/compile_requirements.py --check` in CI to detect stale lock files without changing them.
+Use `tapio-build --project . python requirements compile --check` to detect stale lock files without changing them. Configuration is in `build-tooling.toml`.
 
 ## Quick RQP Live Configuration
 We have created a simple tool to make it faster to set up your Tapio RQP Live for different types of rolls and grades. The [RQP Live Configurator](https://tapio-measurement-technologies.github.io/rqp-configurator/) is a browser-based tool to generate a configuration QR code for your device.

@@ -1,0 +1,25 @@
+schema-version = 1
+
+[organization]
+name = "Tapio Measurement Technologies Oy"
+website = "https://www.tapiotechnologies.com"
+
+[products.tapio-rollview]
+name = "Tapio RollView"
+license-id = "GPL-3.0-or-later"
+repository = "https://github.com/Tapio-Measurement-Technologies/tapio-rollview"
+website = "https://www.tapiotechnologies.com"
+
+[ecosystems.python]
+version = "3.12"
+
+[[ecosystems.python.requirements]]
+name = "runtime"
+input = "requirements.in"
+lock = "requirements.txt"
+
+[[ecosystems.python.requirements]]
+name = "build"
+input = "requirements-build.in"
+lock = "requirements-build.txt"
+
