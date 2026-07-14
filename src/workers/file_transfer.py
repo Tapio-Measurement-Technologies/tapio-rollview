@@ -3,24 +3,29 @@ This module contains the worker and manager for file transfers.
 """
 import logging
 import os
-import serial
-import time
-from modem import ZMODEM
+import threading
+from pathlib import Path
+
 from models.FileTransfer import FileTransferModel, FileTransferItem
 from PySide6.QtCore import QObject, Signal, QThread
 from gui.widgets.messagebox import show_error_msgbox
+from rqft.client import ProgressPhase, SyncCancelled, SyncClient, SyncProgress
+from rqft.serial_transport import SerialTransport
 
 log = logging.getLogger(__name__)
 
 
 class FileTransferWorker(QObject):
     """
-    Worker for handling file transfer using ZMODEM protocol.
+    Worker for downloading device files using the RQFT protocol.
+
+    Files already present locally with matching size and CRC32 are skipped;
+    the rest are fetched, verified, and committed atomically.
 
     Signals:
-        receivingFile(str, int): Emitted when a new file starts transferring.
+        receivingFile(str, int): Emitted when a file has been received.
                                  (filename, files_left)
-        fileByteProgress(int, int): Emitted during file transfer.
+        fileByteProgress(int, int): Emitted during the transfer batch.
                                    (bytes_transferred, total_bytes)
         finished(): Emitted when the transfer is complete.
         error(str): Emitted on transfer error.
@@ -34,77 +39,74 @@ class FileTransferWorker(QObject):
         super().__init__()
         self.port_name = port
         self.folder_path = folder_path
-        self.serial = None
+        self._cancel_event = threading.Event()
         self._running = True
 
     def run(self):
         """
         Starts the file transfer process.
         """
-        log.info(f"Starting file transfer to {self.folder_path} on port {self.port_name}")
+        log.info(f"Starting RQFT sync to {self.folder_path} on port {self.port_name}")
         try:
-            self.serial = serial.Serial(
-                port=self.port_name,
-                parity=serial.PARITY_NONE,
-                bytesize=serial.EIGHTBITS,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=0.5,
-                xonxoff=0,
-                rtscts=0,
-                dsrdtr=0,
-                baudrate=115200,
-            )
-        except serial.SerialException as e:
+            transport = SerialTransport(self.port_name, baudrate=115200)
+        except Exception as e:
             log.error(f"Failed to open serial port {self.port_name}: {e}")
             self.error.emit(str(e))
             self.finished.emit()
             return
 
-        def getc(size, timeout=5):
-            if not self._running: return None
-            try:
-                return self.serial.read(size).decode("ISO-8859-1")
-            except (serial.SerialException, TypeError):
-                # This will happen if port is closed during read
-                return None
-
-        def putc(data, timeout=8):
-            if not self._running: return None
-            try:
-                return self.serial.write(data.encode("ISO-8859-1"))
-            except (serial.SerialException, TypeError):
-                # This will happen if port is closed during write
-                return None
-
+        client = SyncClient(
+            transport,
+            Path(self.folder_path),
+            progress=self._on_progress,
+            cancel_event=self._cancel_event,
+        )
         try:
-            self.serial.read_all()
-            time.sleep(0.1)
-            zmodem = ZMODEM(getc, putc, self)
-            if self._running:
-                zmodem.recv(self.folder_path)
+            result = client.sync_from_peer(delete_remote=False)
+            log.info(
+                f"RQFT sync finished: fetched={len(result.fetched)} "
+                f"skipped={len(result.skipped)} deleted={len(result.deleted)}"
+            )
+        except SyncCancelled:
+            log.info("RQFT sync cancelled by user")
         except Exception as e:
-            log.error(f"Error during ZMODEM transfer: {e}")
+            log.error(f"Error during RQFT sync: {e}")
             if self._running:
                 self.error.emit(str(e))
         finally:
+            try:
+                client.close()
+            except Exception as e:
+                log.error(f"Error while closing transport: {e}")
             self.stop()
             self.finished.emit()
             log.info("File transfer finished.")
 
+    def _on_progress(self, progress: SyncProgress):
+        """
+        Maps RQFT progress events to the transfer signals. Runs in the
+        worker thread; Qt delivers the signals across threads.
+        """
+        if not self._running:
+            return
+        if progress.phase is ProgressPhase.GET and progress.path:
+            # files_left includes the file just reported, matching the
+            # countdown semantics the dialog expects.
+            files_left = progress.files_total - progress.files_done + 1
+            self.receivingFile.emit(progress.path, files_left)
+        self.fileByteProgress.emit(progress.bytes_done, progress.bytes_total)
+
     def stop(self):
         """
-        Stops the file transfer and cleans up resources. Idempotent.
+        Requests cancellation of the transfer. Idempotent and non-blocking:
+        the client sends ABORT(E_USER) and closes the port from the worker
+        thread.
         """
         if not self._running:
             return
         log.info("Stopping file transfer worker.")
         self._running = False
-        if self.serial and self.serial.is_open:
-            try:
-                self.serial.close()
-                log.info("Serial port closed.")
-            except (serial.SerialException, TypeError) as e:
-                log.error(f"Error while closing serial port: {e}")
+        self._cancel_event.set()
 
 
 class FileTransferManager(QObject):
