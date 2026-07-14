@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.metadata
 import json
 import os
 import platform
@@ -83,6 +85,7 @@ def connect_root_dependencies(
     bom: dict,
     root_ref: str,
     direct_requirements: Path,
+    additional_refs: tuple[str, ...] = (),
 ) -> None:
     direct_names = direct_requirement_names(direct_requirements)
     direct_refs = sorted(
@@ -110,7 +113,71 @@ def connect_root_dependencies(
     if root_dependency is None:
         root_dependency = {"ref": root_ref}
         dependencies.append(root_dependency)
-    root_dependency["dependsOn"] = direct_refs
+    root_dependency["dependsOn"] = sorted({*direct_refs, *additional_refs})
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def installed_pyinstaller_version() -> str:
+    try:
+        return importlib.metadata.version("pyinstaller")
+    except importlib.metadata.PackageNotFoundError as error:
+        raise RuntimeError(
+            "PyInstaller must be installed when generating an artifact SBOM"
+        ) from error
+
+
+def add_embedded_runtime_components(
+    bom: dict,
+    pyinstaller_version: str,
+) -> tuple[str, str]:
+    python_version = platform.python_version()
+    python_ref = f"pkg:generic/python@{python_version}"
+    bootloader_ref = f"pkg:generic/pyinstaller-bootloader@{pyinstaller_version}"
+    components = bom.setdefault("components", [])
+    components.extend(
+        [
+            {
+                "type": "framework",
+                "bom-ref": python_ref,
+                "name": "Python",
+                "version": python_version,
+                "purl": python_ref,
+                "properties": [
+                    {"name": "tapio:sbom:embedded-part", "value": "interpreter"}
+                ],
+            },
+            {
+                "type": "framework",
+                "bom-ref": bootloader_ref,
+                "name": "PyInstaller bootloader",
+                "version": pyinstaller_version,
+                "purl": bootloader_ref,
+                "externalReferences": [
+                    {
+                        "type": "vcs",
+                        "url": "https://github.com/pyinstaller/pyinstaller",
+                    }
+                ],
+                "properties": [
+                    {"name": "tapio:sbom:embedded-part", "value": "bootloader"}
+                ],
+            },
+        ]
+    )
+
+    dependencies = bom.setdefault("dependencies", [])
+    existing_refs = {dependency.get("ref") for dependency in dependencies}
+    for component_ref in (python_ref, bootloader_ref):
+        if component_ref not in existing_refs:
+            dependencies.append({"ref": component_ref})
+    return python_ref, bootloader_ref
 
 
 def run_cyclonedx(requirements: Path, output: Path, spec_version: str) -> None:
@@ -139,6 +206,8 @@ def stamp_bom(
     build_timestamp: str,
     requirements: Path,
     direct_requirements: Path,
+    artifact: Path | None,
+    pyinstaller_version: str | None,
 ) -> None:
     with bom_path.open("r", encoding="utf-8") as file:
         bom = json.load(file)
@@ -164,13 +233,29 @@ def stamp_bom(
         }
     )
 
+    embedded_refs: tuple[str, ...] = ()
+    if artifact is not None:
+        component["hashes"] = [{"alg": "SHA-256", "content": sha256_file(artifact)}]
+        embedded_refs = add_embedded_runtime_components(
+            bom,
+            pyinstaller_version or installed_pyinstaller_version(),
+        )
+
     properties = metadata.setdefault("properties", [])
     upsert_property(properties, "tapio:sbom:commit-sha", commit_sha)
     upsert_property(properties, "tapio:sbom:platform", build_platform)
     upsert_property(properties, "tapio:sbom:requirements-file", str(requirements))
     upsert_property(properties, "tapio:sbom:generator", "cyclonedx-py")
+    if artifact is not None:
+        upsert_property(properties, "tapio:sbom:artifact-name", artifact.name)
+        upsert_property(properties, "tapio:sbom:artifact-size", str(artifact.stat().st_size))
 
-    connect_root_dependencies(bom, component_ref, direct_requirements)
+    connect_root_dependencies(
+        bom,
+        component_ref,
+        direct_requirements,
+        embedded_refs,
+    )
 
     validate_bom(bom)
     serialized = json.dumps(bom, indent=2, sort_keys=True)
@@ -227,6 +312,14 @@ def parse_args() -> argparse.Namespace:
         help="Direct requirements file used to connect the root dependency graph.",
     )
     parser.add_argument("--output", required=True, help="Output CycloneDX JSON path.")
+    parser.add_argument(
+        "--artifact",
+        help="Final executable represented by this SBOM; adds its SHA-256 digest.",
+    )
+    parser.add_argument(
+        "--pyinstaller-version",
+        help="PyInstaller version embedded in artifact (normally detected).",
+    )
     parser.add_argument("--version", default=os.environ.get("GITHUB_REF_NAME", "0.0.0+local"))
     parser.add_argument("--commit-sha", default=git_commit())
     parser.add_argument("--platform", default=target_platform())
@@ -239,6 +332,7 @@ def main() -> int:
     args = parse_args()
     requirements = Path(args.requirements)
     direct_requirements = Path(args.direct_requirements)
+    artifact = Path(args.artifact) if args.artifact else None
     output = Path(args.output)
 
     if not requirements.exists():
@@ -247,6 +341,8 @@ def main() -> int:
         raise FileNotFoundError(
             f"Direct requirements file not found: {direct_requirements}"
         )
+    if artifact is not None and not artifact.is_file():
+        raise FileNotFoundError(f"Artifact not found: {artifact}")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
@@ -267,6 +363,8 @@ def main() -> int:
             build_timestamp=args.build_timestamp,
             requirements=requirements,
             direct_requirements=direct_requirements,
+            artifact=artifact,
+            pyinstaller_version=args.pyinstaller_version,
         )
         temp_path.replace(output)
     finally:

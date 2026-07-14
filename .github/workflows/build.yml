@@ -121,14 +121,6 @@ jobs:
         if: runner.os == 'Linux'
         run: pip-audit -r requirements.txt --no-deps --disable-pip --cache-dir .cache/pip-audit
 
-      - name: Generate SBOM
-        run: >
-          python scripts/generate_sbom.py
-          --version "${{ github.ref_name }}"
-          --platform "${{ matrix.platform }}"
-          --commit-sha "${{ github.sha }}"
-          --output "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.cdx.json"
-
       - name: Azure Login (Windows)
         if: runner.os == 'Windows'
         uses: azure/login@v2
@@ -150,6 +142,15 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
+
+      - name: Generate artifact SBOM
+        run: >
+          python scripts/generate_sbom.py
+          --version "${{ github.ref_name }}"
+          --platform "${{ matrix.platform }}"
+          --commit-sha "${{ github.sha }}"
+          --artifact "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}"
+          --output "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.cdx.json"
 
       - name: Compress executable (Linux)
         if: runner.os == 'Linux'
