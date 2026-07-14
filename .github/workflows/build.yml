@@ -33,10 +33,10 @@ jobs:
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -123,7 +123,7 @@ jobs:
 
       - name: Azure Login (Windows)
         if: runner.os == 'Windows'
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -132,7 +132,7 @@ jobs:
 
       - name: Sign executable (Windows)
         if: runner.os == 'Windows'
-        uses: azure/artifact-signing-action@v1
+        uses: azure/artifact-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1
         with:
           endpoint: https://neu.codesigning.azure.net/
           signing-account-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
@@ -166,7 +166,7 @@ jobs:
           -DestinationPath "dist/rollview-${{ github.ref_name }}-windows.zip"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rollview-${{ github.ref_name }}-${{ matrix.platform }}
           path: |
@@ -179,84 +179,38 @@ jobs:
         run: rm src/version.py
 
   release:
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      contents: write  # Matches the working first version
+      contents: write
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Download Artifact (Linux)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rollview-${{ github.ref_name }}-linux
           path: dist/
 
       - name: Download Artifact (Windows)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rollview-${{ github.ref_name }}-windows
           path: dist/
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1  # Changed back to @v1 (stable)
+      - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset (Linux zip)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-linux.zip
-          asset_name: rollview-${{ github.ref_name }}-linux.zip
-          asset_content_type: application/zip
-
-      - name: Upload Release Asset (Linux SBOM)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-linux.cdx.json
-          asset_name: rollview-${{ github.ref_name }}-linux.cdx.json
-          asset_content_type: application/vnd.cyclonedx+json
-
-      - name: Upload Release Asset (Windows zip)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-windows.zip
-          asset_name: rollview-${{ github.ref_name }}-windows.zip
-          asset_content_type: application/zip
-
-      - name: Upload Release Asset (Windows SBOM)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-windows.cdx.json
-          asset_name: rollview-${{ github.ref_name }}-windows.cdx.json
-          asset_content_type: application/vnd.cyclonedx+json
-
-      - name: Upload Release Executable (Windows EXE)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/rollview-${{ github.ref_name }}-windows.exe
-          asset_name: rollview-${{ github.ref_name }}-windows.exe
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "dist/rollview-${{ github.ref_name }}-linux.zip" \
+            "dist/rollview-${{ github.ref_name }}-linux.cdx.json" \
+            "dist/rollview-${{ github.ref_name }}-windows.zip" \
+            "dist/rollview-${{ github.ref_name }}-windows.cdx.json" \
+            "dist/rollview-${{ github.ref_name }}-windows.exe" \
+            --title "Release ${{ github.ref_name }}" \
+            --notes "" \
+            --verify-tag
