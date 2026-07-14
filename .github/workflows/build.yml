@@ -117,6 +117,10 @@ jobs:
       - name: Install SBOM tooling
         run: pip install --require-hashes -r requirements-dev.txt
 
+      - name: Audit runtime dependencies
+        if: runner.os == 'Linux'
+        run: pip-audit -r requirements.txt --no-deps --disable-pip --cache-dir .cache/pip-audit
+
       - name: Generate SBOM
         run: >
           python scripts/generate_sbom.py
