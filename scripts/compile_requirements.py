@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile hashed runtime and development requirement lock files."""
+"""Compile hashed Python requirement lock files."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LOCK_FILES = (
     (PROJECT_ROOT / "requirements.in", PROJECT_ROOT / "requirements.txt"),
+    (PROJECT_ROOT / "requirements-build.in", PROJECT_ROOT / "requirements-build.txt"),
     (PROJECT_ROOT / "requirements-dev.in", PROJECT_ROOT / "requirements-dev.txt"),
 )
 SUPPORTED_PYTHON = (3, 12)
@@ -23,7 +24,7 @@ SUPPORTED_PYTHON = (3, 12)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate hashed requirements.txt and requirements-dev.txt files."
+        description="Generate hashed runtime, build, and development requirement files."
     )
     parser.add_argument(
         "--upgrade",

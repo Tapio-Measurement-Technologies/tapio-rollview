@@ -67,7 +67,7 @@ cd tapio-rollview
 
 ### Updating dependency locks
 
-Runtime and development dependencies are declared in `requirements.in` and `requirements-dev.in`. Generate both hashed lock files with Python 3.12:
+Runtime, build, and development dependencies are declared in the corresponding `requirements-*.in` files. Generate all hashed lock files with Python 3.12:
 
 ```bash
 python -m pip install -r requirements-dev.txt
