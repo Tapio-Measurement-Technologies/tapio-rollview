@@ -63,6 +63,7 @@ class FileTransferWorker(QObject):
         )
         try:
             result = client.sync_from_peer(delete_remote=False)
+            self._apply_mtimes(result.fetched)
             log.info(
                 f"RQFT sync finished: fetched={len(result.fetched)} "
                 f"skipped={len(result.skipped)} deleted={len(result.deleted)}"
@@ -81,6 +82,21 @@ class FileTransferWorker(QObject):
             self.stop()
             self.finished.emit()
             log.info("File transfer finished.")
+
+    def _apply_mtimes(self, fetched):
+        """
+        Preserves device modification times on downloaded files, matching
+        the old ZMODEM receive behavior. Files from devices that report no
+        mtime keep their download time.
+        """
+        for entry in fetched:
+            if entry.mtime <= 0:
+                continue
+            target = Path(self.folder_path).joinpath(*entry.path.split("/"))
+            try:
+                os.utime(target, (entry.mtime, entry.mtime))
+            except OSError as e:
+                log.warning(f"Could not set mtime for {entry.path}: {e}")
 
     def _on_progress(self, progress: SyncProgress):
         """
