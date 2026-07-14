@@ -21,28 +21,17 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Set up Python
-        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
         with:
-          python-version: '3.12'
+          persist-credentials: false
 
-      - name: Install supply-chain tooling
-        run: pip install --require-hashes -r requirements-dev.txt
-
-      - name: Generate source SBOM
-        run: >
-          python scripts/generate_sbom.py
-          --version "${{ github.sha }}"
-          --platform source
-          --commit-sha "${{ github.sha }}"
-          --output "dist/rollview-${{ github.sha }}-source.cdx.json"
-
-      - name: Upload source SBOM
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Validate dependencies and generate source evidence
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-supply-chain@e5cd53cc298dd90976e66867a3066f40f4b12d34
         with:
-          name: rollview-source-sbom
-          path: dist/rollview-${{ github.sha }}-source.cdx.json
-
-      - name: Audit runtime dependencies
-        run: pip-audit -r requirements.txt --no-deps --disable-pip --cache-dir .cache/pip-audit
+          config: build-tooling.toml
+          product: tapio-rollview
+          requirement-group: runtime
+          output: dist/rollview-${{ github.sha }}-source.cdx.json
+          version: ${{ github.sha }}
+          platform: source
+          audit: "true"
+          upload-name: rollview-source-sbom

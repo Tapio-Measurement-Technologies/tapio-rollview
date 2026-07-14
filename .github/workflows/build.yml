@@ -114,13 +114,6 @@ jobs:
           dist/main${{ matrix.extension }}
           dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
 
-      - name: Install SBOM tooling
-        run: pip install --require-hashes -r requirements-dev.txt
-
-      - name: Audit runtime dependencies
-        if: runner.os == 'Linux'
-        run: pip-audit -r requirements.txt --no-deps --disable-pip --cache-dir .cache/pip-audit
-
       - name: Azure Login (Windows)
         if: runner.os == 'Windows'
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
@@ -143,14 +136,18 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
-      - name: Generate artifact SBOM
-        run: >
-          python scripts/generate_sbom.py
-          --version "${{ github.ref_name }}"
-          --platform "${{ matrix.platform }}"
-          --commit-sha "${{ github.sha }}"
-          --artifact "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}"
-          --output "dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.cdx.json"
+      - name: Audit dependencies and generate signed-artifact evidence
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@e5cd53cc298dd90976e66867a3066f40f4b12d34
+        with:
+          config: build-tooling.toml
+          product: tapio-rollview
+          requirement-group: runtime
+          output: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}.cdx.json
+          artifact: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          version: ${{ github.ref_name }}
+          platform: ${{ matrix.platform }}
+          audit: ${{ runner.os == 'Linux' }}
+          upload-name: rollview-${{ github.ref_name }}-${{ matrix.platform }}-sbom
 
       - name: Compress executable (Linux)
         if: runner.os == 'Linux'
