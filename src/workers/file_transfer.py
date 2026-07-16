@@ -15,6 +15,16 @@ from rqft.serial_transport import SerialTransport
 log = logging.getLogger(__name__)
 
 
+def _is_syncable_prof(path: str) -> bool:
+    """
+    Sync policy over the device's transparent file listing: measurement
+    .prof files only, excluding device-side mean.prof (rollview computes
+    its own).
+    """
+    name = path.rsplit("/", 1)[-1]
+    return name.endswith(".prof") and name != "mean.prof"
+
+
 class FileTransferWorker(QObject):
     """
     Worker for downloading device files using the RQFT protocol.
@@ -65,7 +75,9 @@ class FileTransferWorker(QObject):
             window=8,
         )
         try:
-            result = client.sync_from_peer(delete_remote=False)
+            result = client.sync_from_peer(
+                delete_remote=False, path_filter=_is_syncable_prof
+            )
             self._apply_mtimes(result.fetched)
             log.info(
                 f"RQFT sync finished: fetched={len(result.fetched)} "
