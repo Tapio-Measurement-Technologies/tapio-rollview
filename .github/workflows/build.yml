@@ -208,6 +208,7 @@ jobs:
             "dist/rollview-${{ github.ref_name }}-windows.zip" \
             "dist/rollview-${{ github.ref_name }}-windows.cdx.json" \
             "dist/rollview-${{ github.ref_name }}-windows.exe" \
+            --repo "${{ github.repository }}" \
             --title "Release ${{ github.ref_name }}" \
             --notes "" \
             --verify-tag
