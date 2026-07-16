@@ -31,7 +31,6 @@ jobs:
           product: tapio-rollview
           requirement-group: runtime
           output: dist/rollview-${{ github.sha }}-source.cdx.json
-          version: ${{ github.sha }}
           platform: source
           audit: "true"
           upload-name: rollview-source-sbom
