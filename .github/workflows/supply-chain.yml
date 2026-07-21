@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate dependencies and generate source evidence
-        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-supply-chain@d8b734f32080d7251af36513c066733004a49bde
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-supply-chain@438406e2d9fc6011bfc402af75d26f41d7ee5577
         with:
           config: build-tooling.toml
           product: tapio-rollview
