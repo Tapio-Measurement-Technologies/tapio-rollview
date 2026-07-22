@@ -26,6 +26,7 @@ from models.Profile import Profile
 import settings
 import store
 from workers.file_transfer import FileTransferManager
+from workers.device_connection import DeviceConnectionManager
 from gui.widgets.serialports import SerialWidget
 from gui.widgets.DirectoryView import DirectoryView
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
@@ -42,6 +43,9 @@ class MainWindow(QMainWindow):
         self.resize(1100, 650)
 
         self.file_transfer_manager = FileTransferManager()
+        self.device_connection_manager = DeviceConnectionManager()
+        self.file_transfer_manager.set_connection_manager(self.device_connection_manager)
+        self.device_connection_manager.set_transfer_manager(self.file_transfer_manager)
         self.postprocess_manager = PostprocessManager()
         self.log_window = None
         self.settings_window = None
@@ -49,7 +53,9 @@ class MainWindow(QMainWindow):
         self.view_menu_checkboxes = {}
         self.postprocessor_checkboxes = {}
 
-        self.serial_widget = SerialWidget(self.file_transfer_manager)
+        self.serial_widget = SerialWidget(
+            self.file_transfer_manager, self.device_connection_manager
+        )
         self.directory_view = DirectoryView()
         self.sidebar = Sidebar()
         self.sidebar.addWidget(self.serial_widget, 200)
@@ -121,7 +127,12 @@ class MainWindow(QMainWindow):
         self.serial_widget.scan_finished.connect(self.on_scan_finished)
 
         # Run postprocessors when file transfer is finished
+        self.file_transfer_manager.transferStarted.connect(self.on_file_transfer_started)
         self.file_transfer_manager.transferFinished.connect(self.on_file_transfer_finished)
+        self.file_transfer_manager.transferError.connect(self.on_transfer_error)
+
+        self.device_connection_manager.connectionLost.connect(self.on_connection_lost)
+        self.device_connection_manager.listWarnings.connect(self.on_sync_list_warnings)
 
         self.postprocess_manager.postprocess_finished.connect(self.on_postprocess_finished)
 
@@ -537,6 +548,9 @@ class MainWindow(QMainWindow):
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
+        self.settings_window.settings_updated.connect(
+            self.device_connection_manager.apply_settings
+        )
         self.settings_window.show()
 
     def open_log_window(self):
@@ -600,11 +614,41 @@ class MainWindow(QMainWindow):
             message += f" {_('POSTPROCESSORS_ERROR_TEXT').format(count=len(result.failed_folders))}"
         self.status_bar.showMessage(message)
 
+    def on_file_transfer_started(self):
+        self.status_bar.showMessage(_("SYNC_CHECKING_TEXT"))
+
     def on_file_transfer_finished(self, folder_paths: list[str]):
-        self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+        if folder_paths:
+            self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+        elif self.file_transfer_manager.last_transfer_outcome == "ok":
+            # Clean run with nothing to fetch: no dialog was shown, so
+            # report the up-to-date result here.
+            self.status_bar.showMessage(_("SYNC_UP_TO_DATE_TEXT"))
+        elif self.status_bar.currentMessage() == _("SYNC_CHECKING_TEXT"):
+            # Cancel/error before anything moved: the error handlers own
+            # the message, just drop the stale "checking" text.
+            self.status_bar.clearMessage()
         self.directory_view.refresh_directory_dates(folder_paths)
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
+
+    def on_transfer_error(self, message, is_auto):
+        # Automatic sync failures stay in the status bar; manual sync
+        # failures also raise a popup from the transfer manager.
+        self.status_bar.showMessage(message)
+
+    def on_connection_lost(self, port, reason):
+        if reason == "busy":
+            self.status_bar.showMessage(_("DEVICE_BUSY_STATUS"))
+        elif reason == "unplugged":
+            self.status_bar.showMessage(
+                _("DEVICE_DISCONNECTED_STATUS").format(device=port)
+            )
+
+    def on_sync_list_warnings(self, port, skipped_count):
+        self.status_bar.showMessage(
+            _("SYNC_LIST_SKIPPED_WARNING").format(count=skipped_count)
+        )
 
     def close_child_windows(self):
         if self.settings_window:
@@ -615,5 +659,8 @@ class MainWindow(QMainWindow):
             self.log_window = None
 
     def closeEvent(self, event):
+        self.file_transfer_manager.cancel_transfer()
+        self.device_connection_manager.shutdown_all()
+        self.serial_widget.scanner.stop()
         self.close_child_windows()
         event.accept()

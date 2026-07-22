@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import settings
 from serial.tools import list_ports_common
 from utils import preferences
+from utils.rqft_support import DeviceIdentity
 from workers.port_scanner import PortScanner, PortScannerWorker
 
 
@@ -197,6 +198,55 @@ class TestPortScannerWorker(unittest.TestCase):
 
         self.assertFalse(device_responded)
         mock_send_timestamp.assert_not_called()
+
+    @patch("workers.port_scanner.send_timestamp")
+    @patch("workers.port_scanner.serial.Serial")
+    def test_firmware_version_is_read_from_deviceinfo(self, mock_serial, _mock_send_timestamp):
+        mock_serial.return_value = FakeSerial(
+            b'{"deviceName": "Tapio RQP Live", "serialNumber": "ABC123",'
+            b' "firmwareVersion": "v1.2.0"}\n'
+        )
+        worker = PortScannerWorker(max_workers=1)
+        port = make_port("COM1", vid=0x16C0, pid=0x0483)
+
+        port_info, device_responded, _error = worker._scan_single_port(port)
+
+        self.assertTrue(device_responded)
+        self.assertEqual(port_info.firmware_version, "v1.2.0")
+
+    @patch("workers.port_scanner.send_timestamp")
+    @patch("workers.port_scanner.serial.Serial")
+    @patch("workers.port_scanner.serial.tools.list_ports.comports")
+    def test_busy_port_is_never_probed_and_reported_from_cache(
+        self,
+        mock_comports,
+        mock_serial,
+        _mock_send_timestamp,
+    ):
+        # The busy port is also pinned: busy exclusion must win, since
+        # probing would inject bytes into the live RQFT session.
+        preferences.pinned_serial_ports = {"COM7"}
+        mock_comports.return_value = [make_port("COM7", vid=0x16C0, pid=0x0483)]
+        mock_serial.side_effect = AssertionError("busy port must not be opened")
+        finished = []
+        worker = PortScannerWorker(
+            max_workers=1,
+            busy_ports={
+                "COM7": DeviceIdentity("Tapio RQP Live", "ABC123", "v1.2.0")
+            },
+        )
+        worker.finished.connect(finished.append)
+
+        worker.run()
+
+        mock_serial.assert_not_called()
+        self.assertEqual(len(finished[0]), 1)
+        item = finished[0][0]
+        self.assertEqual(item.device, "COM7")
+        self.assertTrue(item.device_responded)
+        self.assertEqual(item.description, "Tapio RQP Live")
+        self.assertEqual(item.serial_number, "ABC123")
+        self.assertEqual(item.firmware_version, "v1.2.0")
 
 
 class TestPortScanner(unittest.TestCase):

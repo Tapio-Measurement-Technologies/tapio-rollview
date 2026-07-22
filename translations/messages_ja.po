@@ -895,3 +895,99 @@ msgstr "バイト"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "統計値"
+
+#. Serial port context menu: open a persistent RQFT connection.
+msgid "SERIAL_CONNECT_DEVICE"
+msgstr "接続"
+
+#. Serial port context menu: close the persistent RQFT connection.
+msgid "SERIAL_DISCONNECT_DEVICE"
+msgstr "切断"
+
+#. Title of the sync-on-connect confirmation dialog.
+msgid "SYNC_CONFIRM_TITLE"
+msgstr "デバイス同期"
+
+#. Body of the sync-on-connect confirmation dialog.
+msgid "SYNC_CONFIRM_TEXT"
+msgstr "{device} から新しいファイルを今すぐ同期しますか？"
+
+#. Status bar message when the device aborts the session to measure.
+msgid "DEVICE_BUSY_STATUS"
+msgstr "デバイスは測定中です。測定終了後に同期が再開されます"
+
+#. Status bar message when a connected device disappears.
+msgid "DEVICE_DISCONNECTED_STATUS"
+msgstr "デバイス {device} が切断されました"
+
+#. Status bar warning when the device listing skipped unreadable files.
+msgid "SYNC_LIST_SKIPPED_WARNING"
+msgstr "デバイスのファイル一覧で読み取れないファイルを {count} 件スキップしました"
+
+#. Advanced settings section heading for device sync options.
+msgid "SECTION_HEADING_DEVICE_SYNC"
+msgstr "デバイス同期"
+
+#. Checkbox label for the periodic sync check; followed by an interval spin box.
+msgid "PERIODIC_SYNC_ENABLED"
+msgstr "接続中のデバイスの新しいファイルを確認する間隔"
+
+
+#. Minutes unit suffix in the periodic sync interval spin box.
+msgid "UNIT_MINUTES"
+msgstr "分"
+
+#. Sync error: serial transport failed (device unplugged etc.).
+msgid "SYNC_ERROR_TRANSPORT"
+msgstr "デバイスとの接続に失敗しました:"
+
+#. Sync error: no progress within the watchdog time.
+msgid "SYNC_ERROR_TIMEOUT"
+msgstr "同期中にデバイスが応答しなくなりました"
+
+#. Sync error: the session ended mid-operation.
+msgid "SYNC_ERROR_ENDED"
+msgstr "デバイスがセッションを終了しました:"
+
+#. Sync error: a file operation was rejected by the device.
+msgid "SYNC_ERROR_OPERATION"
+msgstr "ファイル操作に失敗しました"
+
+#. RQFT protocol error code explanations.
+msgid "RQFT_ERR_FS_OPEN"
+msgstr "デバイスがファイルを開けませんでした"
+
+msgid "RQFT_ERR_FS_READ"
+msgstr "デバイスがファイルを読み取れませんでした"
+
+msgid "RQFT_ERR_FS_WRITE"
+msgstr "デバイスがファイルを書き込めませんでした"
+
+msgid "RQFT_ERR_FS_REMOVE"
+msgstr "デバイスがファイルを削除できませんでした"
+
+msgid "RQFT_ERR_PATH"
+msgstr "無効なファイルパスです"
+
+msgid "RQFT_ERR_CRC_FILE"
+msgstr "ファイル検証に失敗しました（CRC不一致）"
+
+msgid "RQFT_ERR_TOO_LARGE"
+msgstr "ファイルが大きすぎます"
+
+msgid "RQFT_ERR_DENIED"
+msgstr "デバイスが要求を拒否しました"
+
+msgid "RQFT_ERR_BAD_STATE"
+msgstr "デバイスが現在の状態で要求を拒否しました"
+
+msgid "RQFT_ERR_UNSUPPORTED"
+msgstr "デバイスがこの要求に対応していません"
+
+#. Status bar while a sync lists the device and diffs against local files.
+msgid "SYNC_CHECKING_TEXT"
+msgstr "デバイスの新しいファイルを確認しています..."
+
+#. Status bar when a sync found nothing new to fetch.
+msgid "SYNC_UP_TO_DATE_TEXT"
+msgstr "すべてのファイルは最新です"

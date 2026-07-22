@@ -895,3 +895,99 @@ msgstr "bytes"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "Statistic Value"
+
+#. Serial port context menu: open a persistent RQFT connection.
+msgid "SERIAL_CONNECT_DEVICE"
+msgstr "Connect"
+
+#. Serial port context menu: close the persistent RQFT connection.
+msgid "SERIAL_DISCONNECT_DEVICE"
+msgstr "Disconnect"
+
+#. Title of the sync-on-connect confirmation dialog.
+msgid "SYNC_CONFIRM_TITLE"
+msgstr "Sync device"
+
+#. Body of the sync-on-connect confirmation dialog.
+msgid "SYNC_CONFIRM_TEXT"
+msgstr "Sync new files from {device} now?"
+
+#. Status bar message when the device aborts the session to measure.
+msgid "DEVICE_BUSY_STATUS"
+msgstr "Device is measuring — sync will resume when it finishes"
+
+#. Status bar message when a connected device disappears.
+msgid "DEVICE_DISCONNECTED_STATUS"
+msgstr "Device {device} disconnected"
+
+#. Status bar warning when the device listing skipped unreadable files.
+msgid "SYNC_LIST_SKIPPED_WARNING"
+msgstr "Device listing skipped {count} unreadable file(s)"
+
+#. Advanced settings section heading for device sync options.
+msgid "SECTION_HEADING_DEVICE_SYNC"
+msgstr "Device sync"
+
+#. Checkbox label for the periodic sync check; followed by an interval spin box.
+msgid "PERIODIC_SYNC_ENABLED"
+msgstr "Check connected devices for new files every"
+
+
+#. Minutes unit suffix in the periodic sync interval spin box.
+msgid "UNIT_MINUTES"
+msgstr "min"
+
+#. Sync error: serial transport failed (device unplugged etc.).
+msgid "SYNC_ERROR_TRANSPORT"
+msgstr "Connection to the device failed:"
+
+#. Sync error: no progress within the watchdog time.
+msgid "SYNC_ERROR_TIMEOUT"
+msgstr "The device stopped responding during sync"
+
+#. Sync error: the session ended mid-operation.
+msgid "SYNC_ERROR_ENDED"
+msgstr "The device ended the session:"
+
+#. Sync error: a file operation was rejected by the device.
+msgid "SYNC_ERROR_OPERATION"
+msgstr "File operation failed"
+
+#. RQFT protocol error code explanations.
+msgid "RQFT_ERR_FS_OPEN"
+msgstr "the device could not open the file"
+
+msgid "RQFT_ERR_FS_READ"
+msgstr "the device failed reading the file"
+
+msgid "RQFT_ERR_FS_WRITE"
+msgstr "the device failed writing the file"
+
+msgid "RQFT_ERR_FS_REMOVE"
+msgstr "the device failed removing the file"
+
+msgid "RQFT_ERR_PATH"
+msgstr "invalid file path"
+
+msgid "RQFT_ERR_CRC_FILE"
+msgstr "file verification failed (CRC mismatch)"
+
+msgid "RQFT_ERR_TOO_LARGE"
+msgstr "file is too large"
+
+msgid "RQFT_ERR_DENIED"
+msgstr "the device denied the request"
+
+msgid "RQFT_ERR_BAD_STATE"
+msgstr "the device rejected the request in its current state"
+
+msgid "RQFT_ERR_UNSUPPORTED"
+msgstr "the device does not support the request"
+
+#. Status bar while a sync lists the device and diffs against local files.
+msgid "SYNC_CHECKING_TEXT"
+msgstr "Checking device for new files..."
+
+#. Status bar when a sync found nothing new to fetch.
+msgid "SYNC_UP_TO_DATE_TEXT"
+msgstr "All files are up to date"

@@ -40,10 +40,15 @@ class PortScannerWorker(QObject):
     finished = Signal(list)
     error = Signal(str)
 
-    def __init__(self, max_workers=None):
+    def __init__(self, max_workers=None, busy_ports=None):
         super().__init__()
         self._running = True
         self._max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
+        # Ports held open by persistent RQFT connections: never probed
+        # (probing would fail to open the port, or worse, inject the
+        # DEVICEINFO command into a live session). Maps device name to
+        # a cached DeviceIdentity.
+        self._busy_ports = busy_ports or {}
 
     def _allowed_usb_ids(self):
         return {
@@ -148,6 +153,9 @@ class PortScannerWorker(QObject):
                     ):
                         port_info.description = response_data["deviceName"]
                         port_info.serial_number = response_data["serialNumber"]
+                        port_info.firmware_version = response_data.get(
+                            "firmwareVersion", ""
+                        )
                         device_responded = True
                         send_timestamp(port)
                 except json.JSONDecodeError:
@@ -190,6 +198,20 @@ class PortScannerWorker(QObject):
             self.progress.emit(100, _("PORTSCAN_NO_PORTS_FOUND_TEXT"))
             self.finished.emit([])
             return
+
+        # Ports held by live RQFT connections are reported from cached
+        # identity, never probed. This must come before the pinned check:
+        # pinned ports are otherwise always probed.
+        busy_infos = [port for port in ports if port.device in self._busy_ports]
+        ports = [port for port in ports if port.device not in self._busy_ports]
+        for port_info in busy_infos:
+            identity = self._busy_ports[port_info.device]
+            if identity.device_name:
+                port_info.description = identity.device_name
+            if identity.serial_number:
+                port_info.serial_number = identity.serial_number
+            port_info.firmware_version = identity.firmware_version
+            scanned_ports.append(SerialPortItem(port_info, True))
 
         ports_to_probe = [port for port in ports if self._should_probe_port(port)]
         skipped_ports = [port for port in ports if port not in ports_to_probe]
@@ -270,12 +292,15 @@ class PortScanner(QObject):
         self._worker = None
         self._max_workers = max_workers
 
-    def start(self):
+    def start(self, busy_ports=None):
         """
-        Starts the port scan.
+        Starts the port scan. Ports in busy_ports (held by persistent
+        RQFT connections) are reported from cached identity, not probed.
         """
         self._thread = QThread()
-        self._worker = PortScannerWorker(max_workers=self._max_workers)
+        self._worker = PortScannerWorker(
+            max_workers=self._max_workers, busy_ports=busy_ports
+        )
 
         self._worker.moveToThread(self._thread)
 

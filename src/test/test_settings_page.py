@@ -1,5 +1,6 @@
 import unittest
 import copy
+from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
 
@@ -107,6 +108,39 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         )
         self.assertEqual(self.page.excluded_regions_input.text(), settings.EXCLUDED_REGIONS_DEFAULT)
         self.assertTrue(self.page.apply_button.isEnabled())
+
+    def test_device_sync_widgets_save_preferences(self):
+        self.page.periodic_sync_checkbox.setChecked(True)
+        self.page.periodic_sync_interval_input.setValue(30)
+
+        with patch.object(preferences, "update_preferences") as update:
+            self.page.save_settings()
+
+        saved = update.call_args.args[0]
+        self.assertTrue(saved["periodic_sync_enabled"])
+        self.assertEqual(saved["periodic_sync_interval_minutes"], 30)
+        self.assertNotIn("force_rqft", saved)
+
+    def test_device_sync_widgets_reset_to_defaults(self):
+        self.page.periodic_sync_checkbox.setChecked(True)
+        self.page.periodic_sync_interval_input.setValue(120)
+
+        self.page.reset_to_defaults()
+
+        self.assertEqual(
+            self.page.periodic_sync_checkbox.isChecked(),
+            settings.PERIODIC_SYNC_ENABLED_DEFAULT,
+        )
+        self.assertEqual(
+            self.page.periodic_sync_interval_input.value(),
+            settings.PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT,
+        )
+
+    def test_periodic_sync_interval_enabled_follows_checkbox(self):
+        self.page.periodic_sync_checkbox.setChecked(False)
+        self.assertFalse(self.page.periodic_sync_interval_input.isEnabled())
+        self.page.periodic_sync_checkbox.setChecked(True)
+        self.assertTrue(self.page.periodic_sync_interval_input.isEnabled())
 
 
 class TestAlertLimitSettingsPage(unittest.TestCase):

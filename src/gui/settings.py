@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider, QScrollArea, QFrame
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider, QScrollArea, QFrame, QSpinBox
 from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtCore import Signal, Slot, Qt, QLocale, QRegularExpression, QSignalBlocker
 from utils import preferences
@@ -443,6 +443,29 @@ class AdvancedSettingsPage(QWidget):
         layout.addWidget(self.excluded_regions_error)
         self._update_excluded_regions_ui()
 
+        device_sync_heading = self._create_section_heading(_("SECTION_HEADING_DEVICE_SYNC"))
+        layout.addWidget(device_sync_heading)
+
+        # Periodic sync check for open device connections
+        periodic_sync_layout = QHBoxLayout()
+        self.periodic_sync_checkbox = QCheckBox(_("PERIODIC_SYNC_ENABLED"))
+        self.periodic_sync_checkbox.setChecked(preferences.periodic_sync_enabled)
+        self.periodic_sync_checkbox.stateChanged.connect(self.enable_save_button)
+        self.periodic_sync_checkbox.stateChanged.connect(self._update_periodic_sync_ui)
+        periodic_sync_layout.addWidget(self.periodic_sync_checkbox)
+
+        self.periodic_sync_interval_input = QSpinBox()
+        self.periodic_sync_interval_input.setRange(
+            1, settings.PERIODIC_SYNC_INTERVAL_MINUTES_MAX
+        )
+        self.periodic_sync_interval_input.setValue(preferences.periodic_sync_interval_minutes)
+        self.periodic_sync_interval_input.setSuffix(f" {_('UNIT_MINUTES')}")
+        self.periodic_sync_interval_input.setEnabled(preferences.periodic_sync_enabled)
+        self.periodic_sync_interval_input.valueChanged.connect(self.enable_save_button)
+        periodic_sync_layout.addWidget(self.periodic_sync_interval_input)
+        periodic_sync_layout.addStretch()
+        layout.addLayout(periodic_sync_layout)
+
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -483,6 +506,8 @@ class AdvancedSettingsPage(QWidget):
             QSignalBlocker(self.flip_profiles_checkbox),
             QSignalBlocker(self.excluded_regions_mode_selector),
             QSignalBlocker(self.excluded_regions_input),
+            QSignalBlocker(self.periodic_sync_checkbox),
+            QSignalBlocker(self.periodic_sync_interval_input),
         ]
 
         default_band_pass_high = self._clamp_band_pass_high(settings.BAND_PASS_HIGH_DEFAULT)
@@ -506,7 +531,12 @@ class AdvancedSettingsPage(QWidget):
         self.excluded_regions_input.setText(settings.EXCLUDED_REGIONS_DEFAULT)
         self.excluded_regions_error.clear()
         self.excluded_regions_error.setVisible(False)
+        self.periodic_sync_checkbox.setChecked(settings.PERIODIC_SYNC_ENABLED_DEFAULT)
+        self.periodic_sync_interval_input.setValue(
+            settings.PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT
+        )
         self._update_excluded_regions_ui()
+        self._update_periodic_sync_ui()
         self.enable_save_button()
 
     @Slot()
@@ -514,6 +544,12 @@ class AdvancedSettingsPage(QWidget):
         """Update the UI when the excluded-region mode changes."""
         self.excluded_regions_error.setVisible(False)
         self._update_excluded_regions_ui()
+
+    @Slot()
+    def _update_periodic_sync_ui(self):
+        self.periodic_sync_interval_input.setEnabled(
+            self.periodic_sync_checkbox.isChecked()
+        )
 
     def _get_selected_excluded_regions_mode(self):
         return list(self.excluded_regions_modes.keys())[self.excluded_regions_mode_selector.currentIndex()]
@@ -611,7 +647,9 @@ class AdvancedSettingsPage(QWidget):
             'y_lim_high_override': self._parse_optional_float(self.y_lim_high_input.text()),
             'default_y_axis_scaling': list(self.y_axis_scaling_modes.keys())[self.y_axis_scaling_selector.currentIndex()],
             'band_pass_low': 0,
-            'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE)
+            'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE),
+            'periodic_sync_enabled': self.periodic_sync_checkbox.isChecked(),
+            'periodic_sync_interval_minutes': self.periodic_sync_interval_input.value()
         })
 
         self.apply_button.setEnabled(False)
