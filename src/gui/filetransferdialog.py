@@ -69,7 +69,7 @@ class FileTransferDialog(QDialog):
         self.current_file_byte_progress_label.setText("")
 
         if total_filecount > 0:
-            total_progress_percent = int(((file_number-1) / total_filecount) * 100)
+            total_progress_percent = int((file_number / total_filecount) * 100)
             self.total_progress_bar.setValue(total_progress_percent)
 
     def update_byte_progress(self, transferred, total):
