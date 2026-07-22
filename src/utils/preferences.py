@@ -56,6 +56,8 @@ _DEFAULTS = {
     'default_y_axis_scaling': settings.Y_AXIS_SCALING_DEFAULT,
     'band_pass_low': settings.BAND_PASS_LOW_DEFAULT,
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
+    'periodic_sync_enabled': settings.PERIODIC_SYNC_ENABLED_DEFAULT,
+    'periodic_sync_interval_minutes': settings.PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -158,6 +160,16 @@ def _coerce_choice(value, choices, default):
     return value if value in choices else default
 
 
+def _coerce_positive_int(value, default, maximum):
+    try:
+        coerced = int(value)
+    except (TypeError, ValueError):
+        return default
+    if isinstance(value, bool) or coerced < 1 or coerced > maximum:
+        return default
+    return coerced
+
+
 def _available_locales():
     try:
         return {
@@ -216,8 +228,13 @@ def _coerce_preference_value(key, value):
         'show_spectrum',
         'flip_profiles',
         'excluded_regions_enabled',
+        'periodic_sync_enabled',
     ):
         return _coerce_bool(value, default)
+    if key == 'periodic_sync_interval_minutes':
+        return _coerce_positive_int(
+            value, default, settings.PERIODIC_SYNC_INTERVAL_MINUTES_MAX
+        )
     if key == 'enabled_postprocessors':
         return _coerce_string_list(value, key)
     if key == 'locale':
@@ -353,6 +370,8 @@ y_lim_high_override = _default_value('y_lim_high_override')
 default_y_axis_scaling = _default_value('default_y_axis_scaling')
 band_pass_low = _default_value('band_pass_low')
 band_pass_high = _default_value('band_pass_high')
+periodic_sync_enabled = _default_value('periodic_sync_enabled')
+periodic_sync_interval_minutes = _default_value('periodic_sync_interval_minutes')
 
 
 def get_preferences_file_path():
