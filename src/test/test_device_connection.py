@@ -14,7 +14,7 @@ from rqft.client import BlockingSessionDriver, LocalDirFs
 from rqft.demo import LoopbackResponder, SocketTransport
 from rqft.events import Established
 from rqft.link import AbortReason
-from rqft.messages import Role
+from rqft.messages import NOTIFY_SYNC_INCREMENTAL, Role
 from rqft.session import Session
 from workers.device_connection import (
     ConnectionBridge,
@@ -42,6 +42,7 @@ class BridgeRecorder:
     def __init__(self, bridge: ConnectionBridge):
         self.states = []
         self.established = []
+        self.notify_flags = []
         self.lost = []
         self.sync_checks = []
         self.sync_started = []
@@ -51,6 +52,7 @@ class BridgeRecorder:
         bridge.established.connect(
             lambda port, by_doorbell: self.established.append(by_doorbell)
         )
+        bridge.notify.connect(lambda port, flags: self.notify_flags.append(flags))
         bridge.connectionLost.connect(lambda port, reason: self.lost.append(reason))
         bridge.syncCheckFinished.connect(
             lambda port, nfiles, nbytes: self.sync_checks.append((nfiles, nbytes))
@@ -211,6 +213,33 @@ class TestSyncFlow(DeviceConnectionTestBase):
         self.assertEqual(skipped2, 1)
         self.assertEqual(self.recorder.sync_started[-1][0], 0)
 
+    def test_incremental_sync_does_not_resurrect_deleted_local_file(self):
+        self.worker.enable()
+        self.worker.start()
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+
+        # Full sync records roll/a.prof in the device's sync history.
+        self.worker.request_sync(auto=False)
+        self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 0))
+        local = Path(self.local_dir.name) / "roll" / "a.prof"
+        self.assertTrue(local.is_file())
+
+        # The user deletes the mirror copy; an incremental sync (the
+        # post-measurement NOTIFY) must not bring it back.
+        local.unlink()
+        self.worker.request_sync(auto=True, incremental=True)
+        self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 1))
+        fetched, _ = self.recorder.sync_finished[1]
+        self.assertEqual(fetched, [])
+        self.assertFalse(local.exists())
+
+        # A full sync (device sync button / manual PC sync) restores it.
+        self.worker.request_sync(auto=False)
+        self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 2))
+        fetched, _ = self.recorder.sync_finished[2]
+        self.assertEqual(fetched, ["roll/a.prof"])
+        self.assertTrue(local.is_file())
+
     def test_sync_check_reports_missing_file_without_fetching_it(self):
         self.worker.enable()
         self.worker.start()
@@ -284,6 +313,11 @@ class TestDoorbellAndBusy(DeviceConnectionTestBase):
                 return driver
         raise AssertionError("doorbell HELLO was not answered")
 
+    def _send_notify(self, driver, flags):
+        """Send a NOTIFY from the device side of an established session."""
+        driver.session.send_notify(flags, driver.now_ms())
+        driver.flush()
+
     def test_doorbell_establishes_and_reports_peer_initiated(self):
         self._start_listening_worker()
         self._ring_doorbell()
@@ -292,6 +326,47 @@ class TestDoorbellAndBusy(DeviceConnectionTestBase):
         self.assertTrue(
             wait_until(lambda: self.recorder.states[-1] is ConnectionState.CONNECTED)
         )
+
+    def test_notify_after_doorbell_forwards_flags(self):
+        self._start_listening_worker()
+        driver = self._ring_doorbell()
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+        self._send_notify(driver, NOTIFY_SYNC_INCREMENTAL)
+        self.assertTrue(wait_until(lambda: len(self.recorder.notify_flags) > 0))
+        self.assertEqual(self.recorder.notify_flags[0], NOTIFY_SYNC_INCREMENTAL)
+
+    def test_notify_full_sync_forwards_zero_flags(self):
+        self._start_listening_worker()
+        driver = self._ring_doorbell()
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+        self._send_notify(driver, 0)
+        self.assertTrue(wait_until(lambda: len(self.recorder.notify_flags) > 0))
+        self.assertEqual(self.recorder.notify_flags[0], 0)
+
+    def test_notify_after_pc_initiated_establish_forwards_flags(self):
+        # The worker initiates the HELLO; the device answers and then sends
+        # NOTIFY over the established session (files measured while
+        # disconnected), so the sync request reaches RollView either way.
+        fs = LocalDirFs(self.device_dir.name)
+        session = Session(Role.RESPONDER, fs=fs, window=8)
+        driver = BlockingSessionDriver(
+            SocketTransport(self.right_sock), session, io_timeout_s=0.02
+        )
+        self.worker.enable()
+        self.worker.start()
+
+        deadline = time.monotonic() + 5.0
+        established = False
+        while time.monotonic() < deadline and not established:
+            events = driver.pump(max_wait_s=0.02).events
+            established = any(isinstance(event, Established) for event in events)
+        self.assertTrue(established, "worker HELLO was not answered")
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+        self.assertFalse(self.recorder.established[0])  # self-initiated
+
+        self._send_notify(driver, NOTIFY_SYNC_INCREMENTAL)
+        self.assertTrue(wait_until(lambda: len(self.recorder.notify_flags) > 0))
+        self.assertEqual(self.recorder.notify_flags[0], NOTIFY_SYNC_INCREMENTAL)
 
     def test_peer_busy_abort_returns_to_listening(self):
         self._start_listening_worker()

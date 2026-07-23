@@ -71,7 +71,7 @@ class TestRqftRouting(unittest.TestCase):
             thread_class.assert_not_called()
 
         self.connection_manager.manual_connect.assert_called_once_with("COM1")
-        self.connection.request_sync.assert_called_once_with(False)
+        self.connection.request_sync.assert_called_once_with(False, False)
         self.assertTrue(self.manager.is_transfer_in_progress())
         self.assertTrue(self.manager.has_pending_sync("COM1"))
 
@@ -95,7 +95,7 @@ class TestRqftRouting(unittest.TestCase):
         self.manager.transferFinished.connect(finished.append)
         self.manager.transferError.connect(lambda msg, auto: errors.append(auto))
         self.manager.request_auto_sync("COM1")
-        self.connection.request_sync.assert_called_once_with(True)
+        self.connection.request_sync.assert_called_once_with(True, False)
 
         with patch("workers.file_transfer.show_error_msgbox") as popup:
             self.bridge.syncFailed.emit(
@@ -137,11 +137,11 @@ class TestRqftRouting(unittest.TestCase):
     def test_auto_sync_queue_dedupes_by_port(self):
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
 
-        self.manager.request_auto_sync("COM2")
+        self.manager.request_auto_sync("COM2", incremental=True)
         self.manager.request_auto_sync("COM2")
         self.manager.request_auto_sync("COM1")  # already active, not queued
 
-        self.assertEqual(self.manager._auto_queue, ["COM2"])
+        self.assertEqual(self.manager._auto_queue, [("COM2", True)])
         self.assertTrue(self.manager.has_pending_sync("COM2"))
 
 

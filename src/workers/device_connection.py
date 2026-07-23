@@ -34,15 +34,17 @@ from rqft.events import (
     Established,
     GetDone,
     ListDone,
+    NotifyReceived,
     OpFailed,
     Passthrough,
 )
 from rqft.link import AbortReason
-from rqft.messages import ErrCode, Role
+from rqft.messages import NOTIFY_SYNC_INCREMENTAL, ErrCode, Role
 from rqft.serial_transport import SerialTransport
 from rqft.session import Session, SessionState
 from utils import preferences
 from utils.rqft_support import DeviceIdentity, is_syncable_prof
+from utils.sync_history import SyncHistory
 from utils.translation import _
 
 log = logging.getLogger(__name__)
@@ -120,6 +122,7 @@ class ConnectionBridge(QObject):
     """
     stateChanged = Signal(str, object)          # port, ConnectionState
     established = Signal(str, bool)             # port, by_doorbell
+    notify = Signal(str, int)                   # port, NOTIFY flags
     connectionLost = Signal(str, str)           # port, busy|dead|unplugged|closed|cancelled
     syncCheckFinished = Signal(str, int, int)    # port, missing files, missing bytes
     syncStarted = Signal(str, int, int)         # port, nfiles, nbytes
@@ -154,16 +157,19 @@ class _OperationFailed(Exception):
 class _Op:
     kind: str          # "check" | "sync" | "disconnect"
     auto: bool = False
+    incremental: bool = False
 
 
 class DeviceConnectionWorker(threading.Thread):
     """Owns the serial transport and Session for one device; sole thread
     touching either. Non-blocking public API for the GUI thread."""
 
-    def __init__(self, port: str, bridge: ConnectionBridge):
+    def __init__(self, port: str, bridge: ConnectionBridge, device_key: str = ""):
         super().__init__(name=f"rqft-conn-{port}", daemon=True)
         self.port = port
         self._bridge = bridge
+        # Serial number when known, else the port; names the sync history.
+        self._device_key = device_key or port
         self._queue: "queue.Queue[_Op]" = queue.Queue()
         self._stop_event = threading.Event()
         self._cancel = threading.Event()
@@ -190,11 +196,13 @@ class DeviceConnectionWorker(threading.Thread):
         self._retry_at = 0.0
         self._hello_retry_at = 0.0
 
-    def request_sync(self, auto: bool):
+    def request_sync(self, auto: bool, incremental: bool = False):
         """Queue a sync; connects first when needed. Results arrive as
-        syncFinished/syncFailed bridge signals."""
+        syncFinished/syncFailed bridge signals. An incremental sync skips
+        remote files recorded in the device's sync history even when the
+        local copy was deleted."""
         self._cancel.clear()
-        self._queue.put(_Op("sync", auto=auto))
+        self._queue.put(_Op("sync", auto=auto, incremental=incremental))
 
     def request_sync_check(self):
         """Queue a read-only list/diff used before offering a sync."""
@@ -269,7 +277,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._op_sync_check()
             return
         if op.kind == "sync":
-            self._op_sync(op.auto)
+            self._op_sync(op.auto, op.incremental)
 
     # -- transport / session lifecycle ---------------------------------
 
@@ -359,6 +367,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._note_event(event)
             if isinstance(event, Established):
                 # Peer-initiated HELLO while we sat idle: the doorbell.
+                # The device's NOTIFY follows with the sync it wants.
                 log.info(f"Doorbell from {self.port}")
                 self._set_state(ConnectionState.CONNECTED)
                 self._bridge.established.emit(self.port, True)
@@ -412,6 +421,11 @@ class DeviceConnectionWorker(threading.Thread):
                 f"RQFT session on {self.port} ended: {event.reason.name} "
                 f"({'peer' if event.from_peer else 'local'})"
             )
+        elif isinstance(event, NotifyReceived):
+            # The device asked us to pull files. Surfaced here so both
+            # event-drain paths (idle pump and in-op drive) forward it.
+            log.info(f"Sync notify from {self.port} (flags=0x{event.flags:08x})")
+            self._bridge.notify.emit(self.port, event.flags)
         elif isinstance(event, Passthrough):
             text = event.data.decode("utf-8", errors="replace").strip()
             if text:
@@ -511,7 +525,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._do_connect()
             if newly_connected:
                 self._bridge.established.emit(self.port, False)
-            missing, total_bytes, _ = self._build_sync_plan()
+            missing, total_bytes, _, _ = self._build_sync_plan()
             self._bridge.syncCheckFinished.emit(
                 self.port, len(missing), total_bytes
             )
@@ -537,7 +551,7 @@ class DeviceConnectionWorker(threading.Thread):
             log.warning(f"Sync check on {self.port} failed: {e}")
             self._on_transport_error(e)
 
-    def _op_sync(self, auto: bool):
+    def _op_sync(self, auto: bool, incremental: bool = False):
         fetched: list[str] = []
         try:
             if self._transport is None:
@@ -548,7 +562,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._do_connect()
             if newly_connected:
                 self._bridge.established.emit(self.port, False)
-            self._sync(fetched)
+            self._sync(fetched, incremental)
         except _Cancelled:
             log.info(f"Sync on {self.port} cancelled by user")
             self._bridge.syncFailed.emit(
@@ -594,9 +608,15 @@ class DeviceConnectionWorker(threading.Thread):
             )
             self._on_transport_error(e)
 
-    def _sync(self, fetched: list):
-        """Fetch planned .prof files, reporting each committed path."""
-        missing, total_bytes, skipped = self._build_sync_plan()
+    def _sync(self, fetched: list, incremental: bool = False):
+        """Fetch planned .prof files, reporting each committed path.
+
+        An incremental sync (device NOTIFY with the SYNC_INCREMENTAL
+        sync-mode flag) additionally drops remote files recorded in the
+        device's sync history, so files deleted from the local mirror
+        stay gone.
+        """
+        missing, total_bytes, skipped, history = self._build_sync_plan(incremental)
         self._session.send_plan(len(missing), total_bytes, self._driver.now_ms())
         self._driver.flush()
         self._bridge.syncStarted.emit(self.port, len(missing), total_bytes)
@@ -632,13 +652,24 @@ class DeviceConnectionWorker(threading.Thread):
             self._bridge.fileByteProgress.emit(done.size, done.size)
             self._apply_mtime(entry)
             fetched.append(entry.path)
+            # Persist per file so a file pulled once is never re-pulled
+            # by a later incremental sync even if this batch fails.
+            history.record(entry.path, entry.size, entry.crc32)
+            history.save()
 
         if failed_files:
             log.warning(f"Sync {self.port}: {failed_files} files failed to fetch")
         self._bridge.syncFinished.emit(self.port, list(fetched), skipped)
 
-    def _build_sync_plan(self):
-        """List remote profiles and return missing entries, bytes, skipped count."""
+    def _build_sync_plan(self, incremental: bool = False):
+        """List remote profiles and plan the fetch batch.
+
+        Returns (missing entries, total bytes, skipped count, history).
+        Incremental mode first drops candidates the sync history knows,
+        then both modes skip files whose local copy already matches by
+        size and CRC. The history is rebuilt from matches and pruned to
+        the current device listing, so a full sync repairs it.
+        """
         assert self._fs is not None
         entries: list[EntryListed] = []
         skipped_entries = 0
@@ -664,9 +695,25 @@ class DeviceConnectionWorker(threading.Thread):
             self._bridge.listWarnings.emit(self.port, skipped_entries)
 
         candidates = [entry for entry in entries if is_syncable_prof(entry.path)]
+        history = SyncHistory(self._device_key, self._fs.root)
+        history.load()
+
+        suppressed = 0
+        if incremental:
+            remaining = []
+            for entry in candidates:
+                if history.known(entry.path, entry.crc32):
+                    # Already synced once; a missing local copy means the
+                    # user deleted it, so do not resurrect it.
+                    suppressed += 1
+                else:
+                    remaining.append(entry)
+        else:
+            remaining = candidates
+
         missing: list[EntryListed] = []
         skipped = 0
-        for entry in candidates:
+        for entry in remaining:
             local = self._fs.file_info(entry.path)
             if (
                 entry.crc32 is not None
@@ -675,12 +722,22 @@ class DeviceConnectionWorker(threading.Thread):
                 and local.crc32 == entry.crc32
             ):
                 skipped += 1
+                # The local copy matches: count it as synced content.
+                history.record(entry.path, entry.size, entry.crc32)
             else:
                 missing.append(entry)
 
+        history.prune(entry.path for entry in candidates)
+        history.save()
+        if suppressed:
+            log.info(
+                f"Sync {self.port}: {suppressed} previously synced files "
+                f"suppressed by incremental history"
+            )
+
         missing.sort(key=lambda entry: entry.path)
         total_bytes = sum(entry.size for entry in missing)
-        return missing, total_bytes, skipped
+        return missing, total_bytes, skipped, history
 
     def _apply_mtime(self, entry: EntryListed):
         """Preserve the device modification time on the downloaded file.
@@ -745,10 +802,13 @@ class DeviceConnectionManager(QObject):
         bridge = ConnectionBridge(self)
         bridge.stateChanged.connect(self._on_state_changed)
         bridge.established.connect(self._on_established)
+        bridge.notify.connect(self._on_notify)
         bridge.connectionLost.connect(self._on_connection_lost)
         bridge.syncCheckFinished.connect(self._on_sync_check_finished)
         bridge.listWarnings.connect(self.listWarnings)
-        worker = DeviceConnectionWorker(port, bridge)
+        identity = self.identities.get(port)
+        device_key = identity.serial_number if identity and identity.serial_number else port
+        worker = DeviceConnectionWorker(port, bridge, device_key=device_key)
         self._workers[port] = worker
         self._bridges[port] = bridge
         worker.enable()
@@ -814,9 +874,8 @@ class DeviceConnectionManager(QObject):
         if self._transfer_manager is None:
             return
         if by_doorbell:
-            # The device rang after a measurement: sync without asking.
-            self.syncPromptDismissRequested.emit(port)
-            self._transfer_manager.request_auto_sync(port)
+            # The device rang to bring a session up; its NOTIFY follows
+            # with the sync it wants, so nothing to do yet.
             return
         if self._transfer_manager.has_pending_sync(port):
             return
@@ -829,6 +888,19 @@ class DeviceConnectionManager(QObject):
             return
         self._prompted_serials.add(key)
         worker.request_sync_check()
+
+    def _on_notify(self, port: str, flags: int):
+        if self._transfer_manager is None:
+            return
+        # The device asked us to pull: sync without prompting. The
+        # SYNC_INCREMENTAL sync-mode flag (post-measurement autosync)
+        # asks for new files only; the device's manual sync button sends
+        # flags 0 and gets a full sync. DELETE_AFTER_SYNC is not acted
+        # on yet.
+        self.syncPromptDismissRequested.emit(port)
+        self._transfer_manager.request_auto_sync(
+            port, incremental=bool(flags & NOTIFY_SYNC_INCREMENTAL)
+        )
 
     def _on_sync_check_finished(self, port: str, nfiles: int, nbytes: int):
         if nfiles <= 0:
@@ -860,7 +932,9 @@ class DeviceConnectionManager(QObject):
             return
         for port, state in self._states.items():
             if state is ConnectionState.CONNECTED:
-                self._transfer_manager.request_auto_sync(port)
+                # Incremental so a periodic sync does not resurrect files
+                # the user deleted from the mirror.
+                self._transfer_manager.request_auto_sync(port, incremental=True)
 
     # -- shutdown ------------------------------------------------------
 
