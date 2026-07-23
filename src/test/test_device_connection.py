@@ -4,7 +4,7 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QCoreApplication
 
@@ -42,6 +42,7 @@ class BridgeRecorder:
         self.states = []
         self.established = []
         self.lost = []
+        self.sync_checks = []
         self.sync_started = []
         self.sync_finished = []
         self.sync_failed = []
@@ -50,6 +51,9 @@ class BridgeRecorder:
             lambda port, by_doorbell: self.established.append(by_doorbell)
         )
         bridge.connectionLost.connect(lambda port, reason: self.lost.append(reason))
+        bridge.syncCheckFinished.connect(
+            lambda port, nfiles, nbytes: self.sync_checks.append((nfiles, nbytes))
+        )
         bridge.syncStarted.connect(
             lambda port, nfiles, nbytes: self.sync_started.append((nfiles, nbytes))
         )
@@ -155,6 +159,22 @@ class TestSyncFlow(DeviceConnectionTestBase):
         self.assertEqual(fetched2, [])
         self.assertEqual(skipped2, 1)
         self.assertEqual(self.recorder.sync_started[-1][0], 0)
+
+    def test_sync_check_reports_missing_file_without_fetching_it(self):
+        self.worker.enable()
+        self.worker.start()
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+
+        self.worker.request_sync_check()
+
+        self.assertTrue(wait_until(lambda: len(self.recorder.sync_checks) > 0))
+        self.assertEqual(
+            self.recorder.sync_checks[0],
+            (1, len(b"profile-data-" * 100)),
+        )
+        self.assertFalse(
+            (Path(self.local_dir.name) / "roll" / "a.prof").exists()
+        )
 
     def test_manual_disconnect_then_reconnect_establishes_again(self):
         self.worker.enable()
@@ -371,6 +391,39 @@ class TestMultipleDevices(unittest.TestCase):
             self.connection_manager.connection_state("PORT_B"),
             ConnectionState.CONNECTED,
         )
+
+
+class TestSyncPromptPreflight(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QCoreApplication.instance() or QCoreApplication([])
+
+    def setUp(self):
+        self.manager = DeviceConnectionManager()
+        self.transfer_manager = MagicMock()
+        self.transfer_manager.has_pending_sync.return_value = False
+        self.manager.set_transfer_manager(self.transfer_manager)
+        self.worker = MagicMock()
+
+    def test_prompt_only_after_check_finds_missing_files(self):
+        prompts = []
+        self.manager.syncPromptRequested.connect(
+            lambda port, label: prompts.append((port, label))
+        )
+
+        with patch.object(
+            self.manager, "get_connection", return_value=self.worker
+        ):
+            self.manager._on_established("PORT_A", by_doorbell=False)
+
+        self.worker.request_sync_check.assert_called_once_with()
+        self.assertEqual(prompts, [])
+
+        self.manager._on_sync_check_finished("PORT_A", 0, 0)
+        self.assertEqual(prompts, [])
+
+        self.manager._on_sync_check_finished("PORT_A", 1, 123)
+        self.assertEqual(prompts, [("PORT_A", "PORT_A")])
 
 
 if __name__ == "__main__":

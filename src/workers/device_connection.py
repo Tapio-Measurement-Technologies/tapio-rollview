@@ -121,6 +121,7 @@ class ConnectionBridge(QObject):
     stateChanged = Signal(str, object)          # port, ConnectionState
     established = Signal(str, bool)             # port, by_doorbell
     connectionLost = Signal(str, str)           # port, busy|dead|unplugged|closed|cancelled
+    syncCheckFinished = Signal(str, int, int)    # port, missing files, missing bytes
     syncStarted = Signal(str, int, int)         # port, nfiles, nbytes
     receivingFile = Signal(str, int)            # path, files_left (countdown)
     fileByteProgress = Signal(int, int)         # current file: done, total
@@ -151,7 +152,7 @@ class _OperationFailed(Exception):
 
 @dataclass
 class _Op:
-    kind: str          # "sync" | "disconnect"
+    kind: str          # "check" | "sync" | "disconnect"
     auto: bool = False
 
 
@@ -194,6 +195,11 @@ class DeviceConnectionWorker(threading.Thread):
         syncFinished/syncFailed bridge signals."""
         self._cancel.clear()
         self._queue.put(_Op("sync", auto=auto))
+
+    def request_sync_check(self):
+        """Queue a read-only list/diff used before offering a sync."""
+        self._cancel.clear()
+        self._queue.put(_Op("check"))
 
     def request_cancel(self):
         """Abort the in-flight operation with ABORT(E_USER)."""
@@ -246,6 +252,9 @@ class DeviceConnectionWorker(threading.Thread):
     def _execute(self, op: _Op):
         if op.kind == "disconnect":
             self._do_disconnect()
+            return
+        if op.kind == "check":
+            self._op_sync_check()
             return
         if op.kind == "sync":
             self._op_sync(op.auto)
@@ -479,6 +488,43 @@ class DeviceConnectionWorker(threading.Thread):
 
     # -- sync operation ------------------------------------------------
 
+    def _op_sync_check(self):
+        """Report missing files without fetching them."""
+        try:
+            if self._transport is None:
+                self._try_open()
+                if self._transport is None:
+                    raise OSError("serial port could not be opened")
+            newly_connected = self._established is None
+            self._do_connect()
+            if newly_connected:
+                self._bridge.established.emit(self.port, False)
+            missing, total_bytes, _ = self._build_sync_plan()
+            self._bridge.syncCheckFinished.emit(
+                self.port, len(missing), total_bytes
+            )
+        except _Cancelled:
+            log.info(f"Sync check on {self.port} cancelled")
+        except _SessionEnded as e:
+            self._after_events()
+            log.info(f"Sync check on {self.port} ended: {e.event.reason.name}")
+        except _OperationFailed as e:
+            log.warning(f"Sync check on {self.port} failed: {e}")
+        except _OpTimeout:
+            try:
+                for event in self._driver.abort(AbortReason.E_TIMEOUT):
+                    self._note_event(event)
+            except Exception:
+                pass
+            self._pending_end = None
+            self._hello_retry_at = (
+                time.monotonic() + settings.RQFT_HELLO_RETRY_DEAD_S
+            )
+            log.warning(f"Sync check on {self.port} timed out")
+        except OSError as e:
+            log.warning(f"Sync check on {self.port} failed: {e}")
+            self._on_transport_error(e)
+
     def _op_sync(self, auto: bool):
         fetched: list[str] = []
         try:
@@ -537,8 +583,50 @@ class DeviceConnectionWorker(threading.Thread):
             self._on_transport_error(e)
 
     def _sync(self, fetched: list):
-        """List, diff, and fetch new .prof files. Appends each fetched
-        path to `fetched` as it commits (partial batches stay reported)."""
+        """Fetch planned .prof files, reporting each committed path."""
+        missing, total_bytes, skipped = self._build_sync_plan()
+        self._session.send_plan(len(missing), total_bytes, self._driver.now_ms())
+        self._driver.flush()
+        self._bridge.syncStarted.emit(self.port, len(missing), total_bytes)
+        log.info(
+            f"Sync {self.port}: {len(missing)} to fetch ({total_bytes} bytes), "
+            f"{skipped} up to date"
+        )
+
+        failed_files = 0
+        for index, entry in enumerate(missing):
+            self._bridge.receivingFile.emit(entry.path, len(missing) - index)
+            self._session.request_get(entry.path, now_ms=self._driver.now_ms())
+            try:
+                done = self._drive(
+                    lambda event: event
+                    if isinstance(event, GetDone) and event.path == entry.path
+                    else None,
+                    progress=True,
+                )
+            except _OperationFailed as e:
+                # E.g. file removed on the device between LIST and GET;
+                # the session survives, so continue with the next file.
+                log.warning(f"Sync {self.port}: {e}")
+                failed_files += 1
+                if self._established is None:
+                    # The session died in the same pump turn; do not
+                    # request further GETs on it.
+                    end = self._pending_end
+                    if end is not None:
+                        raise _SessionEnded(end) from e
+                    raise _OpTimeout("session lost during sync") from e
+                continue
+            self._bridge.fileByteProgress.emit(done.size, done.size)
+            self._apply_mtime(entry)
+            fetched.append(entry.path)
+
+        if failed_files:
+            log.warning(f"Sync {self.port}: {failed_files} files failed to fetch")
+        self._bridge.syncFinished.emit(self.port, list(fetched), skipped)
+
+    def _build_sync_plan(self):
+        """List remote profiles and return missing entries, bytes, skipped count."""
         assert self._fs is not None
         entries: list[EntryListed] = []
         skipped_entries = 0
@@ -580,45 +668,7 @@ class DeviceConnectionWorker(threading.Thread):
 
         missing.sort(key=lambda entry: entry.path)
         total_bytes = sum(entry.size for entry in missing)
-        self._session.send_plan(len(missing), total_bytes, self._driver.now_ms())
-        self._driver.flush()
-        self._bridge.syncStarted.emit(self.port, len(missing), total_bytes)
-        log.info(
-            f"Sync {self.port}: {len(missing)} to fetch ({total_bytes} bytes), "
-            f"{skipped} up to date"
-        )
-
-        failed_files = 0
-        for index, entry in enumerate(missing):
-            self._bridge.receivingFile.emit(entry.path, len(missing) - index)
-            self._session.request_get(entry.path, now_ms=self._driver.now_ms())
-            try:
-                done = self._drive(
-                    lambda event: event
-                    if isinstance(event, GetDone) and event.path == entry.path
-                    else None,
-                    progress=True,
-                )
-            except _OperationFailed as e:
-                # E.g. file removed on the device between LIST and GET;
-                # the session survives, so continue with the next file.
-                log.warning(f"Sync {self.port}: {e}")
-                failed_files += 1
-                if self._established is None:
-                    # The session died in the same pump turn; do not
-                    # request further GETs on it.
-                    end = self._pending_end
-                    if end is not None:
-                        raise _SessionEnded(end) from e
-                    raise _OpTimeout("session lost during sync") from e
-                continue
-            self._bridge.fileByteProgress.emit(done.size, done.size)
-            self._apply_mtime(entry)
-            fetched.append(entry.path)
-
-        if failed_files:
-            log.warning(f"Sync {self.port}: {failed_files} files failed to fetch")
-        self._bridge.syncFinished.emit(self.port, list(fetched), skipped)
+        return missing, total_bytes, skipped
 
     def _apply_mtime(self, entry: EntryListed):
         """Preserve the device modification time on the downloaded file.
@@ -684,6 +734,7 @@ class DeviceConnectionManager(QObject):
         bridge.stateChanged.connect(self._on_state_changed)
         bridge.established.connect(self._on_established)
         bridge.connectionLost.connect(self._on_connection_lost)
+        bridge.syncCheckFinished.connect(self._on_sync_check_finished)
         bridge.listWarnings.connect(self.listWarnings)
         worker = DeviceConnectionWorker(port, bridge)
         self._workers[port] = worker
@@ -761,7 +812,20 @@ class DeviceConnectionManager(QObject):
         key = identity.serial_number if identity and identity.serial_number else port
         if key in self._prompted_serials:
             return
+        worker = self.get_connection(port)
+        if worker is None:
+            return
         self._prompted_serials.add(key)
+        worker.request_sync_check()
+
+    def _on_sync_check_finished(self, port: str, nfiles: int, nbytes: int):
+        if nfiles <= 0:
+            log.info(f"Sync check {port}: no files to fetch")
+            return
+        if self._transfer_manager is None:
+            return
+        if self._transfer_manager.has_pending_sync(port):
+            return
         self.syncPromptRequested.emit(port, self.device_label(port))
 
     def _on_connection_lost(self, port: str, reason: str):
