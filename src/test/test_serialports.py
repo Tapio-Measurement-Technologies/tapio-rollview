@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import settings
 from serial.tools import list_ports_common
 from utils import preferences
-from utils.rqft_support import DeviceIdentity
+from utils.rqft_support import BusyPortStatus, DeviceIdentity
 from workers.port_scanner import PortScanner, PortScannerWorker
 
 
@@ -232,7 +232,10 @@ class TestPortScannerWorker(unittest.TestCase):
         worker = PortScannerWorker(
             max_workers=1,
             busy_ports={
-                "COM7": DeviceIdentity("Tapio RQP Live", "ABC123", "v1.2.0")
+                "COM7": BusyPortStatus(
+                    DeviceIdentity("Tapio RQP Live", "ABC123", "v1.2.0"),
+                    connected=True,
+                )
             },
         )
         worker.finished.connect(finished.append)
@@ -247,6 +250,37 @@ class TestPortScannerWorker(unittest.TestCase):
         self.assertEqual(item.description, "Tapio RQP Live")
         self.assertEqual(item.serial_number, "ABC123")
         self.assertEqual(item.firmware_version, "v1.2.0")
+
+    @patch("workers.port_scanner.serial.Serial")
+    @patch("workers.port_scanner.serial.tools.list_ports.comports")
+    def test_disconnected_busy_port_is_cached_but_not_reported_as_responding(
+        self,
+        mock_comports,
+        mock_serial,
+    ):
+        mock_comports.return_value = [
+            make_port("COM7", vid=0x16C0, pid=0x0483)
+        ]
+        mock_serial.side_effect = AssertionError("busy port must not be opened")
+        finished = []
+        worker = PortScannerWorker(
+            max_workers=1,
+            busy_ports={
+                "COM7": BusyPortStatus(
+                    DeviceIdentity("Tapio RQP Live", "ABC123", "v1.2.0"),
+                    connected=False,
+                )
+            },
+        )
+        worker.finished.connect(finished.append)
+
+        worker.run()
+
+        mock_serial.assert_not_called()
+        item = finished[0][0]
+        self.assertFalse(item.device_responded)
+        self.assertTrue(item.supports_rqft)
+        self.assertEqual(item.description, "Tapio RQP Live")
 
 
 class TestPortScanner(unittest.TestCase):

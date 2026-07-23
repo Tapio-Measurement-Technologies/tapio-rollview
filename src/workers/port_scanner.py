@@ -14,6 +14,7 @@ from serial.tools import list_ports_common
 from utils.time_sync import send_timestamp
 from utils.translation import _
 from utils import preferences
+from utils.rqft_support import BusyPortStatus
 import os
 
 log = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class PortScannerWorker(QObject):
         # Ports held open by persistent RQFT connections: never probed
         # (probing would fail to open the port, or worse, inject the
         # DEVICEINFO command into a live session). Maps device name to
-        # a cached DeviceIdentity.
+        # cached identity and live-session status.
         self._busy_ports = busy_ports or {}
 
     def _allowed_usb_ids(self):
@@ -205,13 +206,20 @@ class PortScannerWorker(QObject):
         busy_infos = [port for port in ports if port.device in self._busy_ports]
         ports = [port for port in ports if port.device not in self._busy_ports]
         for port_info in busy_infos:
-            identity = self._busy_ports[port_info.device]
+            status: BusyPortStatus = self._busy_ports[port_info.device]
+            identity = status.identity
             if identity.device_name:
                 port_info.description = identity.device_name
             if identity.serial_number:
                 port_info.serial_number = identity.serial_number
             port_info.firmware_version = identity.firmware_version
-            scanned_ports.append(SerialPortItem(port_info, True))
+            scanned_ports.append(
+                SerialPortItem(
+                    port_info,
+                    device_responded=status.connected,
+                    known_device=True,
+                )
+            )
 
         ports_to_probe = [port for port in ports if self._should_probe_port(port)]
         skipped_ports = [port for port in ports if port not in ports_to_probe]

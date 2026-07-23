@@ -10,16 +10,22 @@ class SerialPortItem:
     """
     Represents a serial port with its details.
     """
-    def __init__(self, port: list_ports_common.ListPortInfo, device_responded=False):
+    def __init__(
+        self,
+        port: list_ports_common.ListPortInfo,
+        device_responded=False,
+        known_device=False,
+    ):
         self.device = port.device
         self.description = port.description
         self.serial_number = port.serial_number
         self.device_responded = device_responded
         self.firmware_version = getattr(port, "firmware_version", "") or ""
-        # Evaluated at scan time.
-        self.supports_rqft = device_responded and firmware_supports_rqft(
-            self.firmware_version
-        )
+        # A worker-held port may be a known RQFT device without having a
+        # live session during this scan.
+        self.supports_rqft = (
+            device_responded or known_device
+        ) and firmware_supports_rqft(self.firmware_version)
 
     def is_pinned(self):
         return self.device in preferences.pinned_serial_ports
