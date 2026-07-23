@@ -302,6 +302,37 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.on_directory_contents_changed.assert_called_once()
         self.assertEqual(call_order, ["refresh", "postprocess", "reload"])
 
+    def test_empty_successful_manual_sync_shows_up_to_date_message_box(self):
+        self.window.file_transfer_manager.last_transfer_outcome = "ok"
+        self.window.file_transfer_manager.last_transfer_was_auto = False
+        self.window.directory_view.refresh_directory_dates = MagicMock()
+        self.window.postprocess_manager.run_postprocessors = MagicMock()
+        self.window.on_directory_contents_changed = MagicMock()
+
+        with patch("gui.main_window.QMessageBox.information") as information:
+            self.window.on_file_transfer_finished([])
+
+        information.assert_called_once_with(
+            self.window,
+            _("SYNC_UP_TO_DATE_TITLE"),
+            _("SYNC_UP_TO_DATE_TEXT"),
+        )
+        self.assertEqual(self.window.status_bar.currentMessage(), "")
+        self.window.directory_view.refresh_directory_dates.assert_not_called()
+        self.window.postprocess_manager.run_postprocessors.assert_not_called()
+        self.window.on_directory_contents_changed.assert_not_called()
+
+    def test_empty_successful_auto_sync_does_not_show_message_box(self):
+        self.window.file_transfer_manager.last_transfer_outcome = "ok"
+        self.window.file_transfer_manager.last_transfer_was_auto = True
+        self.window.on_file_transfer_started()
+
+        with patch("gui.main_window.QMessageBox.information") as information:
+            self.window.on_file_transfer_finished([])
+
+        information.assert_not_called()
+        self.assertEqual(self.window.status_bar.currentMessage(), "")
+
 
 if __name__ == "__main__":
     unittest.main()

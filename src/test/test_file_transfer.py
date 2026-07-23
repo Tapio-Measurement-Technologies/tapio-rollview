@@ -88,6 +88,7 @@ class TestRqftRouting(unittest.TestCase):
         self.assertFalse(self.manager.is_transfer_in_progress())
         self.assertEqual(finished, [[os.path.join("/rolls", "roll")]])
         self.assertEqual(self.manager.last_transfer_outcome, "ok")
+        self.assertFalse(self.manager.last_transfer_was_auto)
 
     def test_rqft_sync_failure_reports_partial_folders_without_popup_for_auto(self):
         finished = []
@@ -109,6 +110,7 @@ class TestRqftRouting(unittest.TestCase):
         self.assertEqual(len(finished), 1)
         self.assertTrue(finished[0][0].endswith("roll"))
         self.assertEqual(self.manager.last_transfer_outcome, "error")
+        self.assertTrue(self.manager.last_transfer_was_auto)
 
     def test_cancelled_sync_reports_cancelled_outcome(self):
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
