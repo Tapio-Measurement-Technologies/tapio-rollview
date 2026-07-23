@@ -18,6 +18,13 @@ class DeviceIdentity:
     firmware_version: str
 
 
+@dataclass(frozen=True)
+class BusyPortStatus:
+    """Cached identity and live-session state for a worker-held port."""
+    identity: DeviceIdentity
+    connected: bool
+
+
 def parse_firmware_version(text):
     """
     Parse a git-describe style firmware version into a (major, minor, patch)

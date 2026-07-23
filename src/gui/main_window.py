@@ -646,7 +646,7 @@ class MainWindow(QMainWindow):
     def on_connection_lost(self, port, reason):
         if reason == "busy":
             self.status_bar.showMessage(_("DEVICE_BUSY_STATUS"))
-        elif reason == "unplugged":
+        elif reason in ("unplugged", "dead"):
             self.status_bar.showMessage(
                 _("DEVICE_DISCONNECTED_STATUS").format(device=port)
             )

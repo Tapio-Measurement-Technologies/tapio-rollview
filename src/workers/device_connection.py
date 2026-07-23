@@ -43,7 +43,7 @@ from rqft.messages import NOTIFY_SYNC_INCREMENTAL, ErrCode, Role
 from rqft.serial_transport import SerialTransport
 from rqft.session import Session, SessionState
 from utils import preferences
-from utils.rqft_support import DeviceIdentity, is_syncable_prof
+from utils.rqft_support import BusyPortStatus, DeviceIdentity, is_syncable_prof
 from utils.sync_history import SyncHistory
 from utils.translation import _
 
@@ -452,6 +452,32 @@ class DeviceConnectionWorker(threading.Thread):
         else:
             self._hello_retry_at = now + settings.RQFT_HELLO_RETRY_DEAD_S
             self._bridge.connectionLost.emit(self.port, "dead")
+        self._set_disconnected_state()
+
+    def _set_disconnected_state(self):
+        if not self.enabled:
+            self._set_state(ConnectionState.DISABLED)
+        elif self._transport is None:
+            self._set_state(ConnectionState.OPEN_BACKOFF)
+        else:
+            self._set_state(ConnectionState.LISTENING)
+
+    def _abort_timed_out_operation(self):
+        """End a stalled operation and publish lost-session state."""
+        try:
+            for event in self._driver.abort(AbortReason.E_TIMEOUT):
+                self._note_event(event)
+        except Exception:
+            pass
+        if self._pending_end is not None:
+            self._after_events()
+            return
+        self._established = None
+        self._hello_retry_at = (
+            time.monotonic() + settings.RQFT_HELLO_RETRY_DEAD_S
+        )
+        self._bridge.connectionLost.emit(self.port, "dead")
+        self._set_disconnected_state()
 
     def _drive(self, accept, progress=False):
         """Pump the session until accept() yields, with an idle watchdog.
@@ -473,7 +499,9 @@ class DeviceConnectionWorker(threading.Thread):
                 )
                 raise _Cancelled("cancelled by user")
             turn = self._driver.pump(max_wait_s=0.02)
-            if turn.events or turn.bytes_received:
+            # Passthrough console text, echoed bytes, and link-level ACKs
+            # do not prove that the requested operation is progressing.
+            if any(not isinstance(event, Passthrough) for event in turn.events):
                 last_activity = time.monotonic()
             found = None
             failure = None
@@ -537,15 +565,7 @@ class DeviceConnectionWorker(threading.Thread):
         except _OperationFailed as e:
             log.warning(f"Sync check on {self.port} failed: {e}")
         except _OpTimeout:
-            try:
-                for event in self._driver.abort(AbortReason.E_TIMEOUT):
-                    self._note_event(event)
-            except Exception:
-                pass
-            self._pending_end = None
-            self._hello_retry_at = (
-                time.monotonic() + settings.RQFT_HELLO_RETRY_DEAD_S
-            )
+            self._abort_timed_out_operation()
             log.warning(f"Sync check on {self.port} timed out")
         except OSError as e:
             log.warning(f"Sync check on {self.port} failed: {e}")
@@ -592,13 +612,7 @@ class DeviceConnectionWorker(threading.Thread):
             )
         except _OpTimeout as e:
             # Free the wedged session; the idle pump reconnects later.
-            try:
-                for event in self._driver.abort(AbortReason.E_TIMEOUT):
-                    self._note_event(event)
-            except Exception:
-                pass
-            self._pending_end = None
-            self._hello_retry_at = time.monotonic() + settings.RQFT_HELLO_RETRY_DEAD_S
+            self._abort_timed_out_operation()
             self._bridge.syncFailed.emit(
                 self.port, SyncError("timeout", message=str(e), fetched=fetched)
             )
@@ -846,12 +860,19 @@ class DeviceConnectionManager(QObject):
 
     def busy_ports(self) -> dict:
         """Ports whose serial device is (or may soon be) held by a
-        connection worker; the scanner must not probe these."""
+        connection worker; the scanner must not probe these. Cached
+        identity counts as a scan response only while its RQFT session
+        is currently connected."""
         busy = {}
         for port, worker in self._workers.items():
             if worker.is_alive() and worker.enabled:
-                busy[port] = self.identities.get(
-                    port, DeviceIdentity("", "", "")
+                busy[port] = BusyPortStatus(
+                    identity=self.identities.get(
+                        port, DeviceIdentity("", "", "")
+                    ),
+                    connected=(
+                        self._states.get(port) is ConnectionState.CONNECTED
+                    ),
                 )
         return busy
 

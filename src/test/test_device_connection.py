@@ -10,17 +10,19 @@ from unittest.mock import MagicMock, patch
 from PySide6.QtCore import QCoreApplication
 
 import store
-from rqft.client import BlockingSessionDriver, LocalDirFs
+from rqft.client import BlockingSessionDriver, LocalDirFs, PumpResult
 from rqft.demo import LoopbackResponder, SocketTransport
-from rqft.events import Established
+from rqft.events import Ended, Established, Passthrough
 from rqft.link import AbortReason
 from rqft.messages import NOTIFY_SYNC_INCREMENTAL, Role
 from rqft.session import Session
+from utils.rqft_support import DeviceIdentity
 from workers.device_connection import (
     ConnectionBridge,
     ConnectionState,
     DeviceConnectionManager,
     DeviceConnectionWorker,
+    _OpTimeout,
 )
 from workers.file_transfer import FileTransferManager
 
@@ -169,6 +171,61 @@ class TestWorkerShutdown(unittest.TestCase):
         self.assertTrue(transport.closed.is_set())
         self.assertFalse(transport.closed_while_reading)
         self.assertIs(transport.closed_by, worker)
+
+    def test_passthrough_noise_does_not_keep_operation_alive(self):
+        class StepClock:
+            def __init__(self):
+                self.value = 0
+
+            def __call__(self):
+                self.value += 1
+                return self.value
+
+        class NoiseDriver:
+            def __init__(self):
+                self.session = MagicMock()
+                self.pump_count = 0
+
+            def pump(self, max_wait_s):
+                self.pump_count += 1
+                if self.pump_count > 10:
+                    raise AssertionError("serial noise kept operation alive")
+                return PumpResult((Passthrough(b"console noise"),), 13)
+
+        worker = DeviceConnectionWorker("TESTPORT", ConnectionBridge())
+        driver = NoiseDriver()
+        worker._driver = driver
+
+        with (
+            patch(
+                "workers.device_connection.time.monotonic",
+                side_effect=StepClock(),
+            ),
+            patch("workers.device_connection._OP_IDLE_TIMEOUT_S", 3),
+        ):
+            with self.assertRaises(_OpTimeout):
+                worker._drive(lambda _event: None)
+
+        self.assertLessEqual(driver.pump_count, 4)
+
+    def test_operation_timeout_publishes_disconnected_state(self):
+        bridge = ConnectionBridge()
+        recorder = BridgeRecorder(bridge)
+        worker = DeviceConnectionWorker("TESTPORT", bridge)
+        worker.enabled = True
+        worker._transport = MagicMock()
+        worker._driver = MagicMock()
+        worker._driver.abort.return_value = (
+            Ended(AbortReason.E_TIMEOUT, from_peer=False),
+        )
+        worker._state = ConnectionState.CONNECTED
+        worker._established = MagicMock()
+
+        worker._abort_timed_out_operation()
+
+        self.assertEqual(recorder.lost, ["dead"])
+        self.assertEqual(recorder.states, [ConnectionState.LISTENING])
+        self.assertIsNone(worker._established)
 
 
 class TestSyncFlow(DeviceConnectionTestBase):
@@ -368,6 +425,23 @@ class TestDoorbellAndBusy(DeviceConnectionTestBase):
         self.assertTrue(wait_until(lambda: len(self.recorder.notify_flags) > 0))
         self.assertEqual(self.recorder.notify_flags[0], NOTIFY_SYNC_INCREMENTAL)
 
+    def test_silent_peer_clears_connected_state(self):
+        self._start_listening_worker()
+        self._ring_doorbell()
+        self.assertTrue(wait_until(lambda: bool(self.recorder.established)))
+
+        # Keep the serial port open but stop servicing the old session,
+        # matching a Bluetooth device taken over by another PC.
+        with patch("rqft.session.T_DEAD_MS", 200):
+            self.assertTrue(
+                wait_until(
+                    lambda: "dead" in self.recorder.lost
+                    and self.recorder.states[-1] is ConnectionState.LISTENING,
+                    timeout=2.0,
+                ),
+                f"silent peer stayed connected: {self.recorder.states}",
+            )
+
     def test_peer_busy_abort_returns_to_listening(self):
         self._start_listening_worker()
         driver = self._ring_doorbell()
@@ -550,6 +624,20 @@ class TestSyncPromptPreflight(unittest.TestCase):
 
         self.manager._on_sync_check_finished("PORT_A", 1, 123)
         self.assertEqual(prompts, [("PORT_A", "PORT_A")])
+
+    def test_busy_port_cache_marks_only_connected_session_as_responding(self):
+        self.worker.is_alive.return_value = True
+        self.worker.enabled = True
+        self.manager._workers["PORT_A"] = self.worker
+        self.manager.identities["PORT_A"] = DeviceIdentity(
+            "Tapio RQP Live", "SN-A", "v1.2.0"
+        )
+
+        self.manager._states["PORT_A"] = ConnectionState.CONNECTED
+        self.assertTrue(self.manager.busy_ports()["PORT_A"].connected)
+
+        self.manager._states["PORT_A"] = ConnectionState.LISTENING
+        self.assertFalse(self.manager.busy_ports()["PORT_A"].connected)
 
 
 if __name__ == "__main__":
