@@ -147,7 +147,8 @@ class FileTransferManager(QObject):
         self._active_port = None
         self._active_bridge = None
         self._active_is_auto = False
-        self._auto_queue: list[str] = []
+        # Queued automatic syncs as (port, incremental) pairs.
+        self._auto_queue: list[tuple[str, bool]] = []
         # "ok" | "cancelled" | "error" — how the last transfer ended;
         # lets the GUI report "all up to date" only for clean empty runs.
         self.last_transfer_outcome = "ok"
@@ -162,7 +163,7 @@ class FileTransferManager(QObject):
         """Whether a sync for this port is running or queued."""
         if self._transfer_in_progress and self._active_port == port:
             return True
-        return port in self._auto_queue
+        return any(queued == port for queued, _ in self._auto_queue)
 
     # -- entry points --------------------------------------------------
 
@@ -185,35 +186,39 @@ class FileTransferManager(QObject):
         else:
             self._begin_zmodem(port, folder_path, on_complete)
 
-    def request_auto_sync(self, port):
+    def request_auto_sync(self, port, incremental=False):
         """
         Queue an automatic sync (doorbell, periodic, on-connect) for a
         connected RQFT device. Deduplicated by port; drained one at a
-        time after the running transfer finishes.
+        time after the running transfer finishes. An incremental sync
+        pulls only files not recorded in the device's sync history.
         """
         if self._transfer_in_progress or self._auto_queue:
-            if port != self._active_port and port not in self._auto_queue:
-                self._auto_queue.append(port)
+            queued_ports = [queued for queued, _ in self._auto_queue]
+            if port != self._active_port and port not in queued_ports:
+                self._auto_queue.append((port, incremental))
             return
-        self._start_auto_sync(port)
+        self._start_auto_sync(port, incremental)
 
-    def _start_auto_sync(self, port):
+    def _start_auto_sync(self, port, incremental):
         if self._connection_manager is None:
             return
         conn = self._connection_manager.get_connection(port)
         if conn is None:
             log.info(f"Skipping auto sync for {port}: no active connection")
             return
-        self._begin_rqft(port, conn, store.root_directory, None, auto=True)
+        self._begin_rqft(
+            port, conn, store.root_directory, None, auto=True, incremental=incremental
+        )
 
     def _drain_auto_queue(self):
         if self._transfer_in_progress or not self._auto_queue:
             return
-        self._start_auto_sync(self._auto_queue.pop(0))
+        self._start_auto_sync(*self._auto_queue.pop(0))
 
     # -- RQFT path -----------------------------------------------------
 
-    def _begin_rqft(self, port, conn, folder_path, on_complete, auto):
+    def _begin_rqft(self, port, conn, folder_path, on_complete, auto, incremental=False):
         bridge = self._connection_manager.bridge_for(port)
         if bridge is None:
             log.error(f"No connection bridge for {port}; cannot sync")
@@ -236,7 +241,7 @@ class FileTransferManager(QObject):
 
         self.transferStarted.emit()
         log.info(f"Requesting RQFT sync on {port} (auto={auto})")
-        conn.request_sync(auto)
+        conn.request_sync(auto, incremental)
 
     def _release_bridge(self):
         bridge = self._active_bridge

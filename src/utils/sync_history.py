@@ -1,11 +1,11 @@
 """
 Per-device record of files already pulled over RQFT.
 
-An incremental sync (requested by the device's SYNC_INCREMENTAL doorbell
-hint) skips every remote file recorded here even when the local copy is
-gone, so files the user deleted from the mirror stay deleted. A full sync
-ignores the record for planning but rebuilds it from what it fetches and
-skips.
+An incremental sync (requested by the device's NOTIFY with the
+SYNC_INCREMENTAL sync-mode flag) skips every remote file recorded here
+even when the local copy is gone, so files the user deleted from the
+mirror stay deleted. A full sync ignores the record for planning but
+rebuilds it from what it fetches and skips.
 
 One JSON file per device lives under ``<mirror root>/.sync_history/``, so
 wiping the mirror folder also resets the history and the next sync pulls
