@@ -621,13 +621,19 @@ class MainWindow(QMainWindow):
         if folder_paths:
             self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
         elif self.file_transfer_manager.last_transfer_outcome == "ok":
-            # Clean run with nothing to fetch: no dialog was shown, so
-            # report the up-to-date result here.
-            self.status_bar.showMessage(_("SYNC_UP_TO_DATE_TEXT"))
+            self.status_bar.clearMessage()
+            if not self.file_transfer_manager.last_transfer_was_auto:
+                QMessageBox.information(
+                    self,
+                    _("SYNC_UP_TO_DATE_TITLE"),
+                    _("SYNC_UP_TO_DATE_TEXT"),
+                )
         elif self.status_bar.currentMessage() == _("SYNC_CHECKING_TEXT"):
             # Cancel/error before anything moved: the error handlers own
             # the message, just drop the stale "checking" text.
             self.status_bar.clearMessage()
+        if not folder_paths:
+            return
         self.directory_view.refresh_directory_dates(folder_paths)
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()

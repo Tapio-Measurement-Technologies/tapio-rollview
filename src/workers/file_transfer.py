@@ -152,6 +152,7 @@ class FileTransferManager(QObject):
         # "ok" | "cancelled" | "error" — how the last transfer ended;
         # lets the GUI report "all up to date" only for clean empty runs.
         self.last_transfer_outcome = "ok"
+        self.last_transfer_was_auto = False
 
     def set_connection_manager(self, connection_manager):
         self._connection_manager = connection_manager
@@ -228,6 +229,7 @@ class FileTransferManager(QObject):
         self._active_port = port
         self._active_is_auto = auto
         self.last_transfer_outcome = "ok"
+        self.last_transfer_was_auto = auto
         self.model.removeItems()
         self.synced_folders = []
         self.sync_folder_path = folder_path
@@ -303,6 +305,7 @@ class FileTransferManager(QObject):
         self._active_port = port
         self._active_is_auto = False
         self.last_transfer_outcome = "ok"
+        self.last_transfer_was_auto = False
         self.transferStarted.emit()
 
         self.model.removeItems()

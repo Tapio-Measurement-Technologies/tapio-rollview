@@ -988,6 +988,9 @@ msgstr "デバイスがこの要求に対応していません"
 msgid "SYNC_CHECKING_TEXT"
 msgstr "デバイスの新しいファイルを確認しています..."
 
-#. Status bar when a sync found nothing new to fetch.
+#. Information dialog when a manual sync found nothing new to fetch.
+msgid "SYNC_UP_TO_DATE_TITLE"
+msgstr "同期完了"
+
 msgid "SYNC_UP_TO_DATE_TEXT"
-msgstr "すべてのファイルは最新です"
+msgstr "すべてのファイルは最新で、Rollview に同期されています。"
