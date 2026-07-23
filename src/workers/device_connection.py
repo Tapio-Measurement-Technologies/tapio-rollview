@@ -212,12 +212,24 @@ class DeviceConnectionWorker(threading.Thread):
         self._queue.put(_Op("disconnect"))
 
     def shutdown(self):
-        """Stop the thread and close the transport. Daemon thread, so a
-        wedged join cannot hang application exit."""
+        """Stop the thread and let it close its transport.
+
+        Closing pyserial from this caller thread while the worker is in
+        read() can clear its file descriptor underneath os.read(). Signal
+        cancellation first and preserve the worker's sole transport
+        ownership during shutdown.
+        """
         self._stop_event.set()
         self._cancel.set()
-        self._close_transport()
+        if self.ident is None:
+            # A never-started worker cannot be racing transport I/O.
+            self._close_transport()
+            return
         self.join(timeout=3.0)
+        if self.is_alive():
+            # The worker is a daemon. Do not violate transport ownership
+            # to force shutdown; process exit will reclaim a wedged handle.
+            log.warning(f"Connection worker for {self.port} did not stop in time")
 
     # -- worker thread -------------------------------------------------
 

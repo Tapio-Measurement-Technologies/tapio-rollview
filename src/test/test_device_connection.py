@@ -1,5 +1,6 @@
 import socket
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -116,6 +117,56 @@ class DeviceConnectionTestBase(unittest.TestCase):
         (root / "roll" / "a.prof").write_bytes(b"profile-data-" * 100)
         (root / "roll" / "mean.prof").write_bytes(b"mean-data")
         (root / "roll" / "readme.txt").write_text("not a profile")
+
+
+class TestWorkerShutdown(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QCoreApplication.instance() or QCoreApplication([])
+
+    def test_transport_is_closed_by_worker_after_read_finishes(self):
+        class SlowReadTransport:
+            def __init__(self):
+                self.read_entered = threading.Event()
+                self.reading = False
+                self.closed = threading.Event()
+                self.closed_while_reading = False
+                self.closed_by = None
+
+            def write(self, data):
+                pass
+
+            def read(self, max_len, timeout):
+                self.reading = True
+                self.read_entered.set()
+                try:
+                    self.closed.wait(0.2)
+                    return b""
+                finally:
+                    self.reading = False
+
+            def close(self):
+                self.closed_while_reading = self.reading
+                self.closed_by = threading.current_thread()
+                self.closed.set()
+
+        transport = SlowReadTransport()
+        bridge = ConnectionBridge()
+        worker = DeviceConnectionWorker("TESTPORT", bridge)
+        self.addCleanup(worker.shutdown)
+
+        with patch(
+            "workers.device_connection.SerialTransport",
+            return_value=transport,
+        ):
+            worker.enable()
+            worker.start()
+            self.assertTrue(transport.read_entered.wait(2.0))
+            worker.shutdown()
+
+        self.assertTrue(transport.closed.is_set())
+        self.assertFalse(transport.closed_while_reading)
+        self.assertIs(transport.closed_by, worker)
 
 
 class TestSyncFlow(DeviceConnectionTestBase):
