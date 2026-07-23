@@ -194,7 +194,7 @@ DISTANCE_UNIT_DEFAULT = "m"
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
-IGNORE_FOLDERS = ['postprocessors']
+IGNORE_FOLDERS = ['postprocessors', '.sync_history']
 
 
 def load_local_settings(local_settings_path):
