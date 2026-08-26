@@ -63,6 +63,11 @@ class TestRqftRouting(unittest.TestCase):
         self.connection_manager.bridge_for.return_value = self.bridge
         self.manager.set_connection_manager(self.connection_manager)
 
+    def _settle(self):
+        """Let queued signals and the zero-delay queue drain run."""
+        for _ in range(5):
+            QCoreApplication.processEvents()
+
     def test_rqft_capable_device_routes_to_connection(self):
         with patch("workers.file_transfer.QThread") as thread_class:
             self.manager.start_transfer(
@@ -208,15 +213,53 @@ class TestRqftRouting(unittest.TestCase):
 
         self.assertEqual(self.manager.last_deleted_count, 2)
 
-    def test_auto_sync_queue_dedupes_by_port(self):
+    def test_auto_sync_queue_keeps_one_entry_per_port(self):
+        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
+
+        self.manager.request_auto_sync("COM2", incremental=True)
+        self.manager.request_auto_sync("COM2", incremental=True)
+
+        self.assertEqual(self.manager._auto_queue, [("COM2", True)])
+        self.assertTrue(self.manager.has_pending_sync("COM2"))
+
+    def test_queued_full_sync_is_not_downgraded_to_incremental(self):
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
 
         self.manager.request_auto_sync("COM2", incremental=True)
         self.manager.request_auto_sync("COM2")
-        self.manager.request_auto_sync("COM1")  # already active, not queued
+        self.manager.request_auto_sync("COM2", incremental=True)
 
-        self.assertEqual(self.manager._auto_queue, [("COM2", True)])
-        self.assertTrue(self.manager.has_pending_sync("COM2"))
+        self.assertEqual(self.manager._auto_queue, [("COM2", False)])
+
+    def test_notify_for_the_syncing_port_is_queued_not_dropped(self):
+        """The running batch was planned before the device rang, so a
+        measurement finished mid-sync needs another pass."""
+        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
+
+        self.manager.request_auto_sync("COM1", incremental=True)
+        self.assertEqual(self.manager._auto_queue, [("COM1", True)])
+
+        self.bridge.syncFinished.emit("COM1", [], 0, 0)
+        self._settle()
+
+        self.assertEqual(self.manager._auto_queue, [])
+        self.connection.request_sync.assert_called_with(True, True, False)
+
+    def test_drain_continues_past_a_port_that_lost_its_connection(self):
+        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
+        self.manager.request_auto_sync("COM2")
+        self.manager.request_auto_sync("COM3")
+
+        reconnected = MagicMock()
+        self.connection_manager.get_connection.side_effect = (
+            lambda port: None if port == "COM2" else reconnected
+        )
+
+        self.bridge.syncFinished.emit("COM1", [], 0, 0)
+        self._settle()
+
+        self.assertEqual(self.manager._auto_queue, [])
+        reconnected.request_sync.assert_called_once_with(True, False, False)
 
 
 if __name__ == "__main__":
