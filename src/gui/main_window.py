@@ -649,9 +649,11 @@ class MainWindow(QMainWindow):
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
 
-    def on_transfer_error(self, message, is_auto):
-        # Automatic sync failures stay in the status bar; manual sync
-        # failures also raise a popup from the transfer manager.
+    def on_transfer_error(self, message):
+        # transferError also carries an is_auto flag, which the status
+        # bar does not need: both cases want the message here, and a
+        # manual failure additionally gets a popup from the transfer
+        # manager.
         self.status_bar.showMessage(message)
 
     def on_connection_lost(self, port, reason):
@@ -659,7 +661,9 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(_("DEVICE_BUSY_STATUS"))
         elif reason in ("unplugged", "dead"):
             self.status_bar.showMessage(
-                _("DEVICE_DISCONNECTED_STATUS").format(device=port)
+                _("DEVICE_DISCONNECTED_STATUS").format(
+                    device=self.device_connection_manager.device_label(port)
+                )
             )
 
     def on_sync_list_warnings(self, port, skipped_count):
