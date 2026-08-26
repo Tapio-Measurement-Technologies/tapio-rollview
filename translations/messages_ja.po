@@ -994,3 +994,43 @@ msgstr "同期完了"
 
 msgid "SYNC_UP_TO_DATE_TEXT"
 msgstr "すべてのファイルは最新で、Rollview に同期されています。"
+
+#. Advanced settings label for the device-side deletion policy.
+msgid "DELETE_SYNCED_FILES_LABEL"
+msgstr "フル同期後のデバイス上のファイル"
+
+#. Deletion policy option: ask before every full sync.
+msgid "DELETE_SYNCED_FILES_ASK"
+msgstr "毎回確認する"
+
+#. Deletion policy option: never delete anything from the device.
+msgid "DELETE_SYNCED_FILES_NEVER"
+msgstr "デバイスに残す"
+
+#. Deletion policy option: always delete synced files from the device.
+msgid "DELETE_SYNCED_FILES_ALWAYS"
+msgstr "デバイスから削除する"
+
+#. Explanation under the deletion policy selector.
+msgid "DELETE_SYNCED_FILES_HINT"
+msgstr "削除されるのはフル同期のときだけで、対応しているデバイスに限られます。測定後の自動同期ではファイルは常にデバイスに残ります。"
+
+#. Title of the first-time delete-after-sync question.
+msgid "DELETE_AFTER_SYNC_TITLE"
+msgstr "デバイスからファイルを削除しますか？"
+
+#. Body of the first-time delete-after-sync question.
+msgid "DELETE_AFTER_SYNC_TEXT"
+msgstr "Rollview がコピーを検証した後、同期した測定ファイルを {device} から削除しますか？"
+
+#. Informative text of the first-time delete-after-sync question.
+msgid "DELETE_AFTER_SYNC_INFO"
+msgstr "ファイルは Rollview が保存して検証した後にのみ削除されます。自動同期では削除されません。"
+
+#. Checkbox in the delete-after-sync question that stores the answer.
+msgid "DELETE_AFTER_SYNC_REMEMBER"
+msgstr "この選択を記憶する"
+
+#. Status bar note after a sync removed files from the device.
+msgid "DEVICE_FILES_REMOVED"
+msgstr "デバイスから {count} 件のファイルを削除しました。"

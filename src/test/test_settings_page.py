@@ -30,6 +30,7 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.original_excluded_regions_mode = preferences.excluded_regions_mode
         self.original_excluded_regions = preferences.excluded_regions
         self.original_distance_unit = preferences.distance_unit
+        self.original_delete_choice = preferences.delete_synced_files_from_device
 
         preferences.excluded_regions_mode = settings.EXCLUDED_REGIONS_MODE_RELATIVE
         preferences.excluded_regions = ""
@@ -42,6 +43,7 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
         preferences.excluded_regions = self.original_excluded_regions
         preferences.distance_unit = self.original_distance_unit
+        preferences.delete_synced_files_from_device = self.original_delete_choice
 
     def _set_mode(self, mode):
         self.page.excluded_regions_mode_selector.setCurrentText(
@@ -134,6 +136,28 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.assertEqual(
             self.page.periodic_sync_interval_input.value(),
             settings.PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT,
+        )
+
+    def test_delete_policy_selector_saves_preference(self):
+        self.page._select_delete_synced_files_mode(settings.DELETE_SYNCED_FILES_ALWAYS)
+
+        with patch.object(preferences, "update_preferences") as update:
+            self.page.save_settings()
+
+        saved = update.call_args.args[0]
+        self.assertEqual(
+            saved["delete_synced_files_from_device"],
+            settings.DELETE_SYNCED_FILES_ALWAYS,
+        )
+
+    def test_delete_policy_selector_resets_to_asking(self):
+        self.page._select_delete_synced_files_mode(settings.DELETE_SYNCED_FILES_NEVER)
+
+        self.page.reset_to_defaults()
+
+        self.assertEqual(
+            self.page._get_selected_delete_synced_files_mode(),
+            settings.DELETE_SYNCED_FILES_DEFAULT,
         )
 
     def test_periodic_sync_interval_enabled_follows_checkbox(self):

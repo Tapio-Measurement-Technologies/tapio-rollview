@@ -28,6 +28,7 @@ import settings
 import store
 from rqft.client import BlockingSessionDriver, LocalDirFs
 from rqft.events import (
+    DelDone,
     Ended,
     EntryListed,
     EntrySkipped,
@@ -39,7 +40,13 @@ from rqft.events import (
     Passthrough,
 )
 from rqft.link import AbortReason
-from rqft.messages import NOTIFY_SYNC_INCREMENTAL, ErrCode, Role
+from rqft.messages import (
+    CAP_ALLOW_DELETE,
+    NOTIFY_DELETE_AFTER_SYNC,
+    NOTIFY_SYNC_INCREMENTAL,
+    ErrCode,
+    Role,
+)
 from rqft.serial_transport import SerialTransport
 from rqft.session import Session, SessionState
 from utils import preferences
@@ -128,7 +135,7 @@ class ConnectionBridge(QObject):
     syncStarted = Signal(str, int, int)         # port, nfiles, nbytes
     receivingFile = Signal(str, int)            # path, files_left (countdown)
     fileByteProgress = Signal(int, int)         # current file: done, total
-    syncFinished = Signal(str, list, int)       # port, fetched paths, skipped count
+    syncFinished = Signal(str, list, int, int)  # port, fetched paths, skipped, deleted
     syncFailed = Signal(str, object)            # port, SyncError
     listWarnings = Signal(str, int)             # port, skipped unreadable entries
 
@@ -158,6 +165,7 @@ class _Op:
     kind: str          # "check" | "sync" | "disconnect"
     auto: bool = False
     incremental: bool = False
+    delete_remote: bool = False
 
 
 class DeviceConnectionWorker(threading.Thread):
@@ -196,13 +204,20 @@ class DeviceConnectionWorker(threading.Thread):
         self._retry_at = 0.0
         self._hello_retry_at = 0.0
 
-    def request_sync(self, auto: bool, incremental: bool = False):
+    def request_sync(self, auto: bool, incremental: bool = False,
+                     delete_remote: bool = False):
         """Queue a sync; connects first when needed. Results arrive as
         syncFinished/syncFailed bridge signals. An incremental sync skips
         remote files recorded in the device's sync history even when the
-        local copy was deleted."""
+        local copy was deleted. delete_remote removes every file this
+        sync verified from the device, and belongs to full syncs only."""
         self._cancel.clear()
-        self._queue.put(_Op("sync", auto=auto, incremental=incremental))
+        self._queue.put(_Op(
+            "sync",
+            auto=auto,
+            incremental=incremental,
+            delete_remote=delete_remote and not incremental,
+        ))
 
     def request_sync_check(self):
         """Queue a read-only list/diff used before offering a sync."""
@@ -277,7 +292,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._op_sync_check()
             return
         if op.kind == "sync":
-            self._op_sync(op.auto, op.incremental)
+            self._op_sync(op.auto, op.incremental, op.delete_remote)
 
     # -- transport / session lifecycle ---------------------------------
 
@@ -553,7 +568,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._do_connect()
             if newly_connected:
                 self._bridge.established.emit(self.port, False)
-            missing, total_bytes, _, _ = self._build_sync_plan()
+            missing, total_bytes, _mirrored, _history = self._build_sync_plan()
             self._bridge.syncCheckFinished.emit(
                 self.port, len(missing), total_bytes
             )
@@ -571,7 +586,8 @@ class DeviceConnectionWorker(threading.Thread):
             log.warning(f"Sync check on {self.port} failed: {e}")
             self._on_transport_error(e)
 
-    def _op_sync(self, auto: bool, incremental: bool = False):
+    def _op_sync(self, auto: bool, incremental: bool = False,
+                 delete_remote: bool = False):
         fetched: list[str] = []
         try:
             if self._transport is None:
@@ -582,7 +598,7 @@ class DeviceConnectionWorker(threading.Thread):
             self._do_connect()
             if newly_connected:
                 self._bridge.established.emit(self.port, False)
-            self._sync(fetched, incremental)
+            self._sync(fetched, incremental, delete_remote)
         except _Cancelled:
             log.info(f"Sync on {self.port} cancelled by user")
             self._bridge.syncFailed.emit(
@@ -622,15 +638,20 @@ class DeviceConnectionWorker(threading.Thread):
             )
             self._on_transport_error(e)
 
-    def _sync(self, fetched: list, incremental: bool = False):
+    def _sync(self, fetched: list, incremental: bool = False,
+              delete_remote: bool = False):
         """Fetch planned .prof files, reporting each committed path.
 
         An incremental sync (device NOTIFY with the SYNC_INCREMENTAL
         sync-mode flag) additionally drops remote files recorded in the
         device's sync history, so files deleted from the local mirror
         stay gone.
+
+        delete_remote (full syncs only) removes every file this sync
+        leaves CRC-verified in the mirror from the device afterwards.
         """
-        missing, total_bytes, skipped, history = self._build_sync_plan(incremental)
+        missing, total_bytes, mirrored, history = self._build_sync_plan(incremental)
+        skipped = len(mirrored)
         self._session.send_plan(len(missing), total_bytes, self._driver.now_ms())
         self._driver.flush()
         self._bridge.syncStarted.emit(self.port, len(missing), total_bytes)
@@ -638,6 +659,16 @@ class DeviceConnectionWorker(threading.Thread):
             f"Sync {self.port}: {len(missing)} to fetch ({total_bytes} bytes), "
             f"{skipped} up to date"
         )
+
+        if delete_remote and not self._peer_allows_delete():
+            log.warning(
+                f"Sync {self.port}: device does not allow deletes, keeping its files"
+            )
+            delete_remote = False
+        # Files an earlier automatic sync fetched are still on the device
+        # (autosyncs never delete); a full sync is where they are cleaned
+        # up, so the already-mirrored ones are deletable too.
+        deletable = [entry.path for entry in mirrored] if delete_remote else []
 
         failed_files = 0
         for index, entry in enumerate(missing):
@@ -670,18 +701,75 @@ class DeviceConnectionWorker(threading.Thread):
             # by a later incremental sync even if this batch fails.
             history.record(entry.path, entry.size, entry.crc32)
             history.save()
+            if delete_remote:
+                deletable.append(entry.path)
 
         if failed_files:
             log.warning(f"Sync {self.port}: {failed_files} files failed to fetch")
-        self._bridge.syncFinished.emit(self.port, list(fetched), skipped)
+        # Deleting last keeps the GET stream uninterrupted, and an
+        # interrupted sync leaves the device untouched.
+        deleted = self._delete_remote_files(deletable)
+        self._bridge.syncFinished.emit(self.port, list(fetched), skipped, len(deleted))
+
+    def _peer_allows_delete(self) -> bool:
+        """Whether the device advertised the ALLOW_DELETE capability.
+        Without it every DEL comes back E_DENIED (SPEC.md section 5.4)."""
+        established = self._established
+        return (
+            established is not None
+            and bool(established.peer_caps & CAP_ALLOW_DELETE)
+        )
+
+    def _delete_remote_files(self, paths: list) -> list:
+        """Remove already-mirrored files from the device, one DEL each.
+
+        A refused delete does not fail the sync: rollview holds a verified
+        copy either way, so it is logged and the batch continues. A delete
+        that takes the session down does stop the batch.
+        """
+        if not paths or self._established is None:
+            # Nothing to clean, or the session went away with the batch;
+            # the device keeps its copies and the next full sync retries.
+            return []
+        deleted: list[str] = []
+        failed = 0
+        for path in paths:
+            self._session.request_del(path, is_dir=False, now_ms=self._driver.now_ms())
+            try:
+                self._drive(
+                    lambda event: event
+                    if isinstance(event, DelDone)
+                    and event.path == path
+                    and not event.is_dir
+                    else None
+                )
+            except _OperationFailed as e:
+                log.warning(f"Sync {self.port}: could not remove {path}: {e}")
+                failed += 1
+                if self._established is None:
+                    end = self._pending_end
+                    if end is not None:
+                        raise _SessionEnded(end) from e
+                    raise _OpTimeout("session lost while deleting") from e
+                continue
+            deleted.append(path)
+        if deleted:
+            log.info(
+                f"Sync {self.port}: removed {len(deleted)} synced files from the device"
+            )
+        if failed:
+            log.warning(
+                f"Sync {self.port}: {failed} files could not be removed from the device"
+            )
+        return deleted
 
     def _build_sync_plan(self, incremental: bool = False):
         """List remote profiles and plan the fetch batch.
 
-        Returns (missing entries, total bytes, skipped count, history).
-        Incremental mode first drops candidates the sync history knows,
-        then both modes skip files whose local copy already matches by
-        size and CRC. The history is rebuilt from matches and pruned to
+        Returns (missing entries, total bytes, already-mirrored entries,
+        history). Incremental mode first drops candidates the sync history
+        knows, then both modes skip files whose local copy already matches
+        by size and CRC. The history is rebuilt from matches and pruned to
         the current device listing, so a full sync repairs it.
         """
         assert self._fs is not None
@@ -726,7 +814,7 @@ class DeviceConnectionWorker(threading.Thread):
             remaining = candidates
 
         missing: list[EntryListed] = []
-        skipped = 0
+        mirrored: list[EntryListed] = []
         for entry in remaining:
             local = self._fs.file_info(entry.path)
             if (
@@ -735,8 +823,8 @@ class DeviceConnectionWorker(threading.Thread):
                 and local.size == entry.size
                 and local.crc32 == entry.crc32
             ):
-                skipped += 1
                 # The local copy matches: count it as synced content.
+                mirrored.append(entry)
                 history.record(entry.path, entry.size, entry.crc32)
             else:
                 missing.append(entry)
@@ -751,7 +839,7 @@ class DeviceConnectionWorker(threading.Thread):
 
         missing.sort(key=lambda entry: entry.path)
         total_bytes = sum(entry.size for entry in missing)
-        return missing, total_bytes, skipped, history
+        return missing, total_bytes, mirrored, history
 
     def _apply_mtime(self, entry: EntryListed):
         """Preserve the device modification time on the downloaded file.
@@ -916,8 +1004,14 @@ class DeviceConnectionManager(QObject):
         # The device asked us to pull: sync without prompting. The
         # SYNC_INCREMENTAL sync-mode flag (post-measurement autosync)
         # asks for new files only; the device's manual sync button sends
-        # flags 0 and gets a full sync. DELETE_AFTER_SYNC is not acted
-        # on yet.
+        # flags 0 and gets a full sync. Removing the device's copies is
+        # rollview's call (see gui.widgets.delete_prompt), so a
+        # DELETE_AFTER_SYNC hint is advisory and only a full sync acts.
+        if flags & NOTIFY_DELETE_AFTER_SYNC:
+            log.info(
+                f"Device {port} hinted delete-after-sync; the rollview "
+                f"setting decides"
+            )
         self.syncPromptDismissRequested.emit(port)
         self._transfer_manager.request_auto_sync(
             port, incremental=bool(flags & NOTIFY_SYNC_INCREMENTAL)
