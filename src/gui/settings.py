@@ -128,6 +128,26 @@ class GeneralSettingsPage(QWidget):
         self.distance_unit_selector.currentIndexChanged.connect(self.enable_save_button)
         layout.addWidget(self.distance_unit_selector)
 
+        # Whether a full sync deletes the files it mirrored from the device
+        self.delete_synced_files_label = QLabel(_("DELETE_SYNCED_FILES_LABEL"))
+        layout.addWidget(self.delete_synced_files_label)
+
+        self.delete_synced_files_selector = QComboBox()
+        self.delete_synced_files_modes = {
+            settings.DELETE_SYNCED_FILES_ASK: _("DELETE_SYNCED_FILES_ASK"),
+            settings.DELETE_SYNCED_FILES_NEVER: _("DELETE_SYNCED_FILES_NEVER"),
+            settings.DELETE_SYNCED_FILES_ALWAYS: _("DELETE_SYNCED_FILES_ALWAYS"),
+        }
+        self.delete_synced_files_selector.addItems(self.delete_synced_files_modes.values())
+        self._select_delete_synced_files_mode(preferences.delete_synced_files_from_device)
+        self.delete_synced_files_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self.delete_synced_files_selector)
+
+        self.delete_synced_files_hint = QLabel(_("DELETE_SYNCED_FILES_HINT"))
+        self.delete_synced_files_hint.setWordWrap(True)
+        self.delete_synced_files_hint.setStyleSheet("color: gray; font-size: 12px;")
+        layout.addWidget(self.delete_synced_files_hint)
+
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -137,6 +157,19 @@ class GeneralSettingsPage(QWidget):
         self.footer_layout.addWidget(self.apply_button)
 
         layout.addLayout(self.footer_layout)
+
+    def _select_delete_synced_files_mode(self, mode):
+        self.delete_synced_files_selector.setCurrentText(
+            self.delete_synced_files_modes.get(
+                mode,
+                self.delete_synced_files_modes[settings.DELETE_SYNCED_FILES_DEFAULT],
+            )
+        )
+
+    def _get_selected_delete_synced_files_mode(self):
+        return list(self.delete_synced_files_modes.keys())[
+            self.delete_synced_files_selector.currentIndex()
+        ]
 
     @Slot()
     def enable_save_button(self):
@@ -150,7 +183,8 @@ class GeneralSettingsPage(QWidget):
         selected_distance_unit = list(self.distance_units.keys())[self.distance_unit_selector.currentIndex()]
         preferences.update_preferences({
             'locale': selected_lang,
-            'distance_unit': selected_distance_unit
+            'distance_unit': selected_distance_unit,
+            'delete_synced_files_from_device': self._get_selected_delete_synced_files_mode()
         })
 
         self.apply_button.setEnabled(False)
@@ -291,11 +325,6 @@ class AdvancedSettingsPage(QWidget):
             settings.EXCLUDED_REGIONS_MODE_NONE: _("EXCLUDED_REGIONS_MODE_NONE"),
             settings.EXCLUDED_REGIONS_MODE_RELATIVE: _("EXCLUDED_REGIONS_MODE_RELATIVE"),
             settings.EXCLUDED_REGIONS_MODE_ABSOLUTE: _("EXCLUDED_REGIONS_MODE_ABSOLUTE"),
-        }
-        self.delete_synced_files_modes = {
-            settings.DELETE_SYNCED_FILES_ASK: _("DELETE_SYNCED_FILES_ASK"),
-            settings.DELETE_SYNCED_FILES_NEVER: _("DELETE_SYNCED_FILES_NEVER"),
-            settings.DELETE_SYNCED_FILES_ALWAYS: _("DELETE_SYNCED_FILES_ALWAYS"),
         }
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -471,23 +500,6 @@ class AdvancedSettingsPage(QWidget):
         periodic_sync_layout.addStretch()
         layout.addLayout(periodic_sync_layout)
 
-        # Who removes synced measurement files from the device
-        delete_synced_files_layout = QHBoxLayout()
-        self.delete_synced_files_label = QLabel(_("DELETE_SYNCED_FILES_LABEL"))
-        self.delete_synced_files_selector = QComboBox()
-        self.delete_synced_files_selector.addItems(self.delete_synced_files_modes.values())
-        self._select_delete_synced_files_mode(preferences.delete_synced_files_from_device)
-        self.delete_synced_files_selector.currentIndexChanged.connect(self.enable_save_button)
-        delete_synced_files_layout.addWidget(self.delete_synced_files_label)
-        delete_synced_files_layout.addWidget(self.delete_synced_files_selector)
-        delete_synced_files_layout.addStretch()
-        layout.addLayout(delete_synced_files_layout)
-
-        self.delete_synced_files_hint = QLabel(_("DELETE_SYNCED_FILES_HINT"))
-        self.delete_synced_files_hint.setWordWrap(True)
-        self.delete_synced_files_hint.setStyleSheet("color: gray; font-size: 12px;")
-        layout.addWidget(self.delete_synced_files_hint)
-
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -530,7 +542,6 @@ class AdvancedSettingsPage(QWidget):
             QSignalBlocker(self.excluded_regions_input),
             QSignalBlocker(self.periodic_sync_checkbox),
             QSignalBlocker(self.periodic_sync_interval_input),
-            QSignalBlocker(self.delete_synced_files_selector),
         ]
 
         default_band_pass_high = self._clamp_band_pass_high(settings.BAND_PASS_HIGH_DEFAULT)
@@ -558,7 +569,6 @@ class AdvancedSettingsPage(QWidget):
         self.periodic_sync_interval_input.setValue(
             settings.PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT
         )
-        self._select_delete_synced_files_mode(settings.DELETE_SYNCED_FILES_DEFAULT)
         self._update_excluded_regions_ui()
         self._update_periodic_sync_ui()
         self.enable_save_button()
@@ -574,19 +584,6 @@ class AdvancedSettingsPage(QWidget):
         self.periodic_sync_interval_input.setEnabled(
             self.periodic_sync_checkbox.isChecked()
         )
-
-    def _select_delete_synced_files_mode(self, mode):
-        self.delete_synced_files_selector.setCurrentText(
-            self.delete_synced_files_modes.get(
-                mode,
-                self.delete_synced_files_modes[settings.DELETE_SYNCED_FILES_DEFAULT],
-            )
-        )
-
-    def _get_selected_delete_synced_files_mode(self):
-        return list(self.delete_synced_files_modes.keys())[
-            self.delete_synced_files_selector.currentIndex()
-        ]
 
     def _get_selected_excluded_regions_mode(self):
         return list(self.excluded_regions_modes.keys())[self.excluded_regions_mode_selector.currentIndex()]
@@ -686,8 +683,7 @@ class AdvancedSettingsPage(QWidget):
             'band_pass_low': 0,
             'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE),
             'periodic_sync_enabled': self.periodic_sync_checkbox.isChecked(),
-            'periodic_sync_interval_minutes': self.periodic_sync_interval_input.value(),
-            'delete_synced_files_from_device': self._get_selected_delete_synced_files_mode()
+            'periodic_sync_interval_minutes': self.periodic_sync_interval_input.value()
         })
 
         self.apply_button.setEnabled(False)

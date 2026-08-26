@@ -997,7 +997,7 @@ msgstr "すべてのファイルは最新で、Rollview に同期されていま
 
 #. Advanced settings label for the device-side deletion policy.
 msgid "DELETE_SYNCED_FILES_LABEL"
-msgstr "フル同期後のデバイス上のファイル"
+msgstr "同期済みファイルをデバイスから削除する"
 
 #. Deletion policy option: ask before every full sync.
 msgid "DELETE_SYNCED_FILES_ASK"
@@ -1005,15 +1005,15 @@ msgstr "毎回確認する"
 
 #. Deletion policy option: never delete anything from the device.
 msgid "DELETE_SYNCED_FILES_NEVER"
-msgstr "デバイスに残す"
+msgstr "削除しない"
 
 #. Deletion policy option: always delete synced files from the device.
 msgid "DELETE_SYNCED_FILES_ALWAYS"
-msgstr "デバイスから削除する"
+msgstr "常に削除する"
 
 #. Explanation under the deletion policy selector.
 msgid "DELETE_SYNCED_FILES_HINT"
-msgstr "削除されるのはフル同期のときだけで、対応しているデバイスに限られます。測定後の自動同期ではファイルは常にデバイスに残ります。"
+msgstr "削除されるのはフル同期のときだけで、対応しているデバイスに限られます。測定後の自動同期では削除されません。"
 
 #. Title of the first-time delete-after-sync question.
 msgid "DELETE_AFTER_SYNC_TITLE"
