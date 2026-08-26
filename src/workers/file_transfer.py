@@ -144,6 +144,10 @@ class FileTransferManager(QObject):
         self._transfer_in_progress = False
         self.synced_folders = []
         self._connection_manager = None
+        # Callable(device_label) -> bool, injected by the GUI: whether a
+        # full sync may delete the files it mirrored from the device.
+        # Without it (tests, headless) nothing is ever deleted.
+        self.delete_decision_provider = None
         self._active_port = None
         self._active_bridge = None
         self._active_is_auto = False
@@ -153,6 +157,8 @@ class FileTransferManager(QObject):
         # lets the GUI report "all up to date" only for clean empty runs.
         self.last_transfer_outcome = "ok"
         self.last_transfer_was_auto = False
+        # Files the last sync removed from the device.
+        self.last_deleted_count = 0
 
     def set_connection_manager(self, connection_manager):
         self._connection_manager = connection_manager
@@ -225,11 +231,18 @@ class FileTransferManager(QObject):
             log.error(f"No connection bridge for {port}; cannot sync")
             return
 
+        # Claim the transfer before asking anything: the policy provider
+        # may run a modal dialog, and a queued auto sync must not start
+        # underneath it.
         self._transfer_in_progress = True
         self._active_port = port
         self._active_is_auto = auto
         self.last_transfer_outcome = "ok"
         self.last_transfer_was_auto = auto
+        self.last_deleted_count = 0
+        # Automatic (incremental) syncs never delete; only a full sync
+        # cleans the device, and only when the user allows it.
+        delete_remote = False if incremental else self._resolve_delete_remote(port)
         self.model.removeItems()
         self.synced_folders = []
         self.sync_folder_path = folder_path
@@ -242,8 +255,26 @@ class FileTransferManager(QObject):
         bridge.syncFailed.connect(self._on_rqft_failed)
 
         self.transferStarted.emit()
-        log.info(f"Requesting RQFT sync on {port} (auto={auto})")
-        conn.request_sync(auto, incremental)
+        log.info(
+            f"Requesting RQFT sync on {port} (auto={auto}, "
+            f"incremental={incremental}, delete_remote={delete_remote})"
+        )
+        conn.request_sync(auto, incremental, delete_remote)
+
+    def _resolve_delete_remote(self, port):
+        """Ask the injected policy whether this full sync may delete the
+        device's copies of the files it mirrors."""
+        provider = self.delete_decision_provider
+        if provider is None:
+            return False
+        label = port
+        if self._connection_manager is not None:
+            label = self._connection_manager.device_label(port)
+        try:
+            return bool(provider(label))
+        except Exception:
+            log.exception("Delete-after-sync policy failed; keeping device files")
+            return False
 
     def _release_bridge(self):
         bridge = self._active_bridge
@@ -259,8 +290,12 @@ class FileTransferManager(QObject):
     def _on_sync_started(self, port, nfiles, nbytes):
         self.syncBatchStarted.emit(port, nfiles, nbytes)
 
-    def _on_rqft_finished(self, port, fetched, skipped):
-        log.info(f"RQFT sync finished on {port}: fetched={len(fetched)} skipped={skipped}")
+    def _on_rqft_finished(self, port, fetched, skipped, deleted):
+        log.info(
+            f"RQFT sync finished on {port}: fetched={len(fetched)} "
+            f"skipped={skipped} deleted={deleted}"
+        )
+        self.last_deleted_count = deleted
         self._finish_rqft(fetched)
 
     def _on_rqft_failed(self, port, error):
@@ -306,6 +341,7 @@ class FileTransferManager(QObject):
         self._active_is_auto = False
         self.last_transfer_outcome = "ok"
         self.last_transfer_was_auto = False
+        self.last_deleted_count = 0
         self.transferStarted.emit()
 
         self.model.removeItems()

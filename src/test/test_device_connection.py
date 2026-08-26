@@ -49,6 +49,7 @@ class BridgeRecorder:
         self.sync_checks = []
         self.sync_started = []
         self.sync_finished = []
+        self.deleted_counts = []
         self.sync_failed = []
         bridge.stateChanged.connect(lambda port, state: self.states.append(state))
         bridge.established.connect(
@@ -62,12 +63,14 @@ class BridgeRecorder:
         bridge.syncStarted.connect(
             lambda port, nfiles, nbytes: self.sync_started.append((nfiles, nbytes))
         )
-        bridge.syncFinished.connect(
-            lambda port, fetched, skipped: self.sync_finished.append((fetched, skipped))
-        )
+        bridge.syncFinished.connect(self._on_sync_finished)
         bridge.syncFailed.connect(
             lambda port, error: self.sync_failed.append(error)
         )
+
+    def _on_sync_finished(self, port, fetched, skipped, deleted):
+        self.sync_finished.append((fetched, skipped))
+        self.deleted_counts.append(deleted)
 
 
 class DeviceConnectionTestBase(unittest.TestCase):
@@ -338,6 +341,82 @@ class TestSyncFlow(DeviceConnectionTestBase):
         self.assertTrue(
             wait_until(lambda: self.recorder.states[-1] is ConnectionState.CONNECTED)
         )
+
+
+class TestDeleteAfterSync(DeviceConnectionTestBase):
+    """Rollview, not the device, removes synced files — and only a full
+    sync does it."""
+
+    def _start_device(self):
+        self.seed_device_tree()
+        self.responder = LoopbackResponder(self.right_sock, Path(self.device_dir.name))
+        self.responder.start()
+        self.worker.enable()
+        self.worker.start()
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+        return Path(self.device_dir.name) / "roll" / "a.prof"
+
+    def _wait_for_sync(self, count):
+        self.assertTrue(
+            wait_until(lambda: len(self.recorder.sync_finished) >= count),
+            f"sync did not finish (failures: {self.recorder.sync_failed})",
+        )
+
+    def test_full_sync_removes_fetched_files_from_the_device(self):
+        remote = self._start_device()
+
+        self.worker.request_sync(auto=False, delete_remote=True)
+        self._wait_for_sync(1)
+
+        fetched, _skipped = self.recorder.sync_finished[0]
+        self.assertEqual(fetched, ["roll/a.prof"])
+        self.assertEqual(self.recorder.deleted_counts[0], 1)
+        self.assertTrue((Path(self.local_dir.name) / "roll" / "a.prof").is_file())
+        self.assertFalse(remote.exists())
+        # Only files the sync policy covers are removed.
+        self.assertTrue((Path(self.device_dir.name) / "roll" / "mean.prof").exists())
+        self.assertTrue((Path(self.device_dir.name) / "roll" / "readme.txt").exists())
+
+    def test_full_sync_removes_files_an_earlier_autosync_mirrored(self):
+        remote = self._start_device()
+
+        # The post-measurement autosync pulls the file and leaves it.
+        self.worker.request_sync(auto=True, incremental=True)
+        self._wait_for_sync(1)
+        self.assertEqual(self.recorder.deleted_counts[0], 0)
+        self.assertTrue(remote.exists())
+
+        # The later full sync fetches nothing but still cleans the device.
+        self.worker.request_sync(auto=False, delete_remote=True)
+        self._wait_for_sync(2)
+        fetched, skipped = self.recorder.sync_finished[1]
+        self.assertEqual(fetched, [])
+        self.assertEqual(skipped, 1)
+        self.assertEqual(self.recorder.deleted_counts[1], 1)
+        self.assertFalse(remote.exists())
+
+    def test_incremental_sync_never_deletes_even_when_asked_to(self):
+        remote = self._start_device()
+
+        self.worker.request_sync(auto=True, incremental=True, delete_remote=True)
+        self._wait_for_sync(1)
+
+        self.assertEqual(self.recorder.deleted_counts[0], 0)
+        self.assertTrue(remote.exists())
+
+    def test_device_that_denies_deletes_keeps_its_files(self):
+        caps_patch = patch("rqft.demo.CAP_ALLOW_DELETE", 0)
+        caps_patch.start()
+        self.addCleanup(caps_patch.stop)
+        remote = self._start_device()
+
+        self.worker.request_sync(auto=False, delete_remote=True)
+        self._wait_for_sync(1)
+
+        # The files still arrive; only the cleanup is skipped.
+        self.assertEqual(self.recorder.sync_finished[0][0], ["roll/a.prof"])
+        self.assertEqual(self.recorder.deleted_counts[0], 0)
+        self.assertTrue(remote.exists())
 
 
 class TestDoorbellAndBusy(DeviceConnectionTestBase):

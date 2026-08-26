@@ -618,15 +618,26 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage(_("SYNC_CHECKING_TEXT"))
 
     def on_file_transfer_finished(self, folder_paths: list[str]):
+        removed_count = self.file_transfer_manager.last_deleted_count
+        removed_text = (
+            _("DEVICE_FILES_REMOVED").format(count=removed_count)
+            if removed_count
+            else ""
+        )
         if folder_paths:
-            self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+            self.status_bar.showMessage(
+                f"{_('FILE_TRANSFER_FINISHED')} {removed_text}".strip()
+            )
         elif self.file_transfer_manager.last_transfer_outcome == "ok":
-            self.status_bar.clearMessage()
+            if removed_text:
+                self.status_bar.showMessage(removed_text)
+            else:
+                self.status_bar.clearMessage()
             if not self.file_transfer_manager.last_transfer_was_auto:
                 QMessageBox.information(
                     self,
                     _("SYNC_UP_TO_DATE_TITLE"),
-                    _("SYNC_UP_TO_DATE_TEXT"),
+                    f"{_('SYNC_UP_TO_DATE_TEXT')} {removed_text}".strip(),
                 )
         elif self.status_bar.currentMessage() == _("SYNC_CHECKING_TEXT"):
             # Cancel/error before anything moved: the error handlers own
