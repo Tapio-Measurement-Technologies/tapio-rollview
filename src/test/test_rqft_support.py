@@ -21,6 +21,15 @@ class TestParseFirmwareVersion(unittest.TestCase):
     def test_dirty_suffix(self):
         self.assertEqual(parse_firmware_version("v1.2.0-d"), (1, 2, 0))
 
+    def test_pre_release_tags_parse_as_their_release(self):
+        # Beta/rc firmware must not fall back to the unparseable path;
+        # anything trailing the patch number is ignored on purpose.
+        self.assertEqual(parse_firmware_version("v1.2.0-beta"), (1, 2, 0))
+        self.assertEqual(parse_firmware_version("1.2.0-beta"), (1, 2, 0))
+        self.assertEqual(parse_firmware_version("v1.2.0-rc1"), (1, 2, 0))
+        self.assertEqual(parse_firmware_version("v1.2.0-beta.2"), (1, 2, 0))
+        self.assertEqual(parse_firmware_version("v1.2.0+build5"), (1, 2, 0))
+
     def test_bare_commit_hash_returns_none(self):
         self.assertIsNone(parse_firmware_version("404043e"))
 
@@ -47,6 +56,13 @@ class TestFirmwareSupportsRqft(unittest.TestCase):
 
     def test_version_at_gate_supports(self):
         self.assertTrue(firmware_supports_rqft("v1.2.0"))
+
+    def test_pre_release_of_the_gate_version_supports(self):
+        self.assertTrue(firmware_supports_rqft("v1.2.0-beta"))
+        self.assertTrue(firmware_supports_rqft("v1.2.0-rc1"))
+
+    def test_pre_release_below_the_gate_does_not_support(self):
+        self.assertFalse(firmware_supports_rqft("v1.1.9-beta"))
 
     def test_version_above_gate_supports(self):
         self.assertTrue(firmware_supports_rqft("v2.0.1"))
