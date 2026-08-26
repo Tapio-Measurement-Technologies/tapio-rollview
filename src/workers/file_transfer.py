@@ -196,16 +196,32 @@ class FileTransferManager(QObject):
     def request_auto_sync(self, port, incremental=False):
         """
         Queue an automatic sync (doorbell, periodic, on-connect) for a
-        connected RQFT device. Deduplicated by port; drained one at a
-        time after the running transfer finishes. An incremental sync
-        pulls only files not recorded in the device's sync history.
+        connected RQFT device. One entry per port; drained one at a time
+        after the running transfer finishes. An incremental sync pulls
+        only files not recorded in the device's sync history.
+
+        A request for the port being synced right now is queued, not
+        dropped: the running batch was planned before the request
+        arrived, so a measurement that finished mid-sync would otherwise
+        wait for the next doorbell.
         """
         if self._transfer_in_progress or self._auto_queue:
-            queued_ports = [queued for queued, _ in self._auto_queue]
-            if port != self._active_port and port not in queued_ports:
-                self._auto_queue.append((port, incremental))
+            self._enqueue_auto_sync(port, incremental)
             return
         self._start_auto_sync(port, incremental)
+
+    def _enqueue_auto_sync(self, port, incremental):
+        """Add one queued sync per port, merging into any pending entry.
+
+        A full sync is the stronger mode — it re-pulls what the history
+        suppresses and is the only one that may clean the device — so it
+        is never downgraded by an incremental request queued next to it.
+        """
+        for index, (queued_port, queued_incremental) in enumerate(self._auto_queue):
+            if queued_port == port:
+                self._auto_queue[index] = (port, queued_incremental and incremental)
+                return
+        self._auto_queue.append((port, incremental))
 
     def _start_auto_sync(self, port, incremental):
         if self._connection_manager is None:
@@ -219,9 +235,10 @@ class FileTransferManager(QObject):
         )
 
     def _drain_auto_queue(self):
-        if self._transfer_in_progress or not self._auto_queue:
-            return
-        self._start_auto_sync(*self._auto_queue.pop(0))
+        # Loop rather than pop once: a queued port whose connection went
+        # away starts nothing, and the entries behind it must still run.
+        while not self._transfer_in_progress and self._auto_queue:
+            self._start_auto_sync(*self._auto_queue.pop(0))
 
     # -- RQFT path -----------------------------------------------------
 
