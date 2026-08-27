@@ -9,7 +9,7 @@
 
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtCore import QDir, Qt, QSignalBlocker
 
 import theme
@@ -43,6 +43,9 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
+        # Also set on the application in main(), but a window that carries its
+        # own icon is right whichever entry point built it.
+        self.setWindowIcon(QIcon(settings.ICON_PATH))
         # Window minimum 1024x640; below that the layout stops being an
         # analysis tool and starts being a puzzle. It opens larger than that:
         # the device list, the folder list and the file list all have to be
