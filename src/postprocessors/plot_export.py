@@ -2,6 +2,9 @@ from gui.widgets.ProfileWidget import ProfileWidget
 from utils.translation import _
 from utils.figure_export import export_figure_with_annotations
 from models.Profile import Profile
+from theme import mpl as tapio_mpl
+from theme import qt as theme_qt
+from theme import tokens as theme_tokens
 import os
 
 description = _("POSTPROCESSOR_NAME_PLOT_EXPORT")
@@ -52,14 +55,24 @@ def run(folder_path) -> bool:
 
     if profiles:
         profile_widget.figure.set_size_inches(*FIGURE_SIZE_INCHES)
-        profile_widget.update_plot(profiles, folder_name)
 
-        # Export figure with annotations using the same method as clipboard copy
-        buffer = export_figure_with_annotations(
-            figure=profile_widget.figure,
-            canvas=profile_widget.canvas,
-            annotation_callback=profile_widget._draw_stats_on_figure
-        )
+        # Profiles print in the light palette regardless of the on-screen theme:
+        # a dark chart wastes toner and reads badly on a mill report. The chart
+        # tokens are swapped for the duration of the render and put back after,
+        # so a night-shift operator's screen is untouched.
+        screen_theme = tapio_mpl.current.theme
+        tapio_mpl.use(theme_tokens.LIGHT)
+        try:
+            profile_widget.update_plot(profiles, folder_name)
+
+            # Export figure with annotations using the same method as clipboard copy
+            buffer = export_figure_with_annotations(
+                figure=profile_widget.figure,
+                canvas=profile_widget.canvas,
+                annotation_callback=profile_widget._draw_stats_on_figure
+            )
+        finally:
+            tapio_mpl.use(screen_theme)
 
         # Write buffer to file
         with open(save_path, 'wb') as f:

@@ -38,10 +38,20 @@ Y_LIM_LOW = lambda min_value: 0
 Y_LIM_HIGH = lambda max_value: np.ceil((1.5 * max_value) / 10) * 10
 GRID = True
 
-MEAN_PROFILE_LINE_WIDTH = 2.8
-MEAN_PROFILE_LINE_COLOR = "tab:purple"
-SELECTED_PROFILE_LINE_WIDTH = 2
+# Chart marks follow the Tapio Design System; see docs/design-system.md.
+# Leave the colours as None to take them from the tokens, which is what keeps
+# the charts in step with the rest of the interface and with the other Tapio
+# products. A hex here overrides the system for this installation only.
+MEAN_PROFILE_LINE_WIDTH = 2.0
+MEAN_PROFILE_LINE_COLOR = None      # None = the system's series-1 brand blue
+SELECTED_PROFILE_LINE_WIDTH = 2.0
 STAT_DECIMAL_PLACES = 1
+
+# Light is the default: on a screen that will be read in daylight, glare beats
+# contrast ratios. Dark is for night shift and control rooms, and is always an
+# explicit choice.
+UI_THEME_DEFAULT = "light"
+UI_DENSITY_DEFAULT = "comfortable"
 
 # See python strftime
 # https://docs.python.org/3/library/datetime.html

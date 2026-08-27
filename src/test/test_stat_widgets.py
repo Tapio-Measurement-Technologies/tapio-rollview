@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QApplication
 from gui.widgets.stats import StatsWidget, MeanWidget, StdWidget, CVWidget, MinWidget, MaxWidget, PeakToPeakWidget, SlopeWidget
 from utils import preferences
 import settings
+import theme
 
 class TestStatWidgets(unittest.TestCase):
 
@@ -41,10 +42,46 @@ class TestStatWidgets(unittest.TestCase):
         self.assertEqual(widget.toolTip(), "Alert limits:\nLower: 1.0\nUpper: 5.0")
 
     def test_stat_widget_limit_exceeded(self):
+        # The tile does not carry its own colour: it sets the `state` property
+        # and the theme's style sheet owns what red looks like. Only the failing
+        # tile gets the state, so a row of tiles still says which one failed.
         widget = MaxWidget(self.data, limit=self.limits['max_g'])
         widget.update_data([7.0])
         self.assertTrue(widget.over_limit)
-        self.assertIn("background-color: rgba(255, 0, 0, 80)", widget.styleSheet())
+        self.assertEqual(widget.property("state"), theme.STATUS_BAD)
+        self.assertEqual(widget.value_label.property("state"), theme.STATUS_BAD)
+
+    def test_stat_widget_within_limit_carries_no_state(self):
+        # max_g is configured 4.5-5.0, so 4.8 is inside both ends.
+        widget = MaxWidget(self.data, limit=self.limits['max_g'])
+        widget.update_data([4.8])
+        self.assertFalse(widget.over_limit)
+        self.assertIsNone(widget.property("state"))
+
+    def test_stat_widget_states_the_limit_under_the_number(self):
+        # Not hover-only: on a mill-floor tablet there is no hover, so the limit
+        # is on the tile. When the value crosses one, the footer says which.
+        widget = MaxWidget(self.data, limit=self.limits['max_g'])
+
+        widget.update_data([4.8])
+        self.assertEqual(widget.foot_label.text(), "Limits 4.5 \u2013 5.0")
+
+        widget.update_data([7.0])
+        self.assertEqual(widget.foot_label.text(), "Above upper limit 5.0")
+
+        widget.update_data([1.0])
+        self.assertEqual(widget.foot_label.text(), "Below lower limit 4.5")
+
+    def test_stat_widget_without_limits_says_so(self):
+        widget = MeanWidget(self.data)
+        self.assertEqual(widget.foot_label.text(), "No limits set")
+
+    def test_stat_widget_without_data_shows_em_dash(self):
+        # Missing is an em dash, not 0, not blank, not NaN. Zero is a measurement.
+        widget = MeanWidget(self.data)
+        widget.update_data([])
+        self.assertIsNone(widget.value)
+        self.assertEqual(widget.value_label.text(), "\u2014")
 
     def test_stats_widget_initialization(self):
         widget = StatsWidget(self.data)

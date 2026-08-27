@@ -1,14 +1,23 @@
-from PySide6.QtWidgets import QFileSystemModel, QWidget, QVBoxLayout
+from PySide6.QtWidgets import QFileSystemModel, QHeaderView, QWidget, QVBoxLayout
 from PySide6.QtCore import QDir, Qt, QSortFilterProxyModel, Signal, QModelIndex, QPersistentModelIndex, QLocale, QItemSelectionModel, QTimer
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from gui.widgets.messagebox import show_error_msgbox
 from utils.translation import _
 from utils import preferences
+from theme import qt as theme_qt
 import settings
 import store
 import os
 
 PROF_FILE_HEADER_SIZE = 128
+
+# Measured quantities: mono, tabular, right-aligned, so the decimal points form
+# a vertical line and magnitudes can be compared without being read.
+NUMERIC_COLUMNS = (1, 4)
+# Timestamps are numbers too. They stay left-aligned — a date is read across,
+# not compared by magnitude — but they take the mono face so a column of them
+# scans.
+MONO_COLUMNS = (1, 3, 4)
 
 class CustomFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, parent=None):
@@ -103,6 +112,12 @@ class CustomFileSystemModel(QFileSystemModel):
 
         column = index.column()
 
+        if role == Qt.ItemDataRole.FontRole and column in MONO_COLUMNS:
+            return theme_qt.mono_font()
+
+        if role == Qt.ItemDataRole.TextAlignmentRole and column in NUMERIC_COLUMNS:
+            return Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+
         # Handle original timestamp column
         if column == 3 and role == Qt.ItemDataRole.DisplayRole:
             file_info = self.fileInfo(index)
@@ -125,7 +140,9 @@ class CustomFileSystemModel(QFileSystemModel):
                 prof_len = profile.profile_length
                 unit_info = preferences.get_distance_unit_info()
                 prof_len_converted = prof_len * unit_info.conversion_factor
-                return f"{prof_len_converted:.2f} {unit_info.unit}"
+                # Fixed decimals, no unit: the unit is stated once in the
+                # header so the column is a clean stack of numbers.
+                return f"{prof_len_converted:.2f}"
 
         # Hidden state checkbox column
         if column == 5:
@@ -173,7 +190,8 @@ class CustomFileSystemModel(QFileSystemModel):
                 case 3:
                     return _("TREEVIEW_HEADER_DATE_MODIFIED")
                 case 4:
-                    return _("TREEVIEW_HEADER_PROFILE_LENGTH")
+                    unit_info = preferences.get_distance_unit_info()
+                    return f'{_("TREEVIEW_HEADER_PROFILE_LENGTH")} [{unit_info.unit}]'
                 case 5:
                     return ""
         return super().headerData(section, orientation, role)
@@ -255,15 +273,18 @@ class FileView(QWidget):
             if i == 2:
                 self.view.setColumnHidden(i, True)
 
-        # Adjust column widths
-        self.view.setColumnWidth(0, 160)  # Name
-        self.view.setColumnWidth(1, 80)   # Size
-        self.view.setColumnWidth(3, 160)  # Date
-        self.view.setColumnWidth(4, 80)   # Profile Length
-        self.view.setColumnWidth(5, 10)   # Checkbox
+        # The file name is the column that has to stay whole; the quantities
+        # take exactly the width their digits need, so nothing is elided into
+        # ambiguity.
+        header_view = self.view.header()
+        header_view.setStretchLastSection(False)
+        header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for column in (1, 3, 4):
+            header_view.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
+        header_view.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        self.view.setColumnWidth(5, 28)   # Checkbox
 
         # Move the checkbox column to first position
-        header_view = self.view.header()
         header_view.moveSection(5, 0)
 
         layout.addWidget(self.view)

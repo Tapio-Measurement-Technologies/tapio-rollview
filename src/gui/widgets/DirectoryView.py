@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QFileSystemModel,
     QFileDialog,
+    QHeaderView,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -24,6 +25,7 @@ from gui.widgets.RegexFilterLineEdit import RegexFilterLineEdit
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
 from gui.widgets.messagebox import show_error_msgbox
+from theme import qt as theme_qt
 import os
 from datetime import datetime
 
@@ -95,7 +97,12 @@ class DirectoryView(QWidget):
         # Disable expanding tree view items
         self.treeView.setItemsExpandable(False)
         self.treeView.setExpandsOnDoubleClick(False)
-        self.treeView.setColumnWidth(0, 200)
+        # Roll names are fixed-length identifiers, so the name column takes
+        # exactly what it needs and the date column absorbs the slack. The other
+        # way round truncates the one string that identifies the row.
+        directory_header = self.treeView.header()
+        directory_header.setStretchLastSection(True)
+        directory_header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
         # Show only the first and modified date columns
         for i in range(1, self.model.columnCount()):
@@ -105,12 +112,23 @@ class DirectoryView(QWidget):
         self.rollFilterInput = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
         self.rollFilterInput.filter_changed.connect(self.set_roll_filter)
 
+        # Neither of these is the action this panel exists for — picking a roll
+        # is — so both stay tertiary and let the sync button upstairs be the one
+        # primary in the sidebar.
         self.openDirButton = QPushButton(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"))
+        theme_qt.set_variant(self.openDirButton, "ghost")
         self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
 
         # Create the button
         self.changeDirButton = QPushButton(_("BUTTON_TEXT_CHANGE_DIRECTORY"))
+        theme_qt.set_variant(self.changeDirButton, "ghost")
         self.changeDirButton.clicked.connect(self.change_root_directory)
+
+        tokens = theme_qt.tokens()
+        layout.setContentsMargins(
+            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(3)
+        )
+        layout.setSpacing(tokens.space(2))
 
         # Add widgets to the layout
         layout.addWidget(self.rollFilterInput)
@@ -628,6 +646,11 @@ class CustomFileSystemModel(QFileSystemModel):
         return super().headerData(section, orientation, role)
 
     def data(self, index: QModelIndex, role: int):
+        # The roll name is an identifier and the date is a timestamp: both are
+        # scanned down a column rather than read, so both take the mono face.
+        if role == Qt.ItemDataRole.FontRole and index.column() in (0, 3):
+            return theme_qt.mono_font()
+
         if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:
             file_path = self.filePath(index)
             # Check if cached

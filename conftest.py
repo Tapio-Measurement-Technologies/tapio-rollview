@@ -109,8 +109,16 @@ def app_modules():
         sys.argv = saved_argv
     import settings
     import store
+    import theme
 
-    return {"settings": settings, "store": store}
+    # The same call main() makes, so tests and screenshots see the application
+    # the operator sees rather than an unstyled Fusion one.
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance() or QApplication([sys.argv[0]])
+    theme.apply(app)
+
+    return {"settings": settings, "store": store, "theme": theme}
 
 
 @pytest.fixture
