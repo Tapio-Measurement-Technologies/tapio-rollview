@@ -131,7 +131,6 @@ class ConnectionBridge(QObject):
     established = Signal(str, bool)             # port, by_doorbell
     notify = Signal(str, int)                   # port, NOTIFY flags
     connectionLost = Signal(str, str)           # port, busy|dead|unplugged|closed|cancelled
-    syncCheckFinished = Signal(str, int, int)    # port, missing files, missing bytes
     syncStarted = Signal(str, int, int)         # port, nfiles, nbytes
     receivingFile = Signal(str, int)            # path, files_left (countdown)
     fileByteProgress = Signal(int, int)         # current file: done, total
@@ -219,11 +218,6 @@ class DeviceConnectionWorker(threading.Thread):
             delete_remote=delete_remote and not incremental,
         ))
 
-    def request_sync_check(self):
-        """Queue a read-only list/diff used before offering a sync."""
-        self._cancel.clear()
-        self._queue.put(_Op("check"))
-
     def request_cancel(self):
         """Abort the in-flight operation with ABORT(E_USER)."""
         self._cancel.set()
@@ -287,9 +281,6 @@ class DeviceConnectionWorker(threading.Thread):
     def _execute(self, op: _Op):
         if op.kind == "disconnect":
             self._do_disconnect()
-            return
-        if op.kind == "check":
-            self._op_sync_check()
             return
         if op.kind == "sync":
             self._op_sync(op.auto, op.incremental, op.delete_remote)
@@ -556,35 +547,6 @@ class DeviceConnectionWorker(threading.Thread):
                 raise _OpTimeout(f"no progress for {_OP_IDLE_TIMEOUT_S:.0f}s")
 
     # -- sync operation ------------------------------------------------
-
-    def _op_sync_check(self):
-        """Report missing files without fetching them."""
-        try:
-            if self._transport is None:
-                self._try_open()
-                if self._transport is None:
-                    raise OSError("serial port could not be opened")
-            newly_connected = self._established is None
-            self._do_connect()
-            if newly_connected:
-                self._bridge.established.emit(self.port, False)
-            missing, total_bytes, _mirrored, _history = self._build_sync_plan()
-            self._bridge.syncCheckFinished.emit(
-                self.port, len(missing), total_bytes
-            )
-        except _Cancelled:
-            log.info(f"Sync check on {self.port} cancelled")
-        except _SessionEnded as e:
-            self._after_events()
-            log.info(f"Sync check on {self.port} ended: {e.event.reason.name}")
-        except _OperationFailed as e:
-            log.warning(f"Sync check on {self.port} failed: {e}")
-        except _OpTimeout:
-            self._abort_timed_out_operation()
-            log.warning(f"Sync check on {self.port} timed out")
-        except OSError as e:
-            log.warning(f"Sync check on {self.port} failed: {e}")
-            self._on_transport_error(e)
 
     def _op_sync(self, auto: bool, incremental: bool = False,
                  delete_remote: bool = False):
@@ -859,8 +821,6 @@ class DeviceConnectionManager(QObject):
     connectionStateChanged = Signal(str, object)   # port, ConnectionState
     connectionLost = Signal(str, str)              # port, reason
     listWarnings = Signal(str, int)                # port, skipped entries
-    syncPromptRequested = Signal(str, str)         # port, device label
-    syncPromptDismissRequested = Signal(str)       # port
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -869,7 +829,6 @@ class DeviceConnectionManager(QObject):
         self._states: dict[str, ConnectionState] = {}
         self.identities: dict[str, DeviceIdentity] = {}
         self._manually_disconnected: set[str] = set()
-        self._prompted_serials: set[str] = set()
         self._transfer_manager = None
         self._periodic_timer = QTimer(self)
         self._periodic_timer.timeout.connect(self._on_periodic_timeout)
@@ -903,10 +862,8 @@ class DeviceConnectionManager(QObject):
             return worker
         bridge = ConnectionBridge(self)
         bridge.stateChanged.connect(self._on_state_changed)
-        bridge.established.connect(self._on_established)
         bridge.notify.connect(self._on_notify)
         bridge.connectionLost.connect(self._on_connection_lost)
-        bridge.syncCheckFinished.connect(self._on_sync_check_finished)
         bridge.listWarnings.connect(self.listWarnings)
         identity = self.identities.get(port)
         device_key = identity.serial_number if identity and identity.serial_number else port
@@ -927,7 +884,6 @@ class DeviceConnectionManager(QObject):
         worker = self._workers.get(port)
         if worker is not None:
             worker.request_disconnect()
-        self.syncPromptDismissRequested.emit(port)
 
     def get_connection(self, port: str) -> Optional[DeviceConnectionWorker]:
         """Return a usable (enabled, running) worker for the port."""
@@ -979,25 +935,6 @@ class DeviceConnectionManager(QObject):
         self._states[port] = state
         self.connectionStateChanged.emit(port, state)
 
-    def _on_established(self, port: str, by_doorbell: bool):
-        if self._transfer_manager is None:
-            return
-        if by_doorbell:
-            # The device rang to bring a session up; its NOTIFY follows
-            # with the sync it wants, so nothing to do yet.
-            return
-        if self._transfer_manager.has_pending_sync(port):
-            return
-        identity = self.identities.get(port)
-        key = identity.serial_number if identity and identity.serial_number else port
-        if key in self._prompted_serials:
-            return
-        worker = self.get_connection(port)
-        if worker is None:
-            return
-        self._prompted_serials.add(key)
-        worker.request_sync_check()
-
     def _on_notify(self, port: str, flags: int):
         if self._transfer_manager is None:
             return
@@ -1012,24 +949,11 @@ class DeviceConnectionManager(QObject):
                 f"Device {port} hinted delete-after-sync; the rollview "
                 f"setting decides"
             )
-        self.syncPromptDismissRequested.emit(port)
         self._transfer_manager.request_auto_sync(
             port, incremental=bool(flags & NOTIFY_SYNC_INCREMENTAL)
         )
 
-    def _on_sync_check_finished(self, port: str, nfiles: int, nbytes: int):
-        if nfiles <= 0:
-            log.info(f"Sync check {port}: no files to fetch")
-            return
-        if self._transfer_manager is None:
-            return
-        if self._transfer_manager.has_pending_sync(port):
-            return
-        self.syncPromptRequested.emit(port, self.device_label(port))
-
     def _on_connection_lost(self, port: str, reason: str):
-        if reason in ("unplugged", "closed"):
-            self.syncPromptDismissRequested.emit(port)
         self.connectionLost.emit(port, reason)
 
     # -- periodic sync -------------------------------------------------

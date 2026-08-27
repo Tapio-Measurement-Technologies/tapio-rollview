@@ -904,14 +904,6 @@ msgstr "接続"
 msgid "SERIAL_DISCONNECT_DEVICE"
 msgstr "切断"
 
-#. Title of the sync-on-connect confirmation dialog.
-msgid "SYNC_CONFIRM_TITLE"
-msgstr "デバイス同期"
-
-#. Body of the sync-on-connect confirmation dialog.
-msgid "SYNC_CONFIRM_TEXT"
-msgstr "{device} から新しいファイルを今すぐ同期しますか？"
-
 #. Status bar message when the device aborts the session to measure.
 msgid "DEVICE_BUSY_STATUS"
 msgstr "デバイスは測定中です。測定終了後に同期が再開されます"
