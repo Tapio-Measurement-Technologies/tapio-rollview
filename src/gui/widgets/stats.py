@@ -96,11 +96,9 @@ class StatsWidget(QWidget):
         self.data = data
         limit_map = self._get_limit_map()
 
-        tokens = theme_qt.tokens()
         self.layout = QGridLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setHorizontalSpacing(tokens.space(1))
-        self.layout.setVerticalSpacing(tokens.space(1))
+        theme_qt.pad(self.layout, 0)
+        theme_qt.gap(self.layout, 1, 1)
         self.widgets = [
             MeanWidget(data, limit_map.get(stats.mean.name)),
             StdWidget(data, limit_map.get(stats.std.name)),
@@ -247,12 +245,9 @@ class StatWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        tokens = theme_qt.tokens()
         self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(
-            tokens.space(2), tokens.space(1), tokens.space(2), tokens.space(1)
-        )
-        self.layout.setSpacing(0)
+        theme_qt.pad(self.layout, 2, 1)
+        theme_qt.gap(self.layout, 0)
 
         # Eyebrow: mono, uppercase, muted.
         self.label = EyebrowLabel(self.name)
@@ -261,8 +256,8 @@ class StatWidget(QWidget):
         # The number and its unit are separate: the number is the signal, the
         # unit is one step smaller and muted, and never bold.
         value_row = QHBoxLayout()
-        value_row.setContentsMargins(0, 0, 0, 0)
-        value_row.setSpacing(3)
+        theme_qt.pad(value_row, 0)
+        theme_qt.gap(value_row, 1)
         value_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBaseline)
 
         self.value_label = QLabel(MISSING)

@@ -18,16 +18,13 @@ class AlertLimitEditor(QDialog):
         self.setModal(True)
         self.resize(360, 150)
 
-        tokens = theme_qt.tokens()
         layout = QVBoxLayout()
-        layout.setContentsMargins(
-            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(3)
-        )
-        layout.setSpacing(tokens.space(2))
+        theme_qt.pad(layout, 3)
+        theme_qt.gap(layout, 2)
 
         # Horizontal layout for min/max inputs
         inputs_layout = QHBoxLayout()
-        inputs_layout.setSpacing(tokens.space(3))
+        theme_qt.gap(inputs_layout, 3)
 
         self.min_edit = QLineEdit()
         self.max_edit = QLineEdit()
@@ -112,11 +109,10 @@ class AlertLimitEditor(QDialog):
         """A labelled numeric field: label above, value in mono below."""
         from PySide6.QtWidgets import QWidget
 
-        tokens = theme_qt.tokens()
         holder = QWidget()
         holder_layout = QVBoxLayout(holder)
-        holder_layout.setContentsMargins(0, 0, 0, 0)
-        holder_layout.setSpacing(tokens.space(1))
+        theme_qt.pad(holder_layout, 0)
+        theme_qt.gap(holder_layout, 1)
         label = QLabel(label_text)
         theme_qt.set_role(label, "label")
         holder_layout.addWidget(label)

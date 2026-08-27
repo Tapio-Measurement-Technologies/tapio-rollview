@@ -19,12 +19,9 @@ class CrashDialog(QDialog):
         self.setMinimumSize(700, 500)
 
         # Main layout
-        tokens = theme_qt.tokens()
         layout = QVBoxLayout()
-        layout.setContentsMargins(
-            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
-        )
-        layout.setSpacing(tokens.space(2))
+        theme_qt.pad(layout, 4)
+        theme_qt.gap(layout, 2)
 
         # Error message
         error_label = QLabel(

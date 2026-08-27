@@ -506,6 +506,61 @@ def set_panel(widget, kind="true"):
     set_property(widget, "panel", kind)
 
 
+# ---------------------------------------------------------------------------
+# spacing
+# ---------------------------------------------------------------------------
+
+def _step(value, t):
+    """One step of the space scale, with 0 meaning 0 px rather than a step."""
+    return 0 if not value else t.space(value)
+
+
+def pad(target, left, top=None, right=None, bottom=None, t=None):
+    """Contents margins in *scale steps*, not pixels.
+
+    Qt's own edge order, so it reads the same as the call it replaces::
+
+        pad(layout, 3)              12 px all round
+        pad(layout, 2, 1)           8 px left and right, 4 px top and bottom
+        pad(layout, 2, 1, 2, 2)     left, top, right, bottom, named individually
+
+    ``0`` means no margin, which is why it is not a step on the scale.
+
+    Nothing corrects a layout that never asks: Qt's defaults are 11 px margins
+    and 6 px spacing, and neither is on the 4 px grid. That is the whole reason
+    this exists — colour and type reach a new screen through the style sheet
+    without being asked, and density is the one part of the system that cannot,
+    so it has to be one short call instead of four token lookups.
+    """
+    t = t or current
+    if top is None:
+        top = left
+    if right is None:
+        right = left
+    if bottom is None:
+        bottom = top
+    target.setContentsMargins(
+        _step(left, t), _step(top, t), _step(right, t), _step(bottom, t)
+    )
+    return target
+
+
+def gap(layout, spacing, vertical=None, t=None):
+    """Layout spacing in scale steps.
+
+    ``gap(layout, 2)`` is 8 px. Pass *vertical* for a grid whose rows and
+    columns want different spacing; on any other layout the two are the same
+    number and Qt has only the one setter.
+    """
+    t = t or current
+    if vertical is None:
+        layout.setSpacing(_step(spacing, t))
+    else:
+        layout.setHorizontalSpacing(_step(spacing, t))
+        layout.setVerticalSpacing(_step(vertical, t))
+    return layout
+
+
 def tokens():
     """The live token table. Call it; do not bind ``current`` at import time."""
     return current
@@ -513,7 +568,7 @@ def tokens():
 
 __all__ = [
     "apply", "tokens", "font", "mono_font", "style_header", "numeric_field_width", "tree_column_width",
-    "sans_family", "mono_family",
+    "sans_family", "mono_family", "pad", "gap",
     "set_variant", "set_role", "set_state", "set_invalid", "set_panel",
     "build_palette", "build_stylesheet", "load_fonts",
 ]

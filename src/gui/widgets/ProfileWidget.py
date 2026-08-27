@@ -105,12 +105,9 @@ class ProfileWidget(QWidget):
 
         self.setStatusTip(_("CHART_STATUS_TIP_TEXT"))
 
-        tokens = theme_qt.tokens()
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(
-            tokens.space(2), tokens.space(2), tokens.space(2), tokens.space(1)
-        )
-        self.layout.setSpacing(tokens.space(1))
+        theme_qt.pad(self.layout, 2, 2, 2, 1)
+        theme_qt.gap(self.layout, 1)
 
         self.figure = Figure()
         self.warning_label = WarningLabel()

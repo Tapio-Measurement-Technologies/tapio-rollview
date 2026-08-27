@@ -117,12 +117,9 @@ class SerialWidget(QWidget):
         self.scanner = PortScanner(self)
 
         # Arrange the tree view and button in a vertical layout
-        tokens = theme_qt.tokens()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            tokens.space(2), tokens.space(2), tokens.space(2), tokens.space(1)
-        )
-        layout.setSpacing(tokens.space(1))
+        theme_qt.pad(layout, 2, 2, 2, 1)
+        theme_qt.gap(layout, 1)
         layout.addWidget(self.label)
         layout.addWidget(self.view)
         layout.addWidget(self.scanButton)

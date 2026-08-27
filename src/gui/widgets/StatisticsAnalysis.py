@@ -288,9 +288,8 @@ class StatisticsAnalysisWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
-        margin = theme_qt.tokens().space(2)
-        self.layout().setContentsMargins(margin, margin, margin, margin)
-        self.layout().setSpacing(theme_qt.tokens().space(1))
+        theme_qt.pad(self.layout(), 2)
+        theme_qt.gap(self.layout(), 1)
 
         # Set to the key value, not the display name
         self.selected_stat = list(stat_label_map.values())[0]  # This will be "mean"
@@ -303,11 +302,10 @@ class StatisticsAnalysisWidget(QWidget):
 
         # Create horizontal layout for dropdowns and refresh button
         # Wrap dropdowns in a container widget so they can be captured together
-        tokens = theme_qt.tokens()
         self.dropdown_container = QWidget()
         dropdown_layout = QHBoxLayout(self.dropdown_container)
-        dropdown_layout.setContentsMargins(0, 0, 0, 0)
-        dropdown_layout.setSpacing(tokens.space(4))
+        theme_qt.pad(dropdown_layout, 0)
+        theme_qt.gap(dropdown_layout, 4)
 
         self.stat_selection_dropdown = StatSelectionDropdown(self)
         self.stat_selection_dropdown.currentTextChanged.connect(self.on_stat_selection_changed)
@@ -323,8 +321,8 @@ class StatisticsAnalysisWidget(QWidget):
         ):
             field = QWidget()
             field_layout = QVBoxLayout(field)
-            field_layout.setContentsMargins(0, 0, 0, 0)
-            field_layout.setSpacing(tokens.space(1))
+            theme_qt.pad(field_layout, 0)
+            theme_qt.gap(field_layout, 1)
             field_layout.addWidget(SectionLabel(label_text))
             field_layout.addWidget(control)
             dropdown_layout.addWidget(field)
@@ -352,7 +350,7 @@ class StatisticsAnalysisWidget(QWidget):
         self.stacked_widget.addWidget(self.loading_widget)  # index 1
 
         toolbar_layout = QHBoxLayout()
-        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        theme_qt.pad(toolbar_layout, 0)
         toolbar_layout.addWidget(self.dropdown_container)
         toolbar_layout.addStretch()
         toolbar_layout.addLayout(self.refresh_button_layout)

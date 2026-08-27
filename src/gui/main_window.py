@@ -250,7 +250,7 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout()
         # Reduce margins for better alignment
-        layout.setContentsMargins(5, 0, 5, 0)
+        theme_qt.pad(layout, 1, 0)
         checkbox = QCheckBox(label)
         checkbox.setChecked(checked)
         # Connect checkbox state change to callback

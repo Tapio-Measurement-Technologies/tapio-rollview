@@ -252,7 +252,7 @@ class FileView(QWidget):
         self.setLayout(layout)
         # No margins: the view is the whole pane. Insetting it leaves a strip of
         # window background down either side that reads as a gap in the layout.
-        layout.setContentsMargins(0, 0, 0, 0)
+        theme_qt.pad(layout, 0)
 
         self.model = CustomFileSystemModel()
         # Set initial root path to prevent showing filesystem root (C:\ on Windows)
