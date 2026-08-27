@@ -304,12 +304,31 @@ class AlertLimitSettingsPage(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(10)
+        layout.setSpacing(theme_qt.tokens().space(1))
         self.setting_widgets = []
 
         heading = QLabel(_("ALERT_LIMITS"))
         theme_qt.set_role(heading, "title")
         layout.addWidget(heading)
+
+        # The column names, stated once: the rows below are a table of the same
+        # two values for each statistic, and repeating "Lower"/"Upper" seven
+        # times is noise on a page that already has a lot of it.
+        tokens = theme_qt.tokens()
+        column_header = QHBoxLayout()
+        column_header.setContentsMargins(
+            tokens.space(3), 0, tokens.space(3), 0
+        )
+        column_header.setSpacing(tokens.space(3))
+        column_header.addStretch()
+        for name in (_("MIN"), _("MAX")):
+            column_label = EyebrowLabel(name)
+            column_label.setFixedWidth(AlertLimitSetting.INPUT_WIDTH)
+            column_label.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
+            column_header.addWidget(column_label)
+        layout.addLayout(column_header)
 
         for limit in preferences.alert_limits:
             setting = AlertLimitSetting(limit)
@@ -357,11 +376,14 @@ class AlertLimitSetting(QFrame):
         self.limit = limit
         self.setObjectName("alertLimitCard")
         self.setFrameShape(QFrame.Shape.NoFrame)
-        theme_qt.set_panel(self)
+        theme_qt.set_panel(self, "row")
 
+        tokens = theme_qt.tokens()
         layout = QHBoxLayout()
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(12)
+        layout.setContentsMargins(
+            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(2)
+        )
+        layout.setSpacing(tokens.space(3))
         self.setLayout(layout)
 
         limit_name = limit.get('name', '')
@@ -376,38 +398,32 @@ class AlertLimitSetting(QFrame):
         input_layout = QHBoxLayout()
         input_layout.setSpacing(theme_qt.tokens().space(3))
 
-        # A limit is a measured value: mono, tabular, right-aligned, with its
-        # label above rather than beside it.
-        self.min_label = QLabel(_("MIN"))
-        self.min_input = QLineEdit()
-        self.min_input.setValidator(QDoubleValidator())
+        # Seven statistics against the same two limits is a table, not seven
+        # forms, so the column names are stated once in the header above and the
+        # rows carry only their values. A limit is a measured quantity, so both
+        # fields are mono, tabular and right-aligned.
+        self.min_input = self._numeric_field(_("MIN"))
         self.min_input.setText(str(limit['min']) if limit['min'] is not None else '')
         self.min_input.textChanged.connect(self.emit_modified)
-        input_layout.addWidget(self._numeric_field(self.min_label, self.min_input))
+        input_layout.addWidget(self.min_input)
 
-        self.max_label = QLabel(_("MAX"))
-        self.max_input = QLineEdit()
-        self.max_input.setValidator(QDoubleValidator())
+        self.max_input = self._numeric_field(_("MAX"))
         self.max_input.setText(str(limit['max']) if limit['max'] is not None else '')
         self.max_input.textChanged.connect(self.emit_modified)
-        input_layout.addWidget(self._numeric_field(self.max_label, self.max_input))
+        input_layout.addWidget(self.max_input)
 
         layout.addLayout(input_layout)
 
-    def _numeric_field(self, label, field):
-        """Label above, field below, mono and right-aligned."""
-        theme_qt.set_role(label, "label")
+    def _numeric_field(self, accessible_name):
+        """One limit cell: mono, right-aligned, named for anyone not reading the header."""
+        field = QLineEdit()
+        field.setValidator(QDoubleValidator())
         theme_qt.set_property(field, "role", "data")
         field.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        field.setMaximumWidth(self.INPUT_WIDTH)
-
-        holder = QWidget()
-        holder_layout = QVBoxLayout(holder)
-        holder_layout.setContentsMargins(0, 0, 0, 0)
-        holder_layout.setSpacing(theme_qt.tokens().space(1))
-        holder_layout.addWidget(label)
-        holder_layout.addWidget(field)
-        return holder
+        field.setFixedWidth(self.INPUT_WIDTH)
+        field.setAccessibleName(accessible_name)
+        field.setPlaceholderText(_("NOT_SET"))
+        return field
 
     @Slot()
     def emit_modified(self):

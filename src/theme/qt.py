@@ -192,6 +192,7 @@ def build_stylesheet(t):
 
     surface = t.color("surface")
     control = t.control_height
+    eyebrow_line = t.font("eyebrow")["line"]
     # Qt adds the border to min-height, so the inner box is the token height
     # minus the two 1 px borders. Focus swaps those for 2 px ones, and padding
     # drops by the same amount so nothing shifts under the ring.
@@ -245,6 +246,7 @@ def build_stylesheet(t):
         # space
         "data": t.font_size("data"),
         "data_large": DATA_LARGE_SIZE,
+        "data_value": DATA_VALUE_SIZE,
         "title_3": t.font_size("title-3"),
         "s1": t.space(1), "s2": t.space(2), "s3": t.space(3),
         "s4": t.space(4), "s6": t.space(6),
@@ -255,8 +257,13 @@ def build_stylesheet(t):
         "pill_radius": 11,
         # metrics
         "control_inner": control_inner,
-        "row_inner": t.row_height - 8,
-        "header_inner": t.row_height - 10,
+        # Rows carry no vertical padding, so this is the density's row height
+        # less the 1 px hairline under each one.
+        "row_inner": t.row_height - 1,
+        # Header sections get their height from padding rather than min-height,
+        # which is what keeps the label centred. Half the leftover space above
+        # the eyebrow's line box, half below.
+        "header_pad": max(2, (t.row_height - 1 - eyebrow_line) // 2),
         "tab_height": control - 12,
         "check_target": min(t.min_target, control),
         "dialog_button_width": 96,
@@ -332,13 +339,16 @@ def set_variant(widget, variant):
     set_property(widget, "variant", variant)
 
 
-# The size the guide gives the stat tile's headline number. Not a scale step:
-# it is the one display-sized measured value in the product.
+# The guide's display-sized readout, for a screen carrying one or two numbers.
 DATA_LARGE_SIZE = 27
+# The size the profile tab's seven statistics fit across one row at. Still the
+# mono face, still tabular, still the only weight above 400 in the product.
+DATA_VALUE_SIZE = 19
 
 _ROLE_STEPS = {
     "data": "data",
     "dataLarge": "data",
+    "dataValue": "data",
     "eyebrow": "eyebrow",
     "label": "label",
     "hint": "body-sm",

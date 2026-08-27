@@ -450,7 +450,7 @@ def finish(ax, xlabel=None, ylabel=None, title=None, legend=None, t=None):
     return ax
 
 
-LEGEND_HEIGHT = 0.09   # fraction of the figure the legend strip occupies
+LEGEND_HEIGHT = 0.07   # fraction of the figure the legend strip occupies
 
 
 def place_legend(figure, handles, labels, t=None):
@@ -466,7 +466,7 @@ def place_legend(figure, handles, labels, t=None):
     frame = figure.legend(
         handles, labels,
         loc="lower center", ncols=len(labels), frameon=False,
-        fontsize=t.font_size("body-sm"), labelcolor=t.color("ink-secondary"),
-        borderaxespad=0.2, columnspacing=2.0, handlelength=1.8,
+        fontsize=t.font_size("eyebrow"), labelcolor=t.color("ink-secondary"),
+        borderaxespad=0.1, columnspacing=1.6, handlelength=1.6,
     )
     return frame
