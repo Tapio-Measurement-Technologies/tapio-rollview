@@ -18,7 +18,8 @@ Import-safe: no Qt, no Matplotlib. ``theme.qt`` and ``theme.mpl`` build on it.
 """
 
 import json
-import os
+
+from theme.paths import theme_file
 
 LIGHT = "light"
 DARK = "dark"
@@ -31,7 +32,7 @@ STATUS_WARN = "warn"
 STATUS_BAD = "bad"
 STATUS_IDLE = "idle"
 
-_TOKENS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tokens.json")
+_TOKENS_PATH = theme_file("tokens.json")
 _raw = None
 
 

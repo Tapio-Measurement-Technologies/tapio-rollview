@@ -101,6 +101,8 @@ jobs:
           --add-data "src/postprocessors/:postprocessors/"
           --add-data "src/assets/fonts/:assets/fonts/"
           --add-data "src/locales/:locales/"
+          --add-data "src/theme/tokens.json:theme/"
+          --add-data "src/theme/rollview.qss:theme/"
           --hidden-import pandas
           --add-data "src/assets/:assets"
           --splash src/assets/splash.png

@@ -33,6 +33,7 @@ from matplotlib.colors import LinearSegmentedColormap, to_rgba
 from matplotlib.font_manager import fontManager
 from matplotlib.patches import Rectangle
 
+from theme import paths
 from theme import tokens as T
 
 # Mark specifications, from the design system.
@@ -41,9 +42,7 @@ LIMIT_WIDTH = 1.5          # limit lines, solid
 TARGET_WIDTH = 1.0         # target and mean, dashed and recessive
 SUPPORTING_WIDTH = 1.5     # individual profiles behind the mean
 
-_FONT_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts", "plex"
-)
+_FONT_DIR = paths.asset_dir("fonts", "plex")
 
 current = T.load()
 _fonts_registered = False

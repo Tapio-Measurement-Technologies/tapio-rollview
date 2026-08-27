@@ -31,11 +31,11 @@ from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
 from PySide6.QtWidgets import QApplication
 
 from theme import icons
+from theme import paths
 from theme import tokens as T
 
-_THEME_DIR = os.path.dirname(os.path.abspath(__file__))
-_QSS_PATH = os.path.join(_THEME_DIR, "rollview.qss")
-_FONT_DIR = os.path.join(os.path.dirname(_THEME_DIR), "assets", "fonts", "plex")
+_QSS_PATH = paths.theme_file("rollview.qss")
+_FONT_DIR = paths.asset_dir("fonts", "plex")
 
 _FONT_FILES = (
     "IBMPlexSans-Light.ttf",
