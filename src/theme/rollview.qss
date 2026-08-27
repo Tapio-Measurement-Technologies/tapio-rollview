@@ -750,6 +750,15 @@ QProgressBar::chunk {
 
 /* ---------- sliders ------------------------------------------------------- */
 
+/* The handle is drawn outside the groove, and Qt sizes a styled QSlider from
+   the groove alone — 6 px of it — so the widget came out shorter than its own
+   handle and clipped a pixel off the top of it. The minimum is the handle's
+   outer size (12 px content plus a 2 px border a side) with a pixel of air
+   either way. */
+QSlider:horizontal {
+    min-height: ${slider_height}px;
+}
+
 QSlider::groove:horizontal {
     background-color: ${sunken};
     border: 1px solid ${border};
@@ -766,11 +775,11 @@ QSlider::sub-page:horizontal {
 
 QSlider::handle:horizontal {
     background-color: ${surface};
-    border: 2px solid ${accent};
-    width: 12px;
-    height: 12px;
-    margin: -6px 0;
-    border-radius: 8px;
+    border: ${slider_handle_border}px solid ${accent};
+    width: ${slider_handle_inner}px;
+    height: ${slider_handle_inner}px;
+    margin: -${slider_handle_margin}px 0;
+    border-radius: ${slider_handle_radius}px;
 }
 
 QSlider::handle:horizontal:hover {

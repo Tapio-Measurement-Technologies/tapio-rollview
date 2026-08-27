@@ -2,7 +2,13 @@ import unittest
 import copy
 
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QScrollArea,
+    QStyle,
+    QStyleOptionSlider,
+)
 
 import settings
 from theme import qt as theme_qt
@@ -48,6 +54,28 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.page.excluded_regions_mode_selector.setCurrentText(
             self.page.excluded_regions_modes[mode]
         )
+
+    def test_band_pass_slider_handle_fits_inside_the_slider(self):
+        """Qt sizes a styled QSlider from its groove, not its handle.
+
+        The groove is 6 px and the handle 16, so without a minimum height on the
+        widget the handle is drawn a pixel outside it and comes out flat-topped.
+        """
+        page = AdvancedSettingsPage()
+        try:
+            slider = page.band_pass_slider
+            option = QStyleOptionSlider()
+            slider.initStyleOption(option)
+            handle = slider.style().subControlRect(
+                QStyle.ComplexControl.CC_Slider, option,
+                QStyle.SubControl.SC_SliderHandle, slider,
+            )
+            self.assertGreaterEqual(handle.top(), 0)
+            self.assertLessEqual(handle.bottom(), slider.height() - 1)
+            # Round, not an ellipse: the handle is as tall as it is wide.
+            self.assertEqual(handle.width(), handle.height())
+        finally:
+            page.close()
 
     def test_band_pass_input_can_show_its_longest_value(self):
         """The one that clipped in the field: "100.0" in a 55 px box."""
