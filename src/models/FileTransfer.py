@@ -52,6 +52,9 @@ class FileTransferModel(QAbstractListModel):
         self.endRemoveRows()
 
     def removeItems(self):
-        self.beginRemoveRows(QModelIndex(), 0, self.rowCount())
+        if not self.items:
+            return
+
+        self.beginRemoveRows(QModelIndex(), 0, self.rowCount() - 1)
         self.items = []
         self.endRemoveRows()

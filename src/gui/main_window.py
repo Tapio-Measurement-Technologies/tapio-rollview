@@ -8,9 +8,12 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt, QSignalBlocker
+
+import theme
+from theme import qt as theme_qt
 
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
@@ -26,6 +29,7 @@ from models.Profile import Profile
 import settings
 import store
 from workers.file_transfer import FileTransferManager
+from workers.device_connection import DeviceConnectionManager
 from gui.widgets.serialports import SerialWidget
 from gui.widgets.DirectoryView import DirectoryView
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
@@ -39,26 +43,47 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
-        self.resize(1050, 600)
+        # Window minimum 1024x640; below that the layout stops being an
+        # analysis tool and starts being a puzzle. It opens larger than that:
+        # the device list, the folder list and the file list all have to be
+        # visible at once for the window to make sense at a glance.
+        self.setMinimumSize(1024, 640)
+        self.resize(1200, 720)
+
+        # QMainWindowLayout ignores these for the central widget, so this is
+        # tidiness rather than a fix — but an audit that walks every layout
+        # should not have to carry an exception for it.
+        theme_qt.pad(self.layout(), 0)
+        theme_qt.gap(self.layout(), 0)
 
         self.file_transfer_manager = FileTransferManager()
-        self.postprocess_manager = PostprocessManager()
+        self.device_connection_manager = DeviceConnectionManager()
+        self.file_transfer_manager.set_connection_manager(self.device_connection_manager)
+        self.device_connection_manager.set_transfer_manager(self.file_transfer_manager)
+        self.postprocess_manager = PostprocessManager(self)
         self.log_window = None
         self.settings_window = None
         self.directory_name = None
         self.view_menu_checkboxes = {}
         self.postprocessor_checkboxes = {}
 
-        self.serial_widget = SerialWidget(self.file_transfer_manager)
+        self.serial_widget = SerialWidget(
+            self.file_transfer_manager, self.device_connection_manager
+        )
         self.directory_view = DirectoryView()
         self.sidebar = Sidebar()
-        self.sidebar.addWidget(self.serial_widget, 200)
+        self.sidebar.addWidget(self.serial_widget, 170)
         self.sidebar.addWidget(self.directory_view)
 
         self.tab_view = QTabWidget()
+        # QTabWidget builds the page stack itself, on Qt's defaults, and inset
+        # every tab's contents by an off-grid 9 px a side. The tabs carry their
+        # own padding, so the container carries none.
+        tab_pages = self.tab_view.findChild(QStackedWidget).layout()
+        theme_qt.pad(tab_pages, 0)
+        theme_qt.gap(tab_pages, 0)
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
-        self.statistics_analysis_widget.directory_selected.connect(self.on_directory_selected)
-        self.statistics_analysis_widget.directory_selected.connect(self.directory_view.select_directory_by_path)
+        self.statistics_analysis_widget.directory_selected.connect(self.on_statistics_directory_selected)
         self.profile_widget = ProfileWidget()
         self.tab_view.addTab(self.profile_widget, _("TAB_TITLE_PROFILES"))
         self.tab_view.addTab(self.statistics_analysis_widget, _("TAB_TITLE_STATISTICS"))
@@ -75,6 +100,7 @@ class MainWindow(QMainWindow):
         self.directory_view.root_directory_changed.connect(self.statistics_analysis_widget.update)
         self.directory_view.directory_contents_changed.connect(self.on_directory_contents_changed)
         self.directory_view.directory_contents_changed.connect(self.statistics_analysis_widget.update)
+        self.directory_view.roll_filter_changed.connect(self.statistics_analysis_widget.set_roll_filter)
 
         # Attempt to create default root dir if it does not exist
         if QDir().mkpath(store.root_directory):
@@ -92,24 +118,45 @@ class MainWindow(QMainWindow):
         ver_splitter.setStretchFactor(1, 0)
         ver_splitter.setCollapsible(0, False)
         ver_splitter.setCollapsible(1, False)
-        ver_splitter.setSizes([200, 200])
+        # The chart is the subject of this window, so it opens with the larger
+        # share; the file list is a picker, not a view.
+        ver_splitter.setSizes([640, 240])
 
         hor_splitter = QSplitter(Qt.Orientation.Horizontal)
         hor_splitter.addWidget(self.sidebar)
         hor_splitter.addWidget(ver_splitter)
         hor_splitter.setStretchFactor(0, 0)
         hor_splitter.setStretchFactor(1, 1)
-        hor_splitter.setSizes([400, 600])
+        # Wide enough for the folder list's two columns — the roll name and a
+        # full timestamp — with room to spare, since the date column stretches
+        # into whatever is left and clips the moment there is nothing left.
+        hor_splitter.setSizes([360, 1080])
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 
-        self.status_bar = QStatusBar()
-        self.status_bar.setFixedHeight(30)
-        self.setStatusBar(self.status_bar)
+        # A theme set to "system" tracks the desktop for as long as the window
+        # is open, not only at startup.
+        QApplication.instance().styleHints().colorSchemeChanged.connect(
+            self._follow_system_appearance
+        )
 
+        # QMainWindow makes one for itself the first time it is asked; handing
+        # it a second leaves the first parented and unused, which is a widget
+        # nobody can see and every audit has to explain.
+        self.status_bar = self.statusBar()
+        self.status_bar.setFixedHeight(30)
+
+        # The status bar states what the scan is doing in words beside it.
         self.scan_progress_bar = QProgressBar()
+        self.scan_progress_bar.setTextVisible(False)
+        self.scan_progress_bar.setFixedWidth(160)
         self.scan_progress_bar.setVisible(False)
         self.status_bar.addPermanentWidget(self.scan_progress_bar)
+
+        # After the items, not before: QStatusBar rebuilds its own box layout
+        # when one is added and puts the spacing back to Qt's default.
+        theme_qt.pad(self.status_bar.layout(), 0)
+        theme_qt.gap(self.status_bar.layout(), 2)
 
         self.setCentralWidget(hor_splitter)
         self.init_menu()
@@ -121,7 +168,12 @@ class MainWindow(QMainWindow):
         self.serial_widget.scan_finished.connect(self.on_scan_finished)
 
         # Run postprocessors when file transfer is finished
+        self.file_transfer_manager.transferStarted.connect(self.on_file_transfer_started)
         self.file_transfer_manager.transferFinished.connect(self.on_file_transfer_finished)
+        self.file_transfer_manager.transferError.connect(self.on_transfer_error)
+
+        self.device_connection_manager.connectionLost.connect(self.on_connection_lost)
+        self.device_connection_manager.listWarnings.connect(self.on_sync_list_warnings)
 
         self.postprocess_manager.postprocess_finished.connect(self.on_postprocess_finished)
 
@@ -234,7 +286,8 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout()
         # Reduce margins for better alignment
-        layout.setContentsMargins(5, 0, 5, 0)
+        theme_qt.pad(layout, 1, 0)
+        theme_qt.gap(layout, 0)
         checkbox = QCheckBox(label)
         checkbox.setChecked(checked)
         # Connect checkbox state change to callback
@@ -407,11 +460,22 @@ class MainWindow(QMainWindow):
         if not directory or not os.path.exists(directory) or not os.path.isdir(directory):
             return
 
+        directory_changed = store.selected_directory != directory
         self.directory_name = os.path.basename(directory)
         store.selected_directory = directory
+        if directory_changed:
+            store.selected_profile = None
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
+
+    def on_statistics_directory_selected(self, directory):
+        self.on_directory_selected(directory)
+        self.statistics_analysis_widget.highlight_point(directory)
+
+        blocker = QSignalBlocker(self.directory_view)
+        self.directory_view.select_directory_by_path(directory)
+        del blocker
 
     def load_profiles(self, dir_path):
         # Validate that the directory path exists and is a directory
@@ -433,8 +497,17 @@ class MainWindow(QMainWindow):
         self.profile_widget.update_plot(store.profiles, self.directory_name)
 
     def on_directory_contents_changed(self):
-        # Reload the selected directory and redraw plot
-        self.on_directory_selected(store.selected_directory)
+        # Reload the selected directory and redraw plot. If the selected folder
+        # was removed and no profile folders remain, leave the profile tab blank.
+        if store.selected_directory and os.path.isdir(store.selected_directory):
+            self.on_directory_selected(store.selected_directory)
+            return
+
+        if not self._root_has_profile_directories(store.root_directory):
+            self._clear_profile_selection(store.root_directory)
+            return
+
+        self.directory_view.select_first_directory()
 
     def refresh_plot(self):
         if not store.selected_directory:
@@ -464,11 +537,84 @@ class MainWindow(QMainWindow):
 
     def on_root_directory_changed(self, directory):
         store.root_directory = directory
+        if not self._path_is_within_directory(store.selected_directory, directory):
+            root_has_profile_directories = self._root_has_profile_directories(directory)
+            if not root_has_profile_directories:
+                self.on_directory_selected(directory)
+                return
+
+            self._clear_profile_selection(
+                directory,
+                clear_plot=False,
+            )
+
+    def _clear_profile_selection(self, root_directory=None, clear_plot=True):
+        store.selected_directory = None
+        store.selected_profile = None
+        store.profiles = []
+        self.directory_name = None
+        if root_directory and os.path.isdir(root_directory):
+            self.fileView.set_directory(root_directory)
+        if clear_plot:
+            self.profile_widget.clear_plot_display()
+
+    @staticmethod
+    def _root_has_profile_directories(directory):
+        if not directory or not os.path.isdir(directory):
+            return False
+
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if entry.is_dir() and entry.name not in settings.IGNORE_FOLDERS:
+                        return True
+        except (OSError, PermissionError):
+            return False
+
+        return False
+
+    @staticmethod
+    def _path_is_within_directory(path, directory):
+        if not path or not directory:
+            return False
+
+        try:
+            path_abs = os.path.abspath(path)
+            directory_abs = os.path.abspath(directory)
+            common_path = os.path.commonpath([path_abs, directory_abs])
+        except (OSError, ValueError):
+            return False
+
+        return os.path.normcase(common_path) == os.path.normcase(directory_abs)
 
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
+        self.settings_window.general_settings_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
+
+    def _follow_system_appearance(self):
+        """The desktop switched between light and dark.
+
+        Only act while the *preference* is "system": a user who picked light
+        explicitly keeps light when their machine turns the lights off.
+        """
+        if theme.requested() == theme.SYSTEM:
+            self.apply_appearance(theme.SYSTEM)
+
+    def apply_appearance(self, ui_theme):
+        """Swap the theme at runtime — a night-shift toggle costs one call.
+
+        The style sheet and the palette reach every widget on their own; what
+        needs a nudge is everything drawn rather than styled: the baked icons
+        inside the banners, and the two Matplotlib canvases.
+        """
+        theme.apply(QApplication.instance(), theme=ui_theme)
+        self.refresh_plot()
+        self.statistics_analysis_widget.update_chart()
+        for widget in self.findChildren(QWidget):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
 
     def open_log_window(self):
         self.log_window = LogWindow(store.log_manager)
@@ -531,10 +677,62 @@ class MainWindow(QMainWindow):
             message += f" {_('POSTPROCESSORS_ERROR_TEXT').format(count=len(result.failed_folders))}"
         self.status_bar.showMessage(message)
 
+    def on_file_transfer_started(self):
+        self.status_bar.showMessage(_("SYNC_CHECKING_TEXT"))
+
     def on_file_transfer_finished(self, folder_paths: list[str]):
-        self.status_bar.showMessage(f"{_('FILE_TRANSFER_FINISHED')}")
+        removed_count = self.file_transfer_manager.last_deleted_count
+        removed_text = (
+            _("DEVICE_FILES_REMOVED").format(count=removed_count)
+            if removed_count
+            else ""
+        )
+        if folder_paths:
+            self.status_bar.showMessage(
+                f"{_('FILE_TRANSFER_FINISHED')} {removed_text}".strip()
+            )
+        elif self.file_transfer_manager.last_transfer_outcome == "ok":
+            if removed_text:
+                self.status_bar.showMessage(removed_text)
+            else:
+                self.status_bar.clearMessage()
+            if not self.file_transfer_manager.last_transfer_was_auto:
+                QMessageBox.information(
+                    self,
+                    _("SYNC_UP_TO_DATE_TITLE"),
+                    f"{_('SYNC_UP_TO_DATE_TEXT')} {removed_text}".strip(),
+                )
+        elif self.status_bar.currentMessage() == _("SYNC_CHECKING_TEXT"):
+            # Cancel/error before anything moved: the error handlers own
+            # the message, just drop the stale "checking" text.
+            self.status_bar.clearMessage()
+        if not folder_paths:
+            return
+        self.directory_view.refresh_directory_dates(folder_paths)
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
+
+    def on_transfer_error(self, message):
+        # transferError also carries an is_auto flag, which the status
+        # bar does not need: both cases want the message here, and a
+        # manual failure additionally gets a popup from the transfer
+        # manager.
+        self.status_bar.showMessage(message)
+
+    def on_connection_lost(self, port, reason):
+        if reason == "busy":
+            self.status_bar.showMessage(_("DEVICE_BUSY_STATUS"))
+        elif reason in ("unplugged", "dead"):
+            self.status_bar.showMessage(
+                _("DEVICE_DISCONNECTED_STATUS").format(
+                    device=self.device_connection_manager.device_label(port)
+                )
+            )
+
+    def on_sync_list_warnings(self, port, skipped_count):
+        self.status_bar.showMessage(
+            _("SYNC_LIST_SKIPPED_WARNING").format(count=skipped_count)
+        )
 
     def close_child_windows(self):
         if self.settings_window:
@@ -544,6 +742,35 @@ class MainWindow(QMainWindow):
             self.log_window.close()
             self.log_window = None
 
+    def stop_background_workers(self, timeout_ms=5000):
+        """
+        Stops the device scan and any file transfer, and waits for both threads.
+
+        Qt aborts the process if a QThread is destroyed while its OS thread is
+        still running, so closing the window during a scan or a sync has to bring
+        those threads down first.
+        """
+        serial_widget = self.serial_widget
+        scanner_stopped = serial_widget.scanner.stop(timeout_ms)
+
+        transfer_manager = serial_widget.transferManager
+        transfer_manager.cancel_transfer()
+        transfer_stopped = transfer_manager.wait_for_transfer(timeout_ms)
+
+        postprocess_stopped = self.postprocess_manager.stop_postprocessing(timeout_ms)
+
+        if not scanner_stopped:
+            print("Timed out waiting for the device scan to stop.")
+        if not transfer_stopped:
+            print("Timed out waiting for the file transfer to stop.")
+        if not postprocess_stopped:
+            print("Timed out waiting for postprocessing to stop.")
+        return scanner_stopped and transfer_stopped and postprocess_stopped
+
     def closeEvent(self, event):
+        self.file_transfer_manager.cancel_transfer()
+        self.device_connection_manager.shutdown_all()
+        self.serial_widget.scanner.stop()
         self.close_child_windows()
+        self.stop_background_workers()
         event.accept()

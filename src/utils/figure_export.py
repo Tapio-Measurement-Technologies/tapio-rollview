@@ -44,9 +44,20 @@ def export_figure_with_annotations(
         if annotation_callback:
             added_texts = annotation_callback() or []
 
-        # Render to buffer at high DPI
+        # Render to buffer at high DPI.
+        #
+        # The face and edge colours are passed explicitly because savefig
+        # otherwise takes them from rcParams['savefig.facecolor'], not from the
+        # figure — so a figure deliberately built in one palette would be saved
+        # with the background of whatever palette the process happens to be in.
+        # That is exactly the plot export's case: it renders light out of a dark
+        # session.
         buffer = BytesIO()
-        figure.savefig(buffer, format='png', dpi=dpi, bbox_inches='tight')
+        figure.savefig(
+            buffer, format='png', dpi=dpi, bbox_inches='tight',
+            facecolor=figure.get_facecolor(),
+            edgecolor=figure.get_edgecolor(),
+        )
         buffer.seek(0)
 
         return buffer

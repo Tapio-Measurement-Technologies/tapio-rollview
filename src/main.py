@@ -60,6 +60,9 @@ def main():
 
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--settings-file', metavar='PATH', help='Path to a settings JSON file to load on startup. Created with defaults if it does not exist.')
+    # Read at import time by settings.FORCE_RQFT; declared here for
+    # documentation. Developer runs only, ignored in frozen builds.
+    parser.add_argument('--force-rqft', action='store_true', help='Treat every responding device as RQFT-capable, bypassing the firmware version gate.')
     args, _ = parser.parse_known_args()
 
     # Fix Windows taskbar icon
@@ -69,6 +72,15 @@ def main():
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QApplication(sys.argv)
+
+    # The Tapio Design System, before any widget is built: Fusion (the native
+    # Windows style silently ignores much of a style sheet), the bundled IBM
+    # Plex faces, the token palette, and the same tokens in Matplotlib so the
+    # charts and the chrome cannot drift apart.
+    import theme
+    from utils import preferences
+    theme.apply(app, theme=preferences.ui_theme)
+
     window = MainWindow()
 
     app_icon = QIcon(settings.ICON_PATH)

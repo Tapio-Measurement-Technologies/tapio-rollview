@@ -1,14 +1,20 @@
 from PySide6.QtWidgets import QVBoxLayout, QFrame, QSplitter
 from PySide6.QtCore import Qt
 
+from theme import qt as theme_qt
+
 class Sidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setStyleSheet("Sidebar { background-color: palette(window); }")
 
         # Use a vertical layout to contain the main splitter
         self.setLayout(QVBoxLayout(self))
+        # The splitter is the whole pane and its children carry their own
+        # padding, so this frame adds none. Left to Qt it would inset the
+        # separator from the sidebar's edges by an off-grid 9 px.
+        theme_qt.pad(self.layout(), 0)
+        theme_qt.gap(self.layout(), 0)
 
         # Create the main splitter that will contain all widgets
         self.main_splitter = QSplitter()

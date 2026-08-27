@@ -1,17 +1,20 @@
 from dataclasses import dataclass
 import copy
 import json
+import math
 import os
 
 from PySide6.QtCore import QDir
 
 import settings
+from theme import tokens as theme_tokens
 from utils.highlighted_regions import (
     normalize_distance_highlight_regions,
     normalize_hardness_highlight_regions,
     serialize_distance_highlight_regions,
     serialize_hardness_highlight_regions,
 )
+from utils.range_utils import parse_numeric_ranges
 
 default_preferences_file_path = QDir(QDir.homePath()).filePath(settings.PREFERENCES_FILE_PATH)
 preferences_file_path = default_preferences_file_path
@@ -28,6 +31,7 @@ LOAD_STATUS_LOADED = "loaded"
 LOAD_STATUS_CREATED_DEFAULTS = "created_defaults"
 LOAD_STATUS_EMPTY = "empty"
 LOAD_STATUS_INVALID = "invalid"
+BAND_PASS_HIGH_MAX = 100.0
 
 
 # Default values with type converters for special handling
@@ -53,6 +57,7 @@ _DEFAULTS = {
     'default_y_axis_scaling': settings.Y_AXIS_SCALING_DEFAULT,
     'band_pass_low': settings.BAND_PASS_LOW_DEFAULT,
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
+    'ui_theme': settings.UI_THEME_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -78,33 +83,210 @@ def _default_value(key):
     return copy.deepcopy(_DEFAULTS[key])
 
 
+def _canonical_alert_limit_name(limit):
+    """The current name of a stored limit, mapping renamed keys forward."""
+    name = limit.get('name')
+    return _ALERT_LIMIT_NAME_ALIASES.get(name, name)
+
+
 def _normalize_alert_limits(limits):
     if not isinstance(limits, list):
         limits = []
 
     normalized_limits = []
+    default_names = {limit['name'] for limit in settings.ALERT_LIMITS_DEFAULT}
+    # Aliasing has to happen before the filter: a preferences file written by an
+    # older version names the slope limit slope_deg, which is not a default name.
     configured_by_name = {
-        _ALERT_LIMIT_NAME_ALIASES.get(limit.get('name'), limit.get('name')): limit
+        _canonical_alert_limit_name(limit): limit
         for limit in limits
-        if isinstance(limit, dict) and limit.get('name')
+        if isinstance(limit, dict) and _canonical_alert_limit_name(limit) in default_names
     }
 
     for default_limit in settings.ALERT_LIMITS_DEFAULT:
         existing_limit = configured_by_name.pop(default_limit['name'], {})
         normalized_limit = copy.deepcopy(default_limit)
-        normalized_limit['units'] = existing_limit.get('units', normalized_limit['units'])
-        normalized_limit['min'] = existing_limit.get('min')
-        normalized_limit['max'] = existing_limit.get('max')
+        normalized_limit['min'] = _coerce_optional_float(existing_limit.get('min'), None)
+        normalized_limit['max'] = _coerce_optional_float(existing_limit.get('max'), None)
+        if (
+            normalized_limit['min'] is not None
+            and normalized_limit['max'] is not None
+            and normalized_limit['min'] > normalized_limit['max']
+        ):
+            normalized_limit['min'] = None
+            normalized_limit['max'] = None
         normalized_limits.append(normalized_limit)
 
-    for extra_limit in configured_by_name.values():
-        preserved_limit = copy.deepcopy(extra_limit)
-        preserved_limit.setdefault('units', '')
-        preserved_limit.setdefault('min', None)
-        preserved_limit.setdefault('max', None)
-        normalized_limits.append(preserved_limit)
-
     return normalized_limits
+
+
+def _coerce_bool(value, default):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("true", "1", "yes", "on"):
+            return True
+        if normalized in ("false", "0", "no", "off"):
+            return False
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+        return bool(value)
+    return default
+
+
+def _coerce_string(value, default):
+    return value if isinstance(value, str) else default
+
+
+def _coerce_string_list(value, default_key):
+    if not isinstance(value, list):
+        return _default_value(default_key)
+    return [item for item in value if isinstance(item, str)]
+
+
+def _coerce_string_set(value, default_key):
+    if not isinstance(value, (list, set, tuple)):
+        return _default_value(default_key)
+    return {item for item in value if isinstance(item, str)}
+
+
+def _coerce_optional_float(value, default):
+    if value is None:
+        return None
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if math.isfinite(coerced) else default
+
+
+def _coerce_float(value, default):
+    try:
+        coerced = float(value)
+    except (TypeError, ValueError):
+        return default
+    return coerced if math.isfinite(coerced) else default
+
+
+def _coerce_choice(value, choices, default):
+    return value if value in choices else default
+
+
+def _coerce_positive_int(value, default, maximum):
+    try:
+        coerced = int(value)
+    except (TypeError, ValueError):
+        return default
+    if isinstance(value, bool) or coerced < 1 or coerced > maximum:
+        return default
+    return coerced
+
+
+def _available_locales():
+    try:
+        return {
+            name
+            for name in os.listdir(settings.LOCALE_FILES_PATH)
+            if os.path.isdir(os.path.join(settings.LOCALE_FILES_PATH, name))
+        }
+    except OSError:
+        return {settings.LOCALE_DEFAULT}
+
+
+def _coerce_locale(value, default):
+    if not isinstance(value, str):
+        return default
+    locale = value[:2]
+    return locale if locale in _available_locales() else default
+
+
+def _coerce_excluded_regions(value, default):
+    if not isinstance(value, str):
+        return default
+    try:
+        parse_numeric_ranges(value)
+    except ValueError:
+        return default
+    return value
+
+
+def _coerce_band_pass_high(value, default):
+    coerced = _coerce_float(value, default)
+    if coerced < settings.BAND_PASS_HIGH_MIN or coerced > BAND_PASS_HIGH_MAX:
+        return default
+    return coerced
+
+
+def _sanitize_cross_field_preferences():
+    if band_pass_low < 0 or band_pass_low >= band_pass_high:
+        globals()['band_pass_low'] = settings.BAND_PASS_LOW_DEFAULT
+    if (
+        y_lim_low_override is not None
+        and y_lim_high_override is not None
+        and y_lim_low_override >= y_lim_high_override
+    ):
+        globals()['y_lim_low_override'] = settings.Y_LIM_LOW_OVERRIDE_DEFAULT
+        globals()['y_lim_high_override'] = settings.Y_LIM_HIGH_OVERRIDE_DEFAULT
+
+
+def _coerce_preference_value(key, value):
+    default = _default_value(key)
+
+    if key in (
+        'show_all_com_ports',
+        'show_plot_toolbar',
+        'recalculate_mean',
+        'continuous_mode',
+        'show_spectrum',
+        'flip_profiles',
+        'excluded_regions_enabled',
+    ):
+        return _coerce_bool(value, default)
+    if key == 'enabled_postprocessors':
+        return _coerce_string_list(value, key)
+    if key == 'locale':
+        return _coerce_locale(value, default)
+    if key == 'pinned_serial_ports':
+        return _coerce_string_set(value, key)
+    if key == 'distance_unit':
+        return _coerce_choice(value, settings.DISTANCE_UNITS.keys(), default)
+    if key == 'excluded_regions':
+        return _coerce_excluded_regions(value, default)
+    if key == 'excluded_regions_mode':
+        return _coerce_choice(
+            value,
+            (
+                settings.EXCLUDED_REGIONS_MODE_NONE,
+                settings.EXCLUDED_REGIONS_MODE_RELATIVE,
+                settings.EXCLUDED_REGIONS_MODE_ABSOLUTE,
+            ),
+            default,
+        )
+    if key == 'default_y_axis_scaling':
+        return _coerce_choice(
+            value,
+            (
+                settings.Y_AXIS_SCALING_START_AT_ZERO,
+                settings.Y_AXIS_SCALING_FIT_TO_DATA,
+            ),
+            default,
+        )
+    if key in ('y_lim_low_override', 'y_lim_high_override'):
+        return _coerce_optional_float(value, default)
+    if key == 'band_pass_low':
+        return _coerce_float(value, default)
+    if key == 'band_pass_high':
+        return _coerce_band_pass_high(value, default)
+    if key == 'ui_theme':
+        return _coerce_choice(value, theme_tokens.CHOICES, default)
+    if key == 'alert_limits':
+        return _normalize_alert_limits(value)
+    if key == 'distance_highlight_regions':
+        return normalize_distance_highlight_regions(value)
+    if key == 'hardness_highlight_regions':
+        return normalize_hardness_highlight_regions(value)
+
+    return value
 
 
 def _serialized_preferences():
@@ -139,22 +321,21 @@ def _apply_loaded_preferences(loaded_prefs):
         if key not in loaded_prefs:
             continue
 
-        value = loaded_prefs[key]
-        if key in _LOADERS:
-            value = _LOADERS[key](value)
-        elif key == 'alert_limits':
-            value = _normalize_alert_limits(value)
-        globals()[key] = value
+        globals()[key] = _coerce_preference_value(key, loaded_prefs[key])
 
     if 'excluded_regions_mode' not in loaded_prefs:
         globals()['excluded_regions_mode'] = (
             settings.EXCLUDED_REGIONS_MODE_RELATIVE
-            if loaded_prefs.get('excluded_regions_enabled')
+            if _coerce_bool(
+                loaded_prefs.get('excluded_regions_enabled'),
+                settings.EXCLUDED_REGIONS_ENABLED_DEFAULT,
+            )
             else settings.EXCLUDED_REGIONS_MODE_NONE
         )
     globals()['excluded_regions_enabled'] = (
         globals()['excluded_regions_mode'] != settings.EXCLUDED_REGIONS_MODE_NONE
     )
+    _sanitize_cross_field_preferences()
 
 
 def _ensure_parent_directory(path):
@@ -198,6 +379,7 @@ y_lim_high_override = _default_value('y_lim_high_override')
 default_y_axis_scaling = _default_value('default_y_axis_scaling')
 band_pass_low = _default_value('band_pass_low')
 band_pass_high = _default_value('band_pass_high')
+ui_theme = _default_value('ui_theme')
 
 
 def get_preferences_file_path():
@@ -236,27 +418,9 @@ def update_preferences(updates):
             raise ValueError(f"Unknown preference key: '{key}'")
 
     for key, value in updates.items():
-        if key in (
-            'show_all_com_ports',
-            'show_plot_toolbar',
-            'recalculate_mean',
-            'continuous_mode',
-            'show_spectrum',
-            'flip_profiles',
-            'excluded_regions_enabled',
-        ):
-            value = bool(value)
-        elif key == 'pinned_serial_ports':
-            value = set(value)
-        elif key == 'alert_limits':
-            value = _normalize_alert_limits(value)
-        elif key == 'distance_highlight_regions':
-            value = normalize_distance_highlight_regions(value)
-        elif key == 'hardness_highlight_regions':
-            value = normalize_hardness_highlight_regions(value)
+        globals()[key] = _coerce_preference_value(key, value)
 
-        globals()[key] = value
-
+    _sanitize_cross_field_preferences()
     save_preferences_to_file()
 
 

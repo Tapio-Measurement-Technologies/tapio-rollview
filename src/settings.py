@@ -38,10 +38,20 @@ Y_LIM_LOW = lambda min_value: 0
 Y_LIM_HIGH = lambda max_value: np.ceil((1.5 * max_value) / 10) * 10
 GRID = True
 
-MEAN_PROFILE_LINE_WIDTH = 2.8
-MEAN_PROFILE_LINE_COLOR = "tab:purple"
-SELECTED_PROFILE_LINE_WIDTH = 2
+# Chart marks follow the Tapio Design System.
+# Leave the colours as None to take them from the tokens, which is what keeps
+# the charts in step with the rest of the interface and with the other Tapio
+# products. A hex here overrides the system for this installation only.
+MEAN_PROFILE_LINE_WIDTH = None      # None = the system's mark weight, 2.0
+MEAN_PROFILE_LINE_COLOR = None      # None = the system's series-1 brand blue
+SELECTED_PROFILE_LINE_WIDTH = None  # None = the system's mark weight, 2.0
 STAT_DECIMAL_PLACES = 1
+
+# "system", "light" or "dark". The default follows the desktop, so an operator
+# who has already told their machine which they want does not have to tell
+# RollView as well; where the platform reports nothing it falls back to light,
+# because a screen read in daylight wants glare handled before contrast ratios.
+UI_THEME_DEFAULT = "system"
 
 # See python strftime
 # https://docs.python.org/3/library/datetime.html
@@ -125,7 +135,7 @@ ALERT_LIMITS_DEFAULT = [
     },
     {
         "name": "slope_g_per_rl",
-        "units": "g/RL",
+        "units": "g",
         "min": None,
         "max": None
     }
@@ -137,6 +147,32 @@ SPECTRUM_LOWER_LIMIT_1M = 0
 SPECTRUM_UPPER_LIMIT_1M = 60
 SPECTRUM_WAVELENGTH_TICKS = False
 PINNED_SERIAL_PORTS_DEFAULT = set()
+ALLOWED_SERIAL_USB_IDS = {(0x16C0, 0x0483)}
+SERIAL_BLUETOOTH_PORT_MARKERS = ("bluetooth", "bthenum", "bthmodem", "rfcomm")
+
+# RQFT persistent connections
+# Firmware reports git-describe versions; semver at or above this supports
+# RQFT. Firmware dev builds report bare commit hashes and need the
+# --force-rqft CLI flag instead.
+RQFT_MIN_FIRMWARE_VERSION = (1, 2, 0)
+# Full 8-frame window: Bluetooth SPP bridge latency stalls smaller windows
+# well below the link rate.
+RQFT_WINDOW = 8
+# Developer flag: treat every responding device as RQFT-capable,
+# bypassing the firmware version gate. CLI only (rollview --force-rqft),
+# and ignored in frozen (PyInstaller) builds.
+FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
+# Rollview removes measurement files from the device once it holds verified
+# copies; the device never deletes on its own. How much of the card survives is
+# the device's own "folders to keep" setting, which it enforces by refusing
+# the deletes that would break it.
+# Transport reopen backoff after an open failure or unplug (seconds).
+RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)
+# HELLO retry while listening: device busy/measuring gets a slow retry so
+# the post-measurement doorbell hits the clean idle-answer path.
+RQFT_HELLO_RETRY_BUSY_S = 30
+RQFT_HELLO_RETRY_DEAD_S = 5
+RQFT_HELLO_RETRY_CANCELLED_S = 2
 
 # Default values for plot export (copy to clipboard and postprocessor)
 PLOT_IMAGE_EXPORT_DPI = 300
@@ -169,7 +205,7 @@ DISTANCE_UNIT_DEFAULT = "m"
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
-IGNORE_FOLDERS = ['postprocessors']
+IGNORE_FOLDERS = ['postprocessors', '.sync_history']
 
 
 def load_local_settings(local_settings_path):

@@ -8,9 +8,13 @@ import serial
 import serial.tools.list_ports
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PySide6.QtCore import QObject, Signal, QThread
-from models.SerialPort import SerialPortItem
+import settings
+from models.SerialPort import SerialPortItem, natural_sort_key
+from serial.tools import list_ports_common
 from utils.time_sync import send_timestamp
 from utils.translation import _
+from utils import preferences
+from utils.rqft_support import BusyPortStatus
 import os
 
 log = logging.getLogger(__name__)
@@ -37,10 +41,71 @@ class PortScannerWorker(QObject):
     finished = Signal(list)
     error = Signal(str)
 
-    def __init__(self, max_workers=None):
+    def __init__(self, max_workers=None, busy_ports=None):
         super().__init__()
         self._running = True
         self._max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
+        # Ports held open by persistent RQFT connections: never probed
+        # (probing would fail to open the port, or worse, inject the
+        # DEVICEINFO command into a live session). Maps device name to
+        # cached identity and live-session status.
+        self._busy_ports = busy_ports or {}
+
+    def _allowed_usb_ids(self):
+        return {
+            (self._coerce_id(vid), self._coerce_id(pid))
+            for vid, pid in getattr(settings, "ALLOWED_SERIAL_USB_IDS", set())
+        }
+
+    def _coerce_id(self, value):
+        if isinstance(value, str):
+            return int(value, 0)
+        return int(value)
+
+    def _bluetooth_serial_markers(self):
+        return tuple(
+            marker.casefold()
+            for marker in getattr(settings, "SERIAL_BLUETOOTH_PORT_MARKERS", ())
+            if marker
+        )
+
+    def _port_text_fields(self, port_info):
+        return (
+            getattr(port_info, "device", None),
+            getattr(port_info, "description", None),
+            getattr(port_info, "name", None),
+            getattr(port_info, "product", None),
+            getattr(port_info, "manufacturer", None),
+            getattr(port_info, "hwid", None),
+        )
+
+    def _matches_allowed_usb_id(self, port_info):
+        vid = getattr(port_info, "vid", None)
+        pid = getattr(port_info, "pid", None)
+        if vid is None or pid is None:
+            return False
+        return (int(vid), int(pid)) in self._allowed_usb_ids()
+
+    def _matches_bluetooth_serial_port(self, port_info):
+        markers = self._bluetooth_serial_markers()
+        if not markers:
+            return False
+
+        for value in self._port_text_fields(port_info):
+            if not value:
+                continue
+            normalized = str(value).casefold()
+            if any(marker in normalized for marker in markers):
+                return True
+        return False
+
+    def _should_probe_port(self, port_info):
+        if port_info.device in preferences.pinned_serial_ports:
+            return True
+        return (
+            self._matches_allowed_usb_id(port_info)
+            or self._matches_bluetooth_serial_port(port_info)
+        )
 
     def _scan_single_port(self, port_info):
         """
@@ -89,6 +154,9 @@ class PortScannerWorker(QObject):
                     ):
                         port_info.description = response_data["deviceName"]
                         port_info.serial_number = response_data["serialNumber"]
+                        port_info.firmware_version = response_data.get(
+                            "firmwareVersion", ""
+                        )
                         device_responded = True
                         send_timestamp(port)
                 except json.JSONDecodeError:
@@ -114,8 +182,17 @@ class PortScannerWorker(QObject):
         device response, and builds a list of `SerialPortItem`s.
         """
         self._running = True
-        ports = serial.tools.list_ports.comports()
+        ports = list(serial.tools.list_ports.comports())
         scanned_ports = []
+        discovered_devices = {port.device for port in ports}
+
+        for device in sorted(preferences.pinned_serial_ports, key=natural_sort_key):
+            if device in discovered_devices:
+                continue
+            port_info = list_ports_common.ListPortInfo(device)
+            port_info.description = ""
+            port_info.serial_number = ""
+            ports.append(port_info)
 
         if not ports:
             log.info("No COM ports found.")
@@ -123,18 +200,50 @@ class PortScannerWorker(QObject):
             self.finished.emit([])
             return
 
-        log.info(f"Starting parallel scan of {len(ports)} ports using {self._max_workers} workers")
+        # Ports held by live RQFT connections are reported from cached
+        # identity, never probed. This must come before the pinned check:
+        # pinned ports are otherwise always probed.
+        busy_infos = [port for port in ports if port.device in self._busy_ports]
+        ports = [port for port in ports if port.device not in self._busy_ports]
+        for port_info in busy_infos:
+            status: BusyPortStatus = self._busy_ports[port_info.device]
+            identity = status.identity
+            if identity.device_name:
+                port_info.description = identity.device_name
+            if identity.serial_number:
+                port_info.serial_number = identity.serial_number
+            port_info.firmware_version = identity.firmware_version
+            scanned_ports.append(
+                SerialPortItem(
+                    port_info,
+                    device_responded=status.connected,
+                    known_device=True,
+                )
+            )
+
+        ports_to_probe = [port for port in ports if self._should_probe_port(port)]
+        skipped_ports = [port for port in ports if port not in ports_to_probe]
+
+        scanned_ports.extend(SerialPortItem(port_info, False) for port_info in skipped_ports)
+
+        if not ports_to_probe:
+            log.info("No matching COM ports found.")
+            self.progress.emit(100, _("PORTSCAN_COMPLETE_TEXT"))
+            self.finished.emit(scanned_ports)
+            return
+
+        log.info(f"Starting parallel scan of {len(ports_to_probe)} candidate ports using {self._max_workers} workers")
 
         # Use ThreadPoolExecutor to scan ports in parallel
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
             # Submit all port scanning tasks
             future_to_port = {
                 executor.submit(self._scan_single_port, port_info): port_info
-                for port_info in ports
+                for port_info in ports_to_probe
             }
 
             completed_count = 0
-            total_ports = len(ports)
+            total_ports = len(ports_to_probe)
 
             # Process completed tasks as they finish
             for future in as_completed(future_to_port):
@@ -191,12 +300,15 @@ class PortScanner(QObject):
         self._worker = None
         self._max_workers = max_workers
 
-    def start(self):
+    def start(self, busy_ports=None):
         """
-        Starts the port scan.
+        Starts the port scan. Ports in busy_ports (held by persistent
+        RQFT connections) are reported from cached identity, not probed.
         """
         self._thread = QThread()
-        self._worker = PortScannerWorker(max_workers=self._max_workers)
+        self._worker = PortScannerWorker(
+            max_workers=self._max_workers, busy_ports=busy_ports
+        )
 
         self._worker.moveToThread(self._thread)
 
@@ -205,21 +317,52 @@ class PortScanner(QObject):
         self._worker.finished.connect(self.finished)
         self._worker.finished.connect(self._thread.quit)
         self._worker.finished.connect(self._worker.deleteLater)
+        self._thread.finished.connect(self._on_thread_finished)
         self._thread.finished.connect(self._thread.deleteLater)
         self._thread.started.connect(self._worker.run)
 
         log.info("Starting port scanner thread.")
         self._thread.start()
 
-    def stop(self):
+    def stop(self, timeout_ms=5000):
         """
-        Stops the port scan if it's running.
+        Stops the port scan if it's running, and waits for the thread to exit.
+
+        Returns True if no scan was running or the thread exited within the
+        timeout. The wait matters on shutdown: destroying a QThread whose OS
+        thread is still running aborts the process.
         """
         if self._worker:
             self._worker.stop()
-        if self._thread and self._thread.isRunning():
-            log.info("Stopping port scanner thread.")
+        if not self.is_running():
+            return True
+        log.info("Stopping port scanner thread.")
+        try:
             self._thread.quit()
+            return self._thread.wait(timeout_ms)
+        except RuntimeError:
+            return True
 
     def is_running(self):
-        return self._thread and self._thread.isRunning()
+        if not self._thread:
+            return False
+
+        try:
+            return self._thread.isRunning()
+        except RuntimeError:
+            self._clear_thread_refs()
+            return False
+
+    def _on_thread_finished(self):
+        # Wait before dropping the reference, so that by the time anything
+        # observes the scanner as idle the OS thread has genuinely exited.
+        if self._thread is not None:
+            try:
+                self._thread.wait()
+            except RuntimeError:
+                pass
+        self._clear_thread_refs()
+
+    def _clear_thread_refs(self):
+        self._thread = None
+        self._worker = None

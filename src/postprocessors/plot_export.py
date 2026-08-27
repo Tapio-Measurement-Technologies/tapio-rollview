@@ -2,6 +2,7 @@ from gui.widgets.ProfileWidget import ProfileWidget
 from utils.translation import _
 from utils.figure_export import export_figure_with_annotations
 from models.Profile import Profile
+from theme import tokens as theme_tokens
 import os
 
 description = _("POSTPROCESSOR_NAME_PLOT_EXPORT")
@@ -52,6 +53,17 @@ def run(folder_path) -> bool:
 
     if profiles:
         profile_widget.figure.set_size_inches(*FIGURE_SIZE_INCHES)
+
+        # Profiles print in the light palette regardless of the on-screen theme:
+        # a dark chart wastes toner and reads badly on a mill report.
+        #
+        # Pinned on this widget rather than swapped globally. Postprocessors run
+        # on a worker thread, and tapio_mpl.use() writes matplotlib's process-wide
+        # rcParams and the module's own token table — both of which the GUI thread
+        # reads while it draws. An export that swapped them could repaint the
+        # operator's dark chart in light halfway through. A table on the throwaway
+        # widget reaches only this render.
+        profile_widget.chart_tokens = theme_tokens.load(theme_tokens.LIGHT)
         profile_widget.update_plot(profiles, folder_name)
 
         # Export figure with annotations using the same method as clipboard copy

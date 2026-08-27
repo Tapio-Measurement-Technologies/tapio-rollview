@@ -52,7 +52,11 @@ coverage.xml
 cover/
 
 # Translations
+#   The .mo catalogs are compiled from translations/*.po (see
+#   compile_translations.py). Committing them means a binary merge
+#   conflict every time two branches touch translations.
 *.pot
+src/locales/*/LC_MESSAGES/*.mo
 
 # Django stuff:
 *.log
@@ -171,3 +175,5 @@ src/postprocessors/*
 !src/postprocessors/json_export.py
 !src/postprocessors/plot_export.py
 
+# GUI harness / visual test screenshots
+gui-shots/

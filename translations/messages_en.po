@@ -131,7 +131,7 @@ msgstr "Blue"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_ORANGE"
-msgstr "Orange"
+msgstr "Amber"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GREEN"
@@ -143,27 +143,27 @@ msgstr "Red"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PURPLE"
-msgstr "Purple"
+msgstr "Violet"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_BROWN"
-msgstr "Brown"
+msgstr "Bronze"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PINK"
-msgstr "Pink"
+msgstr "Magenta"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GRAY"
-msgstr "Gray"
+msgstr "Slate"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_OLIVE"
-msgstr "Olive"
+msgstr "Moss"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_CYAN"
-msgstr "Cyan"
+msgstr "Teal"
 
 #. Used in file tree context menu and directory view as button label and menu action
 #. label.
@@ -222,6 +222,14 @@ msgstr "Change directory"
 msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
 msgstr "Select Directory"
 
+#. Used in directory view folder filter input as placeholder text.
+msgid "FOLDER_FILTER_PLACEHOLDER"
+msgstr "Filter folders"
+
+#. Used in regex filter inputs as tooltip text when pattern is invalid.
+msgid "REGEX_FILTER_INVALID_TOOLTIP"
+msgstr "Invalid regex: {error}"
+
 #. Used in file list view and directory view as column header.
 msgid "TREEVIEW_HEADER_NAME"
 msgstr "Name"
@@ -237,6 +245,14 @@ msgstr "Size"
 #. Used in file list view as column header.
 msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
 msgstr "Profile length"
+
+#. Used in directory view as empty-state text.
+msgid "DIRECTORY_EMPTY_STATE_NO_FOLDERS"
+msgstr "No folders in selected directory"
+
+#. Used in file list view and profile chart as empty-state text.
+msgid "PROFILE_EMPTY_STATE_NO_PROFILES"
+msgstr "No profiles in selected folder"
 
 #. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
@@ -337,6 +353,10 @@ msgstr "Changing the language at runtime is not yet supported. The language sett
 msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "Devices"
 
+#. Used in serial ports widget as empty-state text.
+msgid "SERIAL_EMPTY_STATE_NO_DEVICES"
+msgstr "No devices found"
+
 #. Used in serial ports widget as message text and button label.
 msgid "SERIAL_SCAN_BUTTON_TEXT"
 msgstr "Scan devices"
@@ -403,8 +423,7 @@ msgstr "Max"
 msgid "ALERT_LIMIT_PP"
 msgstr "P-p"
 
-#. Used in statistics label definitions and QR config dialog as statistic label and
-#. QR config label.
+#. Used in statistics label definitions as statistic label.
 msgid "ALERT_LIMIT_SLOPE"
 msgstr "Slope"
 
@@ -519,6 +538,10 @@ msgstr "Last 30 days"
 msgid "FILTER_SHOW_ALL_ROLLS"
 msgstr "Show all rolls"
 
+#. Used in statistics analysis view chart/export annotation as roll filter label.
+msgid "STATISTICS_ROLL_FILTER_LABEL"
+msgstr "Roll filter"
+
 #. Used in statistics analysis view as chart axis label.
 msgid "PLOT_TITLE_ROLL"
 msgstr "Roll"
@@ -553,8 +576,7 @@ msgstr "Maximum"
 msgid "PP_LONG"
 msgstr "Peak to peak"
 
-#. Used in statistics label definitions as statistic label and long-form statistic
-#. label.
+#. Used in statistics label definitions as long-form statistic label.
 msgid "SLOPE_LONG"
 msgstr "Slope"
 
@@ -873,3 +895,146 @@ msgstr "bytes"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "Statistic Value"
+
+#. Used on a stat tile when no alert limit is configured for that statistic.
+msgid "STAT_TILE_NO_LIMITS"
+msgstr "No limits set"
+
+#. Used on a stat tile to state the configured limits.
+msgid "STAT_TILE_LIMIT_RANGE"
+msgstr "Limits {min} – {max}"
+
+#. Used on a stat tile when only a lower limit is configured.
+msgid "STAT_TILE_LIMIT_MIN"
+msgstr "Limit ≥ {value}"
+
+#. Used on a stat tile when only an upper limit is configured.
+msgid "STAT_TILE_LIMIT_MAX"
+msgstr "Limit ≤ {value}"
+
+#. Used on a stat tile when the value fell below its lower limit.
+msgid "STAT_TILE_BELOW_MIN"
+msgstr "Below {value}"
+
+#. Used on a stat tile when the value rose above its upper limit.
+msgid "STAT_TILE_ABOVE_MAX"
+msgstr "Above {value}"
+
+
+
+
+
+
+
+#. Settings window: label for the light/dark theme control.
+msgid "APPEARANCE_THEME"
+msgstr "Theme"
+
+#. Settings window: the theme option that follows the desktop.
+msgid "APPEARANCE_THEME_SYSTEM"
+msgstr "System"
+
+#. Settings window: the light theme option.
+msgid "APPEARANCE_THEME_LIGHT"
+msgstr "Light"
+
+#. Settings window: the dark theme option.
+msgid "APPEARANCE_THEME_DARK"
+msgstr "Dark"
+
+
+
+
+#. Profile chart legend entry for the hatched excluded-region overlay.
+msgid "CHART_EXCLUDED_REGION_LEGEND"
+msgstr "Excluded"
+
+
+
+#. Statistics analysis view: label above the time-range filter.
+msgid "STATISTICS_TIME_RANGE"
+msgstr "Time range"
+
+#. Serial port context menu: open a persistent RQFT connection.
+msgid "SERIAL_CONNECT_DEVICE"
+msgstr "Connect"
+
+#. Serial port context menu: close the persistent RQFT connection.
+msgid "SERIAL_DISCONNECT_DEVICE"
+msgstr "Disconnect"
+
+#. Status bar message when the device aborts the session to measure.
+msgid "DEVICE_BUSY_STATUS"
+msgstr "Device is measuring — sync will resume when it finishes"
+
+#. Status bar message when a connected device disappears.
+msgid "DEVICE_DISCONNECTED_STATUS"
+msgstr "Device {device} disconnected"
+
+#. Status bar warning when the device listing skipped unreadable files.
+msgid "SYNC_LIST_SKIPPED_WARNING"
+msgstr "Device listing skipped {count} unreadable file(s)"
+
+
+#. Sync error: serial transport failed (device unplugged etc.).
+msgid "SYNC_ERROR_TRANSPORT"
+msgstr "Connection to the device failed:"
+
+#. Sync error: no progress within the watchdog time.
+msgid "SYNC_ERROR_TIMEOUT"
+msgstr "The device stopped responding during sync"
+
+#. Sync error: the session ended mid-operation.
+msgid "SYNC_ERROR_ENDED"
+msgstr "The device ended the session:"
+
+#. Sync error: a file operation was rejected by the device.
+msgid "SYNC_ERROR_OPERATION"
+msgstr "File operation failed"
+
+#. RQFT protocol error code explanations.
+msgid "RQFT_ERR_FS_OPEN"
+msgstr "the device could not open the file"
+
+msgid "RQFT_ERR_FS_READ"
+msgstr "the device failed reading the file"
+
+msgid "RQFT_ERR_FS_WRITE"
+msgstr "the device failed writing the file"
+
+msgid "RQFT_ERR_FS_REMOVE"
+msgstr "the device failed removing the file"
+
+msgid "RQFT_ERR_PATH"
+msgstr "invalid file path"
+
+msgid "RQFT_ERR_CRC_FILE"
+msgstr "file verification failed (CRC mismatch)"
+
+msgid "RQFT_ERR_TOO_LARGE"
+msgstr "file is too large"
+
+msgid "RQFT_ERR_DENIED"
+msgstr "the device denied the request"
+
+msgid "RQFT_ERR_BAD_STATE"
+msgstr "the device rejected the request in its current state"
+
+msgid "RQFT_ERR_UNSUPPORTED"
+msgstr "the device does not support the request"
+
+#. Status bar while a sync lists the device and diffs against local files.
+msgid "SYNC_CHECKING_TEXT"
+msgstr "Checking device for new files..."
+
+#. Information dialog when a manual sync found nothing new to fetch.
+msgid "SYNC_UP_TO_DATE_TITLE"
+msgstr "Sync complete"
+
+msgid "SYNC_UP_TO_DATE_TEXT"
+msgstr "All files are already up to date and synced to Rollview."
+
+#. Status bar note after a sync removed synced measurements from the device.
+#. The count is of entries removed: a measurement folder counts as one.
+msgid "DEVICE_FILES_REMOVED"
+msgstr "Removed {count} synced item(s) from the device."

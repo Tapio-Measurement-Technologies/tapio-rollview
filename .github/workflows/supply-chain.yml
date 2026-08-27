@@ -1,0 +1,36 @@
+name: Supply Chain
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom-and-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate dependencies and generate source evidence
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-supply-chain@438406e2d9fc6011bfc402af75d26f41d7ee5577
+        with:
+          config: build-tooling.toml
+          product: tapio-rollview
+          requirement-group: runtime
+          output: dist/rollview-${{ github.sha }}-source.cdx.json
+          platform: source
+          audit: "true"
+          upload-name: rollview-source-sbom

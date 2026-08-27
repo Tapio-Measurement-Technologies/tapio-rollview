@@ -11,9 +11,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDir, Signal, Qt, QFile, QModelIndex, QFileInfo, QSortFilterProxyModel
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from gui.widgets.EmptyStateView import draw_empty_view_text
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
-import os
 
 
 class RenameDialog(QDialog):
@@ -48,6 +48,7 @@ class ContextMenuTreeView(QTreeView):
 
     def __init__(self, model: QFileSystemModel | QSortFilterProxyModel):
         super().__init__()
+        self._empty_message = ""
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_context_menu)
         self.setModel(model)
@@ -59,10 +60,28 @@ class ContextMenuTreeView(QTreeView):
             self._proxy_model = None
             self._model = model
 
-        # Add F2 shortcut for rename
+        if isinstance(self._model, QFileSystemModel):
+            self._model.setReadOnly(False)
+
+        # Add shortcuts for item actions
         self.rename_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
         self.rename_shortcut.activated.connect(self._rename_selected)
         self.rename_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
+        self.delete_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self)
+        self.delete_shortcut.activated.connect(self._delete_selected)
+        self.delete_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
+    def set_empty_message(self, message):
+        self._empty_message = message
+        self.viewport().update()
+
+    def empty_message(self):
+        return self._empty_message
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        draw_empty_view_text(self, self._empty_message)
 
     def open_context_menu(self, position):
         indexes = self.selectedIndexes()
@@ -74,8 +93,9 @@ class ContextMenuTreeView(QTreeView):
         rename_action = QAction(_("BUTTON_TEXT_RENAME"), self)
         delete_action = QAction(_("BUTTON_TEXT_DELETE"), self)
 
-        # Add F2 shortcut hint to rename action
+        # Add shortcut hints to item actions
         rename_action.setShortcut(QKeySequence("F2"))
+        delete_action.setShortcut(QKeySequence(Qt.Key.Key_Delete))
 
         open_action.triggered.connect(lambda: self.open_file_explorer(indexes[0]))
         rename_action.triggered.connect(lambda: self.rename_file(indexes[0]))
@@ -107,7 +127,14 @@ class ContextMenuTreeView(QTreeView):
         if indexes:
             self.rename_file(indexes[0])
 
+    def _delete_selected(self):
+        """Delete the currently selected item when Delete is pressed."""
+        indexes = self.selectedIndexes()
+        if indexes:
+            self.delete_file(indexes[0])
+
     def rename_file(self, index: QModelIndex):
+        index = index.siblingAtColumn(0)
         if self._proxy_model:
             index = self._proxy_model.mapToSource(index)
         old_name = self._model.fileName(index)
@@ -117,11 +144,7 @@ class ContextMenuTreeView(QTreeView):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             new_name = dialog.text_value()
             if new_name and new_name != old_name:
-                old_path = self._model.filePath(index)
-                parent_path = self._model.filePath(index.parent())
-                new_path = os.path.join(parent_path, new_name)
-
-                if not QFile.rename(old_path, new_path):
+                if not self._model.setData(index, new_name, Qt.ItemDataRole.EditRole):
                     QMessageBox.warning(self, _("RENAME_FAILED_MSGBOX_TITLE"), f"{_("RENAME_FAILED_MSGBOX_TEXT")} {old_name}")
 
     def delete_file(self, index: QModelIndex):

@@ -1,0 +1,6 @@
+--index-url https://pypi.org/simple
+--only-binary :all:
+
+# Keep shared package aligned with runtime lock so build install cannot alter it.
+packaging==24.2
+pyinstaller==6.21.0

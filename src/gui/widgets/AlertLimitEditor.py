@@ -1,4 +1,7 @@
 from PySide6.QtWidgets import QDialog, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QLabel
+from PySide6.QtCore import Qt
+import theme
+from theme import qt as theme_qt
 from utils import preferences, profile_stats
 from utils.translation import _
 
@@ -13,24 +16,26 @@ class AlertLimitEditor(QDialog):
             f"{_('EDIT_ALERT_LIMITS')} - {profile_stats.stat_labels.get(stat_name, stat_name)}"
         )
         self.setModal(True)
-        self.resize(300, 100)
+        self.resize(360, 150)
 
         layout = QVBoxLayout()
+        theme_qt.pad(layout, 3)
+        theme_qt.gap(layout, 2)
 
         # Horizontal layout for min/max inputs
         inputs_layout = QHBoxLayout()
+        theme_qt.gap(inputs_layout, 3)
 
         self.min_edit = QLineEdit()
         self.max_edit = QLineEdit()
 
-        # Set placeholder text and styling
+        # A limit is a measured quantity, so both fields are mono and
+        # right-aligned. The placeholder colour comes from the palette.
         self.min_edit.setPlaceholderText(_("NOT_SET"))
         self.max_edit.setPlaceholderText(_("NOT_SET"))
-
-        # Style placeholder text as grey
-        placeholder_style = "QLineEdit { color: black; } QLineEdit::placeholder { color: grey; }"
-        self.min_edit.setStyleSheet(placeholder_style)
-        self.max_edit.setStyleSheet(placeholder_style)
+        for field in (self.min_edit, self.max_edit):
+            theme_qt.set_property(field, "role", "data")
+            field.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         # Set current values
         if self.current_limit['min'] is not None:
@@ -38,17 +43,18 @@ class AlertLimitEditor(QDialog):
         if self.current_limit['max'] is not None:
             self.max_edit.setText(str(self.current_limit['max']))
 
-        # Add labels and inputs horizontally
-        inputs_layout.addWidget(QLabel(f"{_('MIN')}:"))
-        inputs_layout.addWidget(self.min_edit)
-        inputs_layout.addWidget(QLabel(f"{_('MAX')}:"))
-        inputs_layout.addWidget(self.max_edit)
+        # Labels sit above the field, always: a placeholder is not a label, it
+        # disappears exactly when the operator needs it.
+        inputs_layout.addWidget(self._field(_("MIN"), self.min_edit))
+        inputs_layout.addWidget(self._field(_("MAX"), self.max_edit))
 
         layout.addLayout(inputs_layout)
 
         # Error message label
+        # Never colour-only: the message says what is wrong, in words.
         self.error_label = QLabel()
-        self.error_label.setStyleSheet("color: red;")
+        theme_qt.set_role(self.error_label, "hint")
+        theme_qt.set_state(self.error_label, theme.STATUS_BAD)
         self.error_label.setWordWrap(True)
         self.error_label.hide()  # Initially hidden
         layout.addWidget(self.error_label)
@@ -56,9 +62,12 @@ class AlertLimitEditor(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
 
+        # One primary: saving the limit is what this dialog exists for.
         self.save_button = QPushButton(_("SAVE"))
+        theme_qt.set_variant(self.save_button, "primary")
         self.cancel_button = QPushButton(_("CANCEL"))
         self.clear_button = QPushButton(_("CLEAR"))
+        theme_qt.set_variant(self.clear_button, "ghost")
 
         # Set save as default button and connect Enter key
         self.save_button.setDefault(True)
@@ -94,6 +103,21 @@ class AlertLimitEditor(QDialog):
     def clear_error(self):
         """Clear any displayed error message"""
         self.error_label.hide()
+
+    @staticmethod
+    def _field(label_text, field):
+        """A labelled numeric field: label above, value in mono below."""
+        from PySide6.QtWidgets import QWidget
+
+        holder = QWidget()
+        holder_layout = QVBoxLayout(holder)
+        theme_qt.pad(holder_layout, 0)
+        theme_qt.gap(holder_layout, 1)
+        label = QLabel(label_text)
+        theme_qt.set_role(label, "label")
+        holder_layout.addWidget(label)
+        holder_layout.addWidget(field)
+        return holder
 
     def save_limits(self):
         self.clear_error()  # Clear any previous errors

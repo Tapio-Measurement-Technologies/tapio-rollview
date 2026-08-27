@@ -1,0 +1,871 @@
+/* ==========================================================================
+   Tapio Design System v1.0 — Qt style sheet template.
+
+   GENERATED INPUT, NOT A PLACE TO PUT COLOURS. Every placeholder below is substituted
+   from tokens.json by theme/qt.py. A literal hex added to this file is a bug.
+
+   Qt style sheets cannot express letter-spacing, text-transform, tabular
+   figures or box-shadow. Those four are applied in theme/qt.py through QFont
+   and, for depth, through border + surface lightness as the system prescribes.
+   ========================================================================== */
+
+/* ---------- base ---------------------------------------------------------- */
+
+/* Only the ink is set globally here, and deliberately so.
+   `background-color` on the bare QWidget selector turns on styled backgrounds
+   for every container in the tree, which then paints the window colour over the
+   panels and item views that are supposed to sit on `surface`.
+   `font-family`/`font-size` are worse: a style sheet font beats QWidget::setFont,
+   so a global one silently cancels every role font the code applies — the stat
+   tile's 27 px mono number included. The base type comes from
+   QApplication::setFont instead, and only controls that need a *different* size
+   declare one below. */
+QWidget {
+    color: ${ink};
+}
+
+QMainWindow, QDialog, QWidget#settingsWindow {
+    background-color: ${bg};
+}
+
+QWidget:disabled {
+    color: ${ink_disabled};
+}
+
+/* Panels and cards sit on the surface; the work area stays sunken so charts on
+   surface read as objects sitting on a table. */
+QFrame[panel="true"] {
+    background-color: ${surface};
+    border: 1px solid ${border};
+    border-radius: ${r_lg}px;
+}
+
+QFrame[panel="sunken"] {
+    background-color: ${sunken};
+    border: 1px solid ${border};
+    border-radius: ${r_lg}px;
+}
+
+/* A row in a table of settings. Horizontal hairlines only — seven boxes in a
+   column is six more outlines than the eye needs to see seven rows. */
+QFrame[panel="row"] {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid ${border};
+    border-radius: 0;
+}
+
+/* An empty state is a placeholder for something that is not there yet, and the
+   dashed outline says so without needing a sentence. */
+QFrame[panel="empty"] {
+    background-color: ${sunken};
+    border: 1px dashed ${border_strong};
+    border-radius: ${r_lg}px;
+}
+
+QFrame#hLine, QFrame#vLine {
+    background-color: ${border};
+    border: none;
+}
+
+/* ---------- type roles ---------------------------------------------------- */
+
+QLabel {
+    background: transparent;
+    color: ${ink};
+}
+
+/* Type lives here, not in QWidget::setFont. Qt's style-sheet machinery
+   re-resolves a widget's font during polish and overwrites whatever the code
+   set, so a role whose type is applied programmatically silently reverts the
+   first time the widget is shown. The two things a style sheet cannot express
+   are handled elsewhere: uppercasing by theme.widgets.EyebrowLabel, which
+   uppercases the string itself, and letter-spacing not at all — the eyebrow is
+   set in mono, whose natural fit already reads as tracked-out. */
+
+QLabel[role="title"] {
+    font-size: ${title_3}px;
+    font-weight: 600;
+    color: ${ink};
+}
+
+QLabel[role="label"] {
+    font-size: ${label}px;
+    font-weight: 500;
+    color: ${ink};
+}
+
+QLabel[role="eyebrow"] {
+    font-family: "${mono}";
+    font-size: ${eyebrow}px;
+    font-weight: 500;
+    color: ${ink_muted};
+}
+
+QLabel[role="hint"], QLabel[role="unit"] {
+    font-size: ${body_sm}px;
+    color: ${ink_muted};
+}
+
+QLabel[role="secondary"] {
+    color: ${ink_secondary};
+    font-size: ${body_sm}px;
+}
+
+QLabel[role="data"] {
+    font-family: "${mono}";
+    font-size: ${data}px;
+    color: ${ink};
+}
+
+/* `dataLarge` is the guide's display-sized readout, for a screen with one or
+   two numbers on it. `dataValue` is the same treatment at the size seven
+   statistics can actually sit side by side in — the same system at a different
+   density, which is what the density scale is for. */
+QLabel[role="dataLarge"] {
+    font-family: "${mono}";
+    font-size: ${data_large}px;
+    font-weight: 500;
+    color: ${ink};
+}
+
+QLabel[role="dataValue"] {
+    font-family: "${mono}";
+    font-size: ${data_value}px;
+    font-weight: 500;
+    color: ${ink};
+}
+
+QLabel[state="good"] { color: ${good}; }
+QLabel[state="warn"] { color: ${warn}; }
+QLabel[state="bad"]  { color: ${bad}; }
+QLabel[state="idle"] { color: ${ink_muted}; }
+
+/* ---------- stat tile ----------------------------------------------------- */
+/* Only the failing tile turns red. A row of red tiles tells the operator
+   nothing about which statistic failed. */
+
+QWidget#statTile {
+    background-color: ${surface};
+    border: 1px solid ${border};
+    border-radius: ${r_md}px;
+}
+
+/* When a tile fails, the whole tile is the alarm — the eyebrow and the unit go
+   red with the number rather than staying muted inside a red box. */
+QWidget#statTile[state="bad"] {
+    background-color: ${bad_soft};
+    border-color: ${bad_mark};
+}
+
+QWidget#statTile[state="bad"] QLabel {
+    color: ${bad};
+}
+
+QWidget#statTile[state="warn"] QLabel {
+    color: ${warn};
+}
+
+QWidget#statTile[state="warn"] {
+    background-color: ${warn_soft};
+    border-color: ${warn_mark};
+}
+
+QWidget#statTile:hover {
+    border-color: ${border_strong};
+}
+
+/* ---------- buttons ------------------------------------------------------- */
+/* Four variants. One primary per view — the single most likely next action.
+   Focus is a 2 px ring in ${focus} on every control; padding drops by 1 px so
+   the label does not shift when the ring appears. */
+
+QPushButton {
+    background-color: ${surface};
+    color: ${ink};
+    border: 1px solid ${border_strong};
+    border-radius: ${r_md}px;
+    min-height: ${control_inner}px;
+    padding: 0 ${s4}px;
+    font-size: ${label}px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: ${sunken};
+    border-color: ${ink_muted};
+}
+
+QPushButton:pressed {
+    background-color: ${sunken_pressed};
+}
+
+QPushButton:focus {
+    border: 2px solid ${focus};
+    padding: 0 ${s4_focus}px;
+}
+
+/* One disabled look for every variant. A primary button that keeps its blue at
+   reduced strength still reads as a button you can press; dropping the fill
+   entirely is what says "not now". The label stays at full `ink-muted` — 4.7:1
+   on the sunken ground — because an unreadable control is indistinguishable
+   from a broken one. */
+QPushButton:disabled,
+QPushButton[variant="primary"]:disabled,
+QPushButton[variant="ghost"]:disabled,
+QPushButton[variant="danger"]:disabled {
+    background-color: ${sunken};
+    color: ${ink_muted};
+    border: 1px solid ${border};
+}
+
+QPushButton[variant="primary"] {
+    background-color: ${accent};
+    color: ${accent_ink};
+    border: 1px solid ${accent};
+}
+QPushButton[variant="primary"]:hover   { background-color: ${accent_hover}; border-color: ${accent_hover}; }
+QPushButton[variant="primary"]:pressed { background-color: ${accent_active}; border-color: ${accent_active}; }
+QPushButton[variant="primary"]:focus   { border: 2px solid ${focus}; padding: 0 ${s4_focus}px; }
+
+QPushButton[variant="ghost"] {
+    background-color: transparent;
+    color: ${accent};
+    border: 1px solid transparent;
+}
+QPushButton[variant="ghost"]:hover   { background-color: ${accent_soft}; }
+QPushButton[variant="ghost"]:pressed { background-color: ${accent_soft_pressed}; }
+
+/* Destructive only, and never the default focus target. */
+QPushButton[variant="danger"] {
+    background-color: ${surface};
+    color: ${bad};
+    border: 1px solid ${bad};
+}
+QPushButton[variant="danger"]:hover   { background-color: ${bad_soft}; }
+QPushButton[variant="danger"]:pressed { background-color: ${bad_soft}; border-color: ${bad_mark}; }
+
+/* ---------- inputs -------------------------------------------------------- */
+/* Numeric fields are mono, tabular and right-aligned; alignment is set in code
+   because a style sheet cannot. The error state is never colour-only. */
+
+QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox {
+    background-color: ${surface};
+    color: ${ink};
+    border: 1px solid ${border_strong};
+    border-radius: ${r_md}px;
+    min-height: ${control_inner}px;
+    padding: 0 ${s3}px;
+    selection-background-color: ${accent};
+    selection-color: ${accent_ink};
+}
+
+QPlainTextEdit, QTextEdit {
+    padding: ${s2}px ${s3}px;
+}
+
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 2px solid ${focus};
+    padding: 0 ${s3_focus}px;
+}
+
+QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled {
+    background-color: ${sunken};
+    color: ${ink_disabled};
+}
+
+QLineEdit[role="data"], QDoubleSpinBox[role="data"], QSpinBox[role="data"] {
+    font-family: "${mono}";
+}
+
+QLineEdit[invalid="true"] {
+    border: 1px solid ${bad_mark};
+    background-color: ${bad_soft};
+}
+QLineEdit[invalid="true"]:focus {
+    border: 2px solid ${bad_mark};
+    padding: 0 ${s3_focus}px;
+}
+
+QComboBox {
+    background-color: ${surface};
+    color: ${ink};
+    border: 1px solid ${border_strong};
+    border-radius: ${r_md}px;
+    min-height: ${control_inner}px;
+    padding: 0 ${s3}px;
+}
+QComboBox:hover { border-color: ${ink_muted}; }
+QComboBox:focus {
+    border: 2px solid ${focus};
+    padding: 0 ${s3_focus}px;
+}
+QComboBox:disabled { color: ${ink_disabled}; background-color: ${sunken}; }
+QComboBox::drop-down {
+    border: none;
+    width: ${s6}px;
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+}
+QComboBox::down-arrow {
+    image: url(${chevron_icon});
+    width: 10px;
+    height: 10px;
+}
+QComboBox QAbstractItemView {
+    background-color: ${raised};
+    color: ${ink};
+    border: 1px solid ${border};
+    border-radius: ${r_md}px;
+    selection-background-color: ${accent_soft};
+    selection-color: ${ink};
+    outline: none;
+    padding: ${s1}px;
+}
+
+/* A drop-down is a short menu, not a table of rows, so it is typeset like the
+   menus above rather than like the item views below: full-strength ink, a
+   rounded highlight, and no hairline ruled under every option. The rule has to
+   be stated because the list *is* a QListView, and would otherwise be caught by
+   the generic item rules further down. */
+QComboBox QAbstractItemView::item {
+    background: transparent;
+    color: ${ink};
+    border: none;
+    border-radius: ${r_md}px;
+    padding: 0 ${s2}px;
+    min-height: ${row_inner}px;
+}
+
+/* Hover and selection are the same mark here on purpose: Qt moves a combo
+   popup's selection to whatever the pointer is over, so only one option is ever
+   marked, and two different marks for one row would only ask which is which. */
+QComboBox QAbstractItemView::item:selected,
+QComboBox QAbstractItemView::item:hover {
+    background-color: ${accent_soft};
+    color: ${ink};
+}
+
+/* ---------- checkboxes and radios ---------------------------------------- */
+
+QCheckBox, QRadioButton {
+    background: transparent;
+    color: ${ink};
+    spacing: ${s2}px;
+    min-height: ${check_target}px;
+}
+
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 15px;
+    height: 15px;
+    border: 1px solid ${border_strong};
+    background-color: ${surface};
+}
+QCheckBox::indicator  { border-radius: ${r_sm}px; }
+QRadioButton::indicator { border-radius: 8px; }
+
+QCheckBox::indicator:hover, QRadioButton::indicator:hover {
+    border-color: ${accent};
+}
+QCheckBox::indicator:checked {
+    background-color: ${accent};
+    border-color: ${accent};
+    image: url(${check_icon});
+}
+QRadioButton::indicator:checked {
+    background-color: ${surface};
+    border: 4px solid ${accent};
+}
+QCheckBox::indicator:disabled, QRadioButton::indicator:disabled {
+    background-color: ${sunken};
+    border-color: ${border};
+}
+QCheckBox:focus, QRadioButton:focus {
+    color: ${accent};
+}
+
+/* ---------- tabs ---------------------------------------------------------- */
+/* Tabs switch views over the same data. They never navigate to a different
+   sample — that is the header's job. */
+
+QTabWidget::pane {
+    border: none;
+    border-top: 1px solid ${border};
+    background-color: ${sunken};
+    top: -1px;
+}
+
+QTabBar {
+    background: transparent;
+    qproperty-drawBase: 0;
+}
+
+QTabBar::tab {
+    background: transparent;
+    color: ${ink_muted};
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: ${s2}px ${s3}px;
+    margin-right: 2px;
+    font-size: ${label}px;
+    font-weight: 500;
+    min-height: ${tab_height}px;
+}
+
+QTabBar::tab:hover {
+    color: ${ink};
+}
+
+QTabBar::tab:selected {
+    color: ${accent};
+    border-bottom-color: ${accent};
+}
+
+QTabBar::tab:focus {
+    color: ${accent};
+    background-color: ${accent_soft};
+}
+
+/* ---------- item views ---------------------------------------------------- */
+/* Horizontal hairlines only. No vertical rules, no zebra striping — alignment
+   already does the work, and stripes fight the out-of-spec row highlight. */
+
+QTreeView, QTableView, QListView, QTreeWidget, QListWidget, QTableWidget {
+    background-color: ${surface};
+    alternate-background-color: ${surface};
+    color: ${ink};
+    border: 1px solid ${border};
+    border-radius: ${r_md}px;
+    selection-background-color: ${accent_soft};
+    selection-color: ${ink};
+    outline: none;
+    show-decoration-selected: 1;
+}
+
+QTreeView::item, QTableView::item, QListView::item,
+QTreeWidget::item, QListWidget::item {
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 0 ${s2}px;
+    min-height: ${row_inner}px;
+    color: ${ink_secondary};
+}
+
+QTreeView::item:hover, QListView::item:hover,
+QTreeWidget::item:hover, QListWidget::item:hover {
+    background-color: ${sunken};
+}
+
+QTreeView::item:selected, QTableView::item:selected, QListView::item:selected,
+QTreeWidget::item:selected, QListWidget::item:selected {
+    background-color: ${accent_soft};
+    color: ${ink};
+}
+
+QTreeView::item:selected:active, QListView::item:selected:active,
+QTreeWidget::item:selected:active, QListWidget::item:selected:active {
+    background-color: ${accent_soft};
+    color: ${ink};
+}
+
+QTreeView::branch {
+    background: transparent;
+}
+
+/* An item view's check indicator is a *view* sub-control, not a QCheckBox, so
+   the QCheckBox rules above do not reach it and Fusion would otherwise draw a
+   bare tick on the dark theme with no box around it. */
+QTreeView::indicator, QListView::indicator, QTableView::indicator {
+    width: 15px;
+    height: 15px;
+    border: 1px solid ${border_strong};
+    border-radius: ${r_sm}px;
+    background-color: ${surface};
+}
+
+QTreeView::indicator:hover, QListView::indicator:hover, QTableView::indicator:hover {
+    border-color: ${accent};
+}
+
+QTreeView::indicator:checked, QListView::indicator:checked, QTableView::indicator:checked {
+    background-color: ${accent};
+    border-color: ${accent};
+    image: url(${check_icon});
+}
+
+QHeaderView {
+    background-color: ${sunken};
+    border: none;
+}
+
+/* Height from `min-height`, and no vertical padding at all. The two together
+   are what pushed the label to the top of the section: padding offsets the
+   content box the label is drawn in, while min-height grows the section around
+   it. With only min-height, the section grows evenly and the header's
+   AlignVCenter — set in theme.qt.style_header() — centres the label in it.
+   The height must not also be set on the header *widget*: that grows the widget
+   past the section, and the sections then paint against its top edge. */
+QHeaderView::section {
+    background-color: ${sunken};
+    color: ${ink_muted};
+    border: none;
+    border-bottom: 1px solid ${border};
+    border-right: none;
+    padding: 0 ${s2}px;
+}
+
+QHeaderView::section:hover {
+    color: ${ink};
+}
+
+QHeaderView::down-arrow, QHeaderView::up-arrow {
+    width: 9px;
+    height: 9px;
+    subcontrol-origin: content;
+    subcontrol-position: center right;
+    right: ${s1}px;
+}
+
+QHeaderView::down-arrow { image: url(${sort_down_icon}); }
+QHeaderView::up-arrow   { image: url(${sort_up_icon}); }
+
+QTableCornerButton::section {
+    background-color: ${sunken};
+    border: none;
+    border-bottom: 1px solid ${border};
+}
+
+/* ---------- the settings sidebar ------------------------------------------ */
+
+QListWidget#settingsNav {
+    background-color: ${sunken};
+    border: none;
+    border-right: 1px solid ${border};
+    border-radius: 0;
+    padding: ${s2}px ${s1}px;
+}
+
+QListWidget#settingsNav::item {
+    border: none;
+    border-radius: ${r_md}px;
+    padding: ${s2}px ${s3}px;
+    margin: 1px ${s1}px;
+    color: ${ink_secondary};
+    min-height: ${row_inner}px;
+}
+
+QListWidget#settingsNav::item:hover {
+    background-color: ${surface};
+    color: ${ink};
+}
+
+QListWidget#settingsNav::item:selected {
+    background-color: ${accent_soft};
+    color: ${accent};
+    font-weight: 500;
+}
+
+/* ---------- menus --------------------------------------------------------- */
+
+QMenuBar {
+    background-color: ${surface};
+    color: ${ink};
+    border-bottom: 1px solid ${border};
+    padding: 2px ${s1}px;
+}
+
+QMenuBar::item {
+    background: transparent;
+    padding: ${s1}px ${s3}px;
+    border-radius: ${r_md}px;
+}
+
+QMenuBar::item:selected {
+    background-color: ${accent_soft};
+    color: ${accent};
+}
+
+QMenu {
+    background-color: ${raised};
+    color: ${ink};
+    border: 1px solid ${border};
+    border-radius: ${r_lg}px;
+    padding: ${s1}px;
+}
+
+QMenu::item {
+    padding: ${s2}px ${s4}px;
+    border-radius: ${r_md}px;
+    color: ${ink_secondary};
+}
+
+QMenu::item:selected {
+    background-color: ${accent_soft};
+    color: ${ink};
+}
+
+QMenu::item:disabled {
+    color: ${ink_disabled};
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: ${border};
+    margin: ${s1}px ${s2}px;
+}
+
+/* ---------- toolbars ------------------------------------------------------ */
+/* Primary action first, then ghosts, then a divider, then export/print. */
+
+QToolBar {
+    background-color: ${surface};
+    border: none;
+    border-top: 1px solid ${border};
+    spacing: ${s1}px;
+    padding: ${s1}px ${s2}px;
+}
+
+QToolBar::separator {
+    background-color: ${border};
+    width: 1px;
+    margin: 0 ${s2}px;
+}
+
+QToolButton {
+    background: transparent;
+    color: ${ink_secondary};
+    border: 1px solid transparent;
+    border-radius: ${r_md}px;
+    padding: ${s1}px;
+}
+
+QToolButton:hover {
+    background-color: ${accent_soft};
+    color: ${accent};
+}
+
+QToolButton:pressed, QToolButton:checked {
+    background-color: ${accent_soft};
+    border-color: ${accent};
+    color: ${accent};
+}
+
+QToolButton:focus {
+    border: 2px solid ${focus};
+}
+
+/* ---------- group boxes --------------------------------------------------- */
+
+QGroupBox {
+    background-color: transparent;
+    border: 1px solid ${border};
+    border-radius: ${r_lg}px;
+    margin-top: ${s3}px;
+    padding-top: ${s3}px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: ${s3}px;
+    padding: 0 ${s1}px;
+    font-family: "${mono}";
+    font-size: ${eyebrow}px;
+    font-weight: 500;
+    color: ${ink_muted};
+}
+
+
+/* ---------- progress ------------------------------------------------------ */
+
+/* Qt paints a progress bar's text across the whole bar, so it lands on the
+   sunken track at 10% and on the accent fill at 90% — no single colour is
+   readable on both. RollView therefore hides the in-bar number
+   (`setTextVisible(False)`) and states it beside the bar, where it can be typeset
+   properly. This colour is the fallback for any bar that still shows it. */
+QProgressBar {
+    background-color: ${sunken};
+    border: 1px solid ${border};
+    border-radius: ${r_md}px;
+    height: ${s3}px;
+    text-align: center;
+    font-family: "${mono}";
+    font-size: ${eyebrow}px;
+    color: ${ink};
+}
+
+QProgressBar::chunk {
+    background-color: ${accent};
+    border-radius: ${r_sm}px;
+}
+
+/* ---------- sliders ------------------------------------------------------- */
+
+/* The handle is drawn outside the groove, and Qt sizes a styled QSlider from
+   the groove alone — 6 px of it — so the widget came out shorter than its own
+   handle and clipped a pixel off the top of it. The minimum is the handle's
+   outer size (12 px content plus a 2 px border a side) with a pixel of air
+   either way. */
+QSlider:horizontal {
+    min-height: ${slider_height}px;
+}
+
+QSlider::groove:horizontal {
+    background-color: ${sunken};
+    border: 1px solid ${border};
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: ${accent};
+    border: 1px solid ${accent};
+    height: 4px;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background-color: ${surface};
+    border: ${slider_handle_border}px solid ${accent};
+    width: ${slider_handle_inner}px;
+    height: ${slider_handle_inner}px;
+    margin: -${slider_handle_margin}px 0;
+    border-radius: ${slider_handle_radius}px;
+}
+
+QSlider::handle:horizontal:hover {
+    border-color: ${accent_hover};
+}
+
+QSlider::handle:horizontal:disabled {
+    border-color: ${border_strong};
+}
+
+/* ---------- scrollbars ---------------------------------------------------- */
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 11px;
+    margin: 0;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+    height: 11px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background-color: ${border_strong};
+    border-radius: 4px;
+    min-height: ${s6}px;
+    min-width: ${s6}px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background-color: ${ink_muted};
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+    height: 0;
+    width: 0;
+    border: none;
+    background: none;
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+/* ---------- splitters ----------------------------------------------------- */
+
+QSplitter::handle {
+    background-color: ${border};
+}
+
+QSplitter::handle:horizontal { width: 1px; }
+QSplitter::handle:vertical   { height: 1px; }
+QSplitter::handle:hover      { background-color: ${accent}; }
+
+/* ---------- status bar ---------------------------------------------------- */
+
+QStatusBar {
+    background-color: ${surface};
+    color: ${ink_muted};
+    border-top: 1px solid ${border};
+    font-size: ${body_sm}px;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+QStatusBar QLabel {
+    color: ${ink_muted};
+}
+
+/* ---------- tooltips ------------------------------------------------------ */
+/* Anything a tooltip says must also be reachable another way; this is the
+   pointer convenience, not the only path to it. */
+
+QToolTip {
+    background-color: ${raised};
+    color: ${ink};
+    border: 1px solid ${border_strong};
+    border-radius: ${r_md}px;
+    padding: ${s1}px ${s2}px;
+    font-size: ${body_sm}px;
+}
+
+/* ---------- inline banner ------------------------------------------------- */
+/* Conditions that persist, and stay until the condition is resolved. */
+
+QLabel#banner, QLabel[banner="warn"] {
+    background-color: ${warn_soft};
+    color: ${warn};
+    border: 1px solid ${warn_mark};
+    border-radius: ${r_md}px;
+    padding: ${s2}px ${s3}px;
+    font-size: ${body_sm}px;
+}
+
+QLabel[banner="bad"] {
+    background-color: ${bad_soft};
+    color: ${bad};
+    border-color: ${bad_mark};
+}
+
+QLabel[banner="info"] {
+    background-color: ${accent_soft};
+    color: ${ink};
+    border-color: ${accent};
+}
+
+/* ---------- empty state --------------------------------------------------- */
+
+QLabel[role="emptyState"] {
+    color: ${ink_muted};
+    font-size: ${body_lg}px;
+    background: transparent;
+}
+
+/* ---------- message boxes ------------------------------------------------- */
+
+QMessageBox {
+    background-color: ${surface};
+}
+
+QMessageBox QLabel {
+    color: ${ink};
+}
+
+QDialogButtonBox QPushButton {
+    min-width: ${dialog_button_width}px;
+}

@@ -2,6 +2,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QProgressBar, QPushButton, QLabel
 )
 from PySide6.QtCore import Qt, Signal
+from theme import qt as theme_qt
 from utils.translation import _
 
 class ProgressBarDialog(QDialog):
@@ -19,6 +20,8 @@ class ProgressBarDialog(QDialog):
 
         # Create layout and progress bar
         layout = QVBoxLayout(self)
+        theme_qt.pad(layout, 3)
+        theme_qt.gap(layout, 2)
 
         # Status text label
         self.statusLabel = QLabel(_("PROGRESS_DIALOG_STARTING"), self)
@@ -28,10 +31,13 @@ class ProgressBarDialog(QDialog):
         # Progress bar widget
         self.progressBar = QProgressBar(self)
         self.progressBar.setRange(0, 100)
+        self.progressBar.setTextVisible(False)
         self.progressBar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.progressBar)
 
         # Optional: Button to cancel or close the dialog
+        # Cancelling a transfer is not destructive — it stops work in progress —
+        # so it stays secondary rather than borrowing the danger variant.
         self.actionButton = QPushButton(_("BUTTON_TEXT_CANCEL"), self)
         self.actionButton.clicked.connect(self.on_action_button_clicked)
         layout.addWidget(self.actionButton)
