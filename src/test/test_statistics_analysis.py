@@ -12,25 +12,8 @@ from theme import mpl as tapio_mpl
 from PySide6.QtWidgets import QApplication
 
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisChart, StatisticsAnalysisWidget
+from test.qtcleanup import destroy
 from utils.translation import _
-
-
-def destroy(widget):
-    """Close *and* destroy a widget, then drain the deletion queue.
-
-    close() only hides a widget; the C++ object lives until something deletes
-    it. Leaving a tree of them for the garbage collector to unpick later is how
-    this file used to end in a double free — Python and Qt both believe they own
-    the children. The rest of the suite destroys explicitly (see the main_window
-    fixture in conftest.py); so does this.
-    """
-    from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop
-
-    widget.close()
-    widget.setParent(None)
-    widget.deleteLater()
-    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-    QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents)
 
 
 class TestStatisticsAnalysisChart(unittest.TestCase):

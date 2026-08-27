@@ -280,7 +280,7 @@ class FileView(QWidget):
         # The file name is the column that has to stay whole; the quantities
         # take exactly the width their digits need, so nothing is elided into
         # ambiguity.
-        header_view = self.view.header()
+        header_view = theme_qt.style_header(self.view.header())
         header_view.setStretchLastSection(False)
         header_view.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for column in (1, 3, 4):

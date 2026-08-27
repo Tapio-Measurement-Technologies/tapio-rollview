@@ -100,7 +100,7 @@ class DirectoryView(QWidget):
         # Roll names are fixed-length identifiers, so the name column takes
         # exactly what it needs and the date column absorbs the slack. The other
         # way round truncates the one string that identifies the row.
-        directory_header = self.treeView.header()
+        directory_header = theme_qt.style_header(self.treeView.header())
         directory_header.setStretchLastSection(True)
         directory_header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 

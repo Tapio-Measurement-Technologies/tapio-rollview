@@ -138,6 +138,20 @@ def font(step, t=None):
     return QFont(result)
 
 
+def style_header(header, t=None):
+    """Centre an item view's header labels vertically.
+
+    The height comes from `min-height` on `QHeaderView::section` in the style
+    sheet, and deliberately not from `setFixedHeight` here: that grows the
+    header *widget* past the sections it contains, which then paint against its
+    top edge. Alignment is the one half a style sheet cannot express.
+    """
+    header.setDefaultAlignment(
+        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+    )
+    return header
+
+
 def mono_font(step="body-sm", t=None):
     """The mono face at one step of the scale.
 
@@ -221,7 +235,6 @@ def build_stylesheet(t):
 
     surface = t.color("surface")
     control = t.control_height
-    eyebrow_line = t.font("eyebrow")["line"]
     # Qt adds the border to min-height, so the inner box is the token height
     # minus the two 1 px borders. Focus swaps those for 2 px ones, and padding
     # drops by the same amount so nothing shifts under the ring.
@@ -256,7 +269,10 @@ def build_stylesheet(t):
         "warn": t.color("warn"), "warn_soft": t.color("warn-soft"), "warn_mark": t.color("warn-mark"),
         "bad": t.color("bad"), "bad_soft": t.color("bad-soft"), "bad_mark": t.color("bad-mark"),
         # header band
-        "header_context": T.mix(t.color("ink-inverse"), t.color("inverse"), 0.66),
+        "header": t.color("header"),
+        "header_ink": t.color("header-ink"),
+        "header_edge": T.mix(t.color("header-ink"), t.color("header"), 0.16),
+        "header_context": T.mix(t.color("header-ink"), t.color("header"), 0.66),
         "alarm_band": t.ramp("red", 600),
         "header_alarm_context": T.mix("#FFFFFF", t.ramp("red", 600), 0.78),
         # type
@@ -281,13 +297,11 @@ def build_stylesheet(t):
         "pill_radius": 11,
         # metrics
         "control_inner": control_inner,
-        # Rows carry no vertical padding, so this is the density's row height
-        # less the 1 px hairline under each one.
+        # Rows and header sections carry no vertical padding, so these are the
+        # density's row height less the 1 px hairline under each one.
         "row_inner": t.row_height - 1,
-        # Header sections get their height from padding rather than min-height,
-        # which is what keeps the label centred. Half the leftover space above
-        # the eyebrow's line box, half below.
-        "header_pad": max(2, (t.row_height - 1 - eyebrow_line) // 2),
+        "header_inner": t.row_height - 1,
+
         "tab_height": control - 12,
         "check_target": min(t.min_target, control),
         "dialog_button_width": 96,
@@ -424,7 +438,8 @@ def tokens():
 
 
 __all__ = [
-    "apply", "tokens", "font", "mono_font", "sans_family", "mono_family",
+    "apply", "tokens", "font", "mono_font", "style_header",
+    "sans_family", "mono_family",
     "set_variant", "set_role", "set_state", "set_invalid", "set_panel",
     "build_palette", "build_stylesheet", "load_fonts",
 ]

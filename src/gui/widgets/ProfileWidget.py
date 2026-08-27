@@ -171,6 +171,9 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = []
         self.stats_widget = StatsWidget((self.mean_profile_distances, self.mean_profile))
         self.stats_widget.verdict_changed.connect(self.verdict_changed)
+        # The profile's limit lines are the minimum's lower and the maximum's
+        # upper limit, so editing either from a tile has to redraw the chart.
+        self.stats_widget.limits_changed.connect(self.replot)
 
         self.layout.addWidget(self.stats_widget)
         self.layout.addWidget(self.warning_label)
@@ -201,6 +204,11 @@ class ProfileWidget(QWidget):
 
     def verdict(self):
         return self.stats_widget.verdict()
+
+    def replot(self):
+        """Redraw what is already loaded, after something around it changed."""
+        if getattr(self, "profiles", None):
+            self.update_plot(self.profiles, self.directory_name)
 
     def _setup_axes(self, force=False):
         """Set up the subplot axes based on current preferences.
