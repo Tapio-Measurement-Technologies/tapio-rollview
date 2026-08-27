@@ -214,7 +214,7 @@ def limit_wash(ax, value, direction, color):
     return ax.add_artist(patch)
 
 
-def profile(ax, x, y, target=None, label=None, color=None, t=None):
+def profile(ax, x, y, target=None, label=None, color=None, width=None, t=None):
     """Draw one profile: the curve, and a target line if there is one.
 
     Alert limits are deliberately not drawn. RollView's limits are set on
@@ -222,6 +222,9 @@ def profile(ax, x, y, target=None, label=None, color=None, t=None):
     chart state each one next to the value it judges — which says *which*
     statistic failed. Two lines across the plot restated that in the one place
     where it competed with the data it was judging.
+
+    ``width`` overrides the system's mark weight, for an installation that has
+    asked for a different one in local settings. Leave it None otherwise.
 
     Returns the list of artists it added.
     """
@@ -238,25 +241,35 @@ def profile(ax, x, y, target=None, label=None, color=None, t=None):
         added.append(ax.axhline(target, color=t.chart("target"), linestyle=(0, (5, 4)),
                                 linewidth=TARGET_WIDTH, zorder=2))
 
-    added.append(ax.plot(x, y, color=color, linewidth=PROFILE_WIDTH,
+    added.append(ax.plot(x, y, color=color,
+                         linewidth=PROFILE_WIDTH if width is None else width,
                          solid_capstyle="round", solid_joinstyle="round",
                          label=label, zorder=4)[0])
 
     return added
 
 
-def supporting(ax, x, y, color, alpha=1.0, selected=False, label=None, t=None):
+def supporting(ax, x, y, color, alpha=1.0, selected=False, label=None,
+               selected_width=None, t=None):
     """One of the individual profiles the mean is drawn from.
 
     They are context, not the subject, so they run thin and recede. Pass the
     colour and alpha from ``recency_colors``; a selected profile keeps its
     recency colour and gains weight rather than changing hue, because colour
     here carries recency and selection is a state, not an identity.
+
+    ``selected_width`` overrides the weight the selected one gains; the
+    unselected ones stay recessive whatever an installation asks for, since
+    that is what makes the mean readable over them.
     """
+    if selected:
+        line_width = PROFILE_WIDTH if selected_width is None else selected_width
+    else:
+        line_width = SUPPORTING_WIDTH
     return ax.plot(
         x, y,
         color=color,
-        linewidth=PROFILE_WIDTH if selected else SUPPORTING_WIDTH,
+        linewidth=line_width,
         alpha=1.0 if selected else alpha,
         label=label,
         zorder=2 if selected else 1,

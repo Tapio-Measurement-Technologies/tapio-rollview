@@ -656,6 +656,7 @@ class ProfileWidget(QWidget):
                 color=color,
                 alpha=alpha if not selected_profile_in_current_directory else alpha * 0.6,
                 selected=selected,
+                selected_width=settings.SELECTED_PROFILE_LINE_WIDTH,
                 t=self.tokens,
             )
 
@@ -680,6 +681,7 @@ class ProfileWidget(QWidget):
                 mean_profile_values,
                 label=_("CHART_MEAN_PROFILE_LABEL"),
                 color=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0, self.tokens),
+                width=settings.MEAN_PROFILE_LINE_WIDTH,
                 t=self.tokens,
             )
 
