@@ -87,9 +87,6 @@ class SettingsWindow(QWidget):
         self.general_settings_page = GeneralSettingsPage()
         self.add_settings_page(_("GENERAL_SETTINGS"), self.general_settings_page)
 
-        self.appearance_page = AppearanceSettingsPage()
-        self.add_settings_page(_("APPEARANCE"), self.appearance_page)
-
         self.alert_limit_page = AlertLimitSettingsPage()
         self.add_settings_page(_("ALERT_LIMITS"), self.alert_limit_page)
 
@@ -114,84 +111,17 @@ class SettingsWindow(QWidget):
     def display_page(self, index):
         self.stacked_widget.setCurrentIndex(index)
 
-class AppearanceSettingsPage(QWidget):
-    """The theme, and nothing else.
+class GeneralSettingsPage(QWidget):
+    """Language, units and the theme.
 
     Dark is always an explicit choice — on a screen that will be read in
     daylight, glare beats contrast ratios, so nothing here switches itself.
-
     There is no density control because there is no density scale: RollView has
     one layout, sized for seven statistics, two lists and a chart in one window.
     """
 
     settings_updated = Signal()
     appearance_changed = Signal(str)
-
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        theme_qt.gap(layout, 2)
-
-        heading = QLabel(_("APPEARANCE"))
-        theme_qt.set_role(heading, "title")
-        layout.addWidget(heading)
-
-        self.themes = {
-            theme.LIGHT: _("APPEARANCE_THEME_LIGHT"),
-            theme.DARK: _("APPEARANCE_THEME_DARK"),
-        }
-        self.theme_selector = QComboBox()
-        self.theme_selector.addItems(self.themes.values())
-        self.theme_selector.setCurrentText(
-            self.themes.get(preferences.ui_theme, self.themes[theme.LIGHT])
-        )
-        self.theme_selector.currentIndexChanged.connect(self.enable_save_button)
-        layout.addWidget(self._field(_("APPEARANCE_THEME"), self.theme_selector))
-
-        hint = QLabel(_("APPEARANCE_THEME_HINT"))
-        hint.setWordWrap(True)
-        theme_qt.set_role(hint, "hint")
-        layout.addWidget(hint)
-
-        self.footer_layout = QHBoxLayout()
-        self.footer_layout.addStretch()
-        self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
-        theme_qt.set_variant(self.apply_button, "primary")
-        self.apply_button.setEnabled(False)
-        self.apply_button.clicked.connect(self.save_settings)
-        self.footer_layout.addWidget(self.apply_button)
-        layout.addLayout(self.footer_layout)
-
-    @staticmethod
-    def _field(label_text, control):
-        """Label above the field, always."""
-        holder = QWidget()
-        holder_layout = QVBoxLayout(holder)
-        theme_qt.pad(holder_layout, 0)
-        theme_qt.gap(holder_layout, 1)
-        label = QLabel(label_text)
-        theme_qt.set_role(label, "label")
-        holder_layout.addWidget(label)
-        holder_layout.addWidget(control)
-        return holder
-
-    @Slot()
-    def enable_save_button(self):
-        self.apply_button.setEnabled(True)
-
-    @Slot()
-    def save_settings(self):
-        selected_theme = list(self.themes.keys())[self.theme_selector.currentIndex()]
-        preferences.update_preferences({'ui_theme': selected_theme})
-        self.apply_button.setEnabled(False)
-        self.appearance_changed.emit(selected_theme)
-        self.settings_updated.emit()
-
-
-class GeneralSettingsPage(QWidget):
-    settings_updated = Signal()
 
     def __init__(self):
         super().__init__()
@@ -239,6 +169,23 @@ class GeneralSettingsPage(QWidget):
         self.distance_unit_selector.currentIndexChanged.connect(self.enable_save_button)
         layout.addWidget(self.distance_unit_selector)
 
+        # Theme
+        self.theme_label = QLabel(_("APPEARANCE_THEME"))
+        layout.addWidget(self.theme_label)
+
+        self.themes = {
+            theme.LIGHT: _("APPEARANCE_THEME_LIGHT"),
+            theme.DARK: _("APPEARANCE_THEME_DARK"),
+        }
+        self.initial_theme = preferences.ui_theme
+        self.theme_selector = QComboBox()
+        self.theme_selector.addItems(self.themes.values())
+        self.theme_selector.setCurrentText(
+            self.themes.get(self.initial_theme, self.themes[theme.LIGHT])
+        )
+        self.theme_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self.theme_selector)
+
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -260,12 +207,23 @@ class GeneralSettingsPage(QWidget):
         language_changed = selected_lang != self.initial_lang
 
         selected_distance_unit = list(self.distance_units.keys())[self.distance_unit_selector.currentIndex()]
+        selected_theme = list(self.themes.keys())[self.theme_selector.currentIndex()]
+        theme_changed = selected_theme != self.initial_theme
         preferences.update_preferences({
             'locale': selected_lang,
-            'distance_unit': selected_distance_unit
+            'distance_unit': selected_distance_unit,
+            'ui_theme': selected_theme,
         })
 
         self.apply_button.setEnabled(False)
+
+        # Only when it actually moved: applying a theme repolishes every widget
+        # and redraws both charts, which is not something a change of distance
+        # unit should be paying for.
+        if theme_changed:
+            self.initial_theme = selected_theme
+            self.appearance_changed.emit(selected_theme)
+
         self.settings_updated.emit()
 
         # Only show restart message if language was actually changed
