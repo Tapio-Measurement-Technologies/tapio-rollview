@@ -17,6 +17,7 @@ from PySide6.QtWidgets import QApplication
 
 import theme
 from theme import contrast
+from theme import paths
 from theme import qt as theme_qt
 from theme import tokens as T
 
@@ -241,6 +242,52 @@ class TestApply(ThemeRestoringTestCase):
         self.assertIn("IBM Plex Mono", families)
         self.assertEqual(theme_qt.sans_family(), "IBM Plex Sans")
         self.assertEqual(theme_qt.mono_family(), "IBM Plex Mono")
+
+
+class TestPackaging(unittest.TestCase):
+    """The theme's data files have to survive PyInstaller.
+
+    ``tokens.json`` and ``rollview.qss`` are data, not code, so PyInstaller does
+    not pick them up by following imports — they only reach a bundle because
+    ``build.yml`` lists them as ``--add-data``. Without them ``theme.qt`` fails
+    at import, which takes the crash dialog down with it: the packaged app dies
+    before it draws a window, and CI never sees it because CI runs from source.
+    """
+
+    BUILD_WORKFLOW = SRC.parent / ".github" / "workflows" / "build.yml"
+
+    def _add_data_sources(self):
+        text = self.BUILD_WORKFLOW.read_text(encoding="utf-8")
+        return set(re.findall(r'--add-data "([^:"]+):', text))
+
+    def test_every_theme_data_file_resolves(self):
+        for name in ("tokens.json", "rollview.qss"):
+            with self.subTest(name):
+                self.assertTrue(pathlib.Path(paths.theme_file(name)).is_file())
+
+    def test_every_theme_data_file_is_bundled(self):
+        # Anything in the package that is not Python is a data file, so a new
+        # one added later fails here rather than in the field.
+        data_files = sorted(
+            path for path in (SRC / "theme").iterdir()
+            if path.is_file() and path.suffix != ".py"
+        )
+        self.assertTrue(data_files, "expected theme data files to exist")
+
+        declared = self._add_data_sources()
+        for path in data_files:
+            with self.subTest(path.name):
+                self.assertIn(
+                    f"src/theme/{path.name}", declared,
+                    f"{path.name} is not in build.yml's --add-data list, so it "
+                    f"will be missing from the packaged application",
+                )
+
+    def test_the_plex_faces_are_bundled(self):
+        font_dir = pathlib.Path(paths.asset_dir("fonts", "plex"))
+        self.assertTrue(sorted(font_dir.glob("*.ttf")))
+        # The fonts ride along on the whole-directory rule.
+        self.assertIn("src/assets/fonts/", self._add_data_sources())
 
 
 if __name__ == "__main__":
