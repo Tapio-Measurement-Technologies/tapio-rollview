@@ -601,7 +601,7 @@ class DeviceConnectionWorker(threading.Thread):
         preserved-folders setting: it refuses those deletes, and a refusal
         is not a failure.
         """
-        missing, total_bytes, mirrored = self._build_sync_plan()
+        missing, total_bytes, mirrored, list_complete = self._build_sync_plan()
         skipped = len(mirrored)
         self._session.send_plan(len(missing), total_bytes, self._driver.now_ms())
         self._driver.flush()
@@ -657,10 +657,13 @@ class DeviceConnectionWorker(threading.Thread):
         # interrupted sync leaves the device untouched.
         deleted = 0
         if delete_remote:
+            fetched_paths = set(fetched)
             unverified = [
-                entry.path for entry in missing if entry.path not in set(fetched)
+                entry.path for entry in missing if entry.path not in fetched_paths
             ]
-            folders, files = plan_device_deletes(verified, unverified)
+            folders, files = plan_device_deletes(
+                verified, unverified, list_complete=list_complete
+            )
             deleted = self._delete_from_device(folders, files)
         self._bridge.syncFinished.emit(self.port, list(fetched), skipped, deleted)
 
@@ -725,9 +728,12 @@ class DeviceConnectionWorker(threading.Thread):
     def _build_sync_plan(self):
         """List remote profiles and plan the fetch batch.
 
-        Returns (missing entries, total bytes, already-mirrored entries).
-        A file whose local copy already matches by size and CRC counts as
-        mirrored and is not fetched again; everything else is missing.
+        Returns (missing entries, total bytes, already-mirrored entries,
+        listing complete). A file whose local copy already matches by size
+        and CRC counts as mirrored and is not fetched again; everything else
+        is missing. An incomplete listing means the device could not read
+        some of its own entries, which is what stops a later delete taking a
+        folder as a unit.
         """
         assert self._fs is not None
         entries: list[EntryListed] = []
@@ -772,7 +778,7 @@ class DeviceConnectionWorker(threading.Thread):
 
         missing.sort(key=lambda entry: entry.path)
         total_bytes = sum(entry.size for entry in missing)
-        return missing, total_bytes, mirrored
+        return missing, total_bytes, mirrored, skipped_entries == 0
 
     def _apply_mtime(self, entry: EntryListed):
         """Preserve the device modification time on the downloaded file.

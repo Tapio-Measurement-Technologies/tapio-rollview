@@ -138,6 +138,16 @@ class TestPlanDeviceDeletes(unittest.TestCase):
     def test_nothing_verified_deletes_nothing(self):
         self.assertEqual(plan_device_deletes([], ["roll/a.prof"]), ([], []))
 
+    def test_an_incomplete_listing_never_removes_a_folder(self):
+        """An entry the device could not read never reached the mirror and
+        is not in either list, so there is no way to tell which folder it
+        was in. Removing folders as a unit could take it with them."""
+        folders, files = plan_device_deletes(
+            ["roll/a.prof", "roll/b.prof"], [], list_complete=False
+        )
+        self.assertEqual(folders, [])
+        self.assertEqual(files, ["roll/a.prof", "roll/b.prof"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -64,7 +64,7 @@ def is_syncable_prof(path: str) -> bool:
     return name.endswith(".prof") and name != "mean.prof"
 
 
-def plan_device_deletes(verified, unverified):
+def plan_device_deletes(verified, unverified, list_complete=True):
     """Split verified device paths into whole folders and single files.
 
     Rollview only syncs .prof, so deleting file by file would leave every
@@ -76,11 +76,19 @@ def plan_device_deletes(verified, unverified):
     file by file instead, so nothing unmirrored is lost. Root level files
     have no folder to fold into and are always listed singly.
 
+    list_complete=False means the device could not read part of its own
+    listing, so there is no telling which folder the unreadable entries were
+    in. Nothing is removed as a unit in that case: an entry that never
+    reached the mirror must not be deleted along with the folder holding it.
+
     Returns (folders, files), each in first-seen order.
     """
     def folder_of(path):
         head, sep, _tail = path.partition("/")
         return head if sep else None
+
+    if not list_complete:
+        return [], list(verified)
 
     incomplete = {folder_of(path) for path in unverified}
     folders = []
