@@ -352,3 +352,57 @@ class TestProfileWidget(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLocalSettingsOverrides(unittest.TestCase):
+    """settings.py is an installation's override file, so what it holds must act.
+
+    Both line widths were consumed before the design system landed and silently
+    stopped being read when the chart moved onto the system's mark weights —
+    while the colour beside them kept working, which is the combination most
+    likely to waste somebody's afternoon.
+    """
+
+    def test_the_mean_profile_honours_a_local_line_width(self):
+        from unittest.mock import patch
+
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib.figure import Figure
+
+        from theme import mpl as tapio_mpl
+
+        figure = Figure()
+        ax = figure.add_subplot(111)
+        with patch.object(settings, "MEAN_PROFILE_LINE_WIDTH", 7.5):
+            line = tapio_mpl.profile(
+                ax, [0, 1, 2], [1, 2, 3],
+                width=settings.MEAN_PROFILE_LINE_WIDTH,
+            )[-1]
+        self.assertEqual(line.get_linewidth(), 7.5)
+
+        # None means the system's own weight, as the colour beside it does.
+        line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
+        self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
+
+    def test_a_selected_profile_honours_a_local_line_width(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib.figure import Figure
+
+        from theme import mpl as tapio_mpl
+
+        figure = Figure()
+        ax = figure.add_subplot(111)
+
+        selected = tapio_mpl.supporting(
+            ax, [0, 1], [1, 2], color="#1E73BE", selected=True, selected_width=6.0
+        )
+        self.assertEqual(selected.get_linewidth(), 6.0)
+
+        # The unselected ones stay recessive whatever the override says; that is
+        # what keeps the mean readable over them.
+        other = tapio_mpl.supporting(
+            ax, [0, 1], [1, 2], color="#1E73BE", selected=False, selected_width=6.0
+        )
+        self.assertEqual(other.get_linewidth(), tapio_mpl.SUPPORTING_WIDTH)
