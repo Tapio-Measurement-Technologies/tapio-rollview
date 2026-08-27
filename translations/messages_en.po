@@ -131,7 +131,7 @@ msgstr "Blue"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_ORANGE"
-msgstr "Orange"
+msgstr "Amber"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GREEN"
@@ -143,27 +143,27 @@ msgstr "Red"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PURPLE"
-msgstr "Purple"
+msgstr "Violet"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_BROWN"
-msgstr "Brown"
+msgstr "Bronze"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PINK"
-msgstr "Pink"
+msgstr "Magenta"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GRAY"
-msgstr "Gray"
+msgstr "Slate"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_OLIVE"
-msgstr "Olive"
+msgstr "Moss"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_CYAN"
-msgstr "Cyan"
+msgstr "Teal"
 
 #. Used in file tree context menu and directory view as button label and menu action
 #. label.
@@ -895,3 +895,62 @@ msgstr "bytes"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "Statistic Value"
+
+#. Used on a stat tile when no alert limit is configured for that statistic.
+msgid "STAT_TILE_NO_LIMITS"
+msgstr "No limits set"
+
+#. Used on a stat tile to state the configured limits.
+msgid "STAT_TILE_LIMIT_RANGE"
+msgstr "Limits {min} – {max}"
+
+#. Used on a stat tile when only a lower limit is configured.
+msgid "STAT_TILE_LIMIT_MIN"
+msgstr "Limit ≥ {value}"
+
+#. Used on a stat tile when only an upper limit is configured.
+msgid "STAT_TILE_LIMIT_MAX"
+msgstr "Limit ≤ {value}"
+
+#. Used on a stat tile when the value fell below its lower limit.
+msgid "STAT_TILE_BELOW_MIN"
+msgstr "Below {value}"
+
+#. Used on a stat tile when the value rose above its upper limit.
+msgid "STAT_TILE_ABOVE_MAX"
+msgstr "Above {value}"
+
+
+
+
+
+
+
+#. Settings window: label for the light/dark theme control.
+msgid "APPEARANCE_THEME"
+msgstr "Theme"
+
+#. Settings window: the theme option that follows the desktop.
+msgid "APPEARANCE_THEME_SYSTEM"
+msgstr "System"
+
+#. Settings window: the light theme option.
+msgid "APPEARANCE_THEME_LIGHT"
+msgstr "Light"
+
+#. Settings window: the dark theme option.
+msgid "APPEARANCE_THEME_DARK"
+msgstr "Dark"
+
+
+
+
+#. Profile chart legend entry for the hatched excluded-region overlay.
+msgid "CHART_EXCLUDED_REGION_LEGEND"
+msgstr "Excluded"
+
+
+
+#. Statistics analysis view: label above the time-range filter.
+msgid "STATISTICS_TIME_RANGE"
+msgstr "Time range"

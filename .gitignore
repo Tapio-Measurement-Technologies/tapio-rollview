@@ -171,3 +171,5 @@ src/postprocessors/*
 !src/postprocessors/json_export.py
 !src/postprocessors/plot_export.py
 
+# GUI harness / visual test screenshots
+gui-shots/

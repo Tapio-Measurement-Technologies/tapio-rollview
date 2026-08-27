@@ -131,7 +131,7 @@ msgstr "青"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_ORANGE"
-msgstr "オレンジ"
+msgstr "アンバー"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GREEN"
@@ -143,27 +143,27 @@ msgstr "赤"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PURPLE"
-msgstr "紫"
+msgstr "バイオレット"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_BROWN"
-msgstr "茶"
+msgstr "ブロンズ"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PINK"
-msgstr "ピンク"
+msgstr "マゼンタ"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GRAY"
-msgstr "灰"
+msgstr "スレート"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_OLIVE"
-msgstr "オリーブ"
+msgstr "モス"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_CYAN"
-msgstr "シアン"
+msgstr "ティール"
 
 #. Used in file tree context menu and directory view as button label and menu action
 #. label.
@@ -895,3 +895,62 @@ msgstr "バイト"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "統計値"
+
+#. Used on a stat tile when no alert limit is configured for that statistic.
+msgid "STAT_TILE_NO_LIMITS"
+msgstr "限界値未設定"
+
+#. Used on a stat tile to state the configured limits.
+msgid "STAT_TILE_LIMIT_RANGE"
+msgstr "限界 {min}〜{max}"
+
+#. Used on a stat tile when only a lower limit is configured.
+msgid "STAT_TILE_LIMIT_MIN"
+msgstr "下限 {value}"
+
+#. Used on a stat tile when only an upper limit is configured.
+msgid "STAT_TILE_LIMIT_MAX"
+msgstr "上限 {value}"
+
+#. Used on a stat tile when the value fell below its lower limit.
+msgid "STAT_TILE_BELOW_MIN"
+msgstr "{value} 未満"
+
+#. Used on a stat tile when the value rose above its upper limit.
+msgid "STAT_TILE_ABOVE_MAX"
+msgstr "{value} 超過"
+
+
+
+
+
+
+
+#. Settings window: label for the light/dark theme control.
+msgid "APPEARANCE_THEME"
+msgstr "テーマ"
+
+#. Settings window: the theme option that follows the desktop.
+msgid "APPEARANCE_THEME_SYSTEM"
+msgstr "システム"
+
+#. Settings window: the light theme option.
+msgid "APPEARANCE_THEME_LIGHT"
+msgstr "ライト"
+
+#. Settings window: the dark theme option.
+msgid "APPEARANCE_THEME_DARK"
+msgstr "ダーク"
+
+
+
+
+#. Profile chart legend entry for the hatched excluded-region overlay.
+msgid "CHART_EXCLUDED_REGION_LEGEND"
+msgstr "除外区間"
+
+
+
+#. Statistics analysis view: label above the time-range filter.
+msgid "STATISTICS_TIME_RANGE"
+msgstr "期間"

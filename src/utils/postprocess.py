@@ -109,8 +109,8 @@ class PostprocessResult:
 class PostprocessManager(QObject):
     postprocess_finished = Signal(PostprocessResult)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self._thread = None
         self.dialog = None
         self.error_paths = set()
@@ -129,7 +129,7 @@ class PostprocessManager(QObject):
         self.refresh_enabled_postprocessors()
         self._thread = PostprocessThread(folder_paths)
         self.error_paths = set()
-        self.dialog = ProgressBarDialog(auto_close=True)
+        self.dialog = ProgressBarDialog(auto_close=True, parent=self.parent())
         self.total_items_to_process = len(folder_paths) * len(self.enabled_postprocessors)
         self.processed_items = 0
 
@@ -154,6 +154,25 @@ class PostprocessManager(QObject):
             self.dialog.update_progress((self.processed_items / (self.total_items_to_process or 1)) *
                                 100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
 
+    def stop_postprocessing(self, timeout_ms=5000):
+        """
+        Cancels any postprocessing run and waits for its thread to exit.
+
+        Returns True if nothing was running or the thread exited within the
+        timeout. PostprocessThread overrides run() and has no event loop, so
+        cancellation is cooperative: the flag is checked between postprocessors.
+        """
+        thread = self._thread
+        if thread is None:
+            return True
+        try:
+            if thread.isRunning():
+                thread.request_cancellation()
+                return thread.wait(timeout_ms)
+            return True
+        except RuntimeError:
+            return True
+
     def on_finished(self):
         if self._thread and self._thread._is_cancellation_requested:
             print("Postprocessing cancelled by user")
@@ -165,6 +184,15 @@ class PostprocessManager(QObject):
             print(f"Postprocessing failed for folders:\n{"\n".join(self.error_paths)}")
         else:
             print("All postprocessors completed successfully!")
+
+        # Wait before dropping the reference, so the thread object is not left
+        # to be destroyed while its OS thread is still winding down.
+        if self._thread is not None:
+            try:
+                self._thread.wait()
+            except RuntimeError:
+                pass
+            self._thread = None
 
         self.postprocess_finished.emit(PostprocessResult(
             failed_folders=list(self.error_paths),

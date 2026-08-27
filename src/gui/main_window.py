@@ -8,9 +8,12 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt, QSignalBlocker
+
+import theme
+from theme import qt as theme_qt
 
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
@@ -39,10 +42,21 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
-        self.resize(1100, 650)
+        # Window minimum 1024x640; below that the layout stops being an
+        # analysis tool and starts being a puzzle. It opens larger than that:
+        # the device list, the folder list and the file list all have to be
+        # visible at once for the window to make sense at a glance.
+        self.setMinimumSize(1024, 640)
+        self.resize(1200, 720)
+
+        # QMainWindowLayout ignores these for the central widget, so this is
+        # tidiness rather than a fix — but an audit that walks every layout
+        # should not have to carry an exception for it.
+        theme_qt.pad(self.layout(), 0)
+        theme_qt.gap(self.layout(), 0)
 
         self.file_transfer_manager = FileTransferManager()
-        self.postprocess_manager = PostprocessManager()
+        self.postprocess_manager = PostprocessManager(self)
         self.log_window = None
         self.settings_window = None
         self.directory_name = None
@@ -52,10 +66,16 @@ class MainWindow(QMainWindow):
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
         self.sidebar = Sidebar()
-        self.sidebar.addWidget(self.serial_widget, 200)
+        self.sidebar.addWidget(self.serial_widget, 170)
         self.sidebar.addWidget(self.directory_view)
 
         self.tab_view = QTabWidget()
+        # QTabWidget builds the page stack itself, on Qt's defaults, and inset
+        # every tab's contents by an off-grid 9 px a side. The tabs carry their
+        # own padding, so the container carries none.
+        tab_pages = self.tab_view.findChild(QStackedWidget).layout()
+        theme_qt.pad(tab_pages, 0)
+        theme_qt.gap(tab_pages, 0)
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.statistics_analysis_widget.directory_selected.connect(self.on_statistics_directory_selected)
         self.profile_widget = ProfileWidget()
@@ -92,24 +112,45 @@ class MainWindow(QMainWindow):
         ver_splitter.setStretchFactor(1, 0)
         ver_splitter.setCollapsible(0, False)
         ver_splitter.setCollapsible(1, False)
-        ver_splitter.setSizes([200, 200])
+        # The chart is the subject of this window, so it opens with the larger
+        # share; the file list is a picker, not a view.
+        ver_splitter.setSizes([640, 240])
 
         hor_splitter = QSplitter(Qt.Orientation.Horizontal)
         hor_splitter.addWidget(self.sidebar)
         hor_splitter.addWidget(ver_splitter)
         hor_splitter.setStretchFactor(0, 0)
         hor_splitter.setStretchFactor(1, 1)
-        hor_splitter.setSizes([400, 600])
+        # Wide enough for the folder list's two columns — the roll name and a
+        # full timestamp — with room to spare, since the date column stretches
+        # into whatever is left and clips the moment there is nothing left.
+        hor_splitter.setSizes([360, 1080])
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 
-        self.status_bar = QStatusBar()
-        self.status_bar.setFixedHeight(30)
-        self.setStatusBar(self.status_bar)
+        # A theme set to "system" tracks the desktop for as long as the window
+        # is open, not only at startup.
+        QApplication.instance().styleHints().colorSchemeChanged.connect(
+            self._follow_system_appearance
+        )
 
+        # QMainWindow makes one for itself the first time it is asked; handing
+        # it a second leaves the first parented and unused, which is a widget
+        # nobody can see and every audit has to explain.
+        self.status_bar = self.statusBar()
+        self.status_bar.setFixedHeight(30)
+
+        # The status bar states what the scan is doing in words beside it.
         self.scan_progress_bar = QProgressBar()
+        self.scan_progress_bar.setTextVisible(False)
+        self.scan_progress_bar.setFixedWidth(160)
         self.scan_progress_bar.setVisible(False)
         self.status_bar.addPermanentWidget(self.scan_progress_bar)
+
+        # After the items, not before: QStatusBar rebuilds its own box layout
+        # when one is added and puts the spacing back to Qt's default.
+        theme_qt.pad(self.status_bar.layout(), 0)
+        theme_qt.gap(self.status_bar.layout(), 2)
 
         self.setCentralWidget(hor_splitter)
         self.init_menu()
@@ -234,7 +275,8 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout()
         # Reduce margins for better alignment
-        layout.setContentsMargins(5, 0, 5, 0)
+        theme_qt.pad(layout, 1, 0)
+        theme_qt.gap(layout, 0)
         checkbox = QCheckBox(label)
         checkbox.setChecked(checked)
         # Connect checkbox state change to callback
@@ -537,7 +579,31 @@ class MainWindow(QMainWindow):
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
+        self.settings_window.general_settings_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
+
+    def _follow_system_appearance(self):
+        """The desktop switched between light and dark.
+
+        Only act while the *preference* is "system": a user who picked light
+        explicitly keeps light when their machine turns the lights off.
+        """
+        if theme.requested() == theme.SYSTEM:
+            self.apply_appearance(theme.SYSTEM)
+
+    def apply_appearance(self, ui_theme):
+        """Swap the theme at runtime — a night-shift toggle costs one call.
+
+        The style sheet and the palette reach every widget on their own; what
+        needs a nudge is everything drawn rather than styled: the baked icons
+        inside the banners, and the two Matplotlib canvases.
+        """
+        theme.apply(QApplication.instance(), theme=ui_theme)
+        self.refresh_plot()
+        self.statistics_analysis_widget.update_chart()
+        for widget in self.findChildren(QWidget):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
 
     def open_log_window(self):
         self.log_window = LogWindow(store.log_manager)
@@ -614,6 +680,32 @@ class MainWindow(QMainWindow):
             self.log_window.close()
             self.log_window = None
 
+    def stop_background_workers(self, timeout_ms=5000):
+        """
+        Stops the device scan and any file transfer, and waits for both threads.
+
+        Qt aborts the process if a QThread is destroyed while its OS thread is
+        still running, so closing the window during a scan or a sync has to bring
+        those threads down first.
+        """
+        serial_widget = self.serial_widget
+        scanner_stopped = serial_widget.scanner.stop(timeout_ms)
+
+        transfer_manager = serial_widget.transferManager
+        transfer_manager.cancel_transfer()
+        transfer_stopped = transfer_manager.wait_for_transfer(timeout_ms)
+
+        postprocess_stopped = self.postprocess_manager.stop_postprocessing(timeout_ms)
+
+        if not scanner_stopped:
+            print("Timed out waiting for the device scan to stop.")
+        if not transfer_stopped:
+            print("Timed out waiting for the file transfer to stop.")
+        if not postprocess_stopped:
+            print("Timed out waiting for postprocessing to stop.")
+        return scanner_stopped and transfer_stopped and postprocess_stopped
+
     def closeEvent(self, event):
         self.close_child_windows()
+        self.stop_background_workers()
         event.accept()
