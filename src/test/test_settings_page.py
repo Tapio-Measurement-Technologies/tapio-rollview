@@ -1,9 +1,11 @@
 import unittest
 import copy
 
+from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
 
 import settings
+from theme import qt as theme_qt
 from gui.settings import (
     AlertLimitSettingsPage,
     AdvancedSettingsPage,
@@ -46,6 +48,15 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.page.excluded_regions_mode_selector.setCurrentText(
             self.page.excluded_regions_modes[mode]
         )
+
+    def test_band_pass_input_can_show_its_longest_value(self):
+        """The one that clipped in the field: "100.0" in a 55 px box."""
+        page = AdvancedSettingsPage()
+        try:
+            field = page.band_pass_high_input
+            self.assertGreaterEqual(usable_width(field), text_width(field, "100.0"))
+        finally:
+            page.close()
 
     def test_switching_relative_to_absolute_keeps_text_unchanged(self):
         self.page.excluded_regions_input.setText("20-80")
@@ -109,6 +120,21 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.assertTrue(self.page.apply_button.isEnabled())
 
 
+def text_width(field, text):
+    """How wide *text* renders in the face this field actually uses."""
+    return QFontMetrics(field.font()).horizontalAdvance(text)
+
+
+def usable_width(field):
+    """The width left for text once the theme's padding and border are gone.
+
+    Read from maximumWidth rather than width(): these fields are all fixed, and
+    a page that was never shown has not had a layout pass to give width() its
+    final answer.
+    """
+    return field.maximumWidth() - theme_qt.tokens().space(3) * 2 - 4
+
+
 class TestAlertLimitSettingsPage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -129,8 +155,22 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         row = self.page.setting_widgets[0]
 
         self.assertIsInstance(row, QFrame)
-        self.assertEqual(row.min_input.maximumWidth(), row.INPUT_WIDTH)
-        self.assertEqual(row.max_input.maximumWidth(), row.INPUT_WIDTH)
+        expected = theme_qt.numeric_field_width(row.INPUT_WIDTH)
+        self.assertEqual(row.min_input.maximumWidth(), expected)
+        self.assertEqual(row.max_input.maximumWidth(), expected)
+
+    def test_alert_limit_inputs_can_show_their_longest_value(self):
+        """A field narrower than its own value clips it, silently.
+
+        The theme gives every QLineEdit 12 px of padding a side, so widths
+        chosen against the unstyled metrics lost several characters. These are
+        sized from the face they actually render in.
+        """
+        row = self.page.setting_widgets[0]
+        for field in (row.min_input, row.max_input):
+            self.assertGreaterEqual(
+                usable_width(field), text_width(field, "0" * row.INPUT_WIDTH)
+            )
 
     def test_unknown_alert_limit_name_does_not_crash_settings_page(self):
         self.page.close()

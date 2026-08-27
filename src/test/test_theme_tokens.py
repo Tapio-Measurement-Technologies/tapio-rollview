@@ -113,7 +113,29 @@ class TestTokenTable(unittest.TestCase):
         self.assertLess(compact.base_text_size, comfortable.base_text_size)
 
 
-class TestStylesheet(unittest.TestCase):
+class ThemeRestoringTestCase(unittest.TestCase):
+    """Puts the application theme back the way it was found.
+
+    These tests apply themes and densities as their subject matter. Leaving the
+    last one applied changes the metrics every later test measures — a field
+    sized for the compact density is a different number of pixels under
+    comfortable — so what was current before is restored rather than a guess at
+    what the default is.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        tokens = theme_qt.tokens()
+        self._restore = (tokens.theme, tokens.density)
+
+    def tearDown(self):
+        theme.apply(self.app, theme=self._restore[0], density=self._restore[1])
+
+
+class TestStylesheet(ThemeRestoringTestCase):
     """The QSS is generated. A hand-edited hex in it is a bug, not a setting."""
 
     def test_the_template_contains_no_literal_colours(self):
@@ -125,31 +147,28 @@ class TestStylesheet(unittest.TestCase):
         self.assertEqual(hexes, [], f"literal colours in rollview.qss: {hexes}")
 
     def test_every_placeholder_resolves(self):
-        app = QApplication.instance() or QApplication([])
         for name in T.THEMES:
             for density in (T.COMPACT, T.COMFORTABLE):
-                theme_qt.apply(app, theme=name, density=density)
-                sheet = app.styleSheet()
+                theme_qt.apply(self.app, theme=name, density=density)
+                sheet = self.app.styleSheet()
                 self.assertNotIn("${", sheet)
                 self.assertGreater(len(sheet), 1000)
-        theme_qt.apply(app, theme=T.LIGHT, density=T.COMFORTABLE)
 
-    def test_the_stylesheet_never_kills_an_outline(self):
+    def test_the_stylesheet_never_kills_an_outline(self):  # noqa: D401
         # "No `outline: none` anywhere, in any toolkit, ever" applies to focus
         # indicators. Item views set it to drop Qt's dotted current-item marker,
         # which is not the focus ring — every focusable control below has an
         # explicit 2 px border in the focus colour instead.
-        app = QApplication.instance() or QApplication([])
-        theme_qt.apply(app, theme=T.LIGHT)
-        sheet = app.styleSheet()
+        theme_qt.apply(self.app, theme=T.LIGHT)
+        sheet = self.app.styleSheet()
         self.assertIn("border: 2px solid", sheet)
 
 
-class TestApply(unittest.TestCase):
+class TestApply(ThemeRestoringTestCase):
     def test_apply_swaps_both_the_widgets_and_the_charts(self):
         import matplotlib as mpl
 
-        app = QApplication.instance() or QApplication([])
+        app = self.app
         try:
             dark = theme.apply(app, theme=T.DARK)
             self.assertEqual(dark.theme, T.DARK)
@@ -169,7 +188,7 @@ class TestApply(unittest.TestCase):
                 mpl.rcParams["axes.facecolor"].upper(), light.chart("surface").upper()
             )
         finally:
-            theme.apply(app, theme=T.LIGHT, density=T.COMFORTABLE)
+            pass
 
     def test_a_plot_export_comes_out_light_from_a_dark_session(self):
         """Charts print in the light palette whatever the screen theme is.
@@ -182,8 +201,7 @@ class TestApply(unittest.TestCase):
 
         from theme import mpl as tapio_mpl
 
-        app = QApplication.instance() or QApplication([])
-        theme.apply(app, theme=T.DARK)
+        theme.apply(self.app, theme=T.DARK)
         try:
             import postprocessors.plot_export as plot_export
 
@@ -210,7 +228,7 @@ class TestApply(unittest.TestCase):
             # ...and the screen is put back where it was.
             self.assertEqual(tapio_mpl.current.theme, T.DARK)
         finally:
-            theme.apply(app, theme=T.LIGHT, density=T.COMFORTABLE)
+            pass
 
     def test_the_bundled_plex_faces_load(self):
         QApplication.instance() or QApplication([])

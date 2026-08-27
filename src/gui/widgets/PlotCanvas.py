@@ -17,15 +17,17 @@ is what made the window feel like it was dragging its heels.
 
 The figure's *size* is still updated on every event, so geometry stays correct
 and anything that measures the canvas gets the right answer. Only the render is
-held back. In between, Qt paints the last frame, which for the ~60 ms a drag
-takes to settle is a far better trade than a window that will not keep up with
-the pointer.
+held back, and the last completed frame is stretched over the new size in the
+meantime — Matplotlib's own paint path draws nothing at all once the buffer and
+the widget disagree, which reads as the plot vanishing for the length of a drag.
+A stretched plot is obviously provisional; an empty panel just looks broken.
 """
 
 import weakref
 
-from PySide6.QtCore import QThread, QTimer
-from PySide6.QtGui import QColor, QPalette
+import numpy as np
+from PySide6.QtCore import Qt, QThread, QTimer
+from PySide6.QtGui import QColor, QImage, QPainter, QPalette
 from PySide6.QtWidgets import QApplication
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
@@ -58,6 +60,7 @@ class PlotCanvas(FigureCanvasQTAgg):
         self._on_resize_settled = None
         self.on_resize_settled = on_resize_settled
         self._suppress_idle_draw = False
+        self._last_frame = None
         self._settle_timer = self._make_settle_timer()
         self.sync_background()
 
@@ -143,3 +146,47 @@ class PlotCanvas(FigureCanvasQTAgg):
         if self._suppress_idle_draw:
             return
         super().draw_idle()
+
+    def paintEvent(self, event):
+        """Draw the last completed frame while a re-render is outstanding.
+
+        Matplotlib blits its Agg buffer at the buffer's own size, so the moment
+        the widget and the buffer disagree it paints nothing — the whole plot
+        disappears until the resize settles. Stretching the previous frame over
+        the new size keeps the shape of the data on screen throughout, and it is
+        replaced by the real thing within a frame or two of the drag ending.
+        """
+        if self._resize_pending() and self._last_frame is not None:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+            painter.drawImage(self.rect(), self._last_frame)
+            painter.end()
+            return
+
+        super().paintEvent(event)
+
+    def draw(self):
+        # Remember the frame here rather than in paintEvent: a render is what
+        # produces a new frame, and a widget that is not on screen — under the
+        # offscreen platform, or on a tab nobody has opened — may never be asked
+        # to paint one.
+        super().draw()
+        self._remember_frame()
+
+    def _resize_pending(self):
+        return self._settle_timer is not None and self._settle_timer.isActive()
+
+    def _remember_frame(self):
+        """Keep a copy of what was just rendered, for the next resize."""
+        try:
+            buffer = np.asarray(self.buffer_rgba())
+        except (AttributeError, RuntimeError, ValueError):
+            # Nothing has been rendered yet; there is no frame to remember.
+            return
+        height, width = buffer.shape[:2]
+        if not width or not height:
+            return
+        # .copy() detaches from the Agg buffer, which the next render overwrites.
+        self._last_frame = QImage(
+            buffer.data, width, height, QImage.Format.Format_RGBA8888
+        ).copy()
