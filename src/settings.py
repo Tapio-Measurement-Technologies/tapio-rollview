@@ -155,14 +155,10 @@ FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
 PERIODIC_SYNC_ENABLED_DEFAULT = False
 PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT = 15
 PERIODIC_SYNC_INTERVAL_MINUTES_MAX = 1440
-# Who removes measurement files from the device: rollview does it after a
-# verified full sync, the device never does. Automatic (incremental)
-# syncs never delete, so a file is only removed once the user has asked
-# for a complete mirror of the device.
-DELETE_SYNCED_FILES_ASK = "ask"
-DELETE_SYNCED_FILES_ALWAYS = "always"
-DELETE_SYNCED_FILES_NEVER = "never"
-DELETE_SYNCED_FILES_DEFAULT = DELETE_SYNCED_FILES_ASK
+# Rollview removes measurement files from the device once it holds verified
+# copies; the device never deletes on its own. How much of the card survives is
+# the device's own "preserved folders" setting, which it enforces by refusing
+# the deletes that would break it.
 # Transport reopen backoff after an open failure or unplug (seconds).
 RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)
 # HELLO retry while listening: device busy/measuring gets a slow retry so

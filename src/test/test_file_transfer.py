@@ -76,7 +76,7 @@ class TestRqftRouting(unittest.TestCase):
             thread_class.assert_not_called()
 
         self.connection_manager.manual_connect.assert_called_once_with("COM1")
-        self.connection.request_sync.assert_called_once_with(False, False, False)
+        self.connection.request_sync.assert_called_once_with(False)
         self.assertTrue(self.manager.is_transfer_in_progress())
         self.assertTrue(self.manager.has_pending_sync("COM1"))
 
@@ -101,7 +101,7 @@ class TestRqftRouting(unittest.TestCase):
         self.manager.transferFinished.connect(finished.append)
         self.manager.transferError.connect(lambda msg, auto: errors.append(auto))
         self.manager.request_auto_sync("COM1")
-        self.connection.request_sync.assert_called_once_with(True, False, False)
+        self.connection.request_sync.assert_called_once_with(True)
 
         with patch("workers.file_transfer.show_error_msgbox") as popup:
             self.bridge.syncFailed.emit(
@@ -129,11 +129,10 @@ class TestRqftRouting(unittest.TestCase):
         self.assertEqual(self.manager.last_transfer_outcome, "cancelled")
         self.assertFalse(self.manager.is_transfer_in_progress())
 
-    def test_legacy_device_sync_never_asks_the_delete_policy(self):
-        """Pre-RQFT firmware keeps its old behaviour: rollview neither
-        asks about deleting nor deletes, the device decides as before."""
+    def test_legacy_device_sync_never_deletes(self):
+        """Pre-RQFT firmware keeps its old behaviour: the ZMODEM path has
+        no delete step, so the device decides as before."""
         self.connection_manager.get_connection.return_value = None
-        self.manager.delete_decision_provider = MagicMock(return_value=True)
 
         with patch("workers.file_transfer.QThread"), \
              patch("workers.file_transfer.FileTransferWorker"):
@@ -141,15 +140,13 @@ class TestRqftRouting(unittest.TestCase):
                 "COM2", "/rolls", MagicMock(), supports_rqft=False
             )
 
-        self.manager.delete_decision_provider.assert_not_called()
         self.connection.request_sync.assert_not_called()
         self.assertEqual(self.manager.last_deleted_count, 0)
 
-    def test_rqft_device_falling_back_to_zmodem_does_not_ask(self):
+    def test_rqft_device_falling_back_to_zmodem_does_not_delete(self):
         """A capable device with no live session takes the ZMODEM path,
-        which has no delete step to ask about."""
+        which has no delete step."""
         self.connection_manager.get_connection.return_value = None
-        self.manager.delete_decision_provider = MagicMock(return_value=True)
 
         with patch("workers.file_transfer.QThread"), \
              patch("workers.file_transfer.FileTransferWorker"):
@@ -157,7 +154,7 @@ class TestRqftRouting(unittest.TestCase):
                 "COM1", "/rolls", MagicMock(), supports_rqft=True
             )
 
-        self.manager.delete_decision_provider.assert_not_called()
+        self.connection.request_sync.assert_not_called()
         self.assertEqual(self.manager.last_deleted_count, 0)
 
     def test_non_rqft_device_uses_zmodem_thread(self):
@@ -172,39 +169,6 @@ class TestRqftRouting(unittest.TestCase):
             thread_class.assert_called_once()
         self.connection_manager.manual_connect.assert_not_called()
 
-    def test_full_sync_asks_the_delete_policy_and_forwards_the_answer(self):
-        self.connection_manager.device_label.return_value = "RQP Live (123)"
-        asked = []
-
-        def allow_delete(device_label):
-            asked.append(device_label)
-            return True
-
-        self.manager.delete_decision_provider = allow_delete
-
-        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
-
-        self.assertEqual(asked, ["RQP Live (123)"])
-        self.connection.request_sync.assert_called_once_with(False, False, True)
-
-    def test_incremental_sync_does_not_ask_the_delete_policy(self):
-        self.manager.delete_decision_provider = MagicMock(return_value=True)
-
-        self.manager.request_auto_sync("COM1", incremental=True)
-
-        self.manager.delete_decision_provider.assert_not_called()
-        self.connection.request_sync.assert_called_once_with(True, True, False)
-
-    def test_failing_delete_policy_keeps_the_device_files(self):
-        def broken(device_label):
-            raise RuntimeError("dialog failed")
-
-        self.manager.delete_decision_provider = broken
-
-        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
-
-        self.connection.request_sync.assert_called_once_with(False, False, False)
-
     def test_deleted_count_is_kept_for_the_gui(self):
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
 
@@ -216,34 +180,25 @@ class TestRqftRouting(unittest.TestCase):
     def test_auto_sync_queue_keeps_one_entry_per_port(self):
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
 
-        self.manager.request_auto_sync("COM2", incremental=True)
-        self.manager.request_auto_sync("COM2", incremental=True)
-
-        self.assertEqual(self.manager._auto_queue, [("COM2", True)])
-        self.assertTrue(self.manager.has_pending_sync("COM2"))
-
-    def test_queued_full_sync_is_not_downgraded_to_incremental(self):
-        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
-
-        self.manager.request_auto_sync("COM2", incremental=True)
         self.manager.request_auto_sync("COM2")
-        self.manager.request_auto_sync("COM2", incremental=True)
+        self.manager.request_auto_sync("COM2")
 
-        self.assertEqual(self.manager._auto_queue, [("COM2", False)])
+        self.assertEqual(self.manager._auto_queue, ["COM2"])
+        self.assertTrue(self.manager.has_pending_sync("COM2"))
 
     def test_notify_for_the_syncing_port_is_queued_not_dropped(self):
         """The running batch was planned before the device rang, so a
         measurement finished mid-sync needs another pass."""
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
 
-        self.manager.request_auto_sync("COM1", incremental=True)
-        self.assertEqual(self.manager._auto_queue, [("COM1", True)])
+        self.manager.request_auto_sync("COM1")
+        self.assertEqual(self.manager._auto_queue, ["COM1"])
 
         self.bridge.syncFinished.emit("COM1", [], 0, 0)
         self._settle()
 
         self.assertEqual(self.manager._auto_queue, [])
-        self.connection.request_sync.assert_called_with(True, True, False)
+        self.connection.request_sync.assert_called_with(True)
 
     def test_drain_continues_past_a_port_that_lost_its_connection(self):
         self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
@@ -259,7 +214,7 @@ class TestRqftRouting(unittest.TestCase):
         self._settle()
 
         self.assertEqual(self.manager._auto_queue, [])
-        reconnected.request_sync.assert_called_once_with(True, False, False)
+        reconnected.request_sync.assert_called_once_with(True)
 
 
 if __name__ == "__main__":

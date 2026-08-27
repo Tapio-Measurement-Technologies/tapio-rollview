@@ -987,42 +987,6 @@ msgstr "Sync complete"
 msgid "SYNC_UP_TO_DATE_TEXT"
 msgstr "All files are already up to date and synced to Rollview."
 
-#. Advanced settings label for the device-side deletion policy.
-msgid "DELETE_SYNCED_FILES_LABEL"
-msgstr "Delete synced files from the device"
-
-#. Deletion policy option: ask before every full sync.
-msgid "DELETE_SYNCED_FILES_ASK"
-msgstr "Ask each time"
-
-#. Deletion policy option: never delete anything from the device.
-msgid "DELETE_SYNCED_FILES_NEVER"
-msgstr "Never delete"
-
-#. Deletion policy option: always delete synced files from the device.
-msgid "DELETE_SYNCED_FILES_ALWAYS"
-msgstr "Always delete"
-
-#. Explanation under the deletion policy selector.
-msgid "DELETE_SYNCED_FILES_HINT"
-msgstr "Only a full sync deletes, and only on devices that support it. Automatic syncs after a measurement never delete."
-
-#. Title of the first-time delete-after-sync question.
-msgid "DELETE_AFTER_SYNC_TITLE"
-msgstr "Delete files from device?"
-
-#. Body of the first-time delete-after-sync question.
-msgid "DELETE_AFTER_SYNC_TEXT"
-msgstr "Delete synced measurement files from {device} once Rollview has verified copies of them?"
-
-#. Informative text of the first-time delete-after-sync question.
-msgid "DELETE_AFTER_SYNC_INFO"
-msgstr "Files are only deleted after Rollview has stored and checked them. Automatic syncs never delete."
-
-#. Checkbox in the delete-after-sync question that stores the answer.
-msgid "DELETE_AFTER_SYNC_REMEMBER"
-msgstr "Remember this choice"
-
 #. Status bar note after a sync removed files from the device.
 msgid "DEVICE_FILES_REMOVED"
 msgstr "Removed {count} file(s) from the device."

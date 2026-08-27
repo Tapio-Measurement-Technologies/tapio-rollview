@@ -58,7 +58,6 @@ _DEFAULTS = {
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
     'periodic_sync_enabled': settings.PERIODIC_SYNC_ENABLED_DEFAULT,
     'periodic_sync_interval_minutes': settings.PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT,
-    'delete_synced_files_from_device': settings.DELETE_SYNCED_FILES_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -236,16 +235,6 @@ def _coerce_preference_value(key, value):
         return _coerce_positive_int(
             value, default, settings.PERIODIC_SYNC_INTERVAL_MINUTES_MAX
         )
-    if key == 'delete_synced_files_from_device':
-        return _coerce_choice(
-            value,
-            (
-                settings.DELETE_SYNCED_FILES_ASK,
-                settings.DELETE_SYNCED_FILES_ALWAYS,
-                settings.DELETE_SYNCED_FILES_NEVER,
-            ),
-            default,
-        )
     if key == 'enabled_postprocessors':
         return _coerce_string_list(value, key)
     if key == 'locale':
@@ -383,7 +372,6 @@ band_pass_low = _default_value('band_pass_low')
 band_pass_high = _default_value('band_pass_high')
 periodic_sync_enabled = _default_value('periodic_sync_enabled')
 periodic_sync_interval_minutes = _default_value('periodic_sync_interval_minutes')
-delete_synced_files_from_device = _default_value('delete_synced_files_from_device')
 
 
 def get_preferences_file_path():

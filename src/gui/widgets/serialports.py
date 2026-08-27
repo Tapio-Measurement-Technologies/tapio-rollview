@@ -4,7 +4,6 @@ from PySide6.QtGui import QAction
 from gui.widgets.EmptyStateView import draw_empty_view_text
 from models.SerialPort import SerialPortModel, SerialPortItem, list_ports_common
 from gui.filetransferdialog import FileTransferDialog
-from gui.widgets.delete_prompt import resolve_delete_after_sync
 from workers.file_transfer import FileTransferManager
 from workers.device_connection import ConnectionState, DeviceConnectionManager
 from workers.port_scanner import PortScanner
@@ -128,8 +127,6 @@ class SerialWidget(QWidget):
         self.transferManager = transfer_manager
         self.connectionManager = connection_manager
         self.transferDialog = FileTransferDialog(self.transferManager)
-        # Full syncs ask here before removing anything from a device.
-        self.transferManager.delete_decision_provider = self._ask_delete_after_sync
 
         self.scanner = PortScanner(self)
 
@@ -212,11 +209,6 @@ class SerialWidget(QWidget):
             self.transferDialog.on_complete,
             supports_rqft=port_item.supports_rqft,
         )
-
-    def _ask_delete_after_sync(self, device_label):
-        """Delete-after-sync policy for a full sync: the remembered
-        answer, or the first-time question."""
-        return resolve_delete_after_sync(device_label, self)
 
     def _set_dialog_title(self, port):
         title = _("FILE_TRANSFER_DIALOG_TITLE")
