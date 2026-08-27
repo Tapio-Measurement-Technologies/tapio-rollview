@@ -62,6 +62,8 @@ class StatisticsAnalysisChart(QWidget):
         self.current_filter = None  # Track current filter for display
 
         layout = QVBoxLayout()
+        theme_qt.pad(layout, 0)
+        theme_qt.gap(layout, 0)
         layout.addWidget(self.empty_state_label)
         layout.addWidget(self.canvas)
         self.setLayout(layout)
@@ -328,6 +330,7 @@ class StatisticsAnalysisWidget(QWidget):
         theme_qt.pad(self.layout(), 2)
         theme_qt.gap(self.layout(), 1)
 
+
         # Set to the key value, not the display name
         self.selected_stat = list(stat_label_map.values())[0]  # This will be "mean"
 
@@ -374,6 +377,10 @@ class StatisticsAnalysisWidget(QWidget):
 
         # Create stacked widget to switch between loading and chart
         self.stacked_widget = QStackedWidget(self)
+        # Qt builds a QStackedLayout of its own here, on its own defaults. The
+        # container holds no padding; the pages inside it carry theirs.
+        theme_qt.pad(self.stacked_widget.layout(), 0)
+        theme_qt.gap(self.stacked_widget.layout(), 0)
 
         # Create loading widget
         self.loading_widget = LoadingWidget(self)

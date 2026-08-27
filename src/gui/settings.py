@@ -81,7 +81,13 @@ class SettingsWindow(QWidget):
         main_layout.addWidget(self.list_widget)
 
         self.stacked_widget = QStackedWidget()
-        theme_qt.pad(self.stacked_widget, 4)
+        # A container, not a surface. Each page carries its own padding, so
+        # anything here would be added to it — and QStackedWidget's own margins
+        # and its QStackedLayout's are separate, which is how the pages ended up
+        # inset by 9 + 9 + 16 px.
+        theme_qt.pad(self.stacked_widget, 0)
+        theme_qt.pad(self.stacked_widget.layout(), 0)
+        theme_qt.gap(self.stacked_widget.layout(), 0)
         main_layout.addWidget(self.stacked_widget, 1)
 
         self.general_settings_page = GeneralSettingsPage()
@@ -128,6 +134,8 @@ class GeneralSettingsPage(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        theme_qt.pad(layout, 4)
+        theme_qt.gap(layout, 2)
 
         self.language_label = QLabel(_("LANGUAGE"))
         layout.addWidget(self.language_label)
@@ -244,6 +252,7 @@ class AlertLimitSettingsPage(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        theme_qt.pad(layout, 4)
         theme_qt.gap(layout, 1)
         self.setting_widgets = []
 
@@ -394,6 +403,8 @@ class AdvancedSettingsPage(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        theme_qt.pad(layout, 4)
+        theme_qt.gap(layout, 2)
 
         filter_heading = self._create_section_heading(_("SECTION_HEADING_FILTERING"))
         layout.addWidget(filter_heading)
@@ -1011,6 +1022,8 @@ class HighlightRegionsSettingsPageBase(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        theme_qt.pad(layout, 4)
+        theme_qt.gap(layout, 2)
 
         heading = QLabel(_(title_key))
         theme_qt.set_role(heading, "title")
