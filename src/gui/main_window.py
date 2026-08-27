@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         # the device list, the folder list and the file list all have to be
         # visible at once for the window to make sense at a glance.
         self.setMinimumSize(1024, 640)
-        self.resize(1440, 900)
+        self.resize(1200, 720)
 
         self.file_transfer_manager = FileTransferManager()
         self.postprocess_manager = PostprocessManager(self)
