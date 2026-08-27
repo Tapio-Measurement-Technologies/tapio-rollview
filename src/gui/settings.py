@@ -311,7 +311,9 @@ class AlertLimitSettingsPage(QWidget):
         column_header.addStretch()
         for name in (_("MIN"), _("MAX")):
             column_label = EyebrowLabel(name)
-            column_label.setFixedWidth(AlertLimitSetting.INPUT_WIDTH)
+            column_label.setFixedWidth(
+                theme_qt.numeric_field_width(AlertLimitSetting.INPUT_WIDTH)
+            )
             column_label.setAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
@@ -357,7 +359,8 @@ class AlertLimitSettingsPage(QWidget):
 
 class AlertLimitSetting(QFrame):
     modified = Signal()
-    INPUT_WIDTH = 110
+    #: Room for a signed limit with a decimal, e.g. "-1234.5".
+    INPUT_WIDTH = 7
 
     def __init__(self, limit):
         super().__init__()
@@ -408,7 +411,7 @@ class AlertLimitSetting(QFrame):
         field.setValidator(QDoubleValidator())
         theme_qt.set_property(field, "role", "data")
         field.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        field.setFixedWidth(self.INPUT_WIDTH)
+        field.setFixedWidth(theme_qt.numeric_field_width(self.INPUT_WIDTH))
         field.setAccessibleName(accessible_name)
         field.setPlaceholderText(_("NOT_SET"))
         return field
@@ -464,7 +467,8 @@ class AdvancedSettingsPage(QWidget):
         self.band_pass_high_input = QLineEdit()
         theme_qt.set_property(self.band_pass_high_input, "role", "data")
         self.band_pass_high_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.band_pass_high_input.setFixedWidth(55)
+        # Wide enough for the validator's longest value, "100.0".
+        self.band_pass_high_input.setFixedWidth(theme_qt.numeric_field_width(5))
         # Dot-only numeric input with optional single decimal place (e.g. 2, 2.2, 100.0).
         band_pass_validator = QRegularExpressionValidator(
             QRegularExpression(r"^\d{0,3}(?:\.\d?)?$")
@@ -875,8 +879,8 @@ class DistanceHighlightRow(HighlightRegionRowBase):
         self.start_input = QLineEdit()
         theme_qt.set_property(self.start_input, "role", "data")
         self.start_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.start_input.setMinimumWidth(76)
-        self.start_input.setMaximumWidth(96)
+        self.start_input.setMinimumWidth(theme_qt.numeric_field_width(5))
+        self.start_input.setMaximumWidth(theme_qt.numeric_field_width(7))
         self.start_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.start_input)
 
@@ -886,8 +890,8 @@ class DistanceHighlightRow(HighlightRegionRowBase):
         self.end_input = QLineEdit()
         theme_qt.set_property(self.end_input, "role", "data")
         self.end_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.end_input.setMinimumWidth(76)
-        self.end_input.setMaximumWidth(96)
+        self.end_input.setMinimumWidth(theme_qt.numeric_field_width(5))
+        self.end_input.setMaximumWidth(theme_qt.numeric_field_width(7))
         self.end_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.end_input)
 
@@ -964,7 +968,7 @@ class HardnessHighlightRow(HighlightRegionRowBase):
         theme_qt.set_property(self.first_input, "role", "data")
         self.first_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.first_input.setMinimumWidth(56)
-        self.first_input.setMaximumWidth(96)
+        self.first_input.setMaximumWidth(theme_qt.numeric_field_width(7))
         self.first_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.first_input)
 
@@ -975,7 +979,7 @@ class HardnessHighlightRow(HighlightRegionRowBase):
         theme_qt.set_property(self.second_input, "role", "data")
         self.second_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.second_input.setMinimumWidth(56)
-        self.second_input.setMaximumWidth(96)
+        self.second_input.setMaximumWidth(theme_qt.numeric_field_width(7))
         self.second_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.second_input)
 

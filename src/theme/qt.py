@@ -138,6 +138,28 @@ def font(step, t=None):
     return QFont(result)
 
 
+def numeric_field_width(characters, t=None):
+    """Pixels a mono input needs to show *characters* digits without clipping.
+
+    Widths for these were picked against the unstyled metrics and do not survive
+    the theme: the style sheet gives every QLineEdit 12 px of padding a side, so
+    a field sized for four digits shows two and a half. Measuring the face the
+    field actually renders in survives a change of font, size or density too.
+    """
+    from PySide6.QtGui import QFontMetrics
+
+    t = t or current
+    # The style sheet gives a data field the mono *family* but no size, so it
+    # renders at the application font size. Measuring a fixed scale step instead
+    # would come out right only at whichever density happens to share it.
+    face = QFont(mono_family(t))
+    face.setPixelSize(t.base_text_size)
+    text = QFontMetrics(face).horizontalAdvance("0" * characters)
+    padding = t.space(3) * 2      # the QLineEdit rule's horizontal padding
+    chrome = 2 * 2                # 1 px border a side, doubled by the focus ring
+    return text + padding + chrome
+
+
 def style_header(header, t=None):
     """Centre an item view's header labels vertically.
 
@@ -438,7 +460,7 @@ def tokens():
 
 
 __all__ = [
-    "apply", "tokens", "font", "mono_font", "style_header",
+    "apply", "tokens", "font", "mono_font", "style_header", "numeric_field_width",
     "sans_family", "mono_family",
     "set_variant", "set_role", "set_state", "set_invalid", "set_panel",
     "build_palette", "build_stylesheet", "load_fonts",

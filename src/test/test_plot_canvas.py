@@ -70,6 +70,29 @@ class TestPlotCanvas(unittest.TestCase):
         sampled = _hex(image.pixelColor(650, 200))
         self.assertEqual(sampled.upper(), expected.upper())
 
+    def test_the_plot_stays_on_screen_through_a_resize(self):
+        """A deferred render must not mean an empty panel.
+
+        Matplotlib blits its buffer at the buffer's own size, so once the widget
+        and the buffer disagree it paints nothing at all — the plot vanishes for
+        the length of a drag. The previous frame is stretched over the new size
+        instead, so the shape of the data stays visible the whole way.
+        """
+        axes = self.canvas.figure.axes[0]
+        axes.plot([0, 1, 2], [0, 1, 0], color="#FF00FF", linewidth=6)
+        self.canvas.draw()
+        self._settle()
+
+        self.canvas.resize(700, 500)
+        self.app.processEvents()   # paint, but do not wait for the settle timer
+
+        image = self.canvas.grab().toImage()
+        colours = {
+            _hex(image.pixelColor(x, y))
+            for x in range(0, 700, 7) for y in range(0, 500, 7)
+        }
+        self.assertIn("#FF00FF", colours, "the plotted line disappeared on resize")
+
     def test_a_resize_does_not_render_immediately(self):
         """The whole point: forty resizes in a drag are not forty renders."""
         renders = []

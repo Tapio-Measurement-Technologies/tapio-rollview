@@ -111,12 +111,15 @@ def app_modules():
     import store
     import theme
 
-    # The same call main() makes, so tests and screenshots see the application
-    # the operator sees rather than an unstyled Fusion one.
+    # The same call main() makes — theme *and* density — so tests and
+    # screenshots see the application the operator sees rather than an unstyled
+    # Fusion one, and measure the metrics that actually ship.
     from PySide6.QtWidgets import QApplication
 
+    from utils import preferences
+
     app = QApplication.instance() or QApplication([sys.argv[0]])
-    theme.apply(app)
+    theme.apply(app, theme=preferences.ui_theme, density=preferences.ui_density)
 
     return {"settings": settings, "store": store, "theme": theme}
 
