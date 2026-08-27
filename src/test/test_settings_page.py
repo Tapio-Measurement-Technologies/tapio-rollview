@@ -27,6 +27,7 @@ from utils.highlighted_regions import (
     DistanceHighlightRegion,
 )
 from utils import preferences
+from utils.translation import _
 
 
 class TestAdvancedSettingsPage(unittest.TestCase):
@@ -209,7 +210,7 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         row = self.page.setting_widgets[0]
 
         self.assertIsInstance(row, QFrame)
-        expected = theme_qt.numeric_field_width(row.INPUT_WIDTH)
+        expected = theme_qt.numeric_field_width(row.INPUT_WIDTH, sample=_("NOT_SET"))
         self.assertEqual(row.min_input.maximumWidth(), expected)
         self.assertEqual(row.max_input.maximumWidth(), expected)
 
@@ -222,9 +223,11 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         """
         row = self.page.setting_widgets[0]
         for field in (row.min_input, row.max_input):
-            self.assertGreaterEqual(
-                usable_width(field), text_width(field, "0" * row.INPUT_WIDTH)
-            )
+            for text in ("0" * row.INPUT_WIDTH, _("NOT_SET")):
+                self.assertGreater(
+                    usable_width(field), text_width(field, text),
+                    f"{text!r} does not fit in this field",
+                )
 
     def test_unknown_alert_limit_name_does_not_crash_settings_page(self):
         self.page.close()
