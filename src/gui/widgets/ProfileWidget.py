@@ -629,16 +629,6 @@ class ProfileWidget(QWidget):
         self.toolbar.setVisible(False)
         self.request_draw()
 
-    def _recency_order(self, profiles):
-        """Rank profiles newest-first, so the colour ramp reads as an order."""
-        order = sorted(
-            range(len(profiles)),
-            key=lambda index: profiles[index].date_modified,
-            reverse=True,
-        )
-        rank = {index: position for position, index in enumerate(order)}
-        return [rank[index] for index in range(len(profiles))]
-
     def update_plot(self, profiles: list[Profile], directory_name):
         self.stats_widget.setVisible(True)
         self.canvas.setVisible(True)
@@ -671,10 +661,10 @@ class ProfileWidget(QWidget):
 
         previous_distance = 0
 
-        # Newest at full weight, the older stepping down the blue ramp. Recency
-        # is an order, so the colour is an ordinal ramp and not a set of hues.
-        ranks = self._recency_order(self.profiles)
-        recency = tapio_mpl.recency_colors(len(self.profiles), self.tokens)
+        # The individual profiles are one kind of thing — context behind the
+        # mean — so they are one colour and one weight, however many of them a
+        # folder holds. Only selection separates one from the rest.
+        supporting_color, supporting_alpha = tapio_mpl.supporting_color(self.tokens)
 
         for i, profile in enumerate(self.profiles):
             if profile.hidden:
@@ -695,15 +685,15 @@ class ProfileWidget(QWidget):
                         markersize=6, alpha=0.7, zorder=np.inf,
                     )
 
-            color, alpha = recency[ranks[i]]
             selected = (
                 selected_profile_in_current_directory
                 and profile.name == store.selected_profile
             )
             tapio_mpl.supporting(
                 self.profile_ax, distances, hardnesses,
-                color=color,
-                alpha=alpha if not selected_profile_in_current_directory else alpha * 0.6,
+                color=supporting_color,
+                alpha=(supporting_alpha if not selected_profile_in_current_directory
+                       else supporting_alpha * 0.6),
                 selected=selected,
                 selected_width=settings.SELECTED_PROFILE_LINE_WIDTH,
                 t=self.tokens,
