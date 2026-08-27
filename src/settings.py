@@ -154,7 +154,7 @@ RQFT_WINDOW = 8
 FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
 # Rollview removes measurement files from the device once it holds verified
 # copies; the device never deletes on its own. How much of the card survives is
-# the device's own "preserved folders" setting, which it enforces by refusing
+# the device's own "folders to keep" setting, which it enforces by refusing
 # the deletes that would break it.
 # Transport reopen backoff after an open failure or unplug (seconds).
 RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)

@@ -323,7 +323,7 @@ class TestSyncFlow(DeviceConnectionTestBase):
 
 class TestDeleteAfterSync(DeviceConnectionTestBase):
     """Rollview, not the device, removes synced files - and every sync
-    does it. What survives is the device's own preserved-folders setting,
+    does it. What survives is the device's own folders-to-keep setting,
     which it enforces by refusing those deletes."""
 
     def _start_device(self):
