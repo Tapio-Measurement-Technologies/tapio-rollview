@@ -218,7 +218,7 @@ class SerialWidget(QWidget):
 
     def _on_sync_batch_started(self, port, nfiles, nbytes):
         # Automatic syncs open the dialog only when files will actually
-        # move; empty periodic/doorbell checks stay invisible.
+        # move; a doorbell that finds nothing to fetch stays invisible.
         if nfiles > 0 and not self.transferDialog.isVisible():
             self._set_dialog_title(port)
             self.transferDialog.show()

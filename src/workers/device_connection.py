@@ -8,9 +8,9 @@ pumps the session so keepalive PINGs flow and a device-initiated doorbell
 HELLO is answered. All GUI communication crosses through ConnectionBridge
 Qt signals (queued cross-thread delivery).
 
-DeviceConnectionManager lives in the GUI thread and owns the workers,
-the auto-connect policy, the sync-on-connect prompt policy, and the
-periodic sync timer.
+DeviceConnectionManager lives in the GUI thread and owns the workers and
+the auto-connect policy. When a sync happens is the device's decision: it
+schedules its own and asks for one with a NOTIFY.
 """
 import logging
 import os
