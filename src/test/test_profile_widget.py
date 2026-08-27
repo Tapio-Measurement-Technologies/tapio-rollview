@@ -403,6 +403,30 @@ class TestLocalSettingsOverrides(unittest.TestCase):
         line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
         self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
 
+    def test_the_distance_axis_is_subdivided_by_marks_not_by_rules(self):
+        """Finer intervals belong on the axis, not across the profiles.
+
+        A minor grid over a stack of profiles is texture rather than
+        information, so the subdivisions are tick marks only.
+        """
+        from theme import mpl as tapio_mpl
+
+        widget = ProfileWidget()
+        try:
+            widget.update_plot(_synthetic_profiles(3), "roll")
+            axis = widget.profile_ax.xaxis
+
+            minor = axis.get_minor_ticks()
+            self.assertTrue(minor)
+            self.assertTrue(all(tick.tick1line.get_visible() for tick in minor))
+            self.assertTrue(
+                all(tick.tick1line.get_markersize() == tapio_mpl.MINOR_TICK_SIZE
+                    for tick in minor)
+            )
+            self.assertFalse(any(tick.gridline.get_visible() for tick in minor))
+        finally:
+            widget.deleteLater()
+
     def test_every_profile_behind_the_mean_is_drawn_the_same(self):
         """They are context, not a series, so none of them is lighter than another.
 
