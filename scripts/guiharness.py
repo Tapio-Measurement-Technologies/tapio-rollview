@@ -457,7 +457,7 @@ def boot(size=(1280, 800), real_serial=False, out_dir=".", local_settings=None,
     import theme
     from utils import preferences
 
-    theme.apply(app, theme=preferences.ui_theme, density=preferences.ui_density)
+    theme.apply(app, theme=preferences.ui_theme)
 
     from gui.main_window import MainWindow
     from gui.widgets.serialports import SerialWidget

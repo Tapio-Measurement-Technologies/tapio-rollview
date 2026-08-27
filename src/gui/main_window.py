@@ -556,14 +556,14 @@ class MainWindow(QMainWindow):
         self.settings_window.appearance_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
 
-    def apply_appearance(self, ui_theme, ui_density):
+    def apply_appearance(self, ui_theme):
         """Swap the theme at runtime — a night-shift toggle costs one call.
 
         The style sheet and the palette reach every widget on their own; what
         needs a nudge is everything drawn rather than styled: the baked icons
         inside the banners, and the two Matplotlib canvases.
         """
-        theme.apply(QApplication.instance(), theme=ui_theme, density=ui_density)
+        theme.apply(QApplication.instance(), theme=ui_theme)
         self.refresh_plot()
         self.statistics_analysis_widget.update_chart()
         for widget in self.findChildren(QWidget):

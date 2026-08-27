@@ -76,7 +76,7 @@ def main():
     # charts and the chrome cannot drift apart.
     import theme
     from utils import preferences
-    theme.apply(app, theme=preferences.ui_theme, density=preferences.ui_density)
+    theme.apply(app, theme=preferences.ui_theme)
 
     window = MainWindow()
 

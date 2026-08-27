@@ -28,7 +28,7 @@ def _retheme(ctx):
     wanted = os.environ.get("ROLLVIEW_REVIEW_THEME")
     if not wanted:
         return
-    ctx.window.apply_appearance(wanted, os.environ.get("ROLLVIEW_REVIEW_DENSITY", "compact"))
+    ctx.window.apply_appearance(wanted)
     ctx.settle()
 
 

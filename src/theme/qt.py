@@ -112,7 +112,7 @@ def font(step, t=None):
     Qt style sheet, so the steps that need them are built here instead.
     """
     t = t or current
-    cached = _font_cache.get(("scale", step, t.theme, t.density))
+    cached = _font_cache.get(("scale", step, t.theme))
     if cached is not None:
         # A copy, so a caller adjusting the size cannot reach into the cache.
         return QFont(cached)
@@ -134,7 +134,7 @@ def font(step, t=None):
     # only through a QFont.Tag it gives Python no way to construct, so asking
     # for `tnum` explicitly is not available here — which is why the data steps
     # are pinned to the mono family rather than left to a font feature.
-    _font_cache[("scale", step, t.theme, t.density)] = result
+    _font_cache[("scale", step, t.theme)] = result
     return QFont(result)
 
 
@@ -152,14 +152,14 @@ def numeric_field_width(characters, sample=None, t=None):
     Widths for these were picked against the unstyled metrics and do not survive
     the theme: the style sheet gives every QLineEdit 12 px of padding a side, so
     a field sized for four digits shows two and a half. Measuring the face the
-    field actually renders in survives a change of font, size or density too.
+    field actually renders in survives a change of face or size too.
     """
     from PySide6.QtGui import QFontMetrics
 
     t = t or current
     # The style sheet gives a data field the mono *family* but no size, so it
     # renders at the application font size. Measuring a fixed scale step instead
-    # would come out right only at whichever density happens to share it.
+    # would come out right only while that step shares the base size.
     face = QFont(mono_family(t))
     face.setPixelSize(t.base_text_size)
     metrics = QFontMetrics(face)
@@ -229,7 +229,7 @@ def mono_font(step="body-sm", t=None):
     column. Models return this from ``Qt.FontRole`` instead.
     """
     t = t or current
-    key = ("mono", step, t.theme, t.density)
+    key = ("mono", step, t.theme)
     cached = _font_cache.get(key)
     if cached is not None:
         return cached
@@ -354,7 +354,7 @@ def build_stylesheet(t):
         "r_sm": t.radius("sm"), "r_md": t.radius("md"), "r_lg": t.radius("lg"),
         # metrics
         "control_inner": control_inner,
-        # Rows carry no vertical padding, so this is the density's row height
+        # Rows carry no vertical padding, so this is the layout's row height
         # less the 1 px hairline under each one. Header sections size themselves
         # from the eyebrow font style_header() gives them.
         "row_inner": t.row_height - 1,
@@ -383,7 +383,7 @@ def build_stylesheet(t):
 # entry point
 # ---------------------------------------------------------------------------
 
-def apply(app=None, theme=T.LIGHT, density=T.COMFORTABLE):
+def apply(app=None, theme=T.LIGHT):
     """Apply the system to *app*. Returns the resolved ``Tokens``.
 
     Safe to call again at runtime: a night-shift toggle costs one call.
@@ -397,7 +397,7 @@ def apply(app=None, theme=T.LIGHT, density=T.COMFORTABLE):
     if not _fonts_loaded:
         load_fonts()
 
-    current = T.load(theme=theme, density=density)
+    current = T.load(theme=theme)
     icons.clear_cache()
     _family_cache.clear()
     _font_cache.clear()

@@ -56,21 +56,6 @@ def _highlight_edge_style(color):
     }
 
 
-def profile_limits():
-    """The configured alert limits that bound the hardness axis.
-
-    RollView's limits are set on statistics rather than on the trace itself, but
-    two of them — the minimum's lower limit and the maximum's upper limit — are
-    limits on the hardness value in the same units, so they are the pair the
-    profile chart can honestly draw. Everything else is a limit on a summary and
-    belongs on its stat tile, not on the y-axis.
-    """
-    by_name = {limit.get('name'): limit for limit in preferences.alert_limits}
-    lower = (by_name.get('min_g') or {}).get('min')
-    upper = (by_name.get('max_g') or {}).get('max')
-    return lower, upper
-
-
 # Add support for Japanese characters
 if preferences.locale == 'ja':
     import matplotlib
@@ -668,22 +653,18 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = mean_profile_distances
         self.mean_profile = mean_profile_values
 
-        lower_limit, upper_limit = profile_limits()
-
         if len(mean_profile_values) > 0:
             # Convert mean profile distances to selected unit
             mean_profile_distances_converted = mean_profile_distances * unit_info.conversion_factor
-            # The mean is the subject of this chart: series 1, full weight, with
-            # its limits, washes and out-of-spec segments drawn by the system.
+            # The mean is the subject of this chart: series 1, at full weight
+            # over the individual profiles behind it. The alert limits are not
+            # drawn here — the stat tiles above carry them, with the number, the
+            # limit and the verdict together.
             tapio_mpl.profile(
                 self.profile_ax,
                 mean_profile_distances_converted,
                 mean_profile_values,
-                lower=lower_limit,
-                upper=upper_limit,
                 label=_("CHART_MEAN_PROFILE_LABEL"),
-                units=f" {self.stats.mean.unit}",
-                x_units=f" {unit_info.unit}",
                 color=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0),
             )
 
@@ -789,38 +770,12 @@ class ProfileWidget(QWidget):
         elif high is not None and not np.isfinite(high):
             self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
 
-        # A limit the axis does not reach is a limit the operator cannot see —
-        # but a y-limit the user typed in is their decision, so only the
-        # automatic ends of the axis are allowed to move.
-        self._keep_limits_in_view(
-            lower_limit if preferences.y_lim_low_override is None else None,
-            upper_limit if preferences.y_lim_high_override is None else None,
-        )
-
         tapio_mpl.fit(self.figure)
         self.request_draw()
 
         self._reset_toolbar_history()
 
         self.stats_widget.update_data((self.mean_profile_distances, self.mean_profile))
-
-    def _keep_limits_in_view(self, lower, upper):
-        """Widen the y-axis if a configured limit falls outside it.
-
-        Callers pass ``None`` for an end the operator has pinned by hand.
-        """
-        if lower is None and upper is None:
-            return
-
-        bottom, top = self.profile_ax.get_ylim()
-        span = max(top - bottom, 1.0)
-        margin = span * 0.04
-
-        if lower is not None and lower < bottom:
-            bottom = lower - margin
-        if upper is not None and upper > top:
-            top = upper + margin
-        self.profile_ax.set_ylim(bottom, top)
 
     def update_ticks_wavelength(self, *args):
         primary_ticks = self.spectrum_ax.get_xticks()
