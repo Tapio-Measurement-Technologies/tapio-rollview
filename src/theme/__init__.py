@@ -15,11 +15,11 @@ whole application and a hand-written hex anywhere else is a bug.
 
     import theme
 
-    theme.apply(app, theme="light", density="comfortable")
+    theme.apply(app, theme="light")
 
 Submodules:
 
-``theme.tokens``    the token table, resolved per theme and density (no Qt)
+``theme.tokens``    the token table, resolved per theme (no Qt)
 ``theme.qt``        Fusion, fonts, palette, style sheet, property helpers
 ``theme.mpl``       chart tokens, ``profile()``, colormaps
 ``theme.widgets``   status pill, stat tile, application header
@@ -29,10 +29,7 @@ Submodules:
 
 from theme import tokens
 from theme.tokens import (
-    COMFORTABLE,
-    COMPACT,
     DARK,
-    DENSITIES,
     LIGHT,
     STATUS_BAD,
     STATUS_GOOD,
@@ -44,7 +41,7 @@ from theme.tokens import (
 VERSION = "1.0"
 
 
-def apply(app=None, theme=LIGHT, density=COMFORTABLE):
+def apply(app=None, theme=LIGHT):
     """Apply the system to a Qt application *and* to Matplotlib.
 
     One call, because a chart drawn in the light palette inside a dark window
@@ -52,7 +49,7 @@ def apply(app=None, theme=LIGHT, density=COMFORTABLE):
     """
     from theme import mpl, qt
 
-    resolved = qt.apply(app, theme=theme, density=density)
+    resolved = qt.apply(app, theme=theme)
     mpl.use(theme)
     return resolved
 
@@ -67,6 +64,5 @@ def current():
 __all__ = [
     "VERSION", "apply", "current", "tokens",
     "LIGHT", "DARK", "THEMES",
-    "COMPACT", "COMFORTABLE", "DENSITIES",
     "STATUS_GOOD", "STATUS_WARN", "STATUS_BAD", "STATUS_IDLE",
 ]

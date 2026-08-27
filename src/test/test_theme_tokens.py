@@ -105,22 +105,28 @@ class TestTokenTable(unittest.TestCase):
         with self.assertRaises(KeyError):
             T.load().color("brand-ish-blue")
 
-    def test_density_only_changes_metrics(self):
-        compact = T.load(density=T.COMPACT)
-        comfortable = T.load(density=T.COMFORTABLE)
-        self.assertEqual(compact.color("accent"), comfortable.color("accent"))
-        self.assertLess(compact.row_height, comfortable.row_height)
-        self.assertLess(compact.base_text_size, comfortable.base_text_size)
+    def test_there_is_one_layout(self):
+        """RollView ships a single set of metrics, not a density scale.
+
+        The system defines four densities so one token set can serve a desktop,
+        a tablet and a handheld. RollView is the desktop and only the desktop,
+        so it carries that one row — see the note in tokens.json for what a
+        touch build would raise them to.
+        """
+        metrics = T.load().metrics
+        self.assertEqual(
+            set(metrics), {"row", "control", "min_target", "text"}
+        )
+        self.assertEqual(metrics["row"], 28)
+        self.assertEqual(metrics["text"], 13)
 
 
 class ThemeRestoringTestCase(unittest.TestCase):
     """Puts the application theme back the way it was found.
 
-    These tests apply themes and densities as their subject matter. Leaving the
-    last one applied changes the metrics every later test measures — a field
-    sized for the compact density is a different number of pixels under
-    comfortable — so what was current before is restored rather than a guess at
-    what the default is.
+    These tests apply themes as their subject matter, and a theme reaches the
+    metrics every later test measures. What was current before is restored,
+    rather than a guess at what the default is.
     """
 
     @classmethod
@@ -128,11 +134,10 @@ class ThemeRestoringTestCase(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        tokens = theme_qt.tokens()
-        self._restore = (tokens.theme, tokens.density)
+        self._restore = theme_qt.tokens().theme
 
     def tearDown(self):
-        theme.apply(self.app, theme=self._restore[0], density=self._restore[1])
+        theme.apply(self.app, theme=self._restore)
 
 
 class TestStylesheet(ThemeRestoringTestCase):
@@ -148,11 +153,10 @@ class TestStylesheet(ThemeRestoringTestCase):
 
     def test_every_placeholder_resolves(self):
         for name in T.THEMES:
-            for density in (T.COMPACT, T.COMFORTABLE):
-                theme_qt.apply(self.app, theme=name, density=density)
-                sheet = self.app.styleSheet()
-                self.assertNotIn("${", sheet)
-                self.assertGreater(len(sheet), 1000)
+            theme_qt.apply(self.app, theme=name)
+            sheet = self.app.styleSheet()
+            self.assertNotIn("${", sheet)
+            self.assertGreater(len(sheet), 1000)
 
     def test_the_stylesheet_never_kills_an_outline(self):  # noqa: D401
         # "No `outline: none` anywhere, in any toolkit, ever" applies to focus

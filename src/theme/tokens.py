@@ -24,12 +24,6 @@ LIGHT = "light"
 DARK = "dark"
 THEMES = (LIGHT, DARK)
 
-COMPACT = "compact"
-COMFORTABLE = "comfortable"
-FIELD = "field"
-GLOVED = "gloved"
-DENSITIES = (COMPACT, COMFORTABLE, FIELD, GLOVED)
-
 # The four status states. There are only these four; a fifth "informational
 # blue" state does not exist — that is what ordinary text is for.
 STATUS_GOOD = "good"
@@ -79,17 +73,14 @@ def mix(foreground, background, weight):
 
 
 class Tokens:
-    """The token table resolved for one theme and one density."""
+    """The token table resolved for one theme."""
 
-    def __init__(self, theme=LIGHT, density=COMFORTABLE):
+    def __init__(self, theme=LIGHT):
         if theme not in THEMES:
             theme = LIGHT
-        if density not in DENSITIES:
-            density = COMFORTABLE
 
         document = _document()
         self.theme = theme
-        self.density = density
         self.version = document["version"]
 
         self._semantic = _strip_comments(document["semantic"][theme])
@@ -100,7 +91,7 @@ class Tokens:
         self._radius = _strip_comments(document["radius"])
         self._motion = _strip_comments(document["motion"])
         self._elevation = _strip_comments(document["elevation"])
-        self.metrics = document["density"][density]
+        self.metrics = _strip_comments(document["metrics"])
         self.ramps = document["ramps"]
         self.steps = document["steps"]
 
@@ -242,5 +233,5 @@ class Tokens:
         return self.metrics["text"]
 
 
-def load(theme=LIGHT, density=COMFORTABLE):
-    return Tokens(theme=theme, density=density)
+def load(theme=LIGHT):
+    return Tokens(theme=theme)

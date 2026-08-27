@@ -118,21 +118,17 @@ class SettingsWindow(QWidget):
         self.stacked_widget.setCurrentIndex(index)
 
 class AppearanceSettingsPage(QWidget):
-    """Theme and density.
+    """The theme, and nothing else.
 
     Dark is always an explicit choice — on a screen that will be read in
     daylight, glare beats contrast ratios, so nothing here switches itself.
 
-    Density is deliberately not here. RollView ships compact, because that is
-    what fits seven statistics, two lists and a chart in one window; offering a
-    looser one would only offer a worse layout.
+    There is no density control because there is no density scale: RollView has
+    one layout, sized for seven statistics, two lists and a chart in one window.
     """
 
     settings_updated = Signal()
-    appearance_changed = Signal(str, str)
-
-    #: Density is not a user setting. See settings.UI_DENSITY_DEFAULT.
-    DENSITY = None
+    appearance_changed = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -195,7 +191,7 @@ class AppearanceSettingsPage(QWidget):
         selected_theme = list(self.themes.keys())[self.theme_selector.currentIndex()]
         preferences.update_preferences({'ui_theme': selected_theme})
         self.apply_button.setEnabled(False)
-        self.appearance_changed.emit(selected_theme, preferences.ui_density)
+        self.appearance_changed.emit(selected_theme)
         self.settings_updated.emit()
 
 

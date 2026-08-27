@@ -58,7 +58,6 @@ _DEFAULTS = {
     'band_pass_low': settings.BAND_PASS_LOW_DEFAULT,
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
     'ui_theme': settings.UI_THEME_DEFAULT,
-    'ui_density': settings.UI_DENSITY_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -258,8 +257,6 @@ def _coerce_preference_value(key, value):
         return _coerce_band_pass_high(value, default)
     if key == 'ui_theme':
         return _coerce_choice(value, theme_tokens.THEMES, default)
-    if key == 'ui_density':
-        return _coerce_choice(value, (theme_tokens.COMPACT, theme_tokens.COMFORTABLE), default)
     if key == 'alert_limits':
         return _normalize_alert_limits(value)
     if key == 'distance_highlight_regions':
@@ -361,7 +358,6 @@ default_y_axis_scaling = _default_value('default_y_axis_scaling')
 band_pass_low = _default_value('band_pass_low')
 band_pass_high = _default_value('band_pass_high')
 ui_theme = _default_value('ui_theme')
-ui_density = _default_value('ui_density')
 
 
 def get_preferences_file_path():

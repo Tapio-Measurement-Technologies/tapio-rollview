@@ -119,7 +119,7 @@ def app_modules():
     from utils import preferences
 
     app = QApplication.instance() or QApplication([sys.argv[0]])
-    theme.apply(app, theme=preferences.ui_theme, density=preferences.ui_density)
+    theme.apply(app, theme=preferences.ui_theme)
 
     return {"settings": settings, "store": store, "theme": theme}
 

@@ -37,11 +37,9 @@ from theme import tokens as T
 
 # Mark specifications, from the design system.
 PROFILE_WIDTH = 2.0        # profile lines, round joins and caps
-VIOLATION_WIDTH = 2.6      # out-of-spec segments, redrawn on top
 LIMIT_WIDTH = 1.5          # limit lines, solid
 TARGET_WIDTH = 1.0         # target and mean, dashed and recessive
 SUPPORTING_WIDTH = 1.5     # individual profiles behind the mean
-EXTREME_MARKER = 8         # markers are >= 8 px and used selectively
 
 _FONT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts", "plex"
@@ -217,18 +215,14 @@ def limit_wash(ax, value, direction, color):
     return ax.add_artist(patch)
 
 
-def profile(ax, x, y, lower=None, upper=None, target=None, label=None,
-            units="", x_units="", color=None, extreme=True, t=None):
-    """Draw one profile with its limits, the way the system prescribes.
+def profile(ax, x, y, target=None, label=None, color=None, t=None):
+    """Draw one profile: the curve, and a target line if there is one.
 
-    * limit lines in the limit colour, labelled with their value at the right
-      edge, and the region beyond each one washed so the violation is a *shape*
-      the eye finds before it reads the axis;
-    * the failing samples redrawn on top in the limit colour, so the profile
-      stays continuous and the failure is unmistakable;
-    * the extreme point marked and labelled with its position, because
-      "MIN 55.73 @ 1305 mm" is the number that goes into the maintenance
-      conversation.
+    Alert limits are deliberately not drawn. RollView's limits are set on
+    summary statistics rather than on the trace, and the stat tiles above the
+    chart state each one next to the value it judges — which says *which*
+    statistic failed. Two lines across the plot restated that in the one place
+    where it competed with the data it was judging.
 
     Returns the list of artists it added.
     """
@@ -240,95 +234,16 @@ def profile(ax, x, y, lower=None, upper=None, target=None, label=None,
     if color is None:
         color = t.series_color(0)
 
-    limit = t.chart("limit")
-    wash = band_color(t)
-
-    # The washes go down first so nothing else has to fight them for z-order.
-    if lower is not None:
-        added.append(limit_wash(ax, lower, "down", wash))
-    if upper is not None:
-        added.append(limit_wash(ax, upper, "up", wash))
-
     # The target is present but recessive, and never red: a target is not an alarm.
     if target is not None:
         added.append(ax.axhline(target, color=t.chart("target"), linestyle=(0, (5, 4)),
                                 linewidth=TARGET_WIDTH, zorder=2))
 
-    # Each limit is labelled with its value at the right edge, sitting *inside*
-    # the wash on the out-of-spec side of its own line, so the label names the
-    # forbidden region rather than floating outside the frame where it would
-    # fight the layout for margin.
-    for value, side in ((lower, "below"), (upper, "above")):
-        if value is None:
-            continue
-        added.append(ax.axhline(value, color=limit, linewidth=LIMIT_WIDTH, zorder=3))
-        added.append(ax.annotate(
-            f"{value:g}{units}",
-            xy=(1.0, value), xycoords=ax.get_yaxis_transform(),
-            xytext=(-5, 4 if side == "above" else -4), textcoords="offset points",
-            va="bottom" if side == "above" else "top", ha="right",
-            fontsize=t.font_size("eyebrow"),
-            color=limit, family="monospace", clip_on=False, zorder=6,
-        ))
-
     added.append(ax.plot(x, y, color=color, linewidth=PROFILE_WIDTH,
                          solid_capstyle="round", solid_joinstyle="round",
                          label=label, zorder=4)[0])
 
-    # Out-of-spec segments, redrawn on top of the base line.
-    violation = np.zeros_like(y, dtype=bool)
-    if lower is not None:
-        violation |= y < lower
-    if upper is not None:
-        violation |= y > upper
-    if violation.any():
-        masked = np.where(violation, y, np.nan)
-        # Bridge to the neighbouring in-spec sample so the red segment meets the
-        # blue line instead of stopping a sample short of the crossing.
-        indices = np.flatnonzero(violation)
-        for edge in (indices - 1, indices + 1):
-            inside = edge[(edge >= 0) & (edge < len(y))]
-            masked[inside] = y[inside]
-        added.append(ax.plot(x, masked, color=limit, linewidth=VIOLATION_WIDTH,
-                             solid_capstyle="round", solid_joinstyle="round",
-                             zorder=5)[0])
-
-    if extreme and len(y):
-        added.extend(_mark_extreme(ax, x, y, lower, upper, units, x_units, t))
-
     return added
-
-
-def _mark_extreme(ax, x, y, lower, upper, units, x_units, t):
-    """Mark and label whichever end of the profile is the one being discussed.
-
-    Both numbers carry their unit. "MIN 55.73 BC @ 1305 mm" is the line that goes
-    into the maintenance conversation; a bare position is a number the reader has
-    to go and look up the axis for.
-    """
-    low_index = int(np.argmin(y))
-    high_index = int(np.argmax(y))
-
-    if upper is not None and y[high_index] > upper:
-        index, tag = high_index, "MAX"
-    elif lower is not None and y[low_index] < lower:
-        index, tag = low_index, "MIN"
-    else:
-        return []
-
-    color = t.chart("limit")
-    marker = ax.plot(x[index], y[index], marker="o", markersize=EXTREME_MARKER,
-                     markerfacecolor=t.chart("surface"), markeredgecolor=color,
-                     markeredgewidth=2.0, linestyle="none", zorder=7)[0]
-    above = tag == "MAX"
-    text = ax.annotate(
-        f"{tag} {y[index]:.2f}{units} @ {x[index]:.2f}{x_units}",
-        xy=(x[index], y[index]),
-        xytext=(0, 12 if above else -12), textcoords="offset points",
-        ha="center", va="bottom" if above else "top",
-        fontsize=t.font_size("eyebrow"), family="monospace", color=color, zorder=7,
-    )
-    return [marker, text]
 
 
 def supporting(ax, x, y, color, alpha=1.0, selected=False, label=None, t=None):
