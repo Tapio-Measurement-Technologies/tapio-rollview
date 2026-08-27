@@ -208,7 +208,6 @@ class GeneralSettingsPage(QWidget):
 
         layout.addLayout(self.footer_layout)
 
-    @Slot()
     def enable_save_button(self):
         self.apply_button.setEnabled(True)
 
@@ -731,7 +730,7 @@ class AdvancedSettingsPage(QWidget):
             'y_lim_high_override': self._parse_optional_float(self.y_lim_high_input.text()),
             'default_y_axis_scaling': list(self.y_axis_scaling_modes.keys())[self.y_axis_scaling_selector.currentIndex()],
             'band_pass_low': 0,
-            'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE)
+            'band_pass_high': self._clamp_band_pass_high(self.band_pass_slider.value() / self.BAND_PASS_SLIDER_SCALE),
         })
 
         self.apply_button.setEnabled(False)

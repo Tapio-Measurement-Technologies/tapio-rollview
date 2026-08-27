@@ -150,6 +150,30 @@ PINNED_SERIAL_PORTS_DEFAULT = set()
 ALLOWED_SERIAL_USB_IDS = {(0x16C0, 0x0483)}
 SERIAL_BLUETOOTH_PORT_MARKERS = ("bluetooth", "bthenum", "bthmodem", "rfcomm")
 
+# RQFT persistent connections
+# Firmware reports git-describe versions; semver at or above this supports
+# RQFT. Firmware dev builds report bare commit hashes and need the
+# --force-rqft CLI flag instead.
+RQFT_MIN_FIRMWARE_VERSION = (1, 2, 0)
+# Full 8-frame window: Bluetooth SPP bridge latency stalls smaller windows
+# well below the link rate.
+RQFT_WINDOW = 8
+# Developer flag: treat every responding device as RQFT-capable,
+# bypassing the firmware version gate. CLI only (rollview --force-rqft),
+# and ignored in frozen (PyInstaller) builds.
+FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
+# Rollview removes measurement files from the device once it holds verified
+# copies; the device never deletes on its own. How much of the card survives is
+# the device's own "folders to keep" setting, which it enforces by refusing
+# the deletes that would break it.
+# Transport reopen backoff after an open failure or unplug (seconds).
+RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)
+# HELLO retry while listening: device busy/measuring gets a slow retry so
+# the post-measurement doorbell hits the clean idle-answer path.
+RQFT_HELLO_RETRY_BUSY_S = 30
+RQFT_HELLO_RETRY_DEAD_S = 5
+RQFT_HELLO_RETRY_CANCELLED_S = 2
+
 # Default values for plot export (copy to clipboard and postprocessor)
 PLOT_IMAGE_EXPORT_DPI = 300
 PLOT_IMAGE_EXPORT_SCALE = 1
@@ -181,7 +205,7 @@ DISTANCE_UNIT_DEFAULT = "m"
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
-IGNORE_FOLDERS = ['postprocessors']
+IGNORE_FOLDERS = ['postprocessors', '.sync_history']
 
 
 def load_local_settings(local_settings_path):

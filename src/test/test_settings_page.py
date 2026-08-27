@@ -1,5 +1,6 @@
 import unittest
 import copy
+from unittest.mock import patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics

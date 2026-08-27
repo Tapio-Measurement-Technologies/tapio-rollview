@@ -178,7 +178,7 @@ class DirectoryView(QWidget):
 
             # Add all immediate subdirectories
             for entry in os.scandir(directory):
-                if entry.is_dir():
+                if entry.is_dir() and entry.name not in settings.IGNORE_FOLDERS:
                     self.watcher.addPath(entry.path)
         except PermissionError:
             show_error_msgbox(

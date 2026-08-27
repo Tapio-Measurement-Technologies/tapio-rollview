@@ -1,21 +1,29 @@
 """
-This module contains the worker and manager for file transfers.
+This module contains the workers and manager for file transfers.
+
+Two transfer paths share one manager (and one signal surface):
+- RQFT devices sync through their persistent DeviceConnectionWorker.
+- Older devices fall back to the ZMODEM receive worker.
 """
 import logging
 import os
 import serial
 import time
+
 from modem import ZMODEM
 from models.FileTransfer import FileTransferModel, FileTransferItem
-from PySide6.QtCore import QObject, Signal, QThread
+from PySide6.QtCore import QObject, QTimer, Signal, QThread
 from gui.widgets.messagebox import show_error_msgbox
+from workers.device_connection import describe_sync_error
+import store
 
 log = logging.getLogger(__name__)
 
 
-class FileTransferWorker(QObject):
+class ZmodemTransferWorker(QObject):
     """
-    Worker for handling file transfer using ZMODEM protocol.
+    Worker for handling file transfer using the ZMODEM protocol, used
+    for devices whose firmware predates RQFT.
 
     Signals:
         receivingFile(str, int): Emitted when a new file starts transferring.
@@ -41,7 +49,7 @@ class FileTransferWorker(QObject):
         """
         Starts the file transfer process.
         """
-        log.info(f"Starting file transfer to {self.folder_path} on port {self.port_name}")
+        log.info(f"Starting ZMODEM transfer to {self.folder_path} on port {self.port_name}")
         try:
             self.serial = serial.Serial(
                 port=self.port_name,
@@ -107,36 +115,207 @@ class FileTransferWorker(QObject):
                 log.error(f"Error while closing serial port: {e}")
 
 
+# Kept as the patchable name for the ZMODEM QThread path.
+FileTransferWorker = ZmodemTransferWorker
+
+
 class FileTransferManager(QObject):
     """
-    Manages the file transfer process using a worker thread.
+    Manages file transfers: routes each sync either through the device's
+    persistent RQFT connection or through a ZMODEM worker thread, and
+    serializes transfers (one at a time across all devices).
     """
     transferStarted = Signal()
     transferFinished = Signal(list)
     fileByteProgress = Signal(int, int)
+    # port, nfiles, nbytes — lets the GUI show the dialog for automatic
+    # syncs only when there is something to fetch.
+    syncBatchStarted = Signal(str, int, int)
+    # message, is_auto — errors that should not raise a popup
+    transferError = Signal(str, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.thread: QThread = None
-        self.worker: FileTransferWorker = None
+        self.worker: ZmodemTransferWorker = None
         self.model: FileTransferModel = FileTransferModel()
         self.sync_folder_path = None
         self._on_complete_callback = None
         self._transfer_in_progress = False
         self.synced_folders = []
+        self._connection_manager = None
+        self._active_port = None
+        self._active_bridge = None
+        self._active_is_auto = False
+        # Ports with an automatic sync queued, at most one entry each.
+        self._auto_queue: list[str] = []
+        # "ok" | "cancelled" | "error" — how the last transfer ended;
+        # lets the GUI report "all up to date" only for clean empty runs.
+        self.last_transfer_outcome = "ok"
+        self.last_transfer_was_auto = False
+        # Files the last sync removed from the device.
+        self.last_deleted_count = 0
+
+    def set_connection_manager(self, connection_manager):
+        self._connection_manager = connection_manager
 
     def is_transfer_in_progress(self):
         return self._transfer_in_progress
 
-    def start_transfer(self, port, folder_path, on_complete):
+    def has_pending_sync(self, port):
+        """Whether a sync for this port is running or queued."""
+        if self._transfer_in_progress and self._active_port == port:
+            return True
+        return port in self._auto_queue
+
+    # -- entry points --------------------------------------------------
+
+    def start_transfer(self, port, folder_path, on_complete, supports_rqft=False):
         """
-        Starts a new file transfer.
+        Starts a new (manual) file transfer.
         """
         if self._transfer_in_progress:
             log.warning("File transfer already in progress.")
             return
 
+        conn = None
+        if self._connection_manager is not None and supports_rqft:
+            # (Re)establish the connection when the user syncs a capable
+            # device that is currently disconnected.
+            self._connection_manager.manual_connect(port)
+            conn = self._connection_manager.get_connection(port)
+        if conn is not None:
+            self._begin_rqft(port, conn, folder_path, on_complete, auto=False)
+        else:
+            self._begin_zmodem(port, folder_path, on_complete)
+
+    def request_auto_sync(self, port):
+        """
+        Queue an automatic sync (doorbell, on-connect) for a connected
+        RQFT device. One entry per port; drained one at a time after the
+        running transfer finishes.
+
+        A request for the port being synced right now is queued, not
+        dropped: the running batch was planned before the request
+        arrived, so a measurement that finished mid-sync would otherwise
+        wait for the next doorbell.
+        """
+        if self._transfer_in_progress or self._auto_queue:
+            if port not in self._auto_queue:
+                self._auto_queue.append(port)
+            return
+        self._start_auto_sync(port)
+
+    def _start_auto_sync(self, port):
+        if self._connection_manager is None:
+            return
+        conn = self._connection_manager.get_connection(port)
+        if conn is None:
+            log.info(f"Skipping auto sync for {port}: no active connection")
+            return
+        self._begin_rqft(port, conn, store.root_directory, None, auto=True)
+
+    def _drain_auto_queue(self):
+        # Loop rather than pop once: a queued port whose connection went
+        # away starts nothing, and the entries behind it must still run.
+        while not self._transfer_in_progress and self._auto_queue:
+            self._start_auto_sync(self._auto_queue.pop(0))
+
+    # -- RQFT path -----------------------------------------------------
+
+    def _begin_rqft(self, port, conn, folder_path, on_complete, auto):
+        bridge = self._connection_manager.bridge_for(port)
+        if bridge is None:
+            log.error(f"No connection bridge for {port}; cannot sync")
+            return
+
         self._transfer_in_progress = True
+        self._active_port = port
+        self._active_is_auto = auto
+        self.last_transfer_outcome = "ok"
+        self.last_transfer_was_auto = auto
+        self.last_deleted_count = 0
+        self.model.removeItems()
+        self.synced_folders = []
+        self.sync_folder_path = folder_path
+        self._on_complete_callback = on_complete
+        self._active_bridge = bridge
+        bridge.receivingFile.connect(self.update_progress)
+        bridge.fileByteProgress.connect(self.fileByteProgress)
+        bridge.syncStarted.connect(self._on_sync_started)
+        bridge.syncFinished.connect(self._on_rqft_finished)
+        bridge.syncFailed.connect(self._on_rqft_failed)
+
+        self.transferStarted.emit()
+        log.info(f"Requesting RQFT sync on {port} (auto={auto})")
+        conn.request_sync(auto)
+
+    def _release_bridge(self):
+        bridge = self._active_bridge
+        self._active_bridge = None
+        if bridge is None:
+            return
+        bridge.receivingFile.disconnect(self.update_progress)
+        bridge.fileByteProgress.disconnect(self.fileByteProgress)
+        bridge.syncStarted.disconnect(self._on_sync_started)
+        bridge.syncFinished.disconnect(self._on_rqft_finished)
+        bridge.syncFailed.disconnect(self._on_rqft_failed)
+
+    def _on_sync_started(self, port, nfiles, nbytes):
+        self.syncBatchStarted.emit(port, nfiles, nbytes)
+
+    def _on_rqft_finished(self, port, fetched, skipped, deleted):
+        log.info(
+            f"RQFT sync finished on {port}: fetched={len(fetched)} "
+            f"skipped={skipped} deleted={deleted}"
+        )
+        self.last_deleted_count = deleted
+        self._finish_rqft(fetched)
+
+    def _on_rqft_failed(self, port, error):
+        message = describe_sync_error(error)
+        is_auto = self._active_is_auto
+        self.last_transfer_outcome = (
+            "cancelled" if error.kind == "cancelled" else "error"
+        )
+        if error.kind == "cancelled":
+            log.info(f"RQFT sync on {port} cancelled by user")
+        else:
+            log.error(f"RQFT sync failed on {port} ({error.kind}): {message}")
+            self.transferError.emit(message, is_auto)
+            if not is_auto and error.kind not in ("busy",):
+                show_error_msgbox(f"Error occurred during file transfer:\n\n{message}")
+        # Files fetched before the failure are committed and usable.
+        self._finish_rqft(error.fetched)
+
+    def _finish_rqft(self, fetched_paths):
+        self._release_bridge()
+        folder_paths = list({
+            os.path.join(self.sync_folder_path, os.path.dirname(path))
+            for path in fetched_paths
+        })
+        if folder_paths:
+            log.info(f"Received files in folders: {folder_paths}")
+        self.synced_folders = folder_paths
+
+        if self._on_complete_callback:
+            self._on_complete_callback()
+        self._on_complete_callback = None
+        self._transfer_in_progress = False
+        self._active_port = None
+        self.transferFinished.emit(self.synced_folders)
+        self.model.removeItems()
+        QTimer.singleShot(0, self._drain_auto_queue)
+
+    # -- ZMODEM path ---------------------------------------------------
+
+    def _begin_zmodem(self, port, folder_path, on_complete):
+        self._transfer_in_progress = True
+        self._active_port = port
+        self._active_is_auto = False
+        self.last_transfer_outcome = "ok"
+        self.last_transfer_was_auto = False
+        self.last_deleted_count = 0
         self.transferStarted.emit()
 
         self.model.removeItems()
@@ -166,7 +345,16 @@ class FileTransferManager(QObject):
         """
         Requests cancellation of the ongoing file transfer. This is non-blocking.
         """
-        if self._transfer_in_progress and self.worker:
+        if not self._transfer_in_progress:
+            return
+        self.last_transfer_outcome = "cancelled"
+        if self._active_bridge is not None and self._connection_manager is not None:
+            conn = self._connection_manager.get_connection(self._active_port)
+            if conn is not None:
+                log.info("Requesting to cancel RQFT sync.")
+                conn.request_cancel()
+            return
+        if self.worker:
             log.info("Requesting to cancel file transfer.")
             self.worker.stop()
 
@@ -201,7 +389,7 @@ class FileTransferManager(QObject):
 
     def _cleanup(self):
         """
-        Called when the thread has finished executing. Cleans up references.
+        Called when the ZMODEM thread has finished executing. Cleans up references.
 
         Waits on the thread first so that transferFinished means the worker's OS
         thread has actually exited, not merely that its event loop is on the way
@@ -217,16 +405,19 @@ class FileTransferManager(QObject):
         self.thread = None
         self.worker = None
         self._transfer_in_progress = False
+        self._active_port = None
         self.transferFinished.emit(self.synced_folders)
         self.model.removeItems()
+        QTimer.singleShot(0, self._drain_auto_queue)
 
     def on_transfer_error(self, error_message):
         log.error(f"File transfer error received: {error_message}")
+        self.last_transfer_outcome = "error"
         show_error_msgbox(f"Error occurred during file transfer:\n\n{error_message}")
 
     def on_transfer_finished(self):
         """
-        Called when the transfer worker is finished.
+        Called when the ZMODEM transfer worker is finished.
         """
         if self._on_complete_callback:
             self._on_complete_callback()
@@ -246,4 +437,3 @@ class FileTransferManager(QObject):
         Adds a new transferred file item to the model.
         """
         self.model.addItem(FileTransferItem(filename, filesLeft))
-
