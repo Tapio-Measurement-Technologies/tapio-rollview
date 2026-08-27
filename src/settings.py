@@ -47,10 +47,11 @@ MEAN_PROFILE_LINE_COLOR = None      # None = the system's series-1 brand blue
 SELECTED_PROFILE_LINE_WIDTH = None  # None = the system's mark weight, 2.0
 STAT_DECIMAL_PLACES = 1
 
-# Light is the default: on a screen that will be read in daylight, glare beats
-# contrast ratios. Dark is for night shift and control rooms, and is always an
-# explicit choice.
-UI_THEME_DEFAULT = "light"
+# "system", "light" or "dark". The default follows the desktop, so an operator
+# who has already told their machine which they want does not have to tell
+# RollView as well; where the platform reports nothing it falls back to light,
+# because a screen read in daylight wants glare handled before contrast ratios.
+UI_THEME_DEFAULT = "system"
 
 # See python strftime
 # https://docs.python.org/3/library/datetime.html

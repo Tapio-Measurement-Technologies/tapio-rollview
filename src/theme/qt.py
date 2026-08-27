@@ -49,7 +49,36 @@ _FONT_FILES = (
 # Set by apply(); everything downstream reads the live tokens from here rather
 # than loading its own copy, so one call swaps the whole application.
 current = T.load()
+# What was *asked* for, which is not the same thing: "system" resolves to one of
+# the two tables, and something has to remember that it was "system" so a later
+# change of desktop appearance can be followed.
+requested = T.LIGHT
 _fonts_loaded = False
+
+
+def desktop_scheme():
+    """What the desktop says it is set to, as a ``Qt.ColorScheme``.
+
+    The one place the platform is asked, so a test can answer for it: the
+    offscreen platform ignores ``setColorScheme`` and reports ``Unknown``
+    whatever it is told, which leaves no other way to exercise a dark desktop.
+    """
+    app = QApplication.instance()
+    if app is None:
+        return Qt.ColorScheme.Unknown
+    return app.styleHints().colorScheme()
+
+
+def resolve(theme):
+    """Turn a preference into one of the two token tables.
+
+    ``system`` asks the desktop. Platforms and sessions that do not report one —
+    a bare X session, the offscreen platform — answer ``Unknown``, and that
+    resolves to light: the product default rather than a guess.
+    """
+    if theme != T.SYSTEM:
+        return theme if theme in T.THEMES else T.LIGHT
+    return T.DARK if desktop_scheme() == Qt.ColorScheme.Dark else T.LIGHT
 
 
 # ---------------------------------------------------------------------------
@@ -387,8 +416,11 @@ def apply(app=None, theme=T.LIGHT):
     """Apply the system to *app*. Returns the resolved ``Tokens``.
 
     Safe to call again at runtime: a night-shift toggle costs one call.
+
+    *theme* may be ``system``, in which case the desktop decides; the returned
+    tokens are always one of the two real tables.
     """
-    global current
+    global current, requested
 
     app = app or QApplication.instance()
     if app is None:
@@ -397,7 +429,8 @@ def apply(app=None, theme=T.LIGHT):
     if not _fonts_loaded:
         load_fonts()
 
-    current = T.load(theme=theme)
+    requested = theme
+    current = T.load(theme=resolve(theme))
     icons.clear_cache()
     _family_cache.clear()
     _font_cache.clear()
@@ -567,7 +600,8 @@ def tokens():
 
 
 __all__ = [
-    "apply", "tokens", "font", "mono_font", "style_header", "numeric_field_width", "tree_column_width",
+    "apply", "tokens", "resolve", "requested", "desktop_scheme", "font", "mono_font", "style_header",
+    "numeric_field_width", "tree_column_width",
     "sans_family", "mono_family", "pad", "gap",
     "set_variant", "set_role", "set_state", "set_invalid", "set_panel",
     "build_palette", "build_stylesheet", "load_fonts",

@@ -173,7 +173,10 @@ class GeneralSettingsPage(QWidget):
         self.theme_label = QLabel(_("APPEARANCE_THEME"))
         layout.addWidget(self.theme_label)
 
+        # System first, and the default: an operator who has already told their
+        # machine which they want should not have to tell RollView as well.
         self.themes = {
+            theme.SYSTEM: _("APPEARANCE_THEME_SYSTEM"),
             theme.LIGHT: _("APPEARANCE_THEME_LIGHT"),
             theme.DARK: _("APPEARANCE_THEME_DARK"),
         }
@@ -181,7 +184,7 @@ class GeneralSettingsPage(QWidget):
         self.theme_selector = QComboBox()
         self.theme_selector.addItems(self.themes.values())
         self.theme_selector.setCurrentText(
-            self.themes.get(self.initial_theme, self.themes[theme.LIGHT])
+            self.themes.get(self.initial_theme, self.themes[theme.SYSTEM])
         )
         self.theme_selector.currentIndexChanged.connect(self.enable_save_button)
         layout.addWidget(self.theme_selector)

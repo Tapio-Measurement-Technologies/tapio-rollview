@@ -256,7 +256,7 @@ def _coerce_preference_value(key, value):
     if key == 'band_pass_high':
         return _coerce_band_pass_high(value, default)
     if key == 'ui_theme':
-        return _coerce_choice(value, theme_tokens.THEMES, default)
+        return _coerce_choice(value, theme_tokens.CHOICES, default)
     if key == 'alert_limits':
         return _normalize_alert_limits(value)
     if key == 'distance_highlight_regions':
