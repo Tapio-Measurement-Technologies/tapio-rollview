@@ -527,3 +527,65 @@ class TestApplicationFont(ThemeRestoringTestCase):
         # step with every size in the style sheet.
         self.assertEqual(base.pointSize(), -1)
         self.assertEqual(base.family(), theme_qt.sans_family())
+
+
+class TestLiveDensity(unittest.TestCase):
+    """Every layout in the live window sits on the 4 px grid.
+
+    The source lint in TestDensity catches a raw ``setContentsMargins`` call.
+    It cannot catch the *absence* of one: a layout nobody spaces keeps Qt's own
+    defaults — 9 px margins and 6 px spacing, neither on the grid — and so does
+    every layout Qt builds for its own composite widgets, the page stack inside
+    a QTabWidget, the box inside a QStatusBar, QMainWindow's own. Fourteen of
+    them were off-grid with the source lint entirely green.
+
+    This walks the assembled tree instead, so it does not care how a layout came
+    to exist or who wrote it.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_no_layout_is_off_the_grid(self):
+        from unittest.mock import patch
+
+        from gui.main_window import MainWindow
+        from gui.settings import SettingsWindow
+
+        theme.apply(self.app, theme=T.LIGHT)
+        tokens = theme_qt.tokens()
+        grid = {0} | {tokens.space(step) for step in (1, 2, 3, 4, 6, 8, 12)}
+
+        with patch("gui.main_window.SerialWidget.scan_devices"):
+            window = MainWindow()
+        settings_window = SettingsWindow()
+        try:
+            offenders = []
+            for root in (window, settings_window):
+                for child in root.findChildren(QWidget) + [root]:
+                    # `layout` is shadowed by an attribute on a few widgets.
+                    layout = QWidget.layout(child)
+                    if layout is None:
+                        continue
+                    margins = layout.contentsMargins()
+                    values = {
+                        "left": margins.left(), "top": margins.top(),
+                        "right": margins.right(), "bottom": margins.bottom(),
+                        "spacing": layout.spacing(),
+                    }
+                    off = {k: v for k, v in values.items() if v not in grid}
+                    if off:
+                        offenders.append(
+                            f"{child.__class__.__name__}."
+                            f"{layout.__class__.__name__}: {off}"
+                        )
+            self.assertEqual(
+                sorted(set(offenders)), [],
+                "layouts off the 4 px grid — theme_qt.pad()/gap() them, "
+                "including the ones Qt built for you:\n  "
+                + "\n  ".join(sorted(set(offenders))),
+            )
+        finally:
+            destroy(settings_window)
+            destroy(window)

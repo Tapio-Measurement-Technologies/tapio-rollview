@@ -8,7 +8,7 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt, QSignalBlocker
 
@@ -49,6 +49,12 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1024, 640)
         self.resize(1200, 720)
 
+        # QMainWindowLayout ignores these for the central widget, so this is
+        # tidiness rather than a fix — but an audit that walks every layout
+        # should not have to carry an exception for it.
+        theme_qt.pad(self.layout(), 0)
+        theme_qt.gap(self.layout(), 0)
+
         self.file_transfer_manager = FileTransferManager()
         self.postprocess_manager = PostprocessManager(self)
         self.log_window = None
@@ -64,6 +70,12 @@ class MainWindow(QMainWindow):
         self.sidebar.addWidget(self.directory_view)
 
         self.tab_view = QTabWidget()
+        # QTabWidget builds the page stack itself, on Qt's defaults, and inset
+        # every tab's contents by an off-grid 9 px a side. The tabs carry their
+        # own padding, so the container carries none.
+        tab_pages = self.tab_view.findChild(QStackedWidget).layout()
+        theme_qt.pad(tab_pages, 0)
+        theme_qt.gap(tab_pages, 0)
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.statistics_analysis_widget.directory_selected.connect(self.on_statistics_directory_selected)
         self.profile_widget = ProfileWidget()
@@ -122,9 +134,11 @@ class MainWindow(QMainWindow):
             self._follow_system_appearance
         )
 
-        self.status_bar = QStatusBar()
+        # QMainWindow makes one for itself the first time it is asked; handing
+        # it a second leaves the first parented and unused, which is a widget
+        # nobody can see and every audit has to explain.
+        self.status_bar = self.statusBar()
         self.status_bar.setFixedHeight(30)
-        self.setStatusBar(self.status_bar)
 
         # The status bar states what the scan is doing in words beside it.
         self.scan_progress_bar = QProgressBar()
@@ -132,6 +146,11 @@ class MainWindow(QMainWindow):
         self.scan_progress_bar.setFixedWidth(160)
         self.scan_progress_bar.setVisible(False)
         self.status_bar.addPermanentWidget(self.scan_progress_bar)
+
+        # After the items, not before: QStatusBar rebuilds its own box layout
+        # when one is added and puts the spacing back to Qt's default.
+        theme_qt.pad(self.status_bar.layout(), 0)
+        theme_qt.gap(self.status_bar.layout(), 2)
 
         self.setCentralWidget(hor_splitter)
         self.init_menu()
@@ -257,6 +276,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         # Reduce margins for better alignment
         theme_qt.pad(layout, 1, 0)
+        theme_qt.gap(layout, 0)
         checkbox = QCheckBox(label)
         checkbox.setChecked(checked)
         # Connect checkbox state change to callback

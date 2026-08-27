@@ -17,6 +17,7 @@ class LoadingWidget(QWidget):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
         self.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
+        theme_qt.pad(self.layout(), 4)
         theme_qt.gap(self.layout(), 2)
 
         # Loading label

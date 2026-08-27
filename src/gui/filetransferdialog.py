@@ -40,6 +40,7 @@ class FileTransferDialog(QDialog):
         total_progress_group = QGroupBox(_("TOTAL_PROGRESS"))
         total_progress_layout = QVBoxLayout(total_progress_group)
         theme_qt.pad(total_progress_layout, 3, 2, 3, 3)
+        theme_qt.gap(total_progress_layout, 2)
         self.total_progress_bar = QProgressBar(self)
         self.total_progress_bar.setTextVisible(False)
         total_progress_layout.addWidget(self.total_progress_bar)

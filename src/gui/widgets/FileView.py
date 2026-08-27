@@ -250,6 +250,7 @@ class FileView(QWidget):
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+        theme_qt.gap(layout, 0)
         # No margins: the view is the whole pane. Insetting it leaves a strip of
         # window background down either side that reads as a gap in the layout.
         theme_qt.pad(layout, 0)
