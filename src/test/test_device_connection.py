@@ -341,7 +341,11 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
             f"sync did not finish (failures: {self.recorder.sync_failed})",
         )
 
-    def test_a_sync_removes_fetched_files_from_the_device(self):
+    def test_a_sync_removes_the_whole_folder_from_the_device(self):
+        """Rollview only pulls .prof, so deleting file by file would leave
+        the raw measurements behind and the card would never empty. With
+        every syncable file in the folder verified, the folder goes as a
+        unit."""
         remote = self._start_device()
 
         self.worker.request_sync(auto=False)
@@ -352,9 +356,11 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
         self.assertEqual(self.recorder.deleted_counts[0], 1)
         self.assertTrue((Path(self.local_dir.name) / "roll" / "a.prof").is_file())
         self.assertFalse(remote.exists())
-        # Only files the sync policy covers are removed.
-        self.assertTrue((Path(self.device_dir.name) / "roll" / "mean.prof").exists())
-        self.assertTrue((Path(self.device_dir.name) / "roll" / "readme.txt").exists())
+        self.assertFalse((Path(self.device_dir.name) / "roll").exists())
+        # Only the .prof was worth mirroring, but the folder it lived in is
+        # what gets removed.
+        self.assertFalse((Path(self.local_dir.name) / "roll" / "mean.prof").exists())
+        self.assertFalse((Path(self.local_dir.name) / "roll" / "readme.txt").exists())
 
     def test_an_automatic_sync_deletes_too(self):
         """The distinction that used to spare automatic syncs is gone: a
@@ -367,6 +373,7 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
         self.assertEqual(self.recorder.sync_finished[0][0], ["roll/a.prof"])
         self.assertEqual(self.recorder.deleted_counts[0], 1)
         self.assertFalse(remote.exists())
+        self.assertFalse((Path(self.device_dir.name) / "roll").exists())
 
     def test_a_later_sync_removes_what_an_earlier_one_left_behind(self):
         """A device that refused the delete keeps its copy; the next sync

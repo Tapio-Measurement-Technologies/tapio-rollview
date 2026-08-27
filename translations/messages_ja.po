@@ -987,6 +987,7 @@ msgstr "同期完了"
 msgid "SYNC_UP_TO_DATE_TEXT"
 msgstr "すべてのファイルは最新で、Rollview に同期されています。"
 
-#. Status bar note after a sync removed files from the device.
+#. Status bar note after a sync removed synced measurements from the device.
+#. The count is of entries removed: a measurement folder counts as one.
 msgid "DEVICE_FILES_REMOVED"
-msgstr "デバイスから {count} 件のファイルを削除しました。"
+msgstr "デバイスから同期済みの {count} 件を削除しました。"
