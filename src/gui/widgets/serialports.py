@@ -118,7 +118,7 @@ class SerialWidget(QWidget):
 
         # Arrange the tree view and button in a vertical layout
         layout = QVBoxLayout(self)
-        theme_qt.pad(layout, 2, 2, 2, 1)
+        theme_qt.pad(layout, 2, 2, 2, 2)
         theme_qt.gap(layout, 1)
         layout.addWidget(self.label)
         layout.addWidget(self.view)
