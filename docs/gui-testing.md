@@ -7,11 +7,28 @@ two that run the app sandbox `HOME`, so a run can never touch the real
 ## 1. pytest + pytest-qt
 
 `pytest.ini` and the root `conftest.py` add pytest on top of the existing
-`unittest` suite. Both runners work; CI still uses `unittest`.
+`unittest` suite. Both runners work on the same tests; CI runs pytest.
 
 ```bash
 .venv/bin/python -m pytest
 ```
+
+Test dependencies live in `requirements-dev.in`, locked with hashes into
+`requirements-dev.txt` by the shared build tooling. The lock includes the runtime
+requirements, so one install covers everything:
+
+```bash
+pip install --require-hashes -r requirements-dev.txt
+```
+
+Regenerate it after changing `requirements-dev.in`:
+
+```bash
+tapio-build --project . python requirements compile --group dev
+```
+
+Leave off `--group dev` and it recompiles the runtime and build locks too, which
+is usually not what you want in a test-only change.
 
 Fixtures from `conftest.py`:
 
@@ -187,8 +204,8 @@ shot, which is how you check whether a change moved anything it should not have.
   is imported, because `settings.ROOT_DIRECTORY` and the preferences path are
   computed from `QDir.homePath()` at module import time. Set
   `ROLLVIEW_TEST_REAL_HOME=1` to opt out under pytest. Note the plain
-  `unittest` runner has no such sandbox and *does* write to the real
-  `~/.tapiorqp/preferences.json`.
+  `unittest` runner does not load `conftest.py` and so has no such sandbox: it
+  *does* write to the real `~/.tapiorqp/preferences.json`.
 - **argv.** `settings.py` execs `sys.argv[1]` as a `local_settings` module and
   `main.py` parses `--settings-file`, both at import time. The harness hands them
   a scrubbed argv so its own flags are never mistaken for app arguments.
