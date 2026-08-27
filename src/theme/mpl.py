@@ -112,7 +112,7 @@ def use(theme=T.LIGHT):
         # full frame. The system asks for horizontal-only rules and two spines;
         # RollView reads positions off the distance axis as often as values off
         # the hardness one, and a closed frame is what an instrument plot looks
-        # like. See docs/design-system.md.
+        # like.
         "axes.grid": True,
         "axes.grid.axis": "both",
         "axes.spines.top": True,

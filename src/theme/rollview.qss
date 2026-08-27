@@ -324,6 +324,29 @@ QComboBox QAbstractItemView {
     padding: ${s1}px;
 }
 
+/* A drop-down is a short menu, not a table of rows, so it is typeset like the
+   menus above rather than like the item views below: full-strength ink, a
+   rounded highlight, and no hairline ruled under every option. The rule has to
+   be stated because the list *is* a QListView, and would otherwise be caught by
+   the generic item rules further down. */
+QComboBox QAbstractItemView::item {
+    background: transparent;
+    color: ${ink};
+    border: none;
+    border-radius: ${r_md}px;
+    padding: 0 ${s2}px;
+    min-height: ${row_inner}px;
+}
+
+/* Hover and selection are the same mark here on purpose: Qt moves a combo
+   popup's selection to whatever the pointer is over, so only one option is ever
+   marked, and two different marks for one row would only ask which is which. */
+QComboBox QAbstractItemView::item:selected,
+QComboBox QAbstractItemView::item:hover {
+    background-color: ${accent_soft};
+    color: ${ink};
+}
+
 /* ---------- checkboxes and radios ---------------------------------------- */
 
 QCheckBox, QRadioButton {

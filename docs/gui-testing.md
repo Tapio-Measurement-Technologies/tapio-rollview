@@ -102,8 +102,8 @@ asserting on it.
 Both the harness and the pytest fixtures apply the Tapio Design System before
 building any widget, the same call `main()` makes, so a screenshot shows what an
 operator sees rather than an unstyled Fusion window. `scripts/scenarios/design_review.py`
-walks every surface the system touches and takes a shot of each; see
-[the design system notes](design-system.md) for what to check them against.
+walks every surface the system touches and takes a shot of each, to be checked
+against the design guide.
 
 ```bash
 .venv/bin/python scripts/guiharness.py scripts/scenarios/design_review.py --out gui-shots/light
