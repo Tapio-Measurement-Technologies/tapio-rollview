@@ -548,14 +548,10 @@ QHeaderView {
 QHeaderView::section {
     background-color: ${sunken};
     color: ${ink_muted};
-    font-family: "${mono}";
-    font-size: ${eyebrow}px;
-    font-weight: 500;
     border: none;
     border-bottom: 1px solid ${border};
     border-right: none;
     padding: 0 ${s2}px;
-    min-height: ${header_inner}px;
 }
 
 QHeaderView::section:hover {

@@ -1,6 +1,7 @@
 import unittest
 import copy
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (
     QApplication,
@@ -54,6 +55,31 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.page.excluded_regions_mode_selector.setCurrentText(
             self.page.excluded_regions_modes[mode]
         )
+
+    def test_column_headings_sit_in_the_middle_of_their_section(self):
+        """QFileSystemModel answers TextAlignmentRole with a bare AlignLeft.
+
+        A model's answer overrides the header's defaultAlignment(), and with no
+        vertical flag Qt falls back to AlignTop — which is why the headings sat
+        against the top edge whatever the section's own height was.
+        """
+        from gui.widgets.FileView import CustomFileSystemModel as FileModel
+        from gui.widgets.DirectoryView import CustomFileSystemModel as FolderModel
+
+        wanted = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        for model_class in (FileModel, FolderModel):
+            model = model_class()
+            try:
+                self.assertEqual(
+                    model.headerData(
+                        0, Qt.Orientation.Horizontal,
+                        Qt.ItemDataRole.TextAlignmentRole,
+                    ),
+                    wanted,
+                    f"{model_class.__module__} leaves its headings top-aligned",
+                )
+            finally:
+                model.deleteLater()
 
     def test_band_pass_slider_handle_fits_inside_the_slider(self):
         """Qt sizes a styled QSlider from its groove, not its handle.

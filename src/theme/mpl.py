@@ -215,7 +215,7 @@ def limit_wash(ax, value, direction, color):
 
 
 def profile(ax, x, y, lower=None, upper=None, target=None, label=None,
-            units="", color=None, extreme=True, t=None):
+            units="", x_units="", color=None, extreme=True, t=None):
     """Draw one profile with its limits, the way the system prescribes.
 
     * limit lines in the limit colour, labelled with their value at the right
@@ -291,13 +291,18 @@ def profile(ax, x, y, lower=None, upper=None, target=None, label=None,
                              zorder=5)[0])
 
     if extreme and len(y):
-        added.extend(_mark_extreme(ax, x, y, lower, upper, units, t))
+        added.extend(_mark_extreme(ax, x, y, lower, upper, units, x_units, t))
 
     return added
 
 
-def _mark_extreme(ax, x, y, lower, upper, units, t):
-    """Mark and label whichever end of the profile is the one being discussed."""
+def _mark_extreme(ax, x, y, lower, upper, units, x_units, t):
+    """Mark and label whichever end of the profile is the one being discussed.
+
+    Both numbers carry their unit. "MIN 55.73 BC @ 1305 mm" is the line that goes
+    into the maintenance conversation; a bare position is a number the reader has
+    to go and look up the axis for.
+    """
     low_index = int(np.argmin(y))
     high_index = int(np.argmax(y))
 
@@ -314,7 +319,7 @@ def _mark_extreme(ax, x, y, lower, upper, units, t):
                      markeredgewidth=2.0, linestyle="none", zorder=7)[0]
     above = tag == "MAX"
     text = ax.annotate(
-        f"{tag} {y[index]:.2f}{units} @ {x[index]:.2f}",
+        f"{tag} {y[index]:.2f}{units} @ {x[index]:.2f}{x_units}",
         xy=(x[index], y[index]),
         xytext=(0, 12 if above else -12), textcoords="offset points",
         ha="center", va="bottom" if above else "top",
