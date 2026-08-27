@@ -124,9 +124,8 @@ class LimitFooter(QWidget):
 
         self.prefix = ElidedChunk()
         self.min_chunk = ElidedChunk()
-        self.separator = ElidedChunk()
         self.max_chunk = ElidedChunk()
-        for chunk in (self.prefix, self.min_chunk, self.separator, self.max_chunk):
+        for chunk in (self.prefix, self.min_chunk, self.max_chunk):
             theme_qt.set_role(chunk, "hint")
             row.addWidget(chunk)
         row.addStretch(1)
@@ -140,23 +139,24 @@ class LimitFooter(QWidget):
             # zero, and seven tiles each spelling out a sentence about it was
             # the noise this replaces.
             self.min_chunk.setText(MISSING)
-            self.separator.setText("")
             self.max_chunk.setText("")
         else:
-            self.min_chunk.setText(
+            lower = (
                 _("STAT_TILE_LIMIT_MIN").format(value=format_stat_value(minimum))
                 if minimum is not None else ""
             )
+            # The separator rides on the lower bound rather than standing as a
+            # chunk of its own: a chunk gets the row's gap on both sides, which
+            # put a space in front of the comma.
+            if lower and maximum is not None:
+                lower += _("STAT_TILE_LIMIT_SEPARATOR")
+            self.min_chunk.setText(lower)
             self.max_chunk.setText(
                 _("STAT_TILE_LIMIT_MAX").format(value=format_stat_value(maximum))
                 if maximum is not None else ""
             )
-            self.separator.setText(
-                _("STAT_TILE_LIMIT_SEPARATOR")
-                if minimum is not None and maximum is not None else ""
-            )
 
-        for chunk in (self.min_chunk, self.separator, self.max_chunk):
+        for chunk in (self.min_chunk, self.max_chunk):
             chunk.setVisible(bool(chunk.text()))
 
         theme_qt.set_property(self.min_chunk, "limit",
@@ -168,9 +168,8 @@ class LimitFooter(QWidget):
 
     def text(self):
         """The whole line, for the accessible name and for the tests."""
-        parts = [self.prefix.text(), self.min_chunk.text(),
-                 self.separator.text(), self.max_chunk.text()]
-        return " ".join(part for part in parts if part).replace(" ,", ",")
+        parts = [self.prefix.text(), self.min_chunk.text(), self.max_chunk.text()]
+        return " ".join(part for part in parts if part)
 
 
 class StatsWidget(QWidget):

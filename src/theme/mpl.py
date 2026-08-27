@@ -41,6 +41,7 @@ PROFILE_WIDTH = 2.0        # profile lines, round joins and caps
 LIMIT_WIDTH = 1.5          # limit lines, solid
 TARGET_WIDTH = 1.0         # target and mean, dashed and recessive
 SUPPORTING_WIDTH = 1.5     # individual profiles behind the mean
+SUPPORTING_ALPHA = 0.7     # ...and how far back they sit
 
 #: The diagonal used for a region that is out of bounds — excluded from the
 #: analysis, or beyond an alert limit. One hatch, so the two read as one idea.
@@ -190,27 +191,18 @@ def diverging_cmap(name="tapio-diverging", t=None):
     return LinearSegmentedColormap.from_list(name, t.diverging)
 
 
-def recency_colors(count, t=None):
-    """``(colour, alpha)`` for *count* stacked profiles, newest first.
+def supporting_color(t=None):
+    """``(colour, alpha)`` for the individual profiles behind the mean.
 
-    Recency is an order, and the reader should see the order in the colour, so
-    this is an ordinal ramp rather than eight categorical hues. The ramp has
-    three steps and stays clear of the accent, so however many profiles a folder
-    holds, none of them can be mistaken for the mean; alpha carries the finer
-    ordering when there are more profiles than steps.
+    One value for all of them. They were drawn down an ordinal ramp so the
+    reader could see which was newest, but on a chart whose subject is the mean
+    that ordering is not a question anyone is asking, and a stack in eight
+    weights reads as eight different kinds of line. They are one kind of thing
+    — context — so they are one colour, at the recessive end of the ramp and
+    clear of the accent the mean is drawn in.
     """
     t = t or current
-    ramp = t.recency
-    if count <= 0:
-        return []
-    if count == 1:
-        return [(ramp[0], 1.0)]
-    positions = np.linspace(0, len(ramp) - 1, count)
-    alphas = np.linspace(0.9, 0.45, count)
-    return [
-        (ramp[int(round(position))], float(alpha))
-        for position, alpha in zip(positions, alphas)
-    ]
+    return t.recency[-1], SUPPORTING_ALPHA
 
 
 def band_color(t=None):
@@ -303,9 +295,9 @@ def supporting(ax, x, y, color, alpha=1.0, selected=False, label=None,
     """One of the individual profiles the mean is drawn from.
 
     They are context, not the subject, so they run thin and recede. Pass the
-    colour and alpha from ``recency_colors``; a selected profile keeps its
-    recency colour and gains weight rather than changing hue, because colour
-    here carries recency and selection is a state, not an identity.
+    colour and alpha from ``supporting_color``; a selected profile keeps that
+    colour and gains weight rather than changing hue, because selection is a
+    state and not a different kind of line.
 
     ``selected_width`` overrides the weight the selected one gains; the
     unselected ones stay recessive whatever an installation asks for, since

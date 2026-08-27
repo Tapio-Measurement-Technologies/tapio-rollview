@@ -18,6 +18,24 @@ from utils.highlighted_regions import (
 from utils import preferences
 
 
+def _synthetic_profiles(count):
+    """*count* profiles of the same shape, oldest first."""
+    distances = np.linspace(0.0, 6.0, 120)
+    return [
+        Profile(
+            path=f"synthetic-{index}.prof",
+            data=ProfileData(
+                distances=distances,
+                hardnesses=40.0 + float(index) + np.sin(distances),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="SN0", sample_step=0.05),
+            file_size=distances.size * 4,
+            date_modified=float(index),
+        )
+        for index in range(count)
+    ]
+
+
 class TestProfileWidget(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -384,6 +402,31 @@ class TestLocalSettingsOverrides(unittest.TestCase):
         # None means the system's own weight, as the colour beside it does.
         line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
         self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
+
+    def test_every_profile_behind_the_mean_is_drawn_the_same(self):
+        """They are context, not a series, so none of them is lighter than another.
+
+        They used to step down an ordinal ramp by age, which read as several
+        different kinds of line on a chart whose subject is the mean.
+        """
+        from theme import mpl as tapio_mpl
+
+        widget = ProfileWidget()
+        try:
+            widget.update_plot(_synthetic_profiles(5), "roll")
+
+            supporting = [
+                line for line in widget.profile_ax.lines
+                if line.get_linewidth() == tapio_mpl.SUPPORTING_WIDTH
+            ]
+            self.assertEqual(len(supporting), 5)
+            self.assertEqual(
+                {line.get_color() for line in supporting},
+                {tapio_mpl.supporting_color(widget.tokens)[0]},
+            )
+            self.assertEqual({line.get_alpha() for line in supporting}, {tapio_mpl.SUPPORTING_ALPHA})
+        finally:
+            widget.deleteLater()
 
     def test_a_selected_profile_honours_a_local_line_width(self):
         import matplotlib
