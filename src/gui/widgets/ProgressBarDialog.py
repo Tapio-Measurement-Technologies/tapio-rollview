@@ -22,9 +22,9 @@ class ProgressBarDialog(QDialog):
         tokens = theme_qt.tokens()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(
-            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
+            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(3)
         )
-        layout.setSpacing(tokens.space(3))
+        layout.setSpacing(tokens.space(2))
 
         # Status text label
         self.statusLabel = QLabel(_("PROGRESS_DIALOG_STARTING"), self)

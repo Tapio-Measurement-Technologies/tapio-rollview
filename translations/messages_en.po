@@ -964,17 +964,8 @@ msgstr "Dark"
 msgid "APPEARANCE_THEME_HINT"
 msgstr "Light for daylight and mill floors, dark for night shift and control rooms."
 
-#. Settings window: label for the display density control.
-msgid "APPEARANCE_DENSITY"
-msgstr "Density"
 
-#. Settings window: the compact density option.
-msgid "APPEARANCE_DENSITY_COMPACT"
-msgstr "Compact"
 
-#. Settings window: the comfortable density option.
-msgid "APPEARANCE_DENSITY_COMFORTABLE"
-msgstr "Comfortable"
 
 #. Profile chart legend entry for the hatched excluded-region overlay.
 msgid "CHART_EXCLUDED_REGION_LEGEND"

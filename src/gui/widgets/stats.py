@@ -95,9 +95,9 @@ class StatsWidget(QWidget):
 
         tokens = theme_qt.tokens()
         self.layout = QGridLayout()
-        self.layout.setContentsMargins(0, 0, 0, tokens.space(2))
-        self.layout.setHorizontalSpacing(tokens.space(2))
-        self.layout.setVerticalSpacing(tokens.space(2))
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setHorizontalSpacing(tokens.space(1))
+        self.layout.setVerticalSpacing(tokens.space(1))
         self.widgets = [
             MeanWidget(data, limit_map.get(stats.mean.name)),
             StdWidget(data, limit_map.get(stats.std.name)),

@@ -15,6 +15,24 @@ from gui.widgets.StatisticsAnalysis import StatisticsAnalysisChart, StatisticsAn
 from utils.translation import _
 
 
+def destroy(widget):
+    """Close *and* destroy a widget, then drain the deletion queue.
+
+    close() only hides a widget; the C++ object lives until something deletes
+    it. Leaving a tree of them for the garbage collector to unpick later is how
+    this file used to end in a double free — Python and Qt both believe they own
+    the children. The rest of the suite destroys explicitly (see the main_window
+    fixture in conftest.py); so does this.
+    """
+    from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop
+
+    widget.close()
+    widget.setParent(None)
+    widget.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents)
+
+
 class TestStatisticsAnalysisChart(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -32,7 +50,7 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
             axis_texts = [text.get_text() for text in chart.ax.texts]
             self.assertNotIn(_("NO_DATA_AVAILABLE"), axis_texts)
         finally:
-            chart.close()
+            destroy(chart)
 
     def test_plot_with_data_restores_canvas_after_empty_state(self):
         chart = StatisticsAnalysisChart()
@@ -47,7 +65,7 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
             self.assertEqual(chart.empty_state_label.text(), "")
             self.assertEqual(len(chart.bars), 1)
         finally:
-            chart.close()
+            destroy(chart)
 
     def test_pick_selects_clicked_bar_and_emits_directory_path(self):
         chart = StatisticsAnalysisChart()
@@ -74,7 +92,7 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
                 to_rgba(tapio_mpl.current.recency[0]),
             )
         finally:
-            chart.close()
+            destroy(chart)
 
 
 class TestStatisticsAnalysisWidget(unittest.TestCase):
@@ -98,7 +116,7 @@ class TestStatisticsAnalysisWidget(unittest.TestCase):
 
             self.assertEqual([roll["label"] for roll in filtered], ["roll-1"])
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_roll_filter_change_does_not_start_statistics_processor(self):
         widget = StatisticsAnalysisWidget()
@@ -110,7 +128,7 @@ class TestStatisticsAnalysisWidget(unittest.TestCase):
 
             widget.processor.start.assert_not_called()
         finally:
-            widget.close()
+            destroy(widget)
 
 
 if __name__ == "__main__":

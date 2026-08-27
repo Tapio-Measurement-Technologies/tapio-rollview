@@ -12,9 +12,9 @@ from PySide6.QtCore import Slot, Signal, Qt
 import store
 import os
 from typing import List, Dict, Any
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
+from gui.widgets.PlotCanvas import PlotCanvas
 from datetime import datetime, timedelta
 from utils.translation import _
 from utils import preferences
@@ -45,7 +45,7 @@ class StatisticsAnalysisChart(QWidget):
         super().__init__(parent)
         self.parent_widget = parent  # Store direct reference
         self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
+        self.canvas = PlotCanvas(self.figure, self._relayout_figure)
         self.empty_state_label = QLabel()
         self.empty_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_state_label.setSizePolicy(
@@ -67,6 +67,11 @@ class StatisticsAnalysisChart(QWidget):
 
         self.canvas.mpl_connect("pick_event", self.on_pick)
         self.canvas.mpl_connect('motion_notify_event', self.on_hover)
+
+    def _relayout_figure(self):
+        """Re-fit and redraw once the canvas has stopped changing size."""
+        tapio_mpl.fit(self.figure)
+        self.canvas.draw()
 
     def highlight_point(self, label: str):
         self.highlighted_point = label
@@ -282,9 +287,9 @@ class StatisticsAnalysisWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
-        margin = theme_qt.tokens().space(3)
+        margin = theme_qt.tokens().space(2)
         self.layout().setContentsMargins(margin, margin, margin, margin)
-        self.layout().setSpacing(theme_qt.tokens().space(2))
+        self.layout().setSpacing(theme_qt.tokens().space(1))
 
         # Set to the key value, not the display name
         self.selected_stat = list(stat_label_map.values())[0]  # This will be "mean"

@@ -22,9 +22,9 @@ class CrashDialog(QDialog):
         tokens = theme_qt.tokens()
         layout = QVBoxLayout()
         layout.setContentsMargins(
-            tokens.space(6), tokens.space(6), tokens.space(6), tokens.space(6)
+            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
         )
-        layout.setSpacing(tokens.space(3))
+        layout.setSpacing(tokens.space(2))
 
         # Error message
         error_label = QLabel(

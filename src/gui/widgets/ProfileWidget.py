@@ -21,17 +21,13 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSizePolicy, Q
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from utils.translation import _
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from gui.widgets.PlotCanvas import PlotCanvas
 import logging
 import store
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
-# How long the figure waits for a resize to settle before laying itself out
-# again. Long enough to coalesce a drag, short enough to feel immediate.
-RELAYOUT_DELAY_MS = 90
 
 # Excluded-region boundaries. Grey and dashed: an excluded region is not an
 # alarm, so it never borrows the limit colour.
@@ -129,9 +125,9 @@ class ProfileWidget(QWidget):
         tokens = theme_qt.tokens()
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(
-            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(2)
+            tokens.space(2), tokens.space(2), tokens.space(2), tokens.space(1)
         )
-        self.layout.setSpacing(tokens.space(2))
+        self.layout.setSpacing(tokens.space(1))
 
         self.figure = Figure()
         self.warning_label = WarningLabel()
@@ -140,31 +136,31 @@ class ProfileWidget(QWidget):
         self.empty_state_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         theme_qt.set_property(self.empty_state_label, "role", "emptyState")
         self.empty_state_label.setHidden(True)
-        self.canvas = FigureCanvas(self.figure)
+        self.canvas = PlotCanvas(self.figure)
         self.stats = Stats()
 
         # None until the first _setup_axes() call decides an arrangement.
         self._axes_arrangement = None
 
-        # Deferring a repaint needs an event loop to defer into, and a timer
-        # may only be stopped on the thread that made it. The plot_export
-        # postprocessor builds a ProfileWidget on a worker thread to render one
-        # figure and save it, so off the GUI thread there are no timers and
-        # every draw happens on the spot — which is what that path wants anyway.
-        self._relayout_timer = self._make_timer(self._relayout_figure)
+        # The canvas reports when a resize has stopped. Laying out and
+        # re-rendering on every event of a splitter drag is what left the window
+        # unable to keep up with the pointer.
+        self.canvas.on_resize_settled = self._relayout_figure
+
         # Matplotlib's own draw_idle() queues the repaint on a QTimer *it* owns,
         # which outlives this widget: destroy the tab with a draw pending and the
         # callback reaches a deleted C++ canvas. This timer is a child of the
-        # widget, so it dies with it.
+        # widget, so it dies with it, and it collapses a burst of updates into
+        # one render. It is None off the GUI thread — see _make_timer.
         self._draw_timer = self._make_timer(self._draw_now, interval=0)
 
         # The plot is the subject of this tab. Without a floor under the canvas
         # the tile grid squeezes it to a strip in which a profile cannot be
         # read; without headroom on the widget itself, the floor pushes the
         # chart toolbar out of the pane instead.
-        self.setMinimumHeight(460)
+        self.setMinimumHeight(380)
         self.setMinimumWidth(400)
-        self.canvas.setMinimumHeight(200)
+        self.canvas.setMinimumHeight(180)
 
         self._setup_axes()
         self._setup_zoom_pan()
@@ -877,20 +873,6 @@ class ProfileWidget(QWidget):
 
     def set_toolbar_visible(self, visible):
         self.toolbar.setVisible(visible)
-
-    def resizeEvent(self, event):
-        """Re-lay the figure out once the resize settles.
-
-        A drag on the splitter or the window edge fires resize events far faster
-        than Matplotlib can re-run tight_layout and re-render — roughly 70 ms a
-        pass — so doing it inline is what made the window feel heavy. The canvas
-        scales itself in the meantime; this catches up when the pointer stops.
-        """
-        super().resizeEvent(event)
-        if self._relayout_timer is None:
-            self._relayout_figure()
-            return
-        self._relayout_timer.start(RELAYOUT_DELAY_MS)
 
     def request_draw(self):
         """Repaint the canvas once, after the current batch of work.

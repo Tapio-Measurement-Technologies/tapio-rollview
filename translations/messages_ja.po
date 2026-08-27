@@ -964,17 +964,8 @@ msgstr "ダーク"
 msgid "APPEARANCE_THEME_HINT"
 msgstr "日中や抄紙機フロアではライト、夜勤や制御室ではダークを使用します。"
 
-#. Settings window: label for the display density control.
-msgid "APPEARANCE_DENSITY"
-msgstr "表示密度"
 
-#. Settings window: the compact density option.
-msgid "APPEARANCE_DENSITY_COMPACT"
-msgstr "コンパクト"
 
-#. Settings window: the comfortable density option.
-msgid "APPEARANCE_DENSITY_COMFORTABLE"
-msgstr "標準"
 
 #. Profile chart legend entry for the hatched excluded-region overlay.
 msgid "CHART_EXCLUDED_REGION_LEGEND"
