@@ -548,9 +548,6 @@ class MainWindow(QMainWindow):
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
-        self.settings_window.settings_updated.connect(
-            self.device_connection_manager.apply_settings
-        )
         self.settings_window.show()
 
     def open_log_window(self):
