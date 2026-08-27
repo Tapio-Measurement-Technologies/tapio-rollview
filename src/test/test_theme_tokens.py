@@ -199,42 +199,73 @@ class TestApply(ThemeRestoringTestCase):
     def test_a_plot_export_comes_out_light_from_a_dark_session(self):
         """Charts print in the light palette whatever the screen theme is.
 
-        A dark chart wastes toner and reads badly on a mill report, so the
-        export path swaps the chart tokens for the render and puts them back.
+        A dark chart wastes toner and reads badly on a mill report. What is
+        asserted here is not only that the render came out light, but that the
+        *global* chart tokens never moved while it did: postprocessors run on a
+        worker thread, and the GUI thread reads those globals whenever it draws.
         """
         import os
         import tempfile
 
+        from matplotlib.colors import to_hex
+
         from theme import mpl as tapio_mpl
 
-        theme.apply(self.app, theme=T.DARK)
         try:
-            import postprocessors.plot_export as plot_export
+            from test.fakedevice import make_profile_bytes
+        except ImportError:  # no pseudo-terminal on this platform
+            self.skipTest("the profile fixture lives with the fake RQFT device")
+
+        light = T.load(theme=T.LIGHT)
+        import postprocessors.plot_export as plot_export
+
+        # The written PNG, not the Figure object. savefig takes its background
+        # from rcParams['savefig.facecolor'] rather than from the figure, so a
+        # figure can be light and the file it writes still dark; asserting on
+        # the figure alone would miss exactly that.
+        with tempfile.TemporaryDirectory() as parent:
+            # The same folder name both times — the chart is titled with it, so
+            # two temp directories would differ for a reason that is not colour.
+            folder = os.path.join(parent, "250520-134139")
+            os.makedirs(folder)
+            for index in range(2):
+                with open(os.path.join(folder, f"p{index}.prof"), "wb") as handle:
+                    handle.write(make_profile_bytes())
+            written = os.path.join(folder, "250520-134139.png")
 
             rendered = {}
             real_export = plot_export.export_figure_with_annotations
 
             def spy(figure, canvas, **kwargs):
-                rendered["theme"] = tapio_mpl.current.theme
+                # The screen's own tokens, sampled mid-render.
+                rendered["global_theme"] = tapio_mpl.current.theme
+                rendered["face"] = to_hex(figure.get_facecolor()).upper()
                 return real_export(figure, canvas, **kwargs)
 
+            exports = {}
             plot_export.export_figure_with_annotations = spy
             try:
-                with tempfile.TemporaryDirectory() as folder:
-                    from test.fakedevice import make_profile_bytes
-
-                    for index in range(2):
-                        with open(os.path.join(folder, f"p{index}.prof"), "wb") as handle:
-                            handle.write(make_profile_bytes())
+                for name in (T.DARK, T.LIGHT):
+                    theme.apply(self.app, theme=name)
                     self.assertTrue(plot_export.run(folder))
+                    with open(written, "rb") as handle:
+                        exports[name] = handle.read()
+                    if name == T.DARK:
+                        # Neither the render nor anything after it moved the
+                        # application's chart tokens: postprocessors run on a
+                        # worker thread and the GUI thread reads those globals.
+                        self.assertEqual(rendered["global_theme"], T.DARK)
+                        self.assertEqual(tapio_mpl.current.theme, T.DARK)
+                        self.assertEqual(
+                            rendered["face"], light.color("surface").upper()
+                        )
             finally:
                 plot_export.export_figure_with_annotations = real_export
 
-            self.assertEqual(rendered.get("theme"), T.LIGHT)
-            # ...and the screen is put back where it was.
-            self.assertEqual(tapio_mpl.current.theme, T.DARK)
-        finally:
-            pass
+            self.assertEqual(
+                exports[T.DARK], exports[T.LIGHT],
+                "the exported plot depends on the screen theme",
+            )
 
     def test_the_bundled_plex_faces_load(self):
         QApplication.instance() or QApplication([])

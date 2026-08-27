@@ -109,6 +109,12 @@ class ProfileWidget(QWidget):
         theme_qt.pad(self.layout, 2, 2, 2, 1)
         theme_qt.gap(self.layout, 1)
 
+        # None means "follow whatever theme the application is in". The plot
+        # export sets a table here instead, so it can render light out of a dark
+        # session without swapping the process-wide chart tokens that the GUI
+        # thread reads while it draws.
+        self.chart_tokens = None
+
         self.figure = Figure()
         self.warning_label = WarningLabel()
         self.empty_state_label = QLabel()
@@ -185,6 +191,15 @@ class ProfileWidget(QWidget):
         """Redraw what is already loaded, after something around it changed."""
         if getattr(self, "profiles", None):
             self.update_plot(self.profiles, self.directory_name)
+
+    @property
+    def tokens(self):
+        """The chart tokens this widget draws with.
+
+        The live table unless something has pinned one — which only the plot
+        export does, and only for the figure it renders off the GUI thread.
+        """
+        return self.chart_tokens or tapio_mpl.current
 
     def _setup_axes(self, force=False):
         """Set up the subplot axes based on current preferences.
@@ -275,7 +290,7 @@ class ProfileWidget(QWidget):
     def _draw_hardness_highlight_mean_line(self, mean_value):
         self.profile_ax.axhline(
             mean_value,
-            color=tapio_mpl.current.chart("target"),
+            color=self.tokens.chart("target"),
             **STYLE_HIGHLIGHT_MEAN_LINE,
         )
 
@@ -336,7 +351,7 @@ class ProfileWidget(QWidget):
             mean_profile_distances,
             conversion_factor,
         )
-        edge = tapio_mpl.current.color("border-strong")
+        edge = self.tokens.color("border-strong")
 
         # Draw each excluded region
         for i, (start_x, end_x) in enumerate(visual_ranges):
@@ -346,6 +361,7 @@ class ProfileWidget(QWidget):
                     start_x,
                     end_x,
                     label=_("CHART_EXCLUDED_REGION_LEGEND") if i == 0 else None,
+                    t=self.tokens,
                 )
 
             self.profile_ax.axvline(start_x, color=edge, **STYLE_AXVLINE)
@@ -403,7 +419,7 @@ class ProfileWidget(QWidget):
             return []
 
         added_texts = []
-        t = tapio_mpl.current
+        t = self.tokens
 
         # Open a band across the top for the heading and the tiles, and put the
         # roll name there instead of on the axes, where it would land on them.
@@ -500,7 +516,7 @@ class ProfileWidget(QWidget):
                 self.top = profile_widget.figure.subplotpars.top
                 profile_widget.profile_ax.set_title("", loc=self.location)
                 profile_widget.figure.subplots_adjust(top=0.72)
-                t = tapio_mpl.current
+                t = profile_widget.tokens
                 self.heading = profile_widget.figure.text(
                     0.1, 0.965, self.title,
                     ha="left", va="top",
@@ -535,7 +551,7 @@ class ProfileWidget(QWidget):
         self.directory_name = None
         self.figure.clear()
         self._axes_arrangement = None
-        tapio_mpl.restyle_figure(self.figure)
+        tapio_mpl.restyle_figure(self.figure, self.tokens)
         self.canvas.sync_background()
         self.warning_label.clear()
         self.empty_state_label.clear()
@@ -553,7 +569,7 @@ class ProfileWidget(QWidget):
         self.directory_name = directory_name
         self.figure.clear()
         self._axes_arrangement = None
-        tapio_mpl.restyle_figure(self.figure)
+        tapio_mpl.restyle_figure(self.figure, self.tokens)
         self.canvas.sync_background()
         self.warning_label.clear()
         self.stats_widget.update_data(([], []))
@@ -590,7 +606,7 @@ class ProfileWidget(QWidget):
 
         # Reconfigure axes layout
         self._setup_axes()
-        tapio_mpl.restyle_figure(self.figure)
+        tapio_mpl.restyle_figure(self.figure, self.tokens)
         self.canvas.sync_background()
 
         # Update toolbar visibility
@@ -609,7 +625,7 @@ class ProfileWidget(QWidget):
         # Newest at full weight, the older stepping down the blue ramp. Recency
         # is an order, so the colour is an ordinal ramp and not a set of hues.
         ranks = self._recency_order(self.profiles)
-        recency = tapio_mpl.recency_colors(len(self.profiles))
+        recency = tapio_mpl.recency_colors(len(self.profiles), self.tokens)
 
         for i, profile in enumerate(self.profiles):
             if profile.hidden:
@@ -626,7 +642,7 @@ class ProfileWidget(QWidget):
                     # Mark the seam between two stacked profiles.
                     self.profile_ax.plot(
                         distances[0], hardnesses[0], marker=7,
-                        color=tapio_mpl.current.chart("tick"),
+                        color=self.tokens.chart("tick"),
                         markersize=6, alpha=0.7, zorder=np.inf,
                     )
 
@@ -640,6 +656,7 @@ class ProfileWidget(QWidget):
                 color=color,
                 alpha=alpha if not selected_profile_in_current_directory else alpha * 0.6,
                 selected=selected,
+                t=self.tokens,
             )
 
         if preferences.recalculate_mean:
@@ -662,7 +679,8 @@ class ProfileWidget(QWidget):
                 mean_profile_distances_converted,
                 mean_profile_values,
                 label=_("CHART_MEAN_PROFILE_LABEL"),
-                color=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0),
+                color=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0, self.tokens),
+                t=self.tokens,
             )
 
             x_limits_before_distance_highlights = self.profile_ax.get_xlim()
@@ -693,7 +711,7 @@ class ProfileWidget(QWidget):
 
         if preferences.show_spectrum:
             spectrum_frequencies, spectrum_amplitudes = self._get_spectrum_plot_data(mean_profile_values)
-            spectrum_color = tapio_mpl.series_color(0)
+            spectrum_color = tapio_mpl.series_color(0, self.tokens)
             self.spectrum_ax.plot(spectrum_frequencies, spectrum_amplitudes,
                                   color=spectrum_color)
             # Area fill under the curve gives the spectrum weight without
@@ -707,6 +725,7 @@ class ProfileWidget(QWidget):
                 self.spectrum_ax,
                 xlabel=f"{_('CHART_FREQUENCY_LABEL')} [1/m]",
                 ylabel=f"{_('CHART_AMPLITUDE_LABEL')} [{self.stats.mean.unit}]",
+                t=self.tokens,
             )
 
         if settings.SPECTRUM_WAVELENGTH_TICKS and preferences.show_spectrum:
@@ -723,6 +742,7 @@ class ProfileWidget(QWidget):
             self.profile_ax,
             xlabel=f"{_('CHART_DISTANCE_LABEL')} [{unit_info.unit}]",
             ylabel=f"{_('CHART_HARDNESS_LABEL')} [{self.stats.mean.unit}]",
+            t=self.tokens,
         )
         if not (hasattr(settings, 'GRID') and settings.GRID is not None):
             self.profile_ax.grid(False)
