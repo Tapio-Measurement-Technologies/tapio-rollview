@@ -1,5 +1,8 @@
-import matplotlib.pyplot as plt
 import settings
+import theme
+from theme import icons
+from theme import mpl as tapio_mpl
+from theme import qt as theme_qt
 from utils import preferences, profile_stats
 from models.Profile import Profile
 from utils.zoom_pan import ZoomPan
@@ -15,7 +18,7 @@ from utils.highlighted_regions import (
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from utils.translation import _
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -26,19 +29,19 @@ import store
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
+# Excluded-region boundaries. Grey and dashed: an excluded region is not an
+# alarm, so it never borrows the limit colour.
 STYLE_AXVLINE = {
-    'color': 'gray',
     'linestyle': '--',
-    'linewidth': 1.5,
+    'linewidth': 1.0,
     'alpha': 0.7,
     'zorder': 0
 }
 
 STYLE_HIGHLIGHT_MEAN_LINE = {
-    'color': 'dimgray',
-    'linestyle': '--',
-    'linewidth': 1.2,
-    'alpha': 0.5,
+    'linestyle': (0, (5, 4)),
+    'linewidth': tapio_mpl.TARGET_WIDTH,
+    'alpha': 0.8,
     'zorder': -1,
 }
 
@@ -53,6 +56,21 @@ def _highlight_edge_style(color):
     }
 
 
+def profile_limits():
+    """The configured alert limits that bound the hardness axis.
+
+    RollView's limits are set on statistics rather than on the trace itself, but
+    two of them — the minimum's lower limit and the maximum's upper limit — are
+    limits on the hardness value in the same units, so they are the pair the
+    profile chart can honestly draw. Everything else is a limit on a summary and
+    belongs on its stat tile, not on the y-axis.
+    """
+    by_name = {limit.get('name'): limit for limit in preferences.alert_limits}
+    lower = (by_name.get('min_g') or {}).get('min')
+    upper = (by_name.get('max_g') or {}).get('max')
+    return lower, upper
+
+
 # Add support for Japanese characters
 if preferences.locale == 'ja':
     import matplotlib
@@ -64,19 +82,26 @@ if preferences.locale == 'ja':
 
 
 class WarningLabel(QLabel):
+    """An inline banner: a condition that persists until it is resolved.
+
+    Not a toast — a toast confirms that something happened. This says something
+    is wrong with what is on screen, and stays until it is not.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setStyleSheet("""
-            background-color: lightgoldenrodyellow;
-            color: black;
-            border-radius: 4px;
-            border: 2px;
-        """)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setWordWrap(True)
+        theme_qt.set_property(self, "banner", "warn")
+        self.setHidden(True)
 
     def set_text(self, text):
+        tokens = theme_qt.tokens()
+        mark = icons.write_png(theme.STATUS_WARN, 13, tokens.color("warn"))
         self.setHidden(False)
-        self.setText(f"⚠ {text}")
+        self.setText(f'<img src="{mark}" width="13" height="13">&nbsp;&nbsp;{text}')
+        self.setAccessibleName(text)
 
     def clear(self):
         self.setHidden(True)
@@ -84,25 +109,43 @@ class WarningLabel(QLabel):
 
 
 class ProfileWidget(QWidget):
+    """The profile tab: the verdict, then the chart.
+
+    The tiles and the status pill answer "did it pass" before the operator reads
+    a single axis, which is the whole point of putting them above the plot.
+    """
+
+    verdict_changed = Signal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.setStatusTip(_("CHART_STATUS_TIP_TEXT"))
 
-        # Existing initialization code
+        tokens = theme_qt.tokens()
         self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(
+            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(2)
+        )
+        self.layout.setSpacing(tokens.space(2))
+
         self.figure = Figure()
         self.warning_label = WarningLabel()
         self.empty_state_label = QLabel()
         self.empty_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_state_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.empty_state_label.setStyleSheet("font-size: 16px;")
+        theme_qt.set_property(self.empty_state_label, "role", "emptyState")
         self.empty_state_label.setHidden(True)
         self.canvas = FigureCanvas(self.figure)
         self.stats = Stats()
 
-        self.setMinimumHeight(400)
+        # The plot is the subject of this tab. Without a floor under the canvas
+        # the tile grid squeezes it to a strip in which a profile cannot be
+        # read; without headroom on the widget itself, the floor pushes the
+        # chart toolbar out of the pane instead.
+        self.setMinimumHeight(460)
         self.setMinimumWidth(400)
+        self.canvas.setMinimumHeight(200)
 
         self._setup_axes()
         self._setup_zoom_pan()
@@ -112,6 +155,7 @@ class ProfileWidget(QWidget):
         self.mean_profile = []
         self.mean_profile_distances = []
         self.stats_widget = StatsWidget((self.mean_profile_distances, self.mean_profile))
+        self.stats_widget.verdict_changed.connect(self.verdict_changed)
 
         self.layout.addWidget(self.stats_widget)
         self.layout.addWidget(self.warning_label)
@@ -127,6 +171,9 @@ class ProfileWidget(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.customize_toolbar()
+
+    def verdict(self):
+        return self.stats_widget.verdict()
 
     def _setup_axes(self):
         """Set up the subplot axes based on current preferences."""
@@ -201,7 +248,11 @@ class ProfileWidget(QWidget):
             self.profile_ax.axhline(end_y, **_highlight_edge_style(color))
 
     def _draw_hardness_highlight_mean_line(self, mean_value):
-        self.profile_ax.axhline(mean_value, **STYLE_HIGHLIGHT_MEAN_LINE)
+        self.profile_ax.axhline(
+            mean_value,
+            color=tapio_mpl.current.chart("target"),
+            **STYLE_HIGHLIGHT_MEAN_LINE,
+        )
 
     def _draw_distance_highlight_regions_visualization(self, mean_profile_distances, conversion_factor):
         for start_x, end_x, color in self._get_distance_highlight_region_plot_ranges(
@@ -251,27 +302,30 @@ class ProfileWidget(QWidget):
         return f[mask], np.sqrt(Pxx)[mask]
 
     def _draw_excluded_regions_visualization(self, mean_profile_distances, conversion_factor):
-        """Draw excluded regions visualization on the plot."""
+        """Draw excluded regions visualization on the plot.
+
+        Excluded regions are drawn, never removed: an operator must be able to
+        see what was left out of the statistics.
+        """
         visual_ranges = self._get_excluded_region_plot_ranges(
             mean_profile_distances,
             conversion_factor,
         )
+        edge = tapio_mpl.current.color("border-strong")
 
         # Draw each excluded region
         for i, (start_x, end_x) in enumerate(visual_ranges):
             if start_x < end_x:
-                self.profile_ax.axvspan(
+                tapio_mpl.excluded(
+                    self.profile_ax,
                     start_x,
                     end_x,
-                    alpha=0.2,
-                    color='gray',
-                    label=_("EXCLUDED_REGION") if i == 0 else '',
-                    zorder=-1
+                    label=_("CHART_EXCLUDED_REGION_LEGEND") if i == 0 else None,
                 )
 
-            self.profile_ax.axvline(start_x, **STYLE_AXVLINE)
+            self.profile_ax.axvline(start_x, color=edge, **STYLE_AXVLINE)
             if end_x != start_x:
-                self.profile_ax.axvline(end_x, **STYLE_AXVLINE)
+                self.profile_ax.axvline(end_x, color=edge, **STYLE_AXVLINE)
 
     def customize_toolbar(self):
         actions = self.toolbar.actions()
@@ -308,15 +362,27 @@ class ProfileWidget(QWidget):
                     nav_state[ax] = (view, current_positions[ax])
 
     def _draw_stats_on_figure(self):
-        """Draw statistics as text boxes on the figure, similar to stats widget.
+        """Draw the heading and the stat tiles onto the figure, for export.
+
+        The exported PNG is the whole verdict on its own — it goes into a mill
+        report with no window around it — so it carries what the window carries:
+        the roll name, then the tiles, then the chart. Same rules as on screen:
+        eyebrow label, the number in mono, and only the failing tile in red.
 
         Returns:
-            List of text objects that were added (for cleanup)
+            List of artists that were added (for cleanup). One of them restores
+            the layout rather than removing an artist, so the on-screen figure is
+            unchanged once the export has been taken.
         """
         if not len(self.mean_profile):
             return []
 
         added_texts = []
+        t = tapio_mpl.current
+
+        # Open a band across the top for the heading and the tiles, and put the
+        # roll name there instead of on the axes, where it would land on them.
+        added_texts.append(self._reserve_export_band())
 
         # Get stats values
         stats_data = [
@@ -343,9 +409,8 @@ class ProfileWidget(QWidget):
         usable_width = 1.0 - left_margin - right_margin
         spacing = usable_width / num_stats
 
-        # Position at top of figure area (adjust based on tight_layout)
-        # Using figure coordinates where 1.0 is top
-        y_pos = 0.91
+        # Position at top of figure area, inside the band reserved above.
+        y_pos = 0.86
 
         for i, (label, value, unit) in enumerate(stats_data):
             stat_func = stat_functions[i]
@@ -360,27 +425,71 @@ class ProfileWidget(QWidget):
                 if limit['max'] is not None and value > limit['max']:
                     over_limit = True
 
-            # Create text box with smaller font
-            text = f"{label} [{unit}]\n{format_stat_value(value)}"
-
-            # Background color (matplotlib format: (R, G, B, alpha))
-            bgcolor = (1.0, 0.0, 0.0, 0.3) if over_limit else 'white'
-
             # With ha='right', position the right edge at the right side of allocated space
             # This centers the fixed-width box in its allocated space
             x_pos = left_margin + (i + 1) * spacing
 
-            text_obj = self.figure.text(
+            box = dict(
+                boxstyle='round,pad=0.34,rounding_size=0.25',
+                facecolor=t.color("bad-soft") if over_limit else t.color("surface"),
+                edgecolor=t.color("bad-mark") if over_limit else t.color("border"),
+                linewidth=0.8,
+            )
+            eyebrow = self.figure.text(
                 x_pos, y_pos,
-                text,
+                f"{label} [{unit}]",
                 ha='right', va='top',
-                fontsize=7,
-                bbox=dict(boxstyle='square,pad=0.3', facecolor=bgcolor, edgecolor='lightgray', linewidth=0),
+                fontsize=6, family='monospace',
+                color=t.color("ink-muted"),
+                bbox=box,
                 transform=self.figure.transFigure,
             )
-            added_texts.append(text_obj)
+            added_texts.append(eyebrow)
+
+            value_text = self.figure.text(
+                x_pos, y_pos - 0.055,
+                format_stat_value(value),
+                ha='right', va='top',
+                fontsize=9, family='monospace', weight='medium',
+                color=t.color("bad") if over_limit else t.color("ink"),
+                transform=self.figure.transFigure,
+            )
+            added_texts.append(value_text)
 
         return added_texts
+
+    def _reserve_export_band(self):
+        """Make room above the axes for the export heading and tiles.
+
+        Returns an object whose ``remove()`` puts the figure back, so it can
+        travel with the text artists the exporter cleans up afterwards.
+        """
+        profile_widget = self
+
+        class _Band:
+            def __init__(self):
+                # Titles are left-aligned system-wide (`axes.titlelocation`), and
+                # get_title() reads the centre slot unless told otherwise.
+                self.location = "left"
+                self.title = profile_widget.profile_ax.get_title(loc=self.location)
+                self.top = profile_widget.figure.subplotpars.top
+                profile_widget.profile_ax.set_title("", loc=self.location)
+                profile_widget.figure.subplots_adjust(top=0.72)
+                t = tapio_mpl.current
+                self.heading = profile_widget.figure.text(
+                    0.1, 0.965, self.title,
+                    ha="left", va="top",
+                    fontsize=t.font_size("title-3"), weight="semibold",
+                    color=t.color("ink"),
+                    transform=profile_widget.figure.transFigure,
+                )
+
+            def remove(self):
+                self.heading.remove()
+                profile_widget.profile_ax.set_title(self.title, loc=self.location)
+                profile_widget.figure.subplots_adjust(top=self.top)
+
+        return _Band()
 
     def clear(self):
         self.profile_ax.clear()
@@ -396,6 +505,7 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = []
         self.directory_name = None
         self.figure.clear()
+        tapio_mpl.restyle_figure(self.figure)
         self.warning_label.clear()
         self.empty_state_label.clear()
         self.empty_state_label.setHidden(True)
@@ -411,6 +521,7 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = []
         self.directory_name = directory_name
         self.figure.clear()
+        tapio_mpl.restyle_figure(self.figure)
         self.warning_label.clear()
         self.stats_widget.update_data(([], []))
         self.stats_widget.setVisible(True)
@@ -419,6 +530,16 @@ class ProfileWidget(QWidget):
         self.canvas.setVisible(False)
         self.toolbar.setVisible(False)
         self.canvas.draw()
+
+    def _recency_order(self, profiles):
+        """Rank profiles newest-first, so the colour ramp reads as an order."""
+        order = sorted(
+            range(len(profiles)),
+            key=lambda index: profiles[index].date_modified,
+            reverse=True,
+        )
+        rank = {index: position for position, index in enumerate(order)}
+        return [rank[index] for index in range(len(profiles))]
 
     def update_plot(self, profiles: list[Profile], directory_name):
         self.stats_widget.setVisible(True)
@@ -436,12 +557,12 @@ class ProfileWidget(QWidget):
 
         # Reconfigure axes layout
         self._setup_axes()
+        tapio_mpl.restyle_figure(self.figure)
 
         # Update toolbar visibility
         self.toolbar.setVisible(preferences.show_plot_toolbar)
 
         self.clear()
-        self.figure.suptitle(directory_name)
 
         self.directory_name = directory_name
         selected_profile_in_current_directory = store.selected_profile in [ p.name for p in self.profiles ]
@@ -449,44 +570,43 @@ class ProfileWidget(QWidget):
         # Get distance unit info
         unit_info = preferences.get_distance_unit_info()
 
-        self.profile_ax.set_ylabel(f"{_("CHART_HARDNESS_LABEL")} [g]")
-        self.profile_ax.set_xlabel(f"{_("CHART_DISTANCE_LABEL")} [{unit_info.unit}]")
         previous_distance = 0
 
+        # Newest at full weight, the older stepping down the blue ramp. Recency
+        # is an order, so the colour is an ordinal ramp and not a set of hues.
+        ranks = self._recency_order(self.profiles)
+        recency = tapio_mpl.recency_colors(len(self.profiles))
+
         for i, profile in enumerate(self.profiles):
+            if profile.hidden:
+                continue
 
             distances = np.array(profile.data.distances) + previous_distance
             # Convert distances to selected unit
             distances = distances * unit_info.conversion_factor
             hardnesses = profile.data.hardnesses
 
-            linestyle = 'solid'
-            if profile.hidden:
-                linestyle = 'None'
-
-            if preferences.continuous_mode and not profile.hidden:
+            if preferences.continuous_mode:
                 previous_distance = (distances[-1] / unit_info.conversion_factor) + settings.SAMPLE_INTERVAL_M
                 if i > 0:
-                    # Add marker between profiles at the first hardness value
-                    self.profile_ax.plot(distances[0], hardnesses[0], marker=7,
-                                       color='k', markersize=6, alpha=0.5, zorder=np.inf)
-
-            # Prevent reducing line opacity if select state is in another folder
-            if selected_profile_in_current_directory:
-                if profile.name == store.selected_profile:
-
-                    self.profile_ax.plot(distances,
-                                         hardnesses,
-                                         alpha=0.6,
-                                         lw=settings.SELECTED_PROFILE_LINE_WIDTH,
-                                         linestyle=linestyle,
-                                         zorder=np.inf)
-                else:
+                    # Mark the seam between two stacked profiles.
                     self.profile_ax.plot(
-                        distances, hardnesses, alpha=0.2, linestyle=linestyle)
-            else:
-                self.profile_ax.plot(distances, hardnesses,
-                                     alpha=0.3, linestyle=linestyle)
+                        distances[0], hardnesses[0], marker=7,
+                        color=tapio_mpl.current.chart("tick"),
+                        markersize=6, alpha=0.7, zorder=np.inf,
+                    )
+
+            color, alpha = recency[ranks[i]]
+            selected = (
+                selected_profile_in_current_directory
+                and profile.name == store.selected_profile
+            )
+            tapio_mpl.supporting(
+                self.profile_ax, distances, hardnesses,
+                color=color,
+                alpha=alpha if not selected_profile_in_current_directory else alpha * 0.6,
+                selected=selected,
+            )
 
         if preferences.recalculate_mean:
             self.profiles = [
@@ -496,14 +616,23 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = mean_profile_distances
         self.mean_profile = mean_profile_values
 
+        lower_limit, upper_limit = profile_limits()
+
         if len(mean_profile_values) > 0:
             # Convert mean profile distances to selected unit
             mean_profile_distances_converted = mean_profile_distances * unit_info.conversion_factor
-            self.profile_ax.plot(mean_profile_distances_converted,
-                                 mean_profile_values,
-                                 label=_("CHART_MEAN_PROFILE_LABEL"),
-                                 lw=settings.MEAN_PROFILE_LINE_WIDTH,
-                                 color=settings.MEAN_PROFILE_LINE_COLOR)
+            # The mean is the subject of this chart: series 1, full weight, with
+            # its limits, washes and out-of-spec segments drawn by the system.
+            tapio_mpl.profile(
+                self.profile_ax,
+                mean_profile_distances_converted,
+                mean_profile_values,
+                lower=lower_limit,
+                upper=upper_limit,
+                label=_("CHART_MEAN_PROFILE_LABEL"),
+                units=f" {self.stats.mean.unit}",
+                color=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0),
+            )
 
             x_limits_before_distance_highlights = self.profile_ax.get_xlim()
             if preferences.distance_highlight_regions:
@@ -533,10 +662,21 @@ class ProfileWidget(QWidget):
 
         if preferences.show_spectrum:
             spectrum_frequencies, spectrum_amplitudes = self._get_spectrum_plot_data(mean_profile_values)
-            self.spectrum_ax.plot(spectrum_frequencies, spectrum_amplitudes)
+            spectrum_color = tapio_mpl.series_color(0)
+            self.spectrum_ax.plot(spectrum_frequencies, spectrum_amplitudes,
+                                  color=spectrum_color)
+            # Area fill under the curve gives the spectrum weight without
+            # competing with anything sitting on top of it.
+            self.spectrum_ax.fill_between(
+                spectrum_frequencies, spectrum_amplitudes,
+                color=spectrum_color, alpha=0.13, linewidth=0,
+            )
 
-            self.spectrum_ax.set_ylabel(f"{_("CHART_AMPLITUDE_LABEL")} [g]")
-            self.spectrum_ax.set_xlabel(f"{_("CHART_FREQUENCY_LABEL")} [1/m]")
+            tapio_mpl.finish(
+                self.spectrum_ax,
+                xlabel=f"{_('CHART_FREQUENCY_LABEL')} [1/m]",
+                ylabel=f"{_('CHART_AMPLITUDE_LABEL')} [{self.stats.mean.unit}]",
+            )
 
         if settings.SPECTRUM_WAVELENGTH_TICKS and preferences.show_spectrum:
             self.update_ticks_wavelength()
@@ -545,11 +685,18 @@ class ProfileWidget(QWidget):
             self.spectrum_ax.figure.canvas.mpl_connect(
                 'resize_event', self.update_ticks_wavelength)
 
-        self.figure.suptitle(directory_name)
-        if hasattr(settings, 'GRID') and settings.GRID is not None:
-            self.profile_ax.grid()
+        # The chart is titled with the object it shows, left-aligned like every
+        # other title in the system.
+        self.profile_ax.set_title(directory_name)
+        tapio_mpl.finish(
+            self.profile_ax,
+            xlabel=f"{_('CHART_DISTANCE_LABEL')} [{unit_info.unit}]",
+            ylabel=f"{_('CHART_HARDNESS_LABEL')} [{self.stats.mean.unit}]",
+        )
+        if not (hasattr(settings, 'GRID') and settings.GRID is not None):
+            self.profile_ax.grid(False)
             if preferences.show_spectrum:
-                self.spectrum_ax.grid()
+                self.spectrum_ax.grid(False)
 
         # Calculate max value from all plotted data
         max_plotted_value = 0
@@ -589,20 +736,88 @@ class ProfileWidget(QWidget):
         elif high is not None and not np.isfinite(high):
             self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
 
-        # self.profile_ax.legend(loc="upper right")
-        self.figure.tight_layout()
+        legend = self._legend(len(mean_profile_values) > 0, lower_limit, upper_limit)
+
+        # A limit the axis does not reach is a limit the operator cannot see —
+        # but a y-limit the user typed in is their decision, so only the
+        # automatic ends of the axis are allowed to move.
+        self._keep_limits_in_view(
+            lower_limit if preferences.y_lim_low_override is None else None,
+            upper_limit if preferences.y_lim_high_override is None else None,
+        )
+
+        if legend:
+            # Reserve the legend strip before laying out, so the axes shrink to
+            # make room instead of the legend landing on the x-axis label.
+            tapio_mpl.fit(self.figure, rect=(0, tapio_mpl.LEGEND_HEIGHT, 1, 1))
+            tapio_mpl.place_legend(self.figure, *legend)
+        else:
+            for existing in list(self.figure.legends):
+                existing.remove()
+            tapio_mpl.fit(self.figure)
         self.canvas.draw()
 
         self._reset_toolbar_history()
 
         self.stats_widget.update_data((self.mean_profile_distances, self.mean_profile))
 
+    def _legend(self, has_mean, lower_limit, upper_limit):
+        """What the marks on this chart mean.
+
+        Direct labels carry the limits already, so the legend only names the
+        kinds of line: the mean, the individual profiles behind it, the limits,
+        and the hatch over anything excluded.
+        """
+        visible = [p for p in self.profiles if not p.hidden]
+        show_supporting = len(visible) > 1
+        show_limits = lower_limit is not None or upper_limit is not None
+        show_excluded = (
+            preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE
+            and bool(preferences.excluded_regions)
+        )
+        if not (has_mean and (show_supporting or show_limits or show_excluded)):
+            return None
+
+        recency = tapio_mpl.recency_colors(max(len(visible), 1))
+        handles = tapio_mpl.legend_handles(
+            mean=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0),
+            supporting=recency[len(recency) // 2][0] if show_supporting else None,
+            limits=show_limits,
+            excluded=show_excluded,
+        )
+        labels = [_("CHART_MEAN_PROFILE_LABEL")]
+        if show_supporting:
+            labels.append(_("CHART_INDIVIDUAL_PROFILES_LEGEND"))
+        if show_limits:
+            labels.append(_("CHART_LIMITS_LEGEND"))
+        if show_excluded:
+            labels.append(_("CHART_EXCLUDED_REGION_LEGEND"))
+        return handles, labels
+
+    def _keep_limits_in_view(self, lower, upper):
+        """Widen the y-axis if a configured limit falls outside it.
+
+        Callers pass ``None`` for an end the operator has pinned by hand.
+        """
+        if lower is None and upper is None:
+            return
+
+        bottom, top = self.profile_ax.get_ylim()
+        span = max(top - bottom, 1.0)
+        margin = span * 0.04
+
+        if lower is not None and lower < bottom:
+            bottom = lower - margin
+        if upper is not None and upper > top:
+            top = upper + margin
+        self.profile_ax.set_ylim(bottom, top)
+
     def update_ticks_wavelength(self, *args):
         primary_ticks = self.spectrum_ax.get_xticks()
         wavelenght_ticks = [100 * (1 / i) if i != 0 else 0 for i in primary_ticks]
         self.spectrum_ax.set_xticks(primary_ticks) # Fixes matplotlib warning about fixed ticks
         self.spectrum_ax.set_xticklabels(
-            [f"{tick:.2f}" for tick in wavelenght_ticks])
+            [f"{tick:.2f}" for tick in wavelenght_ticks], family="monospace")
         self.spectrum_ax.set_xlabel(f"{_("CHART_WAVELENGTH_LABEL")} [cm]")
 
     def clear_canvas(self):
@@ -615,6 +830,9 @@ class ProfileWidget(QWidget):
     def resizeEvent(self, event):
         """Handle the window resize event to update chart dimensions."""
         super().resizeEvent(event)
-        self.figure.tight_layout()
+        tapio_mpl.fit(
+            self.figure,
+            rect=(0, tapio_mpl.LEGEND_HEIGHT, 1, 1) if self.figure.legends else None,
+        )
         self._sync_toolbar_layout_positions()
         self.canvas.draw()

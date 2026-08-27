@@ -69,6 +69,15 @@ def main():
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QApplication(sys.argv)
+
+    # The Tapio Design System, before any widget is built: Fusion (the native
+    # Windows style silently ignores much of a style sheet), the bundled IBM
+    # Plex faces, the token palette, and the same tokens in Matplotlib so the
+    # charts and the chrome cannot drift apart.
+    import theme
+    from utils import preferences
+    theme.apply(app, theme=preferences.ui_theme, density=preferences.ui_density)
+
     window = MainWindow()
 
     app_icon = QIcon(settings.ICON_PATH)

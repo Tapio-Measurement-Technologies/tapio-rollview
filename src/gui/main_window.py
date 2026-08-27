@@ -8,9 +8,13 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QDir, Qt, QSignalBlocker
+
+import theme
+from theme import qt as theme_qt
+from theme.widgets import AppHeader
 
 from utils.file_utils import list_prof_files
 from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
@@ -39,6 +43,9 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
+        # Window minimum 1024x640; below that the layout stops being an
+        # analysis tool and starts being a puzzle.
+        self.setMinimumSize(1024, 640)
         self.resize(1100, 650)
 
         self.file_transfer_manager = FileTransferManager()
@@ -55,6 +62,11 @@ class MainWindow(QMainWindow):
         self.sidebar.addWidget(self.serial_widget, 200)
         self.sidebar.addWidget(self.directory_view)
 
+        # Built before anything can select a directory: the first selection
+        # signal reaches straight back into update_header().
+        self.header = AppHeader(_('WINDOW_TITLE_MAIN'))
+        self.header.set_context(_('HEADER_NO_ROLL'))
+
         self.tab_view = QTabWidget()
         self.statistics_analysis_widget = StatisticsAnalysisWidget()
         self.statistics_analysis_widget.directory_selected.connect(self.on_statistics_directory_selected)
@@ -62,6 +74,7 @@ class MainWindow(QMainWindow):
         self.tab_view.addTab(self.profile_widget, _("TAB_TITLE_PROFILES"))
         self.tab_view.addTab(self.statistics_analysis_widget, _("TAB_TITLE_STATISTICS"))
         self.tab_view.currentChanged.connect(self.statistics_analysis_widget.update)
+        self.profile_widget.verdict_changed.connect(self.on_verdict_changed)
 
         self.fileView = FileView()
         self.fileView.file_selected.connect(self.on_file_selected)
@@ -92,14 +105,16 @@ class MainWindow(QMainWindow):
         ver_splitter.setStretchFactor(1, 0)
         ver_splitter.setCollapsible(0, False)
         ver_splitter.setCollapsible(1, False)
-        ver_splitter.setSizes([200, 200])
+        # The chart is the subject of this window, so it opens with the larger
+        # share; the file list is a picker, not a view.
+        ver_splitter.setSizes([620, 200])
 
         hor_splitter = QSplitter(Qt.Orientation.Horizontal)
         hor_splitter.addWidget(self.sidebar)
         hor_splitter.addWidget(ver_splitter)
         hor_splitter.setStretchFactor(0, 0)
         hor_splitter.setStretchFactor(1, 1)
-        hor_splitter.setSizes([400, 600])
+        hor_splitter.setSizes([320, 960])
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 
@@ -107,11 +122,23 @@ class MainWindow(QMainWindow):
         self.status_bar.setFixedHeight(30)
         self.setStatusBar(self.status_bar)
 
+        # The status bar states what the scan is doing in words beside it.
         self.scan_progress_bar = QProgressBar()
+        self.scan_progress_bar.setTextVisible(False)
+        self.scan_progress_bar.setFixedWidth(160)
         self.scan_progress_bar.setVisible(False)
         self.status_bar.addPermanentWidget(self.scan_progress_bar)
 
-        self.setCentralWidget(hor_splitter)
+        # The object bar sits above everything: the roll is the most useful
+        # thing in the window, so it is never more than a glance away.
+        central = QWidget()
+        central_layout = QVBoxLayout(central)
+        central_layout.setContentsMargins(0, 0, 0, 0)
+        central_layout.setSpacing(0)
+        central_layout.addWidget(self.header)
+        central_layout.addWidget(hor_splitter, 1)
+
+        self.setCentralWidget(central)
         self.init_menu()
 
         # Scan devices on startup
@@ -415,6 +442,39 @@ class MainWindow(QMainWindow):
         self.load_profiles(store.selected_directory)
         self.fileView.set_directory(store.selected_directory)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
+        self.update_header()
+
+    def update_header(self):
+        """Name the object in the header, and raise the alarm band with it."""
+        if not self.directory_name:
+            self.header.set_context(_('HEADER_NO_ROLL'))
+            self.header.set_status(None, "")
+            return
+
+        self.header.set_context(_('HEADER_ROLL_CONTEXT').format(
+            name=self.directory_name,
+            count=len(store.profiles),
+        ))
+        self.on_verdict_changed(self.profile_widget.verdict())
+
+    def on_verdict_changed(self, verdict):
+        """The run verdict, as a pill in the header.
+
+        Red here means exactly one thing: a statistic crossed its limit. When it
+        does, the whole band goes red, so a failure is readable from across the
+        room without reading a word of it.
+        """
+        if not self.directory_name:
+            self.header.set_status(None, "")
+            return
+
+        label = {
+            theme.STATUS_GOOD: _('STATUS_IN_SPEC'),
+            theme.STATUS_WARN: _('STATUS_NEAR_LIMIT'),
+            theme.STATUS_BAD: _('STATUS_OUT_OF_SPEC'),
+            theme.STATUS_IDLE: _('STATUS_NO_VERDICT'),
+        }.get(verdict, _('STATUS_NO_VERDICT'))
+        self.header.set_status(verdict, label)
 
     def on_statistics_directory_selected(self, directory):
         self.on_directory_selected(directory)
@@ -442,6 +502,7 @@ class MainWindow(QMainWindow):
         filename = os.path.basename(file_path)
         store.selected_profile = filename
         self.profile_widget.update_plot(store.profiles, self.directory_name)
+        self.update_header()
 
     def on_directory_contents_changed(self):
         # Reload the selected directory and redraw plot. If the selected folder
@@ -476,11 +537,13 @@ class MainWindow(QMainWindow):
                 profile.hidden = True
 
         self.profile_widget.update_plot(store.profiles, self.directory_name)
+        self.update_header()
 
     def on_file_sort_changed(self, column_index, sort_order):
         """Handle file list sort changes and update the plot order accordingly."""
         store.sort_profiles(column_index, sort_order)
         self.profile_widget.update_plot(store.profiles, self.directory_name)
+        self.update_header()
 
     def on_root_directory_changed(self, directory):
         store.root_directory = directory
@@ -504,6 +567,7 @@ class MainWindow(QMainWindow):
             self.fileView.set_directory(root_directory)
         if clear_plot:
             self.profile_widget.clear_plot_display()
+        self.update_header()
 
     @staticmethod
     def _root_has_profile_directories(directory):
@@ -537,7 +601,23 @@ class MainWindow(QMainWindow):
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
+        self.settings_window.appearance_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
+
+    def apply_appearance(self, ui_theme, ui_density):
+        """Swap the theme at runtime — a night-shift toggle costs one call.
+
+        The style sheet and the palette reach every widget on their own; what
+        needs a nudge is everything drawn rather than styled: the baked icons
+        inside the pills and banners, and the two Matplotlib canvases.
+        """
+        theme.apply(QApplication.instance(), theme=ui_theme, density=ui_density)
+        self.header.refresh()
+        self.refresh_plot()
+        self.statistics_analysis_widget.update_chart()
+        for widget in self.findChildren(QWidget):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
 
     def open_log_window(self):
         self.log_window = LogWindow(store.log_manager)

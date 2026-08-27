@@ -17,20 +17,45 @@ from utils.highlighted_regions import (
     parse_distance_highlight_region,
     parse_hardness_highlight_region,
 )
+import theme
+from theme import qt as theme_qt
+from theme.widgets import EyebrowLabel
 import settings
 
-TABLEAU_COLOR_HEX = {
-    "tab:blue": "#1f77b4",
-    "tab:orange": "#ff7f0e",
-    "tab:green": "#2ca02c",
-    "tab:red": "#d62728",
-    "tab:purple": "#9467bd",
-    "tab:brown": "#8c564b",
-    "tab:pink": "#e377c2",
-    "tab:gray": "#7f7f7f",
-    "tab:olive": "#bcbd22",
-    "tab:cyan": "#17becf",
+# Highlight-region colours. The `tab:*` keys are kept because they are what is
+# written into preferences.json, but the colours behind them are the design
+# system's, so a highlight band never reintroduces Matplotlib's palette next to
+# a Tapio chart. `tab:red` maps to the alarm red on purpose: an operator who
+# reaches for red on a region is flagging it, which is the one thing red means.
+_HIGHLIGHT_SLOTS = {
+    "tab:blue": ("series", 0),
+    "tab:orange": ("series", 4),
+    "tab:green": ("series", 1),
+    "tab:red": ("token", "bad-mark"),
+    "tab:purple": ("series", 2),
+    "tab:brown": ("ramp", ("amber", 800)),
+    "tab:pink": ("series", 5),
+    "tab:gray": ("token", "ink-muted"),
+    "tab:olive": ("series", 6),
+    "tab:cyan": ("series", 3),
 }
+
+
+def highlight_color_hex():
+    """Resolve the highlight palette against the live theme."""
+    tokens = theme_qt.tokens()
+    resolved = {}
+    for key, (kind, value) in _HIGHLIGHT_SLOTS.items():
+        if kind == "series":
+            resolved[key] = tokens.series_color(value)
+        elif kind == "ramp":
+            resolved[key] = tokens.ramp(*value)
+        else:
+            resolved[key] = tokens.color(value)
+    return resolved
+
+
+TABLEAU_COLOR_HEX = highlight_color_hex()
 
 
 class SettingsWindow(QWidget):
@@ -39,21 +64,34 @@ class SettingsWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(_("WINDOW_TITLE_SETTINGS"))
-        self.setGeometry(100, 100, 800, 400)
+        self.setObjectName("settingsWindow")
+        self.setGeometry(100, 100, 860, 520)
 
+        tokens = theme_qt.tokens()
         main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         self.setLayout(main_layout)
 
+        # The nav is a sunken rail against the pages, the same shape the main
+        # window uses for its sidebar.
         self.list_widget = QListWidget()
-        self.list_widget.setMaximumWidth(180)
-        self.list_widget.setMinimumWidth(150)
+        self.list_widget.setObjectName("settingsNav")
+        self.list_widget.setMaximumWidth(200)
+        self.list_widget.setMinimumWidth(172)
         main_layout.addWidget(self.list_widget)
 
         self.stacked_widget = QStackedWidget()
-        main_layout.addWidget(self.stacked_widget)
+        self.stacked_widget.setContentsMargins(
+            tokens.space(6), tokens.space(6), tokens.space(6), tokens.space(6)
+        )
+        main_layout.addWidget(self.stacked_widget, 1)
 
         self.general_settings_page = GeneralSettingsPage()
         self.add_settings_page(_("GENERAL_SETTINGS"), self.general_settings_page)
+
+        self.appearance_page = AppearanceSettingsPage()
+        self.add_settings_page(_("APPEARANCE"), self.appearance_page)
 
         self.alert_limit_page = AlertLimitSettingsPage()
         self.add_settings_page(_("ALERT_LIMITS"), self.alert_limit_page)
@@ -78,6 +116,100 @@ class SettingsWindow(QWidget):
 
     def display_page(self, index):
         self.stacked_widget.setCurrentIndex(index)
+
+class AppearanceSettingsPage(QWidget):
+    """Theme and density.
+
+    Both are the same system at a different setting, not different systems:
+    tokens and components do not change between them, only the palette and the
+    control heights. Dark is always an explicit choice — on a screen that will
+    be read in daylight, glare beats contrast ratios, so nothing here switches
+    itself.
+    """
+
+    settings_updated = Signal()
+    appearance_changed = Signal(str, str)
+
+    def __init__(self):
+        super().__init__()
+        tokens = theme_qt.tokens()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setSpacing(tokens.space(2))
+
+        heading = QLabel(_("APPEARANCE"))
+        theme_qt.set_role(heading, "title")
+        layout.addWidget(heading)
+
+        self.themes = {
+            theme.LIGHT: _("APPEARANCE_THEME_LIGHT"),
+            theme.DARK: _("APPEARANCE_THEME_DARK"),
+        }
+        self.theme_selector = QComboBox()
+        self.theme_selector.addItems(self.themes.values())
+        self.theme_selector.setCurrentText(
+            self.themes.get(preferences.ui_theme, self.themes[theme.LIGHT])
+        )
+        self.theme_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self._field(_("APPEARANCE_THEME"), self.theme_selector))
+
+        hint = QLabel(_("APPEARANCE_THEME_HINT"))
+        hint.setWordWrap(True)
+        theme_qt.set_role(hint, "hint")
+        layout.addWidget(hint)
+
+        self.densities = {
+            theme.COMFORTABLE: _("APPEARANCE_DENSITY_COMFORTABLE"),
+            theme.COMPACT: _("APPEARANCE_DENSITY_COMPACT"),
+        }
+        self.density_selector = QComboBox()
+        self.density_selector.addItems(self.densities.values())
+        self.density_selector.setCurrentText(
+            self.densities.get(preferences.ui_density, self.densities[theme.COMFORTABLE])
+        )
+        self.density_selector.currentIndexChanged.connect(self.enable_save_button)
+        layout.addWidget(self._field(_("APPEARANCE_DENSITY"), self.density_selector))
+
+        self.footer_layout = QHBoxLayout()
+        self.footer_layout.addStretch()
+        self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        theme_qt.set_variant(self.apply_button, "primary")
+        self.apply_button.setEnabled(False)
+        self.apply_button.clicked.connect(self.save_settings)
+        self.footer_layout.addWidget(self.apply_button)
+        layout.addLayout(self.footer_layout)
+
+    @staticmethod
+    def _field(label_text, control):
+        """Label above the field, always."""
+        tokens = theme_qt.tokens()
+        holder = QWidget()
+        holder_layout = QVBoxLayout(holder)
+        holder_layout.setContentsMargins(0, 0, 0, 0)
+        holder_layout.setSpacing(tokens.space(1))
+        label = QLabel(label_text)
+        theme_qt.set_role(label, "label")
+        holder_layout.addWidget(label)
+        holder_layout.addWidget(control)
+        return holder
+
+    @Slot()
+    def enable_save_button(self):
+        self.apply_button.setEnabled(True)
+
+    @Slot()
+    def save_settings(self):
+        selected_theme = list(self.themes.keys())[self.theme_selector.currentIndex()]
+        selected_density = list(self.densities.keys())[self.density_selector.currentIndex()]
+        preferences.update_preferences({
+            'ui_theme': selected_theme,
+            'ui_density': selected_density,
+        })
+        self.apply_button.setEnabled(False)
+        self.appearance_changed.emit(selected_theme, selected_density)
+        self.settings_updated.emit()
+
 
 class GeneralSettingsPage(QWidget):
     settings_updated = Signal()
@@ -132,6 +264,7 @@ class GeneralSettingsPage(QWidget):
         self.footer_layout.addStretch()
 
         self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        theme_qt.set_variant(self.apply_button, "primary")
         self.apply_button.setEnabled(False)
         self.apply_button.clicked.connect(self.save_settings)
         self.footer_layout.addWidget(self.apply_button)
@@ -175,7 +308,7 @@ class AlertLimitSettingsPage(QWidget):
         self.setting_widgets = []
 
         heading = QLabel(_("ALERT_LIMITS"))
-        heading.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
+        theme_qt.set_role(heading, "title")
         layout.addWidget(heading)
 
         for limit in preferences.alert_limits:
@@ -187,6 +320,7 @@ class AlertLimitSettingsPage(QWidget):
         self.footer_layout.addStretch()
 
         self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        theme_qt.set_variant(self.apply_button, "primary")
         self.apply_button.setEnabled(False)  # Initially disabled
         self.apply_button.clicked.connect(self.save_alert_limits)
         self.footer_layout.addWidget(self.apply_button)
@@ -222,16 +356,8 @@ class AlertLimitSetting(QFrame):
         super().__init__()
         self.limit = limit
         self.setObjectName("alertLimitCard")
-        self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setStyleSheet(
-            """
-            QFrame#alertLimitCard {
-                background-color: rgba(0, 0, 0, 0.03);
-                border: 1px solid rgba(0, 0, 0, 0.12);
-                border-radius: 4px;
-            }
-            """
-        )
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        theme_qt.set_panel(self)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(12, 10, 12, 10)
@@ -241,33 +367,47 @@ class AlertLimitSetting(QFrame):
         limit_name = limit.get('name', '')
         limit_units = limit.get('units', '')
         self.label = QLabel(f"{profile_stats.stat_labels.get(limit_name, limit_name)} [{limit_units}]")
+        theme_qt.set_role(self.label, "label")
         self.label.setMinimumWidth(120)
         layout.addWidget(self.label)
 
         layout.addStretch()
 
         input_layout = QHBoxLayout()
-        input_layout.setSpacing(8)
+        input_layout.setSpacing(theme_qt.tokens().space(3))
 
-        self.min_label = QLabel(f"{_("MIN")}:")
+        # A limit is a measured value: mono, tabular, right-aligned, with its
+        # label above rather than beside it.
+        self.min_label = QLabel(_("MIN"))
         self.min_input = QLineEdit()
-        self.min_input.setMaximumWidth(self.INPUT_WIDTH)
         self.min_input.setValidator(QDoubleValidator())
         self.min_input.setText(str(limit['min']) if limit['min'] is not None else '')
         self.min_input.textChanged.connect(self.emit_modified)
-        input_layout.addWidget(self.min_label)
-        input_layout.addWidget(self.min_input)
+        input_layout.addWidget(self._numeric_field(self.min_label, self.min_input))
 
-        self.max_label = QLabel(f"{_("MAX")}:")
+        self.max_label = QLabel(_("MAX"))
         self.max_input = QLineEdit()
-        self.max_input.setMaximumWidth(self.INPUT_WIDTH)
         self.max_input.setValidator(QDoubleValidator())
         self.max_input.setText(str(limit['max']) if limit['max'] is not None else '')
         self.max_input.textChanged.connect(self.emit_modified)
-        input_layout.addWidget(self.max_label)
-        input_layout.addWidget(self.max_input)
+        input_layout.addWidget(self._numeric_field(self.max_label, self.max_input))
 
         layout.addLayout(input_layout)
+
+    def _numeric_field(self, label, field):
+        """Label above, field below, mono and right-aligned."""
+        theme_qt.set_role(label, "label")
+        theme_qt.set_property(field, "role", "data")
+        field.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        field.setMaximumWidth(self.INPUT_WIDTH)
+
+        holder = QWidget()
+        holder_layout = QVBoxLayout(holder)
+        holder_layout.setContentsMargins(0, 0, 0, 0)
+        holder_layout.setSpacing(theme_qt.tokens().space(1))
+        holder_layout.addWidget(label)
+        holder_layout.addWidget(field)
+        return holder
 
     @Slot()
     def emit_modified(self):
@@ -318,6 +458,8 @@ class AdvancedSettingsPage(QWidget):
         self.band_pass_slider_layout.addWidget(self.band_pass_low_label)
 
         self.band_pass_high_input = QLineEdit()
+        theme_qt.set_property(self.band_pass_high_input, "role", "data")
+        self.band_pass_high_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.band_pass_high_input.setFixedWidth(55)
         # Dot-only numeric input with optional single decimal place (e.g. 2, 2.2, 100.0).
         band_pass_validator = QRegularExpressionValidator(
@@ -359,6 +501,8 @@ class AdvancedSettingsPage(QWidget):
         y_override_layout = QHBoxLayout()
         self.y_lim_low_label = QLabel(f"{_('MIN')}:")
         self.y_lim_low_input = QLineEdit()
+        theme_qt.set_property(self.y_lim_low_input, "role", "data")
+        self.y_lim_low_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         y_lim_low_validator = QDoubleValidator()
         y_lim_low_validator.setLocale(self.number_locale)
         self.y_lim_low_input.setValidator(y_lim_low_validator)
@@ -372,6 +516,8 @@ class AdvancedSettingsPage(QWidget):
 
         self.y_lim_high_label = QLabel(f"{_('MAX')}:")
         self.y_lim_high_input = QLineEdit()
+        theme_qt.set_property(self.y_lim_high_input, "role", "data")
+        self.y_lim_high_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         y_lim_high_validator = QDoubleValidator()
         y_lim_high_validator.setLocale(self.number_locale)
         self.y_lim_high_input.setValidator(y_lim_high_validator)
@@ -434,7 +580,8 @@ class AdvancedSettingsPage(QWidget):
         self.excluded_regions_input.setEnabled(current_mode != settings.EXCLUDED_REGIONS_MODE_NONE)
 
         self.excluded_regions_error = QLabel()
-        self.excluded_regions_error.setStyleSheet("color: red; font-size: 12px;")
+        theme_qt.set_role(self.excluded_regions_error, "hint")
+        theme_qt.set_state(self.excluded_regions_error, theme.STATUS_BAD)
         self.excluded_regions_error.setVisible(False)
 
         regions_layout.addWidget(self.excluded_regions_label)
@@ -447,10 +594,12 @@ class AdvancedSettingsPage(QWidget):
         self.footer_layout.addStretch()
 
         self.reset_defaults_button = QPushButton(_("RESET_DEFAULTS"), self)
+        theme_qt.set_variant(self.reset_defaults_button, "ghost")
         self.reset_defaults_button.clicked.connect(self.reset_to_defaults)
         self.footer_layout.addWidget(self.reset_defaults_button)
 
         self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        theme_qt.set_variant(self.apply_button, "primary")
         self.apply_button.setEnabled(False)
         self.apply_button.clicked.connect(self.save_settings)
         self.footer_layout.addWidget(self.apply_button)
@@ -463,7 +612,7 @@ class AdvancedSettingsPage(QWidget):
 
     def _create_section_heading(self, text):
         label = QLabel(text)
-        label.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
+        theme_qt.set_role(label, "title")
         return label
 
     def _set_selector_value(self, selector, options_by_key, selected_key):
@@ -638,16 +787,8 @@ class HighlightRegionRowBase(QFrame):
         }
 
         self.setObjectName("highlightedRegionRow")
-        self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setStyleSheet(
-            """
-            QFrame#highlightedRegionRow {
-                background-color: rgba(0, 0, 0, 0.03);
-                border: 1px solid rgba(0, 0, 0, 0.12);
-                border-radius: 4px;
-            }
-            """
-        )
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        theme_qt.set_panel(self)
 
     def _create_card_layout(self):
         layout = QVBoxLayout()
@@ -728,8 +869,10 @@ class DistanceHighlightRow(HighlightRegionRowBase):
         range_inputs.setSpacing(6)
         range_group.addLayout(range_inputs)
         self.start_input = QLineEdit()
-        self.start_input.setMinimumWidth(48)
-        self.start_input.setMaximumWidth(60)
+        theme_qt.set_property(self.start_input, "role", "data")
+        self.start_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.start_input.setMinimumWidth(76)
+        self.start_input.setMaximumWidth(96)
         self.start_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.start_input)
 
@@ -737,8 +880,10 @@ class DistanceHighlightRow(HighlightRegionRowBase):
         range_inputs.addWidget(self.range_separator)
 
         self.end_input = QLineEdit()
-        self.end_input.setMinimumWidth(48)
-        self.end_input.setMaximumWidth(60)
+        theme_qt.set_property(self.end_input, "role", "data")
+        self.end_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.end_input.setMinimumWidth(76)
+        self.end_input.setMaximumWidth(96)
         self.end_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.end_input)
 
@@ -812,8 +957,10 @@ class HardnessHighlightRow(HighlightRegionRowBase):
         range_inputs.setSpacing(6)
         range_group.addLayout(range_inputs)
         self.first_input = QLineEdit()
+        theme_qt.set_property(self.first_input, "role", "data")
+        self.first_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.first_input.setMinimumWidth(56)
-        self.first_input.setMaximumWidth(60)
+        self.first_input.setMaximumWidth(96)
         self.first_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.first_input)
 
@@ -821,8 +968,10 @@ class HardnessHighlightRow(HighlightRegionRowBase):
         range_inputs.addWidget(self.range_separator)
 
         self.second_input = QLineEdit()
+        theme_qt.set_property(self.second_input, "role", "data")
+        self.second_input.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.second_input.setMinimumWidth(56)
-        self.second_input.setMaximumWidth(60)
+        self.second_input.setMaximumWidth(96)
         self.second_input.textChanged.connect(lambda _text: self.modified.emit())
         range_inputs.addWidget(self.second_input)
 
@@ -904,7 +1053,7 @@ class HighlightRegionsSettingsPageBase(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         heading = QLabel(_(title_key))
-        heading.setStyleSheet("font-weight: bold; margin-top: 8px; margin-bottom: 2px;")
+        theme_qt.set_role(heading, "title")
         layout.addWidget(heading)
 
         description = QLabel(_(description_key))
@@ -925,13 +1074,14 @@ class HighlightRegionsSettingsPageBase(QWidget):
         self.rows_scroll_area.setWidgetResizable(True)
         self.rows_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.rows_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.rows_scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        # QScrollArea chrome is handled by the theme.
         self.rows_scroll_area.setWidget(self.rows_container)
         self.rows_scroll_area.setMinimumHeight(220)
         layout.addWidget(self.rows_scroll_area)
 
         self.error_label = QLabel()
-        self.error_label.setStyleSheet("color: red; font-size: 12px;")
+        theme_qt.set_role(self.error_label, "hint")
+        theme_qt.set_state(self.error_label, theme.STATUS_BAD)
         self.error_label.setVisible(False)
         layout.addWidget(self.error_label)
 
@@ -946,10 +1096,12 @@ class HighlightRegionsSettingsPageBase(QWidget):
         self.footer_layout.addStretch()
 
         self.reset_defaults_button = QPushButton(_("RESET_DEFAULTS"), self)
+        theme_qt.set_variant(self.reset_defaults_button, "ghost")
         self.reset_defaults_button.clicked.connect(self.reset_to_defaults)
         self.footer_layout.addWidget(self.reset_defaults_button)
 
         self.apply_button = QPushButton(_("BUTTON_TEXT_SAVE"), self)
+        theme_qt.set_variant(self.apply_button, "primary")
         self.apply_button.setEnabled(False)
         self.apply_button.clicked.connect(self.save_settings)
         self.footer_layout.addWidget(self.apply_button)
@@ -961,16 +1113,8 @@ class HighlightRegionsSettingsPageBase(QWidget):
     def _create_empty_state_card(self, title_key, help_key):
         card = QFrame()
         card.setObjectName("annotationEmptyStateCard")
-        card.setFrameShape(QFrame.Shape.StyledPanel)
-        card.setStyleSheet(
-            """
-            QFrame#annotationEmptyStateCard {
-                background-color: rgba(0, 0, 0, 0.02);
-                border: 1px dashed rgba(0, 0, 0, 0.18);
-                border-radius: 4px;
-            }
-            """
-        )
+        card.setFrameShape(QFrame.Shape.NoFrame)
+        theme_qt.set_panel(card, "empty")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(14, 14, 14, 14)
@@ -978,7 +1122,7 @@ class HighlightRegionsSettingsPageBase(QWidget):
         card.setLayout(layout)
 
         title = QLabel(_(title_key))
-        title.setStyleSheet("font-weight: bold;")
+        theme_qt.set_role(title, "label")
         layout.addWidget(title)
 
         description = QLabel(_(help_key))

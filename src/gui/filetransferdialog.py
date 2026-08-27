@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QDialog, QProgressBar, QPushButton, QVBoxLayout, QApplication, QLabel, QGroupBox
 from PySide6.QtCore import QModelIndex
+from theme import qt as theme_qt
 from workers.file_transfer import FileTransferManager
 from utils.translation import _
 
@@ -8,37 +9,51 @@ class FileTransferDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("FILE_TRANSFER_DIALOG_TITLE"))
         self.setMinimumWidth(400)
+        tokens = theme_qt.tokens()
         self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(
+            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
+        )
+        self.layout.setSpacing(tokens.space(3))
 
         self.manager = manager
 
         self.status_label = QLabel(_("PROGRESS_DIALOG_STARTING"))
+        theme_qt.set_role(self.status_label, "title")
         self.layout.addWidget(self.status_label)
 
-        # Current file progress
-        current_file_group = QGroupBox()
-        current_file_group.setStyleSheet("QGroupBox { border: none; }")
-        current_file_layout = QVBoxLayout(current_file_group)
-        current_file_layout.setContentsMargins(0, 5, 0, 5)
+        # Current file progress. Not a group box: an untitled one is a box drawn
+        # around nothing, and the file name below is already the label.
+        current_file_layout = QVBoxLayout()
+        current_file_layout.setContentsMargins(0, 0, 0, 0)
+        current_file_layout.setSpacing(tokens.space(1))
 
         self.current_file_label = QLabel("")
+        theme_qt.set_property(self.current_file_label, "role", "data")
         self.current_file_progress_bar = QProgressBar(self)
+        self.current_file_progress_bar.setTextVisible(False)
         self.current_file_byte_progress_label = QLabel("")
+        theme_qt.set_role(self.current_file_byte_progress_label, "hint")
         current_file_layout.addWidget(self.current_file_label)
         current_file_layout.addWidget(self.current_file_progress_bar)
         current_file_layout.addWidget(self.current_file_byte_progress_label)
-        self.layout.addWidget(current_file_group)
+        self.layout.addLayout(current_file_layout)
 
         # Total progress
         total_progress_group = QGroupBox(_("TOTAL_PROGRESS"))
         total_progress_layout = QVBoxLayout(total_progress_group)
-        total_progress_layout.setContentsMargins(5, 5, 5, 5)
+        total_progress_layout.setContentsMargins(
+            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(3)
+        )
         self.total_progress_bar = QProgressBar(self)
+        self.total_progress_bar.setTextVisible(False)
         total_progress_layout.addWidget(self.total_progress_bar)
         self.layout.addWidget(total_progress_group)
 
         self.layout.addStretch(1)
 
+        # Cancelling stops work in progress; it destroys nothing, so it is not
+        # the danger variant.
         self.cancel_button = QPushButton(_("BUTTON_TEXT_CANCEL"), self)
         self.cancel_button.clicked.connect(self.on_cancel)
         self.layout.addWidget(self.cancel_button)

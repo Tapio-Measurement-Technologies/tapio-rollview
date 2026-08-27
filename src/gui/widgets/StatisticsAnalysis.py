@@ -13,6 +13,7 @@ import store
 import os
 from typing import List, Dict, Any
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 from utils.translation import _
@@ -20,6 +21,9 @@ from utils import preferences
 from utils import profile_stats
 from workers.statistics_processor import StatisticsProcessor
 from gui.widgets.LoadingWidget import LoadingWidget
+from theme import mpl as tapio_mpl
+from theme import qt as theme_qt
+from theme.widgets import SectionLabel
 
 stat_label_map = profile_stats.analysis_stat_label_map
 
@@ -48,7 +52,7 @@ class StatisticsAnalysisChart(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-        self.empty_state_label.setStyleSheet("font-size: 16px;")
+        theme_qt.set_property(self.empty_state_label, "role", "emptyState")
         self.empty_state_label.setHidden(True)
         self.ax = self.figure.add_subplot(111)
         self.stat_data = []
@@ -72,9 +76,15 @@ class StatisticsAnalysisChart(QWidget):
         self.stat_data = stat_data
         self.ax.clear()
         self.bars = []
-        self.annot = self.ax.annotate("", xy=(0,0), xytext=(0,10),
-                            textcoords="offset points",
-                            bbox=dict(boxstyle="round", fc="w"))
+        t = tapio_mpl.current
+        tapio_mpl.restyle_figure(self.figure, t)
+        self.annot = self.ax.annotate(
+            "", xy=(0, 0), xytext=(0, 10), textcoords="offset points",
+            fontsize=t.font_size("body-sm"), color=t.color("ink"),
+            bbox=dict(boxstyle="round,pad=0.4", facecolor=t.color("raised"),
+                      edgecolor=t.color("border-strong"), linewidth=1.0),
+            zorder=20,
+        )
         self.annot.set_visible(False)
 
         if not stat_data:
@@ -93,6 +103,7 @@ class StatisticsAnalysisChart(QWidget):
         y = [p['y'] for p in stat_data]
         labels = [p['label'] for p in stat_data]
 
+        limit_low = limit_high = None
         # Add alert limit ranges as shaded areas if available (draw behind bars)
         if hasattr(self.parent_widget, 'selected_stat'):
             current_stat = self.parent_widget.selected_stat
@@ -103,39 +114,53 @@ class StatisticsAnalysisChart(QWidget):
             )
 
             if matching_limit and (matching_limit['min'] is not None or matching_limit['max'] is not None):
-                y_min, y_max = self.ax.get_ylim()
+                # The wash marks the region *beyond* the limit, not the region
+                # inside it: a violation should be a shape the eye finds before
+                # it reads the axis, and the in-spec case should look calm.
+                limit_low = matching_limit['min']
+                limit_high = matching_limit['max']
 
-                # Add shaded area for acceptable range extending to plot edges (behind bars)
-                if matching_limit['min'] is not None and matching_limit['max'] is not None:
-                    # Both min and max: shade between them
-                    self.ax.axhspan(matching_limit['min'], matching_limit['max'], alpha=0.2, color='grey', zorder=0)
-                elif matching_limit['min'] is not None:
-                    # Only min: shade above min
-                    self.ax.axhspan(matching_limit['min'], y_max, alpha=0.2, color='grey', zorder=0)
-                elif matching_limit['max'] is not None:
-                    # Only max: shade below max
-                    self.ax.axhspan(y_min, matching_limit['max'], alpha=0.2, color='grey', zorder=0)
-
-                # Add threshold lines (also behind bars)
-                if matching_limit['min'] is not None:
-                    self.ax.axhline(y=matching_limit['min'], color='grey', linestyle='--', alpha=0.7, linewidth=1, zorder=1)
-                if matching_limit['max'] is not None:
-                    self.ax.axhline(y=matching_limit['max'], color='grey', linestyle='--', alpha=0.7, linewidth=1, zorder=1)
-
-        # Convert to bar chart (draw bars on top with higher zorder)
+        # Bars sit one step back from the accent so the selected roll can take
+        # the accent itself: colour here carries identity, and selection is a
+        # state laid on top of it.
+        base_color = t.recency[0]
         bar_width = 0.7
-        self.bars = self.ax.bar(x_indices, y, width=bar_width, alpha=1, color='tab:blue', picker=5, zorder=2)
+        self.bars = self.ax.bar(x_indices, y, width=bar_width, alpha=1,
+                                color=base_color, picker=5, zorder=2)
+
+        # A bar that crossed its limit is status, and status outranks identity.
+        for bar, value in zip(self.bars, y):
+            if ((limit_low is not None and value < limit_low)
+                    or (limit_high is not None and value > limit_high)):
+                bar.set_color(t.chart("limit"))
 
         if self.highlighted_point:
             for i, p in enumerate(stat_data):
                 if p['label'] == self.highlighted_point:
-                    # Highlight the specific bar
-                    self.bars[i].set_color('tab:orange')
+                    self.bars[i].set_edgecolor(t.color("ink"))
+                    self.bars[i].set_linewidth(1.6)
+                    if self.bars[i].get_facecolor()[:3] == to_rgb(base_color):
+                        self.bars[i].set_color(t.color("accent"))
                     self.bars[i].set_alpha(1.0)
                     break
 
-        # Formatting
-        self.ax.set_xlabel(_("PLOT_TITLE_ROLL"))
+        # Limit lines and washes go on last, so they can reach the final axes
+        # extent rather than whatever it was before the bars were drawn.
+        for value, side in ((limit_low, "down"), (limit_high, "up")):
+            if value is None:
+                continue
+            tapio_mpl.limit_wash(self.ax, value, side, tapio_mpl.band_color(t))
+            self.ax.axhline(y=value, color=t.chart("limit"),
+                            linewidth=tapio_mpl.LIMIT_WIDTH, zorder=3)
+            self.ax.annotate(
+                f"{value:g}",
+                xy=(1.0, value), xycoords=self.ax.get_yaxis_transform(),
+                xytext=(-5, 4 if side == "up" else -4), textcoords="offset points",
+                va="bottom" if side == "up" else "top", ha="right",
+                fontsize=t.font_size("eyebrow"), family="monospace",
+                color=t.chart("limit"), zorder=6,
+            )
+
         # Get the selected statistic name for y-axis label
         selected_stat_name = _("STATISTIC_VALUE")  # default
         if hasattr(self.parent_widget, 'selected_stat'):
@@ -143,9 +168,6 @@ class StatisticsAnalysisChart(QWidget):
                 self.parent_widget.selected_stat,
                 selected_stat_name,
             )
-        self.ax.set_ylabel(selected_stat_name)
-
-        self.ax.grid(True, axis='y')  # Only show horizontal grid lines for bar charts
 
         # Set x-axis ticks to show roll labels
         self.ax.set_xticks(x_indices)
@@ -153,7 +175,13 @@ class StatisticsAnalysisChart(QWidget):
         # Only show x-axis labels if there are 20 or fewer rolls
         self.ax.set_xticklabels([])  # Hide labels
 
-        self.figure.tight_layout()
+        tapio_mpl.finish(
+            self.ax,
+            xlabel=_("PLOT_TITLE_ROLL"),
+            ylabel=selected_stat_name,
+        )
+
+        tapio_mpl.fit(self.figure)
 
         self.canvas.draw()
 
@@ -222,12 +250,15 @@ class StatisticsAnalysisChart(QWidget):
         info_text = f"{stat_display_name}\n{filter_text}"
 
         # Position at top right of figure
+        t = tapio_mpl.current
         text_obj = self.figure.text(
             0.95, 0.90,
             info_text,
             ha='right', va='top',
-            fontsize=8,
-            bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='lightgray', linewidth=0.5),
+            fontsize=t.font_size("body-sm"),
+            color=t.color("ink-secondary"),
+            bbox=dict(boxstyle='round,pad=0.5', facecolor=t.color("surface"),
+                      edgecolor=t.color("border"), linewidth=1.0),
             transform=self.figure.transFigure,
         )
         added_texts.append(text_obj)
@@ -251,6 +282,9 @@ class StatisticsAnalysisWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
+        margin = theme_qt.tokens().space(3)
+        self.layout().setContentsMargins(margin, margin, margin, margin)
+        self.layout().setSpacing(theme_qt.tokens().space(2))
 
         # Set to the key value, not the display name
         self.selected_stat = list(stat_label_map.values())[0]  # This will be "mean"
@@ -263,9 +297,11 @@ class StatisticsAnalysisWidget(QWidget):
 
         # Create horizontal layout for dropdowns and refresh button
         # Wrap dropdowns in a container widget so they can be captured together
+        tokens = theme_qt.tokens()
         self.dropdown_container = QWidget()
         dropdown_layout = QHBoxLayout(self.dropdown_container)
         dropdown_layout.setContentsMargins(0, 0, 0, 0)
+        dropdown_layout.setSpacing(tokens.space(4))
 
         self.stat_selection_dropdown = StatSelectionDropdown(self)
         self.stat_selection_dropdown.currentTextChanged.connect(self.on_stat_selection_changed)
@@ -273,12 +309,24 @@ class StatisticsAnalysisWidget(QWidget):
         self.filter_dropdown = FilterDropdown(self)
         self.filter_dropdown.currentTextChanged.connect(self.on_filter_changed)
 
-        dropdown_layout.addWidget(self.stat_selection_dropdown)
-        dropdown_layout.addWidget(self.filter_dropdown)
+        # Labels sit above the field, always: a bare control is only legible to
+        # whoever configured it.
+        for label_text, control in (
+            (_("STATISTIC_VALUE"), self.stat_selection_dropdown),
+            (_("STATISTICS_TIME_RANGE"), self.filter_dropdown),
+        ):
+            field = QWidget()
+            field_layout = QVBoxLayout(field)
+            field_layout.setContentsMargins(0, 0, 0, 0)
+            field_layout.setSpacing(tokens.space(1))
+            field_layout.addWidget(SectionLabel(label_text))
+            field_layout.addWidget(control)
+            dropdown_layout.addWidget(field)
 
         # Add refresh button
         self.refresh_button_layout = QHBoxLayout()
         self.refresh_button = QPushButton(_("BUTTON_TEXT_REFRESH"), self)
+        theme_qt.set_variant(self.refresh_button, "ghost")
         self.refresh_button.clicked.connect(self.refresh_data)
         self.refresh_button_layout.addStretch()
         self.refresh_button_layout.addWidget(self.refresh_button)
@@ -297,8 +345,13 @@ class StatisticsAnalysisWidget(QWidget):
         self.stacked_widget.addWidget(self.chart)  # index 0
         self.stacked_widget.addWidget(self.loading_widget)  # index 1
 
-        self.layout().addWidget(self.dropdown_container)
-        self.layout().addLayout(self.refresh_button_layout)
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.addWidget(self.dropdown_container)
+        toolbar_layout.addStretch()
+        toolbar_layout.addLayout(self.refresh_button_layout)
+
+        self.layout().addLayout(toolbar_layout)
         self.layout().addWidget(self.stacked_widget)
 
         # Initialize worker

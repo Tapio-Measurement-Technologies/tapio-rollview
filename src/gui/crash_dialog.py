@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QFileDialog, QMessageBox
 )
 import settings
+from theme import qt as theme_qt
 from datetime import datetime
 from utils.translation import _
 
@@ -18,7 +19,12 @@ class CrashDialog(QDialog):
         self.setMinimumSize(700, 500)
 
         # Main layout
+        tokens = theme_qt.tokens()
         layout = QVBoxLayout()
+        layout.setContentsMargins(
+            tokens.space(6), tokens.space(6), tokens.space(6), tokens.space(6)
+        )
+        layout.setSpacing(tokens.space(3))
 
         # Error message
         error_label = QLabel(
@@ -29,9 +35,10 @@ class CrashDialog(QDialog):
         error_label.setOpenExternalLinks(True)
         layout.addWidget(error_label)
 
-        # Traceback display
+        # Traceback display. It is code, so it is set in mono.
         self.traceback_edit = QTextEdit()
         self.traceback_edit.setReadOnly(True)
+        self.traceback_edit.setFont(theme_qt.mono_font())
         self.traceback_edit.setPlainText(self.traceback_text)
 
         print(self.traceback_text)
@@ -41,12 +48,16 @@ class CrashDialog(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
 
+        # Saving the log is the useful thing to do with this dialog, so it is
+        # the primary and it comes last, where the eye ends up.
         self.save_button = QPushButton(_("SAVE_ERROR_LOG"))
+        theme_qt.set_variant(self.save_button, "primary")
         self.save_button.clicked.connect(self.save_log)
 
         self.close_button = QPushButton(_("BUTTON_TEXT_CLOSE"))
         self.close_button.clicked.connect(self.reject)
 
+        button_layout.addStretch()
         button_layout.addWidget(self.close_button)
         button_layout.addWidget(self.save_button)
 

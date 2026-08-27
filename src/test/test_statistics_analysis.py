@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from matplotlib.colors import to_rgba
+from theme import mpl as tapio_mpl
 from PySide6.QtWidgets import QApplication
 
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisChart, StatisticsAnalysisWidget
@@ -62,7 +63,16 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
 
             self.assertEqual(emitted_paths, ["/tmp/roll-2"])
             self.assertEqual(chart.highlighted_point, "roll-2")
-            self.assertEqual(chart.bars[1].get_facecolor(), to_rgba("tab:orange"))
+            # Selection is a state laid over identity, so the selected bar takes
+            # the accent rather than a colour from outside the palette.
+            self.assertEqual(
+                chart.bars[1].get_facecolor(),
+                to_rgba(tapio_mpl.current.color("accent")),
+            )
+            self.assertEqual(
+                chart.bars[0].get_facecolor(),
+                to_rgba(tapio_mpl.current.recency[0]),
+            )
         finally:
             chart.close()
 

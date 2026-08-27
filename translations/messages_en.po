@@ -131,7 +131,7 @@ msgstr "Blue"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_ORANGE"
-msgstr "Orange"
+msgstr "Amber"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GREEN"
@@ -143,27 +143,27 @@ msgstr "Red"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PURPLE"
-msgstr "Purple"
+msgstr "Violet"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_BROWN"
-msgstr "Brown"
+msgstr "Bronze"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PINK"
-msgstr "Pink"
+msgstr "Magenta"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GRAY"
-msgstr "Gray"
+msgstr "Slate"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_OLIVE"
-msgstr "Olive"
+msgstr "Moss"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_CYAN"
-msgstr "Cyan"
+msgstr "Teal"
 
 #. Used in file tree context menu and directory view as button label and menu action
 #. label.
@@ -895,3 +895,99 @@ msgstr "bytes"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "Statistic Value"
+
+#. Used on a stat tile when no alert limit is configured for that statistic.
+msgid "STAT_TILE_NO_LIMITS"
+msgstr "No limits set"
+
+#. Used on a stat tile to state the configured limits.
+msgid "STAT_TILE_LIMIT_RANGE"
+msgstr "Limits {min} – {max}"
+
+#. Used on a stat tile when only a lower limit is configured.
+msgid "STAT_TILE_LIMIT_MIN"
+msgstr "Lower limit {value}"
+
+#. Used on a stat tile when only an upper limit is configured.
+msgid "STAT_TILE_LIMIT_MAX"
+msgstr "Upper limit {value}"
+
+#. Used on a stat tile when the value fell below its lower limit.
+msgid "STAT_TILE_BELOW_MIN"
+msgstr "Below lower limit {value}"
+
+#. Used on a stat tile when the value rose above its upper limit.
+msgid "STAT_TILE_ABOVE_MAX"
+msgstr "Above upper limit {value}"
+
+#. Status pill: every statistic is inside its configured limits.
+msgid "STATUS_IN_SPEC"
+msgstr "In spec"
+
+#. Status pill: inside limits but within the warning band.
+msgid "STATUS_NEAR_LIMIT"
+msgstr "Near limit"
+
+#. Status pill: a limit was exceeded.
+msgid "STATUS_OUT_OF_SPEC"
+msgstr "Out of spec"
+
+#. Status pill: nothing to judge yet — no data or no limits configured.
+msgid "STATUS_NO_VERDICT"
+msgstr "No verdict"
+
+#. Application header: the selected roll and how many profiles it holds.
+msgid "HEADER_ROLL_CONTEXT"
+msgstr "{name} · {count} profiles"
+
+#. Application header when no roll folder is selected.
+msgid "HEADER_NO_ROLL"
+msgstr "No roll selected"
+
+#. Settings window: heading for the theme and density controls.
+msgid "APPEARANCE"
+msgstr "Appearance"
+
+#. Settings window: label for the light/dark theme control.
+msgid "APPEARANCE_THEME"
+msgstr "Theme"
+
+#. Settings window: the light theme option.
+msgid "APPEARANCE_THEME_LIGHT"
+msgstr "Light"
+
+#. Settings window: the dark theme option.
+msgid "APPEARANCE_THEME_DARK"
+msgstr "Dark"
+
+#. Settings window: guidance under the theme control.
+msgid "APPEARANCE_THEME_HINT"
+msgstr "Light for daylight and mill floors, dark for night shift and control rooms."
+
+#. Settings window: label for the display density control.
+msgid "APPEARANCE_DENSITY"
+msgstr "Density"
+
+#. Settings window: the compact density option.
+msgid "APPEARANCE_DENSITY_COMPACT"
+msgstr "Compact"
+
+#. Settings window: the comfortable density option.
+msgid "APPEARANCE_DENSITY_COMFORTABLE"
+msgstr "Comfortable"
+
+#. Profile chart legend entry for the hatched excluded-region overlay.
+msgid "CHART_EXCLUDED_REGION_LEGEND"
+msgstr "Excluded"
+
+#. Profile chart legend entry for the alert limit lines and bands.
+msgid "CHART_LIMITS_LEGEND"
+msgstr "Alert limits"
+
+#. Profile chart legend entry for the individual profiles behind the mean.
+msgid "CHART_INDIVIDUAL_PROFILES_LEGEND"
+msgstr "Individual profiles"
+
+#. Statistics analysis view: label above the time-range filter.
+msgid "STATISTICS_TIME_RANGE"
+msgstr "Time range"

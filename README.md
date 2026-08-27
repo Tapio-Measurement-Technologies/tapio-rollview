@@ -30,6 +30,11 @@ The [Tapio RQP Live](https://www.tapiotechnologies.com/tapio-rqp-live/) is an in
 ## Support
 More detailed instructions are available in the [Tapio RollView Manual](docs/rollview-manual.md).
 
+The interface follows the Tapio Design System; see
+[docs/design-system.md](docs/design-system.md) for how the tokens, components
+and chart rules map onto this codebase, and what to check before shipping a new
+screen.
+
 For support, training, instruments and customizations please contact us at:
 - Email: [info@tapiotechnologies.com](mailto:info@tapiotechnologies.com)
 - Visit: [https://www.tapiotechnologies.com](https://www.tapiotechnologies.com)

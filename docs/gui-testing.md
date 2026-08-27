@@ -35,8 +35,8 @@ Fixtures from `conftest.py`:
 | Fixture | What it gives you |
 | --- | --- |
 | `main_window` | A live `MainWindow`, serial scanning stubbed, destroyed at teardown |
+| `app_modules` | Session-scoped import of `main`/`settings`/`store` the way `main.py` does it, plus `theme.apply()` so tests run against the styled app |
 | `snap` | `snap(widget, "name")` writes a PNG under `gui-shots/<test name>/` |
-| `app_modules` | Session-scoped import of `main`/`settings`/`store` the way `main.py` does it |
 | `qtbot` | pytest-qt's driver: `mouseClick`, `keyClicks`, `waitUntil`, `waitSignal` |
 
 `src/test/test_gui_visual.py` is a worked example.
@@ -89,6 +89,20 @@ asserting on it.
 
 # Run a scenario
 .venv/bin/python scripts/guiharness.py scripts/scenarios/overview.py --out /tmp/shots
+```
+
+Both the harness and the pytest fixtures apply the Tapio Design System before
+building any widget, the same call `main()` makes, so a screenshot shows what an
+operator sees rather than an unstyled Fusion window. `scripts/scenarios/design_review.py`
+walks every surface the system touches and takes a shot of each; see
+[the design system notes](design-system.md) for what to check them against.
+
+```bash
+.venv/bin/python scripts/guiharness.py scripts/scenarios/design_review.py --out gui-shots/light
+```
+
+```bash
+ROLLVIEW_REVIEW_THEME=dark .venv/bin/python scripts/guiharness.py scripts/scenarios/design_review.py --out gui-shots/dark
 ```
 
 A scenario is a Python file defining `run(ctx)`:

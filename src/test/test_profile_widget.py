@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from models.Profile import Profile, ProfileData, ProfileHeader
 from gui.widgets.ProfileWidget import ProfileWidget
+from gui.widgets.stats import MISSING
 from utils.highlighted_regions import (
     AbsoluteMeanOffsetHardnessHighlightRegion,
     DISTANCE_HIGHLIGHT_MODE_ABSOLUTE,
@@ -297,7 +298,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertEqual(widget.figure.axes, [])
             for stat_widget in widget.stats_widget.widgets:
                 self.assertIsNone(stat_widget.value)
-                self.assertEqual(stat_widget.value_label.text(), "--")
+                self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
             widget.close()
 
@@ -327,7 +328,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertEqual(widget.figure.axes, [])
             for stat_widget in widget.stats_widget.widgets:
                 self.assertIsNone(stat_widget.value)
-                self.assertEqual(stat_widget.value_label.text(), "--")
+                self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
             widget.close()
 
@@ -344,7 +345,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
             for stat_widget in widget.stats_widget.widgets:
                 self.assertIsNone(stat_widget.value)
-                self.assertEqual(stat_widget.value_label.text(), "--")
+                self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
             widget.close()
 

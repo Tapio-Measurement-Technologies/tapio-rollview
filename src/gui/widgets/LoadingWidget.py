@@ -4,6 +4,7 @@ Loading widget with spinner and progress text.
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar
 from PySide6.QtCore import Qt
+from theme import qt as theme_qt
 from utils.translation import _
 
 
@@ -16,20 +17,20 @@ class LoadingWidget(QWidget):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
         self.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout().setSpacing(theme_qt.tokens().space(2))
 
         # Loading label
         self.loading_label = QLabel(_("LOADING"), self)
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        font = self.loading_label.font()
-        font.setPointSize(14)
-        font.setBold(True)
-        self.loading_label.setFont(font)
+        theme_qt.set_role(self.loading_label, "title")
 
         # Progress bar
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
+        # The number is stated below rather than inside the bar, where nothing
+        # is readable against both the track and the fill.
+        self.progress_bar.setTextVisible(False)
         self.progress_bar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.progress_bar.setMaximumWidth(400)
 
@@ -37,6 +38,7 @@ class LoadingWidget(QWidget):
         self.status_label = QLabel("", self)
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setWordWrap(True)
+        theme_qt.set_role(self.status_label, "hint")
 
         # Add widgets to layout
         self.layout().addStretch()
@@ -48,8 +50,7 @@ class LoadingWidget(QWidget):
     def update_progress(self, value: int, status_text: str = ""):
         """Update the progress bar and status text."""
         self.progress_bar.setValue(value)
-        if status_text:
-            self.status_label.setText(status_text)
+        self.status_label.setText(f"{value}% · {status_text}" if status_text else f"{value}%")
 
     def reset(self):
         """Reset the progress bar and status text."""
