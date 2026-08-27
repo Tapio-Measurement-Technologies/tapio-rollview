@@ -50,6 +50,42 @@ class TestMainSettingsFileFlag(unittest.TestCase):
         mock_window.load_settings_file_from_path.assert_called_once_with("/tmp/a.json")
 
 
+class TestWindowsTaskbarIcon(unittest.TestCase):
+    """The taskbar button takes its icon from the window and its identity from
+    the AppUserModelID, and both have to be right before a window exists."""
+
+    def test_application_icon_is_set_before_the_window_is_built(self):
+        call_order = []
+        mock_app = MagicMock()
+        mock_app.exec.return_value = 0
+        mock_app.setWindowIcon.side_effect = lambda icon: call_order.append("icon")
+
+        with patch.object(sys, "argv", ["main.py"]),              patch("PySide6.QtWidgets.QApplication", return_value=mock_app),              patch("gui.main_window.MainWindow", side_effect=lambda: call_order.append("window") or MagicMock()),              patch("PySide6.QtGui.QIcon"):
+            import main
+            main.main()
+
+        self.assertEqual(call_order, ["icon", "window"])
+
+    def test_a_source_run_claims_its_own_app_user_model_id(self):
+        import main
+        import settings
+
+        with patch.object(sys, "platform", "win32"),              patch.object(sys, "frozen", False, create=True),              patch("ctypes.windll", create=True) as mock_windll:
+            main.set_windows_app_id()
+
+        mock_windll.shell32.SetCurrentProcessExplicitAppUserModelID.assert_called_once_with(
+            settings.APP_USER_MODEL_ID
+        )
+
+    def test_a_frozen_build_keeps_the_identity_of_its_executable(self):
+        import main
+
+        with patch.object(sys, "platform", "win32"),              patch.object(sys, "frozen", True, create=True),              patch("ctypes.windll", create=True) as mock_windll:
+            main.set_windows_app_id()
+
+        mock_windll.shell32.SetCurrentProcessExplicitAppUserModelID.assert_not_called()
+
+
 class TestSettingsSysArgvGuard(unittest.TestCase):
     """Tests that named flags in sys.argv don't trigger local_settings loading."""
 

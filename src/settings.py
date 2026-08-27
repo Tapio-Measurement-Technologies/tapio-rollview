@@ -25,7 +25,16 @@ PREFERENCES_FILE_PATH = os.path.join(ROOT_DIRECTORY, PREFERENCES_FILENAME)
 
 
 # ICON_PATH = resource_path('assets/tapio192.png')
+# Multi-resolution .ico (16 to 256 px): Windows picks the size the taskbar,
+# the title bar and Alt-Tab each want, and a single-size icon is what makes
+# one of the three look wrong.
 ICON_PATH = resource_path('assets/tapio_favicon.ico')
+
+# Windows groups taskbar buttons by AppUserModelID. A source run would
+# otherwise inherit python.exe's identity and show the Python icon; a frozen
+# build already has its own identity from the .exe, and overriding it there
+# detaches the button from the executable Windows pins and takes its icon from.
+APP_USER_MODEL_ID = 'tapio.rollview'
 
 # Use resource_path() for PyInstaller compatibility
 LOCALE_FILES_PATH = resource_path('locales')

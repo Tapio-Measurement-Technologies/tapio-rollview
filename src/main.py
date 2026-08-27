@@ -65,13 +65,12 @@ def main():
     parser.add_argument('--force-rqft', action='store_true', help='Treat every responding device as RQFT-capable, bypassing the firmware version gate.')
     args, _ = parser.parse_known_args()
 
-    # Fix Windows taskbar icon
-    if sys.platform == 'win32':
-        import ctypes
-        myappid = 'tapio.rollview'
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-
     app = QApplication(sys.argv)
+
+    # Before the first window is created: a window built without an icon can
+    # keep the default one for the life of its taskbar button.
+    app_icon = QIcon(settings.ICON_PATH)
+    app.setWindowIcon(app_icon)
 
     # The Tapio Design System, before any widget is built: Fusion (the native
     # Windows style silently ignores much of a style sheet), the bundled IBM
@@ -82,17 +81,29 @@ def main():
     theme.apply(app, theme=preferences.ui_theme)
 
     window = MainWindow()
-
-    app_icon = QIcon(settings.ICON_PATH)
-    app.setWindowIcon(app_icon)
-    window.setWindowIcon(app_icon)
-
     window.show()
 
     if args.settings_file:
         window.load_settings_file_from_path(args.settings_file)
 
     return app.exec()
+
+def set_windows_app_id():
+    """Give a source run its own taskbar identity.
+
+    Without this the process is python.exe as far as the shell is concerned,
+    and the taskbar button shows the Python icon however the window is
+    decorated. Frozen builds are left alone: the .exe is already a distinct
+    application to the shell, carries the icon in its own resources, and an
+    explicit ID there splits the running window off from the pinned .exe.
+    """
+    if sys.platform != 'win32' or getattr(sys, 'frozen', False):
+        return
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(settings.APP_USER_MODEL_ID)
+
+
+set_windows_app_id()
 
 # Show splash screen on standalone pyinstaller executable
 try:
