@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 
 import store
 from utils import preferences
-from utils.postprocess import get_postprocessors
+from utils.postprocess import BUILTIN, CUSTOM, get_postprocessors
 from utils.translation import _
 
 
@@ -141,6 +141,97 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.assertEqual(preferences.enabled_postprocessors, [module_name])
         self.assertTrue(postprocessors[module_name].enabled)
         self.assertTrue(self.window.postprocessor_checkboxes[module_name].isChecked())
+
+    def test_the_menu_rules_custom_postprocessors_apart_from_the_built_in_ones(self):
+        """Site-local code and the product are different kinds of thing.
+
+        A module dropped into the operator's own folder can appear, break or
+        vanish between launches; one that ships with the software cannot.
+        """
+        actions = self.window.postprocessors_menu.actions()
+        separators = [index for index, action in enumerate(actions) if action.isSeparator()]
+        self.assertEqual(len(separators), 2)
+
+        builtin_names = set(get_postprocessors(BUILTIN))
+        self.assertTrue(builtin_names)
+        self.assertEqual(len(actions[:separators[0]]), len(builtin_names))
+
+        commands = actions[separators[-1] + 1:]
+        self.assertEqual(
+            [action.text() for action in commands],
+            [
+                _('MENU_BAR_RUN_POSTPROCESSORS'),
+                _('MENU_BAR_REFRESH_POSTPROCESSORS'),
+                _('MENU_BAR_OPEN_POSTPROCESSOR_FOLDER'),
+            ],
+        )
+
+    def test_an_empty_custom_folder_says_so_rather_than_showing_nothing(self):
+        """An empty section reads as a broken menu; a line saying so does not."""
+        def only_builtins(origin=None):
+            return get_postprocessors(BUILTIN) if origin != CUSTOM else {}
+
+        with patch("gui.main_window.get_postprocessors", side_effect=only_builtins):
+            self.window.build_postprocessors_menu()
+
+            placeholder = next(
+                action for action in self.window.postprocessors_menu.actions()
+                if action.text() == _('MENU_BAR_NO_CUSTOM_POSTPROCESSORS')
+            )
+            self.assertFalse(placeholder.isEnabled())
+
+        self.window.build_postprocessors_menu()
+
+    def test_a_custom_module_is_listed_after_the_divider(self):
+        custom = get_postprocessors(CUSTOM)
+        if not custom:
+            self.skipTest("no custom postprocessor in the user's folder")
+
+        actions = self.window.postprocessors_menu.actions()
+        separators = [index for index, action in enumerate(actions) if action.isSeparator()]
+        between = actions[separators[0] + 1:separators[-1]]
+        self.assertEqual(len(between), len(custom))
+        self.assertTrue(
+            set(custom).issubset(self.window.postprocessor_checkboxes)
+        )
+
+    def test_refresh_rebuilds_the_menu_and_the_checkbox_map(self):
+        """QMenu.clear() deletes the checkboxes the old map pointed at.
+
+        Without a rebuilt map the next preference load walks into dangling C++
+        objects, which is what this is really testing.
+        """
+        self.window.refresh_postprocessors_action.trigger()
+        QApplication.processEvents()  # the rebuild is deferred by a zero timer
+
+        self.assertEqual(
+            set(self.window.postprocessor_checkboxes),
+            set(get_postprocessors()),
+        )
+        for checkbox in self.window.postprocessor_checkboxes.values():
+            checkbox.isChecked()  # raises RuntimeError if the C++ side is gone
+
+    def test_refresh_is_refused_while_a_run_is_in_flight(self):
+        with patch.object(self.window.postprocess_manager, "is_running", return_value=True), \
+             patch("gui.main_window.show_info_msgbox") as info_box, \
+             patch("gui.main_window.reload_postprocessors") as reload_modules:
+            self.window.refresh_postprocessors_action.trigger()
+            QApplication.processEvents()
+
+        info_box.assert_called_once()
+        reload_modules.assert_not_called()
+
+    def test_opening_the_postprocessor_folder_creates_it_first(self):
+        """A menu item that opens nothing because the folder has never existed
+        is a dead end — the point of it is somewhere to drop a .py file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            folder = os.path.join(tmpdir, "postprocessors")
+            with patch("gui.main_window.user_postprocessors_path", folder), \
+                 patch("gui.main_window.open_in_file_explorer") as opener:
+                self.window.open_postprocessor_folder_action.trigger()
+
+            self.assertTrue(os.path.isdir(folder))
+            opener.assert_called_once_with(folder)
 
     def test_directory_name_initialized_before_load_settings_file(self):
         self.assertIsNone(self.window.directory_name)

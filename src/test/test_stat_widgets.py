@@ -61,17 +61,40 @@ class TestStatWidgets(unittest.TestCase):
 
     def test_stat_widget_states_the_limit_under_the_number(self):
         # Not hover-only: on a mill-floor tablet there is no hover, so the limit
-        # is on the tile. When the value crosses one, the footer says which.
+        # is on the tile. It reads the same whatever the value did — a footer
+        # that switches vocabulary under load takes away the number the
+        # operator is being measured against.
         widget = MaxWidget(self.data, limit=self.limits['max_g'])
 
         widget.update_data([4.8])
-        self.assertEqual(widget.foot_label.text(), "Limits 4.5 \u2013 5.0")
+        self.assertEqual(widget.foot_label.text(), "Limits: \u2265 4.5, \u2264 5.0")
+        self.assertIsNone(widget.foot_label.min_chunk.property("limit"))
+        self.assertIsNone(widget.foot_label.max_chunk.property("limit"))
 
         widget.update_data([7.0])
-        self.assertEqual(widget.foot_label.text(), "Above 5.0")
+        self.assertEqual(widget.foot_label.text(), "Limits: \u2265 4.5, \u2264 5.0")
+        self.assertEqual(widget.foot_label.max_chunk.property("limit"), "breached")
+        self.assertIsNone(widget.foot_label.min_chunk.property("limit"))
 
         widget.update_data([1.0])
-        self.assertEqual(widget.foot_label.text(), "Below 4.5")
+        self.assertEqual(widget.foot_label.min_chunk.property("limit"), "breached")
+        self.assertIsNone(widget.foot_label.max_chunk.property("limit"))
+
+    def test_stat_widget_with_one_bound_states_only_that_bound(self):
+        widget = MaxWidget(self.data, limit={'name': 'max_g', 'min': 4.5, 'max': None})
+        self.assertEqual(widget.foot_label.text(), "Limits: \u2265 4.5")
+        self.assertFalse(widget.foot_label.max_chunk.isVisible())
+
+    def test_a_long_limit_never_widens_the_tile(self):
+        """Seven statistics have to fit across one row; the footer elides.
+
+        The chunked footer is the one that could break this — a plain QLabel
+        would demand the width of its text and push the row onto two lines.
+        """
+        plain = MeanWidget(self.data)
+        wide = MeanWidget(self.data, limit={'name': 'mean_g', 'min': -123456.75, 'max': 987654.25})
+        self.assertEqual(wide.content_width(), plain.content_width())
+        self.assertEqual(wide.foot_label.min_chunk.minimumSizeHint().width(), 0)
 
     def test_editing_one_tile_re_judges_the_whole_run(self):
         """The verdict belongs to the run, not to the tile that was edited.
@@ -103,8 +126,10 @@ class TestStatWidgets(unittest.TestCase):
             destroy(widget)
 
     def test_stat_widget_without_limits_says_so(self):
+        # An em dash, and the same shape as a tile that has limits: seven tiles
+        # each spelling out a sentence about having none was the noise.
         widget = MeanWidget(self.data)
-        self.assertEqual(widget.foot_label.text(), "No limits set")
+        self.assertEqual(widget.foot_label.text(), "Limits: \u2014")
 
     def test_stat_widget_without_data_shows_em_dash(self):
         # Missing is an em dash, not 0, not blank, not NaN. Zero is a measurement.

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenu, QApplication, QSizePolicy
 from PySide6.QtGui import QAction, QFontMetrics
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QSize, Signal
 import settings
 import theme
 from theme import qt as theme_qt
@@ -78,6 +78,99 @@ class ElidedLabel(QLabel):
         )
         QLabel.setText(self, elided)
         self.setToolTip(self._full_text if elided != self._full_text else "")
+
+
+class ElidedChunk(ElidedLabel):
+    """One run of the limit footer, able to carry its own style property.
+
+    ``ElidedLabel`` is Ignored horizontally, which is right for a lone label
+    filling a row and wrong inside a box layout — a row of Ignored items
+    collapses to nothing. This asks for the width of its text and accepts none
+    of it, so the row packs left, shrinks under pressure and elides rather than
+    widening the tile the way a plain QLabel would.
+    """
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+
+    def sizeHint(self):
+        # Measured from the full text, not from the elided string QLabel is
+        # currently holding: sizing from what is painted is a ratchet — one
+        # squeeze shortens the text, the shorter text asks for less, and the
+        # chunk never grows back when the tile does.
+        metrics = QFontMetrics(self.font())
+        return QSize(metrics.horizontalAdvance(self.text()), super().sizeHint().height())
+
+    def minimumSizeHint(self):
+        return QSize(0, super().minimumSizeHint().height())
+
+
+class LimitFooter(QWidget):
+    """The limit line under a stat value.
+
+    It always states the limits, in one shape whatever the value did: an
+    operator reading a row of tiles should not have to notice that this tile's
+    footer switched vocabulary. What changes when a bound is crossed is which
+    bound is emphasised — the tile is already the alarm, so the footer's job is
+    to say *which end* of the range the value left.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        row = QHBoxLayout(self)
+        theme_qt.pad(row, 0)
+        theme_qt.gap(row, 1)
+
+        self.prefix = ElidedChunk()
+        self.min_chunk = ElidedChunk()
+        self.separator = ElidedChunk()
+        self.max_chunk = ElidedChunk()
+        for chunk in (self.prefix, self.min_chunk, self.separator, self.max_chunk):
+            theme_qt.set_role(chunk, "hint")
+            row.addWidget(chunk)
+        row.addStretch(1)
+
+    def set_limits(self, minimum, maximum, breached=None):
+        """State the limits. *breached* is ``"min"``, ``"max"`` or None."""
+        self.prefix.setText(_("STAT_TILE_LIMIT_PREFIX"))
+
+        if minimum is None and maximum is None:
+            # Missing is an em dash here too: an unset limit is not a limit of
+            # zero, and seven tiles each spelling out a sentence about it was
+            # the noise this replaces.
+            self.min_chunk.setText(MISSING)
+            self.separator.setText("")
+            self.max_chunk.setText("")
+        else:
+            self.min_chunk.setText(
+                _("STAT_TILE_LIMIT_MIN").format(value=format_stat_value(minimum))
+                if minimum is not None else ""
+            )
+            self.max_chunk.setText(
+                _("STAT_TILE_LIMIT_MAX").format(value=format_stat_value(maximum))
+                if maximum is not None else ""
+            )
+            self.separator.setText(
+                _("STAT_TILE_LIMIT_SEPARATOR")
+                if minimum is not None and maximum is not None else ""
+            )
+
+        for chunk in (self.min_chunk, self.separator, self.max_chunk):
+            chunk.setVisible(bool(chunk.text()))
+
+        theme_qt.set_property(self.min_chunk, "limit",
+                              "breached" if breached == "min" else None)
+        theme_qt.set_property(self.max_chunk, "limit",
+                              "breached" if breached == "max" else None)
+
+        self.setAccessibleName(self.text())
+
+    def text(self):
+        """The whole line, for the accessible name and for the tests."""
+        parts = [self.prefix.text(), self.min_chunk.text(),
+                 self.separator.text(), self.max_chunk.text()]
+        return " ".join(part for part in parts if part).replace(" ,", ",")
 
 
 class StatsWidget(QWidget):
@@ -275,8 +368,7 @@ class StatWidget(QWidget):
         # to anyone who does not go looking for it. It elides rather than
         # widening the tile — seven statistics have to fit across one row, and
         # the chart is what the space is for.
-        self.foot_label = ElidedLabel()
-        theme_qt.set_role(self.foot_label, "hint")
+        self.foot_label = LimitFooter()
         self.layout.addWidget(self.foot_label)
 
         self.setLayout(self.layout)  # Set the layout for the StatWidget
@@ -316,27 +408,18 @@ class StatWidget(QWidget):
                 self.update_data(self.data)  # Refresh the widget display
                 self.limit_edited.emit()
 
-    def _foot_text(self):
-        """What the tile says under the number: the limit, or why it failed."""
-        if not self.has_limit():
-            return _("STAT_TILE_NO_LIMITS")
+    def _breached_bound(self):
+        """Which end of the range the value went out of, if either."""
+        if self.value is None or not self.has_limit():
+            return None
 
         minimum = self.limit.get('min')
         maximum = self.limit.get('max')
-
-        if self.value is not None:
-            if minimum is not None and self.value < minimum:
-                return _("STAT_TILE_BELOW_MIN").format(value=format_stat_value(minimum))
-            if maximum is not None and self.value > maximum:
-                return _("STAT_TILE_ABOVE_MAX").format(value=format_stat_value(maximum))
-
-        if minimum is not None and maximum is not None:
-            return _("STAT_TILE_LIMIT_RANGE").format(
-                min=format_stat_value(minimum), max=format_stat_value(maximum)
-            )
-        if minimum is not None:
-            return _("STAT_TILE_LIMIT_MIN").format(value=format_stat_value(minimum))
-        return _("STAT_TILE_LIMIT_MAX").format(value=format_stat_value(maximum))
+        if minimum is not None and self.value < minimum:
+            return "min"
+        if maximum is not None and self.value > maximum:
+            return "max"
+        return None
 
     def update_tooltip(self):
         if self.has_limit():
@@ -371,7 +454,11 @@ class StatWidget(QWidget):
         theme_qt.set_state(self, state)
         theme_qt.set_state(self.value_label, state)
         theme_qt.set_state(self.foot_label, state)
-        self.foot_label.setText(self._foot_text())
+        self.foot_label.set_limits(
+            self.limit.get('min') if self.limit else None,
+            self.limit.get('max') if self.limit else None,
+            self._breached_bound(),
+        )
         self.update_tooltip()
 
 class MeanWidget(StatWidget):

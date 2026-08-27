@@ -89,7 +89,7 @@ class StatisticsAnalysisChart(QWidget):
         self.canvas.sync_background()
         self.annot = self.ax.annotate(
             "", xy=(0, 0), xytext=(0, 10), textcoords="offset points",
-            fontsize=t.font_size("body-sm"), color=t.color("ink"),
+            fontsize=tapio_mpl.points(t.font_size("body-sm")), color=t.color("ink"),
             bbox=dict(boxstyle="round,pad=0.4", facecolor=t.color("raised"),
                       edgecolor=t.color("border-strong"), linewidth=1.0),
             zorder=20,
@@ -110,7 +110,6 @@ class StatisticsAnalysisChart(QWidget):
         # Use enumerated indices for x-axis instead of timestamps
         x_indices = list(range(len(stat_data)))
         y = [p['y'] for p in stat_data]
-        labels = [p['label'] for p in stat_data]
 
         limit_low = limit_high = None
         # Add alert limit ranges as shaded areas if available (draw behind bars)
@@ -202,7 +201,7 @@ class StatisticsAnalysisChart(QWidget):
                 xy=(1.0, value), xycoords=self.ax.get_yaxis_transform(),
                 xytext=(-5, 4 if side == "up" else -4), textcoords="offset points",
                 va="bottom" if side == "up" else "top", ha="right",
-                fontsize=t.font_size("eyebrow"), family="monospace",
+                fontsize=tapio_mpl.points(t.font_size("eyebrow")), family="monospace",
                 color=limit_line, zorder=6, bbox=chip,
             )
 
@@ -214,17 +213,21 @@ class StatisticsAnalysisChart(QWidget):
                 selected_stat_name,
             )
 
-        # Set x-axis ticks to show roll labels
-        self.ax.set_xticks(x_indices)
-
-        # Only show x-axis labels if there are 20 or fewer rolls
-        self.ax.set_xticklabels([])  # Hide labels
-
         tapio_mpl.finish(
             self.ax,
             xlabel=_("PLOT_TITLE_ROLL"),
             ylabel=selected_stat_name,
         )
+
+        # A categorical axis has no positions to read off it. One tick and one
+        # gridline through the centre of every bar, labelled nothing, ruled the
+        # panel into stripes the bars had to be read through. A gridline is
+        # drawn at a tick, so dropping the ticks drops the vertical rules with
+        # them and leaves the horizontal ones the values are read against.
+        # After finish(), which turns both axes on; ax.clear() at the top of
+        # plot() puts the rcParam defaults back before every redraw.
+        self.ax.set_xticks([])
+        self.ax.grid(False, axis="x")
 
         tapio_mpl.fit(self.figure)
 
@@ -300,7 +303,7 @@ class StatisticsAnalysisChart(QWidget):
             0.95, 0.90,
             info_text,
             ha='right', va='top',
-            fontsize=t.font_size("body-sm"),
+            fontsize=tapio_mpl.points(t.font_size("body-sm")),
             color=t.color("ink-secondary"),
             bbox=dict(boxstyle='round,pad=0.5', facecolor=t.color("surface"),
                       edgecolor=t.color("border"), linewidth=1.0),

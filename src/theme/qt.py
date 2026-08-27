@@ -386,6 +386,7 @@ def build_stylesheet(t):
         "title_3": t.font_size("title-3"),
         "s1": t.space(1), "s2": t.space(2), "s3": t.space(3),
         "s4": t.space(4), "s6": t.space(6),
+        "s1_focus": t.space(1) - 1,
         "s3_focus": t.space(3) - 1,
         "s4_focus": t.space(4) - 1,
         # radius

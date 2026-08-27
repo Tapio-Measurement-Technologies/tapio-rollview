@@ -569,7 +569,7 @@ class ProfileWidget(QWidget):
                 self.heading = profile_widget.figure.text(
                     0.1, 0.965, self.title,
                     ha="left", va="top",
-                    fontsize=t.font_size("title-3"), weight="semibold",
+                    fontsize=tapio_mpl.points(t.font_size("title-3")), weight="semibold",
                     color=t.color("ink"),
                     transform=profile_widget.figure.transFigure,
                 )

@@ -85,6 +85,26 @@ msgstr "Postprocessors"
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
 msgstr "Run postprocessors"
 
+#. Used in the postprocessors menu; rescans the postprocessor folders.
+msgid "MENU_BAR_REFRESH_POSTPROCESSORS"
+msgstr "Refresh postprocessors"
+
+#. Used in the postprocessors menu; opens the folder custom modules are read from.
+msgid "MENU_BAR_OPEN_POSTPROCESSOR_FOLDER"
+msgstr "Open postprocessor folder"
+
+#. Used in the postprocessors menu when the custom postprocessor folder is empty.
+msgid "MENU_BAR_NO_CUSTOM_POSTPROCESSORS"
+msgstr "(No custom postprocessor modules in PATH)"
+
+#. Used as message box title when a refresh is asked for mid-run.
+msgid "MENU_BAR_POSTPROCESSORS_BUSY_TITLE"
+msgstr "Postprocessors are running"
+
+#. Used as message box text when a refresh is asked for mid-run.
+msgid "MENU_BAR_POSTPROCESSORS_BUSY_TEXT"
+msgstr "Wait for the current run to finish before reloading the postprocessors."
+
 #. Used in settings window as window or dialog title and window title.
 msgid "WINDOW_TITLE_SETTINGS"
 msgstr "Settings"
@@ -896,29 +916,21 @@ msgstr "bytes"
 msgid "STATISTIC_VALUE"
 msgstr "Statistic Value"
 
-#. Used on a stat tile when no alert limit is configured for that statistic.
-msgid "STAT_TILE_NO_LIMITS"
-msgstr "No limits set"
+#. Used on a stat tile before the configured alert limits.
+msgid "STAT_TILE_LIMIT_PREFIX"
+msgstr "Limits:"
 
-#. Used on a stat tile to state the configured limits.
-msgid "STAT_TILE_LIMIT_RANGE"
-msgstr "Limits {min} – {max}"
+#. Used on a stat tile between a lower and an upper limit.
+msgid "STAT_TILE_LIMIT_SEPARATOR"
+msgstr ","
 
-#. Used on a stat tile when only a lower limit is configured.
+#. Used on a stat tile to state the lower alert limit.
 msgid "STAT_TILE_LIMIT_MIN"
-msgstr "Limit ≥ {value}"
+msgstr "≥ {value}"
 
-#. Used on a stat tile when only an upper limit is configured.
+#. Used on a stat tile to state the upper alert limit.
 msgid "STAT_TILE_LIMIT_MAX"
-msgstr "Limit ≤ {value}"
-
-#. Used on a stat tile when the value fell below its lower limit.
-msgid "STAT_TILE_BELOW_MIN"
-msgstr "Below {value}"
-
-#. Used on a stat tile when the value rose above its upper limit.
-msgid "STAT_TILE_ABOVE_MAX"
-msgstr "Above {value}"
+msgstr "≤ {value}"
 
 
 

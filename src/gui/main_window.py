@@ -10,13 +10,15 @@
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtCore import QDir, Qt, QSignalBlocker
+from PySide6.QtCore import QDir, Qt, QSignalBlocker, QTimer
 
 import theme
 from theme import qt as theme_qt
 
-from utils.file_utils import list_prof_files
-from utils.postprocess import toggle_postprocessor, PostprocessManager, get_postprocessors, PostprocessResult
+from utils.file_utils import list_prof_files, open_in_file_explorer
+from utils.postprocess import (toggle_postprocessor, PostprocessManager, get_postprocessors,
+                               PostprocessResult, reload_postprocessors, user_postprocessors_path,
+                               BUILTIN, CUSTOM)
 from utils import preferences
 from utils.figure_export import copy_plot_widget_to_clipboard
 import os
@@ -35,6 +37,7 @@ from gui.widgets.DirectoryView import DirectoryView
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 from gui.settings import SettingsWindow
 from gui.qr_config_dialog import QRConfigDialog
+from gui.widgets.messagebox import show_info_msgbox, show_error_msgbox
 from utils.translation import _
 
 class MainWindow(QMainWindow):
@@ -122,8 +125,9 @@ class MainWindow(QMainWindow):
         ver_splitter.setCollapsible(0, False)
         ver_splitter.setCollapsible(1, False)
         # The chart is the subject of this window, so it opens with the larger
-        # share; the file list is a picker, not a view.
-        ver_splitter.setSizes([640, 240])
+        # share; the file list is a picker, not a view, and every row it gives
+        # back goes to the chart above it.
+        ver_splitter.setSizes([664, 216])
 
         hor_splitter = QSplitter(Qt.Orientation.Horizontal)
         hor_splitter.addWidget(self.sidebar)
@@ -251,38 +255,110 @@ class MainWindow(QMainWindow):
         view_menu.addAction(recalculate_mean_checkbox)
         view_menu.addAction(log_window_action)
 
-        postprocessors_menu = menu_bar.addMenu(_('MENU_BAR_POSTPROCESSORS'))
+        self.postprocessors_menu = menu_bar.addMenu(_('MENU_BAR_POSTPROCESSORS'))
 
-        # Add 'Run after sync' heading using QLabel for better styling
-        # run_after_sync_label = QLabel('Run after sync')
-        # run_after_sync_label.setFont(QFont('Arial', 10, QFont.Weight.Normal))  # Make the text bold
-        # run_after_sync_label.setMargin(5)
-        # run_after_sync_label_action = QWidgetAction(self)
-        # run_after_sync_label_action.setDefaultWidget(run_after_sync_label)
-        # postprocessors_menu.addAction(run_after_sync_label_action)
-
-        for module_name, module in get_postprocessors().items():
-            action_text = getattr(module, 'description', module_name)
-            checkbox_widget = self.create_checkbox_menu_item(
-                action_text,
-                postprocessors_menu,
-                module.enabled,
-                lambda checked, module=module: toggle_postprocessor(module)
-            )
-            postprocessors_menu.addAction(checkbox_widget)
-            self.postprocessor_checkboxes[module_name] = checkbox_widget.defaultWidget().findChild(QCheckBox)
-
-        # Add the 'Run postprocessors' item
-        run_postprocessors_action = QAction(_('MENU_BAR_RUN_POSTPROCESSORS'), self)
-        run_postprocessors_action.triggered.connect(
+        # Parented to the window rather than to the menu: refreshing clears the
+        # menu, and QMenu.clear() deletes the actions the menu owns — which is
+        # what has to happen to the module checkboxes and must not happen to
+        # these three.
+        self.run_postprocessors_action = QAction(_('MENU_BAR_RUN_POSTPROCESSORS'), self)
+        self.run_postprocessors_action.triggered.connect(
             self.run_postprocessors_for_all_folders)
-        # run_postprocessors_action.triggered.connect(self.run_postprocessors)  # Method to run postprocessors
-        postprocessors_menu.addAction(run_postprocessors_action)
+
+        self.refresh_postprocessors_action = QAction(_('MENU_BAR_REFRESH_POSTPROCESSORS'), self)
+        self.refresh_postprocessors_action.triggered.connect(self.on_refresh_postprocessors)
+
+        self.open_postprocessor_folder_action = QAction(
+            _('MENU_BAR_OPEN_POSTPROCESSOR_FOLDER'), self)
+        self.open_postprocessor_folder_action.triggered.connect(self.open_postprocessor_folder)
+
+        self.build_postprocessors_menu()
 
         scan_menu = menu_bar.addMenu(_('MENU_BAR_DEVICE_CONFIG'))
         apply_alert_limits_action = QAction(_('MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE'), self)
         apply_alert_limits_action.triggered.connect(self.open_qr_config_dialog)
         scan_menu.addAction(apply_alert_limits_action)
+
+    def add_postprocessor_items(self, modules):
+        for module_name, module in modules.items():
+            action_text = getattr(module, 'description', module_name)
+            checkbox_widget = self.create_checkbox_menu_item(
+                action_text,
+                self.postprocessors_menu,
+                module.enabled,
+                lambda checked, module=module: toggle_postprocessor(module)
+            )
+            self.postprocessors_menu.addAction(checkbox_widget)
+            self.postprocessor_checkboxes[module_name] = checkbox_widget.defaultWidget().findChild(QCheckBox)
+
+    def build_postprocessors_menu(self):
+        """The menu, from whatever is loaded now.
+
+        The modules that ship with the software and the ones the operator
+        dropped into their own folder are ruled apart: the second kind can
+        appear, break or vanish between launches, which is what makes a refresh
+        and an empty-folder line worth saying.
+        """
+        menu = self.postprocessors_menu
+        # Deletes the QWidgetActions — they are parented to the menu — and with
+        # them the QCheckBoxes the old map pointed at.
+        menu.clear()
+        self.postprocessor_checkboxes = {}
+
+        self.add_postprocessor_items(get_postprocessors(BUILTIN))
+
+        menu.addSeparator()
+        custom_postprocessors = get_postprocessors(CUSTOM)
+        if custom_postprocessors:
+            self.add_postprocessor_items(custom_postprocessors)
+        else:
+            no_custom_action = QAction(_('MENU_BAR_NO_CUSTOM_POSTPROCESSORS'), menu)
+            no_custom_action.setEnabled(False)
+            menu.addAction(no_custom_action)
+
+        menu.addSeparator()
+        menu.addAction(self.run_postprocessors_action)
+        menu.addAction(self.refresh_postprocessors_action)
+        menu.addAction(self.open_postprocessor_folder_action)
+
+    def on_refresh_postprocessors(self):
+        """Rescan the folders and rebuild the menu this was triggered from.
+
+        Deferred by a zero timer on purpose: the action lives in the menu the
+        rebuild clears, and clearing a menu inside the emission of one of its
+        own actions deletes the object mid-signal.
+        """
+        if self.postprocess_manager.is_running():
+            show_info_msgbox(
+                _('MENU_BAR_POSTPROCESSORS_BUSY_TEXT'),
+                _('MENU_BAR_POSTPROCESSORS_BUSY_TITLE'),
+            )
+            return
+        QTimer.singleShot(0, self.reload_postprocessors)
+
+    def reload_postprocessors(self):
+        reload_postprocessors()
+        # The manager holds module objects and the menu held lambdas bound to
+        # them; both sets are stale the moment the files are re-imported.
+        self.postprocess_manager.refresh_enabled_postprocessors()
+        self.build_postprocessors_menu()
+
+    def open_postprocessor_folder(self):
+        """Open the folder custom postprocessors are read from, making it first.
+
+        A menu item that opens nothing because the folder has never existed is
+        a dead end — the point of it is to give the operator somewhere to drop
+        a .py file. settings.IGNORE_FOLDERS already keeps 'postprocessors' out
+        of the roll sweep, so an empty one is invisible everywhere else.
+        """
+        try:
+            os.makedirs(user_postprocessors_path, exist_ok=True)
+        except OSError as error:
+            message = _("ERROR_MSGBOX_TEXT_DIRECTORY_NOT_FOUND").format(
+                directory=user_postprocessors_path)
+            show_error_msgbox(f"{message}\n\n{error}", _("ERROR_MSGBOX_TITLE"))
+            return
+        open_in_file_explorer(user_postprocessors_path)
 
     def create_checkbox_menu_item(self, label, parent_menu, checked, callback):
         """Helper method to create a persistent checkbox menu item."""

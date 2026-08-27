@@ -53,6 +53,25 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
         finally:
             destroy(chart)
 
+    def test_the_bar_chart_rules_only_the_value_axis(self):
+        """A categorical axis has no positions to read off it.
+
+        One tick and one gridline through the centre of every bar, labelled
+        nothing, ruled the panel into stripes the bars had to be read through.
+        """
+        chart = StatisticsAnalysisChart()
+        try:
+            chart.plot([
+                {"x": 1, "y": 10.0, "label": "roll-1", "path": "/tmp/roll-1"},
+                {"x": 2, "y": 12.0, "label": "roll-2", "path": "/tmp/roll-2"},
+            ])
+
+            self.assertEqual(list(chart.ax.get_xticks()), [])
+            self.assertFalse(any(line.get_visible() for line in chart.ax.get_xgridlines()))
+            self.assertTrue(any(line.get_visible() for line in chart.ax.get_ygridlines()))
+        finally:
+            destroy(chart)
+
     def test_pick_selects_clicked_bar_and_emits_directory_path(self):
         chart = StatisticsAnalysisChart()
         try:
