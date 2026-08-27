@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenu, QApplication
-from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenu, QApplication, QSizePolicy
+from PySide6.QtGui import QAction, QFontMetrics
 from PySide6.QtCore import Qt, Signal
 import settings
 import theme
@@ -40,6 +40,44 @@ def verdict_for(widgets):
     if any(w.has_limit() for w in measured):
         return theme.STATUS_GOOD
     return theme.STATUS_IDLE
+
+
+class ElidedLabel(QLabel):
+    """A label that shortens its text to the width it is given.
+
+    Used for the limit line under a stat: it should say as much as fits and no
+    more, rather than dictating how wide the tile is. The full text stays in the
+    tooltip and in the accessible name.
+    """
+
+    def __init__(self, text="", parent=None):
+        super().__init__(parent)
+        self._full_text = ""
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.setText(text)
+
+    def setText(self, text):
+        self._full_text = text or ""
+        self.setAccessibleName(self._full_text)
+        self._apply_elide()
+
+    def text(self):
+        return self._full_text
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._apply_elide()
+
+    def _apply_elide(self):
+        metrics = QFontMetrics(self.font())
+        available = max(self.width(), 0)
+        elided = (
+            metrics.elidedText(self._full_text, Qt.TextElideMode.ElideRight, available)
+            if available else self._full_text
+        )
+        QLabel.setText(self, elided)
+        self.setToolTip(self._full_text if elided != self._full_text else "")
 
 
 class StatsWidget(QWidget):
@@ -91,21 +129,12 @@ class StatsWidget(QWidget):
             widget.limit = limit_map.get(stat_name)
 
     def _measure_cells(self):
-        """Re-measure the widest tile.
+        """Re-measure the widest tile, by its label and its number.
 
-        Worth doing every time the data changes: the footer under the number
-        grows when a limit is crossed ("Below lower limit 34.0" is a good deal
-        wider than "Limits 34.0 – 46.0"), and a width measured while the tiles
-        were still empty clips exactly the message that matters most.
+        The footer is left out on purpose — it elides — so the row stays one
+        line however long a limit message gets.
         """
-        for widget in self.widgets:
-            # sizeHint() is cached until the layout is activated, so a tile
-            # measured straight after setText() still reports its old width.
-            # (`widget.layout` is the attribute these classes assign, not
-            # QWidget.layout() — the name is shadowed throughout this file.)
-            widget.layout.activate()
-            widget.updateGeometry()
-        width = max(widget.sizeHint().width() for widget in self.widgets)
+        width = max(widget.content_width() for widget in self.widgets)
         if width == self._min_cell_width:
             return False
         self._min_cell_width = width
@@ -201,9 +230,9 @@ class StatWidget(QWidget):
         tokens = theme_qt.tokens()
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(
-            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(2)
+            tokens.space(2), tokens.space(1), tokens.space(2), tokens.space(1)
         )
-        self.layout.setSpacing(tokens.space(1))
+        self.layout.setSpacing(0)
 
         # Eyebrow: mono, uppercase, muted.
         self.label = EyebrowLabel(self.name)
@@ -213,11 +242,11 @@ class StatWidget(QWidget):
         # unit is one step smaller and muted, and never bold.
         value_row = QHBoxLayout()
         value_row.setContentsMargins(0, 0, 0, 0)
-        value_row.setSpacing(tokens.space(1))
+        value_row.setSpacing(3)
         value_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBaseline)
 
         self.value_label = QLabel(MISSING)
-        theme_qt.set_role(self.value_label, "dataLarge")
+        theme_qt.set_role(self.value_label, "dataValue")
         value_row.addWidget(self.value_label)
 
         self.unit_label = QLabel(self.units)
@@ -228,14 +257,28 @@ class StatWidget(QWidget):
 
         # The limit is stated on the tile, not only in a tooltip: there is no
         # hover on a mill-floor tablet, and hover-only information is invisible
-        # to anyone who does not go looking for it.
-        self.foot_label = QLabel()
+        # to anyone who does not go looking for it. It elides rather than
+        # widening the tile — seven statistics have to fit across one row, and
+        # the chart is what the space is for.
+        self.foot_label = ElidedLabel()
         theme_qt.set_role(self.foot_label, "hint")
         self.layout.addWidget(self.foot_label)
 
         self.setLayout(self.layout)  # Set the layout for the StatWidget
 
         self.update_data(self.data)
+
+    def content_width(self):
+        """The width the tile needs for its label and its number.
+
+        Deliberately not the footer's width: the footer is context and elides,
+        and sizing every tile to the longest limit message is what pushed the
+        row onto two lines and squeezed the plot.
+        """
+        return max(
+            self.label.sizeHint().width(),
+            self.value_label.sizeHint().width() + self.unit_label.sizeHint().width() + 3,
+        ) + self.layout.contentsMargins().left() + self.layout.contentsMargins().right()
 
     def has_limit(self):
         return self.limit is not None and (

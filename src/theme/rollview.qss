@@ -46,6 +46,15 @@ QFrame[panel="sunken"] {
     border-radius: ${r_lg}px;
 }
 
+/* A row in a table of settings. Horizontal hairlines only — seven boxes in a
+   column is six more outlines than the eye needs to see seven rows. */
+QFrame[panel="row"] {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid ${border};
+    border-radius: 0;
+}
+
 /* An empty state is a placeholder for something that is not there yet, and the
    dashed outline says so without needing a sentence. */
 QFrame[panel="empty"] {
@@ -109,9 +118,20 @@ QLabel[role="data"] {
     color: ${ink};
 }
 
+/* `dataLarge` is the guide's display-sized readout, for a screen with one or
+   two numbers on it. `dataValue` is the same treatment at the size seven
+   statistics can actually sit side by side in — the same system at a different
+   density, which is what the density scale is for. */
 QLabel[role="dataLarge"] {
     font-family: "${mono}";
     font-size: ${data_large}px;
+    font-weight: 500;
+    color: ${ink};
+}
+
+QLabel[role="dataValue"] {
+    font-family: "${mono}";
+    font-size: ${data_value}px;
     font-weight: 500;
     color: ${ink};
 }
@@ -150,7 +170,7 @@ QLabel[pill="idle"] { background-color: ${sunken};    color: ${ink_muted}; borde
 QWidget#statTile {
     background-color: ${surface};
     border: 1px solid ${border};
-    border-radius: ${r_lg}px;
+    border-radius: ${r_md}px;
 }
 
 QWidget#statTile[state="bad"] {
@@ -448,7 +468,7 @@ QTreeView::item, QTableView::item, QListView::item,
 QTreeWidget::item, QListWidget::item {
     border: none;
     border-bottom: 1px solid ${border};
-    padding: ${s1}px ${s2}px;
+    padding: 0 ${s2}px;
     min-height: ${row_inner}px;
     color: ${ink_secondary};
 }
@@ -500,6 +520,11 @@ QHeaderView {
     border: none;
 }
 
+/* A `min-height` on a header section grows the box downward and leaves the
+   label at the top of it — which is what had every column heading sitting
+   against the top edge. The height comes from symmetric vertical padding
+   instead, which is the only thing that actually centres the text; the sort
+   indicator then lines up with it. */
 QHeaderView::section {
     background-color: ${sunken};
     color: ${ink_muted};
@@ -509,29 +534,23 @@ QHeaderView::section {
     border: none;
     border-bottom: 1px solid ${border};
     border-right: none;
-    padding: ${s1}px ${s2}px;
-    min-height: ${header_inner}px;
+    padding: ${header_pad}px ${s2}px;
 }
 
 QHeaderView::section:hover {
     color: ${ink};
 }
 
-QHeaderView::down-arrow {
-    image: url(${sort_down_icon});
+QHeaderView::down-arrow, QHeaderView::up-arrow {
     width: 9px;
     height: 9px;
+    subcontrol-origin: content;
     subcontrol-position: center right;
-    right: ${s2}px;
+    right: ${s1}px;
 }
 
-QHeaderView::up-arrow {
-    image: url(${sort_up_icon});
-    width: 9px;
-    height: 9px;
-    subcontrol-position: center right;
-    right: ${s2}px;
-}
+QHeaderView::down-arrow { image: url(${sort_down_icon}); }
+QHeaderView::up-arrow   { image: url(${sort_up_icon}); }
 
 QTableCornerButton::section {
     background-color: ${sunken};

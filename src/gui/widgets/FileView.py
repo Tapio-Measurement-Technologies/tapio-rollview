@@ -14,10 +14,12 @@ PROF_FILE_HEADER_SIZE = 128
 # Measured quantities: mono, tabular, right-aligned, so the decimal points form
 # a vertical line and magnitudes can be compared without being read.
 NUMERIC_COLUMNS = (1, 4)
-# Timestamps are numbers too. They stay left-aligned — a date is read across,
-# not compared by magnitude — but they take the mono face so a column of them
-# scans.
-MONO_COLUMNS = (1, 3, 4)
+# Everything in this view is scanned down a column rather than read as prose:
+# the file name is an identifier, the timestamp is a number, the size and the
+# length are quantities. All of them take the mono face — the same treatment the
+# folder list gives the roll name, so the two lists do not disagree about what a
+# name looks like.
+MONO_COLUMNS = (0, 1, 3, 4)
 
 class CustomFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, parent=None):

@@ -906,19 +906,19 @@ msgstr "Limits {min} – {max}"
 
 #. Used on a stat tile when only a lower limit is configured.
 msgid "STAT_TILE_LIMIT_MIN"
-msgstr "Lower limit {value}"
+msgstr "Limit ≥ {value}"
 
 #. Used on a stat tile when only an upper limit is configured.
 msgid "STAT_TILE_LIMIT_MAX"
-msgstr "Upper limit {value}"
+msgstr "Limit ≤ {value}"
 
 #. Used on a stat tile when the value fell below its lower limit.
 msgid "STAT_TILE_BELOW_MIN"
-msgstr "Below lower limit {value}"
+msgstr "Below {value}"
 
 #. Used on a stat tile when the value rose above its upper limit.
 msgid "STAT_TILE_ABOVE_MAX"
-msgstr "Above upper limit {value}"
+msgstr "Above {value}"
 
 #. Status pill: every statistic is inside its configured limits.
 msgid "STATUS_IN_SPEC"

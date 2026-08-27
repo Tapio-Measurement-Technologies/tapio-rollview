@@ -17,8 +17,8 @@ from utils.highlighted_regions import (
 )
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QLabel
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSizePolicy, QLabel
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from utils.translation import _
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -28,6 +28,10 @@ import logging
 import store
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
+# How long the figure waits for a resize to settle before laying itself out
+# again. Long enough to coalesce a drag, short enough to feel immediate.
+RELAYOUT_DELAY_MS = 90
 
 # Excluded-region boundaries. Grey and dashed: an excluded region is not an
 # alarm, so it never borrows the limit colour.
@@ -139,6 +143,21 @@ class ProfileWidget(QWidget):
         self.canvas = FigureCanvas(self.figure)
         self.stats = Stats()
 
+        # None until the first _setup_axes() call decides an arrangement.
+        self._axes_arrangement = None
+
+        # Deferring a repaint needs an event loop to defer into, and a timer
+        # may only be stopped on the thread that made it. The plot_export
+        # postprocessor builds a ProfileWidget on a worker thread to render one
+        # figure and save it, so off the GUI thread there are no timers and
+        # every draw happens on the spot — which is what that path wants anyway.
+        self._relayout_timer = self._make_timer(self._relayout_figure)
+        # Matplotlib's own draw_idle() queues the repaint on a QTimer *it* owns,
+        # which outlives this widget: destroy the tab with a draw pending and the
+        # callback reaches a deleted C++ canvas. This timer is a child of the
+        # widget, so it dies with it.
+        self._draw_timer = self._make_timer(self._draw_now, interval=0)
+
         # The plot is the subject of this tab. Without a floor under the canvas
         # the tile grid squeezes it to a strip in which a profile cannot be
         # read; without headroom on the widget itself, the floor pushes the
@@ -172,13 +191,39 @@ class ProfileWidget(QWidget):
 
         self.customize_toolbar()
 
+    def _make_timer(self, slot, interval=None):
+        """A single-shot timer owned by this widget, or None off the GUI thread."""
+        application = QApplication.instance()
+        if application is None or QThread.currentThread() is not application.thread():
+            return None
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        if interval is not None:
+            timer.setInterval(interval)
+        timer.timeout.connect(slot)
+        return timer
+
     def verdict(self):
         return self.stats_widget.verdict()
 
-    def _setup_axes(self):
-        """Set up the subplot axes based on current preferences."""
+    def _setup_axes(self, force=False):
+        """Set up the subplot axes based on current preferences.
+
+        Rebuilding the figure means tearing down and re-creating every axis,
+        tick and spine, which is a large part of what made stepping through the
+        folder list feel slow. The arrangement only depends on whether the
+        spectrum is shown, so the axes are reused until that changes and
+        emptied in place instead.
+        """
+        arrangement = bool(preferences.show_spectrum)
+        if not force and arrangement == self._axes_arrangement and self.figure.axes:
+            for ax in self.figure.axes:
+                ax.clear()
+            return
+
         # Clear existing axes
         self.figure.clear()
+        self._axes_arrangement = arrangement
 
         if preferences.show_spectrum:
             self.profile_ax = self.figure.add_subplot(211)
@@ -492,12 +537,16 @@ class ProfileWidget(QWidget):
         return _Band()
 
     def clear(self):
+        """Empty the axes without repainting.
+
+        This runs at the top of update_plot, which draws the finished figure
+        anyway — rendering the blank axes first cost a full Agg pass (about half
+        of update_plot's time) to show something nobody sees.
+        """
         self.profile_ax.clear()
-        self.profile_ax.figure.canvas.draw()  # Ensure the profile plot updates
         self.warning_label.clear()
         if preferences.show_spectrum and self.spectrum_ax is not None:
             self.spectrum_ax.clear()
-            self.spectrum_ax.figure.canvas.draw()
 
     def clear_plot_display(self):
         self.profiles = []
@@ -505,6 +554,7 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = []
         self.directory_name = None
         self.figure.clear()
+        self._axes_arrangement = None
         tapio_mpl.restyle_figure(self.figure)
         self.warning_label.clear()
         self.empty_state_label.clear()
@@ -513,7 +563,7 @@ class ProfileWidget(QWidget):
         self.stats_widget.setVisible(False)
         self.canvas.setVisible(False)
         self.toolbar.setVisible(False)
-        self.canvas.draw()
+        self.request_draw()
 
     def show_no_profile_files_message(self, directory_name):
         self.profiles = []
@@ -521,6 +571,7 @@ class ProfileWidget(QWidget):
         self.mean_profile_distances = []
         self.directory_name = directory_name
         self.figure.clear()
+        self._axes_arrangement = None
         tapio_mpl.restyle_figure(self.figure)
         self.warning_label.clear()
         self.stats_widget.update_data(([], []))
@@ -529,7 +580,7 @@ class ProfileWidget(QWidget):
         self.empty_state_label.setVisible(True)
         self.canvas.setVisible(False)
         self.toolbar.setVisible(False)
-        self.canvas.draw()
+        self.request_draw()
 
     def _recency_order(self, profiles):
         """Rank profiles newest-first, so the colour ramp reads as an order."""
@@ -562,7 +613,7 @@ class ProfileWidget(QWidget):
         # Update toolbar visibility
         self.toolbar.setVisible(preferences.show_plot_toolbar)
 
-        self.clear()
+        self.warning_label.clear()
 
         self.directory_name = directory_name
         selected_profile_in_current_directory = store.selected_profile in [ p.name for p in self.profiles ]
@@ -755,7 +806,7 @@ class ProfileWidget(QWidget):
             for existing in list(self.figure.legends):
                 existing.remove()
             tapio_mpl.fit(self.figure)
-        self.canvas.draw()
+        self.request_draw()
 
         self._reset_toolbar_history()
 
@@ -822,17 +873,43 @@ class ProfileWidget(QWidget):
 
     def clear_canvas(self):
         self.ax.clear()
-        self.canvas.draw()
+        self.request_draw()
 
     def set_toolbar_visible(self, visible):
         self.toolbar.setVisible(visible)
 
     def resizeEvent(self, event):
-        """Handle the window resize event to update chart dimensions."""
+        """Re-lay the figure out once the resize settles.
+
+        A drag on the splitter or the window edge fires resize events far faster
+        than Matplotlib can re-run tight_layout and re-render — roughly 70 ms a
+        pass — so doing it inline is what made the window feel heavy. The canvas
+        scales itself in the meantime; this catches up when the pointer stops.
+        """
         super().resizeEvent(event)
+        if self._relayout_timer is None:
+            self._relayout_figure()
+            return
+        self._relayout_timer.start(RELAYOUT_DELAY_MS)
+
+    def request_draw(self):
+        """Repaint the canvas once, after the current batch of work.
+
+        Several updates in one go — a folder change that reloads profiles, then
+        restores hidden state, then re-plots — collapse into a single render.
+        """
+        if self._draw_timer is None:
+            self._draw_now()
+            return
+        self._draw_timer.start()
+
+    def _draw_now(self):
+        self.canvas.draw()
+
+    def _relayout_figure(self):
         tapio_mpl.fit(
             self.figure,
             rect=(0, tapio_mpl.LEGEND_HEIGHT, 1, 1) if self.figure.legends else None,
         )
         self._sync_toolbar_layout_positions()
-        self.canvas.draw()
+        self.request_draw()

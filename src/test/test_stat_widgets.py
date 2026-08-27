@@ -67,10 +67,10 @@ class TestStatWidgets(unittest.TestCase):
         self.assertEqual(widget.foot_label.text(), "Limits 4.5 \u2013 5.0")
 
         widget.update_data([7.0])
-        self.assertEqual(widget.foot_label.text(), "Above upper limit 5.0")
+        self.assertEqual(widget.foot_label.text(), "Above 5.0")
 
         widget.update_data([1.0])
-        self.assertEqual(widget.foot_label.text(), "Below lower limit 4.5")
+        self.assertEqual(widget.foot_label.text(), "Below 4.5")
 
     def test_stat_widget_without_limits_says_so(self):
         widget = MeanWidget(self.data)

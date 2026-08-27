@@ -914,11 +914,11 @@ msgstr "上限 {value}"
 
 #. Used on a stat tile when the value fell below its lower limit.
 msgid "STAT_TILE_BELOW_MIN"
-msgstr "下限 {value} 未満"
+msgstr "{value} 未満"
 
 #. Used on a stat tile when the value rose above its upper limit.
 msgid "STAT_TILE_ABOVE_MAX"
-msgstr "上限 {value} 超過"
+msgstr "{value} 超過"
 
 #. Status pill: every statistic is inside its configured limits.
 msgid "STATUS_IN_SPEC"
