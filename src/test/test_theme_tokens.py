@@ -14,7 +14,18 @@ import re
 import unittest
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QGridLayout, QVBoxLayout, QWidget
+from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QGridLayout,
+    QLabel,
+    QStyle,
+    QStyleOptionComboBox,
+    QVBoxLayout,
+    QWidget,
+)
 
 import theme
 from theme import contrast
@@ -183,12 +194,15 @@ class TestApply(ThemeRestoringTestCase):
                 mpl.rcParams["axes.facecolor"].upper(), dark.chart("surface").upper()
             )
             # Fusion, because the native Windows style silently ignores much
-            # of a style sheet — a large part of why the app looked unstyled.
-            # With a sheet set, QApplication.style() is the QStyleSheetStyle
-            # proxy wrapping it and PySide6 does not expose baseStyle(), so the
-            # base style is only visible with the sheet momentarily cleared.
+            # of a style sheet — a large part of why the app looked unstyled —
+            # behind RollViewStyle, which corrects the few behaviours a style
+            # sheet cannot reach. With a sheet set, QApplication.style() is the
+            # QStyleSheetStyle proxy wrapping that and PySide6 does not expose
+            # its baseStyle(), so both are only visible with the sheet
+            # momentarily cleared.
             app.setStyleSheet("")
-            self.assertEqual(app.style().name().lower(), "fusion")
+            self.assertIsInstance(app.style(), theme_qt.RollViewStyle)
+            self.assertEqual(app.style().baseStyle().name().lower(), "fusion")
 
             light = theme.apply(app, theme=T.LIGHT)
             self.assertEqual(
@@ -275,6 +289,88 @@ class TestApply(ThemeRestoringTestCase):
         self.assertIn("IBM Plex Mono", families)
         self.assertEqual(theme_qt.sans_family(), "IBM Plex Sans")
         self.assertEqual(theme_qt.mono_family(), "IBM Plex Mono")
+
+
+class TestStateReachesTheChildren(ThemeRestoringTestCase):
+    """A state set on a container has to restyle what is inside it.
+
+    The sheet keys colour off ancestors — ``QWidget#statTile[state="bad"] QLabel``
+    is what takes a failing tile's eyebrow and unit red along with its number —
+    and Qt caches each widget's resolved rules until that widget is repolished.
+    Repolishing the container alone left the labels inside it painted for the
+    state before, which is how a tile over its alert limit came up half red and
+    corrected itself only at the next theme change.
+    """
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    def test_a_container_state_recolours_the_labels_inside_it(self):
+        tile = QWidget()
+        tile.setObjectName("statTile")
+        layout = QVBoxLayout(tile)
+        label = QLabel("MEAN", tile)
+        theme_qt.set_role(label, "eyebrow")
+        layout.addWidget(label)
+        self.addCleanup(destroy, tile)
+
+        tile.show()
+        muted = theme_qt.tokens().color("ink-muted").upper()
+        self.assertEqual(
+            label.palette().color(QPalette.ColorRole.WindowText).name().upper(), muted
+        )
+
+        theme_qt.set_state(tile, theme.STATUS_BAD)
+        self.assertEqual(
+            label.palette().color(QPalette.ColorRole.WindowText).name().upper(),
+            theme_qt.tokens().color("bad").upper(),
+        )
+
+        theme_qt.set_state(tile, None)
+        self.assertEqual(
+            label.palette().color(QPalette.ColorRole.WindowText).name().upper(), muted
+        )
+
+
+class TestComboBoxPopup(ThemeRestoringTestCase):
+    """A drop-down opens below its field and scrolls like a list.
+
+    Fusion answers ``SH_ComboBox_Popup`` with true for a non-editable combo,
+    which opens the list *over* the control anchored on the current item, drops
+    ``maxVisibleItems`` and reaches anything past the edge of the screen through
+    two auto-scrolling arrow strips instead of a scrollbar — options that read as
+    missing, and a list that lurches a row at a time.
+    """
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    def test_the_popup_is_a_drop_down_not_a_menu(self):
+        combo = QComboBox()
+        combo.addItems([f"Option {i}" for i in range(4)])
+        self.addCleanup(destroy, combo)
+
+        option = QStyleOptionComboBox()
+        option.initFrom(combo)
+        self.assertEqual(
+            combo.style().styleHint(
+                QStyle.StyleHint.SH_ComboBox_Popup, option, combo
+            ),
+            0,
+        )
+
+    def test_the_popup_scrolls_by_the_pixel(self):
+        combo = QComboBox()
+        combo.addItems([f"Option {i}" for i in range(40)])
+        self.addCleanup(destroy, combo)
+        combo.show()
+
+        self.assertEqual(
+            combo.view().verticalScrollMode(),
+            QAbstractItemView.ScrollMode.ScrollPerPixel,
+        )
 
 
 class TestDensity(unittest.TestCase):

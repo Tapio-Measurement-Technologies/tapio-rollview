@@ -11,8 +11,10 @@
 
 Three things do most of the work:
 
-* **Fusion.** The native Windows style silently ignores much of a style sheet,
-  which is a large part of why the applications looked unstyled.
+* **Fusion**, wrapped in ``RollViewStyle``. The native Windows style silently
+  ignores much of a style sheet, which is a large part of why the applications
+  looked unstyled; the wrapper is there for the handful of behaviours a style
+  sheet cannot reach, starting with Fusion's menu-style combo box popup.
 * **The bundled Plex fonts**, registered with ``QFontDatabase`` so the app does
   not depend on what the operator happens to have installed.
 * **Dynamic properties** for variants and states, so the stylesheet keeps
@@ -28,7 +30,14 @@ from string import Template
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QProxyStyle,
+    QStyle,
+    QWidget,
+)
 
 from theme import icons
 from theme import paths
@@ -409,6 +418,46 @@ def build_stylesheet(t):
 
 
 # ---------------------------------------------------------------------------
+# style
+# ---------------------------------------------------------------------------
+
+class RollViewStyle(QProxyStyle):
+    """Fusion, with its combo box drop-down brought back to a drop-down.
+
+    Fusion answers ``SH_ComboBox_Popup`` with true for every non-editable combo,
+    which turns the list into a macOS-style menu: it opens *over* the control
+    with the current item under the cursor rather than below it, ``maxVisibleItems``
+    stops meaning anything, and the moment the list is taller than the room left
+    on the screen the overflow is reached through two 10 px auto-scrolling arrow
+    strips instead of a scrollbar. Choose the last colour in a list and reopen
+    it and the list is pinned to the top of the screen with its first entries
+    behind an arrow — options that look simply missing — and the wheel then
+    moves it a whole row at a time.
+
+    A settings form wants the ordinary control: the list below the field it
+    belongs to, sized to its own items, with the themed scrollbar when there are
+    more of them than fit, and scrolling by the pixel rather than by the row.
+    """
+
+    def styleHint(self, hint, option=None, widget=None, returnData=None):
+        if hint == QStyle.StyleHint.SH_ComboBox_Popup:
+            return 0
+        return super().styleHint(hint, option, widget, returnData)
+
+    def polish(self, target):
+        # Overloaded in Qt — QWidget, QApplication and QPalette all land here,
+        # and the palette overload has to give its argument back.
+        polished = super().polish(target)
+        if isinstance(target, QComboBox):
+            # A drop-down is a list of words, not a table of rows to land on
+            # exactly; per-item scrolling makes a short list lurch.
+            target.view().setVerticalScrollMode(
+                QAbstractItemView.ScrollMode.ScrollPerPixel
+            )
+        return polished
+
+
+# ---------------------------------------------------------------------------
 # entry point
 # ---------------------------------------------------------------------------
 
@@ -435,7 +484,7 @@ def apply(app=None, theme=T.LIGHT):
     _family_cache.clear()
     _font_cache.clear()
 
-    app.setStyle("Fusion")
+    app.setStyle(RollViewStyle("Fusion"))
     app.setPalette(build_palette(current))
     app.setStyleSheet(build_stylesheet(current))
 
@@ -464,11 +513,23 @@ def apply(app=None, theme=T.LIGHT):
 # ---------------------------------------------------------------------------
 
 def _repolish(widget):
-    """Qt does not restyle on a property change; make it."""
-    style = widget.style()
-    style.unpolish(widget)
-    style.polish(widget)
-    widget.update()
+    """Qt does not restyle on a property change; make it — children included.
+
+    The subtree is not thoroughness for its own sake. The style sheet keys
+    colour off ancestors — ``QWidget#statTile[state="bad"] QLabel`` is what
+    takes the eyebrow and the unit red along with the number — and Qt caches
+    each widget's resolved rules until *that widget* is repolished. Repolishing
+    only the container therefore leaves every label inside it painted for the
+    state the container was in before: a tile that crossed its alert limit came
+    up with a red number in a red box and a grey label beside it, and stayed
+    that way until the next theme change polished the whole tree and made it
+    look as though nothing had ever been wrong.
+    """
+    for target in [widget] + widget.findChildren(QWidget):
+        style = target.style()
+        style.unpolish(target)
+        style.polish(target)
+        target.update()
 
 
 def set_property(widget, name, value):
@@ -611,6 +672,7 @@ def tokens():
 
 __all__ = [
     "apply", "tokens", "resolve", "requested", "desktop_scheme", "font", "mono_font", "style_header",
+    "RollViewStyle",
     "numeric_field_width", "tree_column_width",
     "sans_family", "mono_family", "pad", "gap",
     "set_variant", "set_role", "set_state", "set_invalid", "set_panel",

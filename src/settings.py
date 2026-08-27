@@ -38,7 +38,7 @@ Y_LIM_LOW = lambda min_value: 0
 Y_LIM_HIGH = lambda max_value: np.ceil((1.5 * max_value) / 10) * 10
 GRID = True
 
-# Chart marks follow the Tapio Design System; see docs/design-system.md.
+# Chart marks follow the Tapio Design System.
 # Leave the colours as None to take them from the tokens, which is what keeps
 # the charts in step with the rest of the interface and with the other Tapio
 # products. A hex here overrides the system for this installation only.

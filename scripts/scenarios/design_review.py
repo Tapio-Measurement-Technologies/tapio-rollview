@@ -1,8 +1,8 @@
 """Walk every surface the Tapio Design System touches, and screenshot each one.
 
 Written for reviewing the *look* rather than asserting on it: run it, build a
-contact sheet, and check the result against docs/design-system.md and the QA
-checklist there.
+contact sheet, and check the result against the design guide and its QA
+checklist.
 
     .venv/bin/python scripts/guiharness.py scripts/scenarios/design_review.py \\
         --home /tmp/rollview-review --out gui-shots/light
