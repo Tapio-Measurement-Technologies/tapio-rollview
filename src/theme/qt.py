@@ -250,11 +250,6 @@ def build_stylesheet(t):
         "accent_soft": t.color("accent-soft"),
         "accent_soft_pressed": T.mix(accent, t.color("accent-soft"), 0.2),
         "accent_ink": t.color("accent-ink"),
-        # Disabled is 42% of the fill and *keeps its label readable*, which
-        # means the label flips to ink: white on a 42% accent is 1.9:1, and an
-        # unreadable disabled button is indistinguishable from a broken one.
-        "accent_disabled": T.mix(accent, surface, 0.42),
-        "accent_ink_disabled": t.color("ink"),
         "focus": t.color("focus"),
         # status
         "good": t.color("good"), "good_soft": t.color("good-soft"), "good_mark": t.color("good-mark"),

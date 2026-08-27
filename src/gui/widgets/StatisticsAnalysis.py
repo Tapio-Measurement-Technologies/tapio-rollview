@@ -83,6 +83,7 @@ class StatisticsAnalysisChart(QWidget):
         self.bars = []
         t = tapio_mpl.current
         tapio_mpl.restyle_figure(self.figure, t)
+        self.canvas.sync_background()
         self.annot = self.ax.annotate(
             "", xy=(0, 0), xytext=(0, 10), textcoords="offset points",
             fontsize=t.font_size("body-sm"), color=t.color("ink"),

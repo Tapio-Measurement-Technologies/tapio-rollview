@@ -971,13 +971,7 @@ msgstr "日中や抄紙機フロアではライト、夜勤や制御室ではダ
 msgid "CHART_EXCLUDED_REGION_LEGEND"
 msgstr "除外区間"
 
-#. Profile chart legend entry for the alert limit lines and bands.
-msgid "CHART_LIMITS_LEGEND"
-msgstr "警報限界"
 
-#. Profile chart legend entry for the individual profiles behind the mean.
-msgid "CHART_INDIVIDUAL_PROFILES_LEGEND"
-msgstr "個別プロファイル"
 
 #. Statistics analysis view: label above the time-range filter.
 msgid "STATISTICS_TIME_RANGE"

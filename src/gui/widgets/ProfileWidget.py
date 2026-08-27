@@ -552,6 +552,7 @@ class ProfileWidget(QWidget):
         self.figure.clear()
         self._axes_arrangement = None
         tapio_mpl.restyle_figure(self.figure)
+        self.canvas.sync_background()
         self.warning_label.clear()
         self.empty_state_label.clear()
         self.empty_state_label.setHidden(True)
@@ -569,6 +570,7 @@ class ProfileWidget(QWidget):
         self.figure.clear()
         self._axes_arrangement = None
         tapio_mpl.restyle_figure(self.figure)
+        self.canvas.sync_background()
         self.warning_label.clear()
         self.stats_widget.update_data(([], []))
         self.stats_widget.setVisible(True)
@@ -605,6 +607,7 @@ class ProfileWidget(QWidget):
         # Reconfigure axes layout
         self._setup_axes()
         tapio_mpl.restyle_figure(self.figure)
+        self.canvas.sync_background()
 
         # Update toolbar visibility
         self.toolbar.setVisible(preferences.show_plot_toolbar)
@@ -783,8 +786,6 @@ class ProfileWidget(QWidget):
         elif high is not None and not np.isfinite(high):
             self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
 
-        legend = self._legend(len(mean_profile_values) > 0, lower_limit, upper_limit)
-
         # A limit the axis does not reach is a limit the operator cannot see —
         # but a y-limit the user typed in is their decision, so only the
         # automatic ends of the axis are allowed to move.
@@ -793,53 +794,12 @@ class ProfileWidget(QWidget):
             upper_limit if preferences.y_lim_high_override is None else None,
         )
 
-        if legend:
-            # Reserve the legend strip before laying out, so the axes shrink to
-            # make room instead of the legend landing on the x-axis label.
-            tapio_mpl.fit(self.figure, rect=(0, tapio_mpl.LEGEND_HEIGHT, 1, 1))
-            tapio_mpl.place_legend(self.figure, *legend)
-        else:
-            for existing in list(self.figure.legends):
-                existing.remove()
-            tapio_mpl.fit(self.figure)
+        tapio_mpl.fit(self.figure)
         self.request_draw()
 
         self._reset_toolbar_history()
 
         self.stats_widget.update_data((self.mean_profile_distances, self.mean_profile))
-
-    def _legend(self, has_mean, lower_limit, upper_limit):
-        """What the marks on this chart mean.
-
-        Direct labels carry the limits already, so the legend only names the
-        kinds of line: the mean, the individual profiles behind it, the limits,
-        and the hatch over anything excluded.
-        """
-        visible = [p for p in self.profiles if not p.hidden]
-        show_supporting = len(visible) > 1
-        show_limits = lower_limit is not None or upper_limit is not None
-        show_excluded = (
-            preferences.excluded_regions_mode != settings.EXCLUDED_REGIONS_MODE_NONE
-            and bool(preferences.excluded_regions)
-        )
-        if not (has_mean and (show_supporting or show_limits or show_excluded)):
-            return None
-
-        recency = tapio_mpl.recency_colors(max(len(visible), 1))
-        handles = tapio_mpl.legend_handles(
-            mean=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0),
-            supporting=recency[len(recency) // 2][0] if show_supporting else None,
-            limits=show_limits,
-            excluded=show_excluded,
-        )
-        labels = [_("CHART_MEAN_PROFILE_LABEL")]
-        if show_supporting:
-            labels.append(_("CHART_INDIVIDUAL_PROFILES_LEGEND"))
-        if show_limits:
-            labels.append(_("CHART_LIMITS_LEGEND"))
-        if show_excluded:
-            labels.append(_("CHART_EXCLUDED_REGION_LEGEND"))
-        return handles, labels
 
     def _keep_limits_in_view(self, lower, upper):
         """Widen the y-axis if a configured limit falls outside it.
@@ -889,9 +849,6 @@ class ProfileWidget(QWidget):
         self.canvas.draw()
 
     def _relayout_figure(self):
-        tapio_mpl.fit(
-            self.figure,
-            rect=(0, tapio_mpl.LEGEND_HEIGHT, 1, 1) if self.figure.legends else None,
-        )
+        tapio_mpl.fit(self.figure)
         self._sync_toolbar_layout_positions()
         self.request_draw()
