@@ -42,6 +42,16 @@ LIMIT_WIDTH = 1.5          # limit lines, solid
 TARGET_WIDTH = 1.0         # target and mean, dashed and recessive
 SUPPORTING_WIDTH = 1.5     # individual profiles behind the mean
 
+#: The diagonal used for a region that is out of bounds — excluded from the
+#: analysis, or beyond an alert limit. One hatch, so the two read as one idea.
+#: The diagonal that says "this region does not count" — excluded from the
+#: analysis, or beyond an alert limit. One idea, two densities: hatch reads by
+#: how much of the region it inks, so the same spacing that is legible across a
+#: narrow band is a wall across most of a panel.
+HATCH = "///"            # a narrow band
+WIDE_HATCH = "/"         # a large region
+HATCH_ALPHA = 0.25
+
 _FONT_DIR = paths.asset_dir("fonts", "plex")
 
 current = T.load()
@@ -194,7 +204,20 @@ def band_color(t=None):
     return to_rgba(t.chart("band"), t.band_alpha)
 
 
-def limit_wash(ax, value, direction, color):
+def limit_line_color(t=None):
+    """The limit line: one step deeper on the red ramp than a failing fill.
+
+    A mark that failed is filled with ``chart("limit")``, so a line in the same
+    hex is the same mark. Taken from the ramp by index rather than named, so it
+    stays one step deeper if either token moves.
+    """
+    t = t or current
+    ramp = t.ramps["red"]
+    index = [value.upper() for value in ramp].index(t.chart("limit").upper())
+    return ramp[min(index + 1, len(ramp) - 1)]
+
+
+def limit_wash(ax, value, direction, color, hatch_color=None):
     """A limit wash that reaches the edge of the axes and stays there.
 
     Added with ``add_artist`` rather than ``axhspan`` on purpose: ``axhspan``
@@ -203,6 +226,12 @@ def limit_wash(ax, value, direction, color):
     artist is clipped to the axes and left out of autoscaling entirely, so the
     wash keeps reaching the frame whatever the caller does with ``set_ylim``
     afterwards.
+
+    Pass *hatch_color* for the diagonal fill the excluded regions use. A flat
+    tint has to be strong enough to be seen, and on a chart where the region
+    beyond the limits is most of the panel that much tint swamps the data; a
+    hatch reads as "out of bounds" at a fraction of the ink, and says it in the
+    vocabulary the profile chart already uses for a region that does not count.
     """
     reach = 1e6 * max(1.0, abs(value))
     bottom = value if direction == "up" else value - reach
@@ -211,6 +240,11 @@ def limit_wash(ax, value, direction, color):
         transform=ax.get_yaxis_transform(which="grid"),
         facecolor=color, edgecolor="none", zorder=0,
     )
+    if hatch_color is not None:
+        patch.set_hatch(WIDE_HATCH)
+        patch.set_linewidth(0.0)
+        # Matplotlib draws a hatch in the patch's *edge* colour.
+        patch.set_edgecolor(to_rgba(hatch_color, HATCH_ALPHA))
     return ax.add_artist(patch)
 
 
@@ -285,7 +319,7 @@ def excluded(ax, start, end, label=None, t=None):
     t = t or current
     edge = t.color("border-strong")
     span = ax.axvspan(start, end, facecolor=to_rgba(t.color("sunken"), 0.55),
-                      edgecolor=edge, hatch="///", linewidth=0.0,
+                      edgecolor=edge, hatch=HATCH, linewidth=0.0,
                       label=label, zorder=1)
     span.set_edgecolor(to_rgba(edge, 0.7))
     return span

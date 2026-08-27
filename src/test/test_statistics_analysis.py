@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from matplotlib.colors import to_rgba
+from matplotlib.patches import Rectangle
 from theme import mpl as tapio_mpl
 from theme import tokens as T
 from PySide6.QtWidgets import QApplication
@@ -107,11 +108,44 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
         finally:
             destroy(chart)
 
-    def test_the_limit_line_is_not_the_colour_of_the_bars_it_judges(self):
-        """Two marks in the same hex are one mark.
+    def test_the_out_of_limit_region_is_hatched_not_flooded(self):
+        """A flat tint strong enough to see swamps a panel this far out of range.
 
-        The line used to be chart("limit"), the same red a failing bar is
-        filled with, so it vanished wherever it crossed one.
+        The region beyond a limit is most of the frame when a statistic ranges
+        well past it, so it carries the same diagonal the profile chart uses for
+        an excluded region — the vocabulary for "this does not count" — at the
+        sparser of the two densities, because hatch reads by how much of a
+        region it inks.
+        """
+        chart = StatisticsAnalysisChart()
+        try:
+            chart.parent_widget = SimpleNamespace(selected_stat="mean")
+            alert_name = profile_stats.analysis_to_alert_name["mean"]
+            original = preferences.alert_limits
+            preferences.alert_limits = [{"name": alert_name, "min": None, "max": 15.0}]
+            try:
+                chart.plot([
+                    {"x": 1, "y": 99.0, "label": "roll-1", "path": "/tmp/roll-1"},
+                ])
+                washes = [a for a in chart.ax.get_children()
+                          if isinstance(a, Rectangle) and a.get_hatch()]
+                self.assertEqual(len(washes), 1)
+                self.assertEqual(washes[0].get_hatch(), tapio_mpl.WIDE_HATCH)
+                # Under everything, including the gridlines.
+                for bar in chart.bars:
+                    self.assertLess(washes[0].get_zorder(), bar.get_zorder())
+            finally:
+                preferences.alert_limits = original
+        finally:
+            destroy(chart)
+
+    def test_the_limit_line_sits_behind_the_bars(self):
+        """Two marks in the same hex are one mark — unless they never overlap.
+
+        The line is the limit red, the same red a failing bar is filled with,
+        which on top of the bars made it vanish wherever it crossed one. Colour
+        was the wrong lever: it belongs behind them, on the ground the data
+        stands on. Above the gridlines, below every bar.
         """
         chart = StatisticsAnalysisChart()
         try:
@@ -126,12 +160,21 @@ class TestStatisticsAnalysisChart(unittest.TestCase):
                 t = tapio_mpl.current
                 lines = [line for line in chart.ax.get_lines()
                          if line.get_linestyle() == "-"]
-                self.assertTrue(lines, "expected the limit lines to be drawn")
+                self.assertEqual(len(lines), 2, "expected both limit lines")
                 for line in lines:
-                    self.assertEqual(to_rgba(line.get_color()), to_rgba(t.color("ink")))
+                    # One step deeper on the red ramp than a failing bar's fill.
+                    self.assertEqual(
+                        to_rgba(line.get_color()),
+                        to_rgba(tapio_mpl.limit_line_color(t)),
+                    )
                     self.assertNotEqual(
                         to_rgba(line.get_color()), to_rgba(t.chart("limit"))
                     )
+                    for bar in chart.bars:
+                        self.assertLess(
+                            line.get_zorder(), bar.get_zorder(),
+                            "the limit line is drawn over the bars it judges",
+                        )
             finally:
                 preferences.alert_limits = original
         finally:
