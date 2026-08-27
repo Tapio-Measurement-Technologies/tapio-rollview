@@ -29,8 +29,10 @@ Submodules:
 
 from theme import tokens
 from theme.tokens import (
+    CHOICES,
     DARK,
     LIGHT,
+    SYSTEM,
     STATUS_BAD,
     STATUS_GOOD,
     STATUS_IDLE,
@@ -46,11 +48,15 @@ def apply(app=None, theme=LIGHT):
 
     One call, because a chart drawn in the light palette inside a dark window
     is the failure mode this is meant to prevent.
+
+    *theme* is ``light``, ``dark`` or ``system``; the last asks the desktop.
+    Returns the tokens actually resolved, which are always one of the two.
     """
     from theme import mpl, qt
 
     resolved = qt.apply(app, theme=theme)
-    mpl.use(theme)
+    # The *resolved* theme, not the requested one: "system" is not a table.
+    mpl.use(resolved.theme)
     return resolved
 
 
@@ -61,8 +67,19 @@ def current():
     return qt.current
 
 
+def requested():
+    """The theme as it was asked for, which may be ``system``.
+
+    Use this, not ``current().theme``, to decide whether a change of desktop
+    appearance should be followed.
+    """
+    from theme import qt
+
+    return qt.requested
+
+
 __all__ = [
-    "VERSION", "apply", "current", "tokens",
-    "LIGHT", "DARK", "THEMES",
+    "VERSION", "apply", "current", "requested", "tokens",
+    "LIGHT", "DARK", "SYSTEM", "THEMES", "CHOICES",
     "STATUS_GOOD", "STATUS_WARN", "STATUS_BAD", "STATUS_IDLE",
 ]

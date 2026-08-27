@@ -288,11 +288,29 @@ class TestGeneralSettingsPage(unittest.TestCase):
 
     def test_the_theme_is_chosen_here(self):
         """It used to have a page of its own, which was one control on it."""
-        self.assertEqual(list(self.page.themes), [theme.LIGHT, theme.DARK])
-        self.assertEqual(self.page.theme_selector.count(), 2)
+        self.assertEqual(
+            list(self.page.themes), [theme.SYSTEM, theme.LIGHT, theme.DARK]
+        )
+        self.assertEqual(self.page.theme_selector.count(), 3)
         self.assertEqual(
             self.page.theme_selector.currentText(), self.page.themes[theme.LIGHT]
         )
+
+    def test_following_the_system_is_the_default(self):
+        self.assertEqual(settings.UI_THEME_DEFAULT, theme.SYSTEM)
+        # First in the list, because it is what a new install gets.
+        self.assertEqual(next(iter(self.page.themes)), theme.SYSTEM)
+
+    def test_saving_system_stores_the_choice_not_what_it_resolved_to(self):
+        """Otherwise the next desktop change would not be followed."""
+        announced = []
+        self.page.appearance_changed.connect(announced.append)
+
+        self.page.theme_selector.setCurrentText(self.page.themes[theme.SYSTEM])
+        self.page.save_settings()
+
+        self.assertEqual(preferences.ui_theme, theme.SYSTEM)
+        self.assertEqual(announced, [theme.SYSTEM])
 
     def test_saving_a_new_theme_saves_it_and_says_so(self):
         announced = []

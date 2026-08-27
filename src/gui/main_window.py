@@ -116,6 +116,12 @@ class MainWindow(QMainWindow):
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 
+        # A theme set to "system" tracks the desktop for as long as the window
+        # is open, not only at startup.
+        QApplication.instance().styleHints().colorSchemeChanged.connect(
+            self._follow_system_appearance
+        )
+
         self.status_bar = QStatusBar()
         self.status_bar.setFixedHeight(30)
         self.setStatusBar(self.status_bar)
@@ -555,6 +561,15 @@ class MainWindow(QMainWindow):
         self.settings_window.settings_updated.connect(self.refresh_plot)
         self.settings_window.general_settings_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
+
+    def _follow_system_appearance(self):
+        """The desktop switched between light and dark.
+
+        Only act while the *preference* is "system": a user who picked light
+        explicitly keeps light when their machine turns the lights off.
+        """
+        if theme.requested() == theme.SYSTEM:
+            self.apply_appearance(theme.SYSTEM)
 
     def apply_appearance(self, ui_theme):
         """Swap the theme at runtime — a night-shift toggle costs one call.

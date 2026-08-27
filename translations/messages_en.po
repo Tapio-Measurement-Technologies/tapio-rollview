@@ -930,6 +930,10 @@ msgstr "Above {value}"
 msgid "APPEARANCE_THEME"
 msgstr "Theme"
 
+#. Settings window: the theme option that follows the desktop.
+msgid "APPEARANCE_THEME_SYSTEM"
+msgstr "System"
+
 #. Settings window: the light theme option.
 msgid "APPEARANCE_THEME_LIGHT"
 msgstr "Light"

@@ -13,6 +13,7 @@ import pathlib
 import re
 import unittest
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QGridLayout, QVBoxLayout, QWidget
 
 import theme
@@ -402,3 +403,65 @@ class TestPackaging(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSystemTheme(ThemeRestoringTestCase):
+    """"System" is a preference, not a third token table.
+
+    It resolves to one of the two at the moment a theme is applied, and what
+    was asked for is remembered separately so a later change of desktop
+    appearance can be followed.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self._restore_requested = theme_qt.requested
+
+    def tearDown(self):
+        super().tearDown()
+        theme.apply(self.app, theme=self._restore_requested)
+
+    @staticmethod
+    def _desktop(scheme):
+        """Answer for the platform.
+
+        setColorScheme() is not usable here: the offscreen platform ignores it
+        and reports Unknown whatever it is told.
+        """
+        from unittest.mock import patch
+
+        return patch.object(theme_qt, "desktop_scheme", lambda: scheme)
+
+    def test_system_is_a_choice_but_not_a_table(self):
+        self.assertIn(T.SYSTEM, T.CHOICES)
+        self.assertNotIn(T.SYSTEM, T.THEMES)
+        # Asked for a table it does not have, it falls back rather than raising.
+        self.assertEqual(T.load(theme=T.SYSTEM).theme, T.LIGHT)
+
+    def test_it_resolves_to_whichever_the_desktop_reports(self):
+        with self._desktop(Qt.ColorScheme.Dark):
+            self.assertEqual(theme_qt.resolve(T.SYSTEM), T.DARK)
+        with self._desktop(Qt.ColorScheme.Light):
+            self.assertEqual(theme_qt.resolve(T.SYSTEM), T.LIGHT)
+        # A platform that reports nothing gets the product default, not a guess.
+        with self._desktop(Qt.ColorScheme.Unknown):
+            self.assertEqual(theme_qt.resolve(T.SYSTEM), T.LIGHT)
+
+    def test_an_explicit_choice_ignores_the_desktop(self):
+        with self._desktop(Qt.ColorScheme.Dark):
+            self.assertEqual(theme_qt.resolve(T.LIGHT), T.LIGHT)
+            self.assertEqual(theme_qt.resolve(T.DARK), T.DARK)
+
+    def test_applying_system_keeps_the_choice_and_the_resolution_apart(self):
+        with self._desktop(Qt.ColorScheme.Dark):
+            resolved = theme.apply(self.app, theme=T.SYSTEM)
+
+        # The tokens are a real table...
+        self.assertEqual(resolved.theme, T.DARK)
+        self.assertEqual(theme.current().theme, T.DARK)
+        # ...and the charts moved with them, not to the word "system".
+        from theme import mpl as tapio_mpl
+        self.assertEqual(tapio_mpl.current.theme, T.DARK)
+        # ...but what was asked for is still "system", which is what lets a
+        # later desktop change be followed.
+        self.assertEqual(theme.requested(), T.SYSTEM)

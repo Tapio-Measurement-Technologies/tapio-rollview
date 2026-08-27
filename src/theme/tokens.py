@@ -23,7 +23,15 @@ from theme.paths import theme_file
 
 LIGHT = "light"
 DARK = "dark"
+#: The two token tables that exist. Everything downstream resolves to one.
 THEMES = (LIGHT, DARK)
+
+#: "Follow the desktop." Not a table — there are no system tokens to load — but
+#: a valid answer to "which theme?", resolved against the platform by
+#: ``theme.qt.resolve()`` at the moment a theme is applied.
+SYSTEM = "system"
+#: What a user may choose, in the order the settings page offers them.
+CHOICES = (SYSTEM, LIGHT, DARK)
 
 # The four status states. There are only these four; a fifth "informational
 # blue" state does not exist — that is what ordinary text is for.
