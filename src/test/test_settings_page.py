@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 import settings
+import theme
 from theme import qt as theme_qt
 from gui.settings import (
     AlertLimitSettingsPage,
@@ -255,11 +256,13 @@ class TestGeneralSettingsPage(unittest.TestCase):
         self.original_excluded_regions_mode = preferences.excluded_regions_mode
         self.original_excluded_regions = preferences.excluded_regions
         self.original_locale = preferences.locale
+        self.original_ui_theme = preferences.ui_theme
 
         preferences.distance_unit = "m"
         preferences.excluded_regions_mode = settings.EXCLUDED_REGIONS_MODE_ABSOLUTE
         preferences.excluded_regions = "1-2"
         preferences.locale = settings.LOCALE_DEFAULT
+        preferences.ui_theme = theme.LIGHT
 
         self.page = GeneralSettingsPage()
 
@@ -269,6 +272,7 @@ class TestGeneralSettingsPage(unittest.TestCase):
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
         preferences.excluded_regions = self.original_excluded_regions
         preferences.locale = self.original_locale
+        preferences.ui_theme = self.original_ui_theme
 
     def test_save_settings_converts_absolute_excluded_regions_when_distance_unit_changes(self):
         self.page.distance_unit_selector.setCurrentText(self.page.distance_units["in"])
@@ -281,6 +285,38 @@ class TestGeneralSettingsPage(unittest.TestCase):
     def test_distance_unit_selector_includes_centimeters(self):
         self.assertIn("cm", self.page.distance_units)
         self.assertEqual(self.page.distance_units["cm"], "Centimeters (cm)")
+
+    def test_the_theme_is_chosen_here(self):
+        """It used to have a page of its own, which was one control on it."""
+        self.assertEqual(list(self.page.themes), [theme.LIGHT, theme.DARK])
+        self.assertEqual(self.page.theme_selector.count(), 2)
+        self.assertEqual(
+            self.page.theme_selector.currentText(), self.page.themes[theme.LIGHT]
+        )
+
+    def test_saving_a_new_theme_saves_it_and_says_so(self):
+        announced = []
+        self.page.appearance_changed.connect(announced.append)
+
+        self.page.theme_selector.setCurrentText(self.page.themes[theme.DARK])
+        self.page.save_settings()
+
+        self.assertEqual(preferences.ui_theme, theme.DARK)
+        self.assertEqual(announced, [theme.DARK])
+
+    def test_saving_without_touching_the_theme_stays_quiet(self):
+        """Applying a theme repolishes every widget and redraws both charts.
+
+        A change of distance unit should not be paying for that.
+        """
+        announced = []
+        self.page.appearance_changed.connect(announced.append)
+
+        self.page.distance_unit_selector.setCurrentText(self.page.distance_units["in"])
+        self.page.save_settings()
+
+        self.assertEqual(announced, [])
+        self.assertEqual(preferences.ui_theme, theme.LIGHT)
 
 
 class TestDistanceHighlightsSettingsPage(unittest.TestCase):
@@ -420,6 +456,17 @@ class TestSettingsWindow(unittest.TestCase):
             page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
             self.assertIn("Distance highlights", page_names)
             self.assertIn("Hardness highlights", page_names)
+        finally:
+            window.close()
+
+    def test_there_is_no_appearance_page(self):
+        """The theme sits in General settings; it was never a page's worth."""
+        window = SettingsWindow()
+        try:
+            page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
+            self.assertNotIn("Appearance", page_names)
+            self.assertIn("General settings", page_names)
+            self.assertTrue(hasattr(window.general_settings_page, "theme_selector"))
         finally:
             window.close()
 

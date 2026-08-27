@@ -926,10 +926,6 @@ msgstr "{value} 超過"
 
 
 
-#. Settings window: heading for the theme and density controls.
-msgid "APPEARANCE"
-msgstr "外観"
-
 #. Settings window: label for the light/dark theme control.
 msgid "APPEARANCE_THEME"
 msgstr "テーマ"
@@ -941,10 +937,6 @@ msgstr "ライト"
 #. Settings window: the dark theme option.
 msgid "APPEARANCE_THEME_DARK"
 msgstr "ダーク"
-
-#. Settings window: guidance under the theme control.
-msgid "APPEARANCE_THEME_HINT"
-msgstr "日中や抄紙機フロアではライト、夜勤や制御室ではダークを使用します。"
 
 
 

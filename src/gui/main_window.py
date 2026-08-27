@@ -553,7 +553,7 @@ class MainWindow(QMainWindow):
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
-        self.settings_window.appearance_page.appearance_changed.connect(self.apply_appearance)
+        self.settings_window.general_settings_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
 
     def apply_appearance(self, ui_theme):

@@ -926,10 +926,6 @@ msgstr "Above {value}"
 
 
 
-#. Settings window: heading for the theme and density controls.
-msgid "APPEARANCE"
-msgstr "Appearance"
-
 #. Settings window: label for the light/dark theme control.
 msgid "APPEARANCE_THEME"
 msgstr "Theme"
@@ -941,10 +937,6 @@ msgstr "Light"
 #. Settings window: the dark theme option.
 msgid "APPEARANCE_THEME_DARK"
 msgstr "Dark"
-
-#. Settings window: guidance under the theme control.
-msgid "APPEARANCE_THEME_HINT"
-msgstr "Light for daylight and mill floors, dark for night shift and control rooms."
 
 
 
