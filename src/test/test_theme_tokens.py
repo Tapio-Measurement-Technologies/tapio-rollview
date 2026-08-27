@@ -211,6 +211,36 @@ class TestApply(ThemeRestoringTestCase):
         finally:
             pass
 
+    def test_chart_type_is_the_token_scale_in_pixels(self):
+        """The charts are typed on the same scale as the interface around them.
+
+        Matplotlib measures type in points against the figure's dpi while the
+        token scale is in CSS pixels, so a step handed over unconverted renders
+        39 % larger — which is what made the axis labels read bigger than every
+        Qt label on the tab.
+        """
+        import matplotlib as mpl
+
+        from theme import mpl as tapio_mpl
+
+        tokens = theme.apply(self.app, theme=T.LIGHT)
+        for rc_param, step in (
+            ("axes.labelsize", "body-sm"),
+            ("axes.titlesize", "body"),
+            ("xtick.labelsize", "eyebrow"),
+            ("ytick.labelsize", "eyebrow"),
+            ("font.size", "body-sm"),
+        ):
+            with self.subTest(rc_param=rc_param):
+                self.assertAlmostEqual(
+                    mpl.rcParams[rc_param] * tapio_mpl.FIGURE_DPI / 72.0,
+                    tokens.font_size(step),
+                    places=6,
+                )
+
+        # A label outranks the ticks it labels, in the charts as in the sheet.
+        self.assertGreater(mpl.rcParams["axes.labelsize"], mpl.rcParams["xtick.labelsize"])
+
     def test_a_plot_export_comes_out_light_from_a_dark_session(self):
         """Charts print in the light palette whatever the screen theme is.
 

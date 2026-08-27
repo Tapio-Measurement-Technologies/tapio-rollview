@@ -9,16 +9,32 @@ import settings
 
 thread = None
 base_path = os.path.dirname(os.path.abspath(__file__))
-postprocessors = {}
 
-# Load built-in postprocessors
+#: Where a postprocessor came from. The ones that ship with the software and
+#: the ones an operator dropped into their own folder are different kinds of
+#: thing: one is the product, the other is site-local code that can appear,
+#: break or vanish between launches.
+BUILTIN = "builtin"
+CUSTOM = "custom"
+
+postprocessors = {}
+#: module name -> BUILTIN | CUSTOM. Kept beside the modules rather than as an
+#: attribute on them, so a user file that shadows a built-in name is recorded
+#: as what it now is instead of inheriting the tag of what it replaced.
+postprocessor_origins = {}
+
 builtin_postprocessors_path = os.path.abspath(
     os.path.join(base_path, os.pardir, 'postprocessors'))
-if os.path.exists(builtin_postprocessors_path):
-    postprocessors.update(load_modules_from_folder(builtin_postprocessors_path))
-
-# Load user postprocessors
 user_postprocessors_path = os.path.join(settings.ROOT_DIRECTORY, 'postprocessors')
+
+
+def _load_folder(folder_path, origin):
+    if not os.path.exists(folder_path):
+        return
+    loaded = load_modules_from_folder(folder_path)
+    postprocessors.update(loaded)
+    for module_name in loaded:
+        postprocessor_origins[module_name] = origin
 
 
 def sync_postprocessors_with_preferences():
@@ -34,11 +50,24 @@ def sync_postprocessors_with_preferences():
         postprocessor.enabled = module_name in preferences.enabled_postprocessors
 
 
-if os.path.exists(user_postprocessors_path):
-    print("Loading user postprocessors")
-    postprocessors.update(load_modules_from_folder(user_postprocessors_path))
+def reload_postprocessors():
+    """Rescan both folders and re-derive what is enabled.
 
-sync_postprocessors_with_preferences()
+    The dicts are emptied in place rather than rebound: the manager holds
+    module objects, the menu holds module names, and callers hold the dict
+    ``get_postprocessors()`` handed them. Enablement lives in preferences, not
+    on the module, so a module that is still there keeps its setting and one
+    whose file is gone loses it — the same rule that applies at startup.
+    """
+    postprocessors.clear()
+    postprocessor_origins.clear()
+    _load_folder(builtin_postprocessors_path, BUILTIN)
+    _load_folder(user_postprocessors_path, CUSTOM)
+    sync_postprocessors_with_preferences()
+    return postprocessors
+
+
+reload_postprocessors()
 
 
 class PostprocessThread(QThread):
@@ -84,8 +113,19 @@ class PostprocessThread(QThread):
                         self.processing_failed.emit(folder_path)
 
 
-def get_postprocessors():
-    return postprocessors
+def get_postprocessors(origin=None):
+    """Every postprocessor, or only the built-in / only the custom ones.
+
+    ``origin=None`` hands back the live dict itself, which is what callers that
+    toggle ``enabled`` on a module rely on.
+    """
+    if origin is None:
+        return postprocessors
+    return {
+        module_name: module
+        for module_name, module in postprocessors.items()
+        if postprocessor_origins.get(module_name) == origin
+    }
 
 
 def toggle_postprocessor(postprocessor_module):
@@ -118,6 +158,15 @@ class PostprocessManager(QObject):
         self.enabled_postprocessors = []
         self.total_items_to_process = 0
         self.refresh_enabled_postprocessors()
+
+    def is_running(self):
+        """True while a postprocess run is in flight."""
+        if self._thread is None:
+            return False
+        try:
+            return self._thread.isRunning()
+        except RuntimeError:  # the C++ side is already gone
+            return False
 
     def refresh_enabled_postprocessors(self):
         sync_postprocessors_with_preferences()

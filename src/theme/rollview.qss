@@ -175,6 +175,19 @@ QWidget#statTile:hover {
     border-color: ${border_strong};
 }
 
+/* The tile is the alarm; the footer says which end of the range the value
+   left. The breached bound takes a chip of the tile's own resting surface and
+   the system's one emphasis weight — the same red as everything else in a
+   failing tile, because a second red would be a second meaning. Nested under
+   the id selector on purpose: a bare QLabel[limit="breached"] loses to
+   QWidget#statTile[state="bad"] QLabel on specificity and never paints. */
+QWidget#statTile[state="bad"] QLabel[limit="breached"] {
+    background-color: ${surface};
+    border-radius: ${r_sm}px;
+    padding: 0 ${s1}px;
+    font-weight: 500;
+}
+
 /* ---------- buttons ------------------------------------------------------- */
 /* Four variants. One primary per view — the single most likely next action.
    Focus is a 2 px ring in ${focus} on every control; padding drops by 1 px so
@@ -622,8 +635,11 @@ QToolBar {
     background-color: ${surface};
     border: none;
     border-top: 1px solid ${border};
-    spacing: ${s1}px;
-    padding: ${s1}px ${s2}px;
+    /* The buttons carry their own padding, so two glyphs already have 8 px of
+       air between them; spacing on top of that made the strip read as a row of
+       separate controls rather than one instrument under the chart. */
+    spacing: 0;
+    padding: 0 ${s1}px;
 }
 
 QToolBar::separator {
@@ -651,8 +667,12 @@ QToolButton:pressed, QToolButton:checked {
     color: ${accent};
 }
 
+/* The ring is 2 px where the resting border is 1, so the padding drops by the
+   same pixel and the glyph does not shift when focus arrives — the rule
+   QPushButton:focus has carried since the sheet was written. */
 QToolButton:focus {
     border: 2px solid ${focus};
+    padding: ${s1_focus}px;
 }
 
 /* ---------- group boxes --------------------------------------------------- */

@@ -85,6 +85,26 @@ msgstr "データ処理"
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
 msgstr "データ処理実行"
 
+#. Used in the postprocessors menu; rescans the postprocessor folders.
+msgid "MENU_BAR_REFRESH_POSTPROCESSORS"
+msgstr "データ処理の再読み込み"
+
+#. Used in the postprocessors menu; opens the folder custom modules are read from.
+msgid "MENU_BAR_OPEN_POSTPROCESSOR_FOLDER"
+msgstr "データ処理フォルダを開く"
+
+#. Used in the postprocessors menu when the custom postprocessor folder is empty.
+msgid "MENU_BAR_NO_CUSTOM_POSTPROCESSORS"
+msgstr "(PATH にカスタムデータ処理モジュールがありません)"
+
+#. Used as message box title when a refresh is asked for mid-run.
+msgid "MENU_BAR_POSTPROCESSORS_BUSY_TITLE"
+msgstr "データ処理を実行中です"
+
+#. Used as message box text when a refresh is asked for mid-run.
+msgid "MENU_BAR_POSTPROCESSORS_BUSY_TEXT"
+msgstr "再読み込みの前に、実行中の処理が終わるのをお待ちください。"
+
 #. Used in settings window as window or dialog title and window title.
 msgid "WINDOW_TITLE_SETTINGS"
 msgstr "設定"
@@ -896,29 +916,21 @@ msgstr "バイト"
 msgid "STATISTIC_VALUE"
 msgstr "統計値"
 
-#. Used on a stat tile when no alert limit is configured for that statistic.
-msgid "STAT_TILE_NO_LIMITS"
-msgstr "限界値未設定"
+#. Used on a stat tile before the configured alert limits.
+msgid "STAT_TILE_LIMIT_PREFIX"
+msgstr "限界値:"
 
-#. Used on a stat tile to state the configured limits.
-msgid "STAT_TILE_LIMIT_RANGE"
-msgstr "限界 {min}〜{max}"
+#. Used on a stat tile between a lower and an upper limit.
+msgid "STAT_TILE_LIMIT_SEPARATOR"
+msgstr "、"
 
-#. Used on a stat tile when only a lower limit is configured.
+#. Used on a stat tile to state the lower alert limit.
 msgid "STAT_TILE_LIMIT_MIN"
-msgstr "下限 {value}"
+msgstr "≥ {value}"
 
-#. Used on a stat tile when only an upper limit is configured.
+#. Used on a stat tile to state the upper alert limit.
 msgid "STAT_TILE_LIMIT_MAX"
-msgstr "上限 {value}"
-
-#. Used on a stat tile when the value fell below its lower limit.
-msgid "STAT_TILE_BELOW_MIN"
-msgstr "{value} 未満"
-
-#. Used on a stat tile when the value rose above its upper limit.
-msgid "STAT_TILE_ABOVE_MAX"
-msgstr "{value} 超過"
+msgstr "≤ {value}"
 
 
 

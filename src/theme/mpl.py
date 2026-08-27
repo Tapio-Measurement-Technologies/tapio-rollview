@@ -52,6 +52,20 @@ HATCH = "///"            # a narrow band
 WIDE_HATCH = "/"         # a large region
 HATCH_ALPHA = 0.25
 
+#: Matplotlib measures type in points against the figure's dpi, while the token
+#: scale is in CSS pixels like every size in the style sheet. A Figure is built
+#: at 100 dpi, so a step handed over unconverted renders 39 % larger than the
+#: same step does in the interface beside it — which is why the axis labels read
+#: bigger than every Qt label on the tab. ``theme.qt`` makes the same conversion
+#: for QFont (setPixelSize, not setPointSize); this is that call for the charts.
+FIGURE_DPI = 100.0
+
+
+def points(px, dpi=FIGURE_DPI):
+    """A pixel step of the type scale, in the points Matplotlib wants."""
+    return px * 72.0 / dpi
+
+
 _FONT_DIR = paths.asset_dir("fonts", "plex")
 
 current = T.load()
@@ -92,7 +106,7 @@ def use(theme=T.LIGHT):
     mpl.rcParams.update({
         "figure.facecolor": t.color("surface"),
         "figure.edgecolor": t.color("surface"),
-        "figure.titlesize": t.font_size("title-3"),
+        "figure.titlesize": points(t.font_size("title-3")),
         "figure.titleweight": "semibold",
         "savefig.facecolor": t.color("surface"),
         "savefig.edgecolor": t.color("surface"),
@@ -102,8 +116,9 @@ def use(theme=T.LIGHT):
         "axes.edgecolor": t.chart("axis"),
         "axes.linewidth": 1.0,
         "axes.labelcolor": t.color("ink-muted"),
-        "axes.labelsize": t.font_size("body-sm"),
-        "axes.titlesize": t.font_size("body"),
+        "axes.labelsize": points(t.font_size("body-sm")),
+        "axes.labelpad": points(t.space(1)),
+        "axes.titlesize": points(t.font_size("body")),
         "axes.titlecolor": t.color("ink"),
         "axes.titleweight": "semibold",
         "axes.titlelocation": "left",
@@ -127,8 +142,8 @@ def use(theme=T.LIGHT):
         "ytick.color": t.chart("axis"),
         "xtick.labelcolor": t.chart("tick"),
         "ytick.labelcolor": t.chart("tick"),
-        "xtick.labelsize": t.font_size("eyebrow"),
-        "ytick.labelsize": t.font_size("eyebrow"),
+        "xtick.labelsize": points(t.font_size("eyebrow")),
+        "ytick.labelsize": points(t.font_size("eyebrow")),
         "xtick.direction": "out",
         "ytick.direction": "out",
         "xtick.major.size": 4,
@@ -146,7 +161,7 @@ def use(theme=T.LIGHT):
         "font.family": "sans-serif",
         "font.sans-serif": sans,
         "font.monospace": mono,
-        "font.size": t.font_size("body-sm"),
+        "font.size": points(t.font_size("body-sm")),
 
         "patch.edgecolor": t.color("border"),
         "patch.linewidth": 0,
