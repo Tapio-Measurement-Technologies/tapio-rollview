@@ -6,6 +6,12 @@ Screenshots are captured at each step so the states can be reviewed by eye.
 
 import pytest
 
+# The fake device puts a real file descriptor on the other end of the serial
+# port, and a pseudo-terminal is the POSIX way to get one. RollView ships on
+# Windows too, where `pty` does not exist and a bare import would fail the whole
+# module at collection rather than skipping it.
+pytest.importorskip("pty", reason="the fake RQFT device needs a POSIX pseudo-terminal")
+
 from test.fakedevice import FakeRqftDevice
 
 PROFILE_BYTES = bytes(range(256)) * 4

@@ -13,6 +13,10 @@ exactly as it would open a physical device.
 ``src/modem`` implements ZMODEM *receive* only, so the sender here is written
 against that receiver: binary headers with 16-bit CRCs throughout, one ZDATA
 frame per file. It reuses the app's own ``crc16``, so the two cannot disagree.
+
+POSIX only — ``pty`` has no Windows equivalent. The test modules that use this
+guard their import with ``pytest.importorskip("pty")`` so a Windows run skips
+them instead of failing to collect.
 """
 
 import json
