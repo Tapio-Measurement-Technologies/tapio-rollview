@@ -302,6 +302,68 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.on_directory_contents_changed.assert_called_once()
         self.assertEqual(call_order, ["refresh", "postprocess", "reload"])
 
+    def test_empty_successful_manual_sync_shows_up_to_date_message_box(self):
+        self.window.file_transfer_manager.last_transfer_outcome = "ok"
+        self.window.file_transfer_manager.last_transfer_was_auto = False
+        self.window.directory_view.refresh_directory_dates = MagicMock()
+        self.window.postprocess_manager.run_postprocessors = MagicMock()
+        self.window.on_directory_contents_changed = MagicMock()
+
+        with patch("gui.main_window.QMessageBox.information") as information:
+            self.window.on_file_transfer_finished([])
+
+        information.assert_called_once_with(
+            self.window,
+            _("SYNC_UP_TO_DATE_TITLE"),
+            _("SYNC_UP_TO_DATE_TEXT"),
+        )
+        self.assertEqual(self.window.status_bar.currentMessage(), "")
+        self.window.directory_view.refresh_directory_dates.assert_not_called()
+        self.window.postprocess_manager.run_postprocessors.assert_not_called()
+        self.window.on_directory_contents_changed.assert_not_called()
+
+    def test_connection_lost_message_names_the_device(self):
+        from utils.rqft_support import DeviceIdentity
+
+        self.window.device_connection_manager.identities["COM4"] = DeviceIdentity(
+            device_name="Tapio RQP Live",
+            serial_number="SN1",
+            firmware_version="v1.2.0",
+        )
+
+        self.window.on_connection_lost("COM4", "unplugged")
+
+        self.assertEqual(
+            self.window.status_bar.currentMessage(),
+            _("DEVICE_DISCONNECTED_STATUS").format(device="Tapio RQP Live (SN1)"),
+        )
+
+    def test_connection_lost_falls_back_to_the_port_name(self):
+        self.window.on_connection_lost("COM9", "dead")
+
+        self.assertEqual(
+            self.window.status_bar.currentMessage(),
+            _("DEVICE_DISCONNECTED_STATUS").format(device="COM9"),
+        )
+
+    def test_transfer_error_signal_reaches_the_status_bar(self):
+        # The slot takes only the message; the signal also carries is_auto.
+        self.window.file_transfer_manager.transferError.emit("sync broke", True)
+        QApplication.processEvents()
+
+        self.assertEqual(self.window.status_bar.currentMessage(), "sync broke")
+
+    def test_empty_successful_auto_sync_does_not_show_message_box(self):
+        self.window.file_transfer_manager.last_transfer_outcome = "ok"
+        self.window.file_transfer_manager.last_transfer_was_auto = True
+        self.window.on_file_transfer_started()
+
+        with patch("gui.main_window.QMessageBox.information") as information:
+            self.window.on_file_transfer_finished([])
+
+        information.assert_not_called()
+        self.assertEqual(self.window.status_bar.currentMessage(), "")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -160,6 +160,16 @@ def _coerce_choice(value, choices, default):
     return value if value in choices else default
 
 
+def _coerce_positive_int(value, default, maximum):
+    try:
+        coerced = int(value)
+    except (TypeError, ValueError):
+        return default
+    if isinstance(value, bool) or coerced < 1 or coerced > maximum:
+        return default
+    return coerced
+
+
 def _available_locales():
     try:
         return {

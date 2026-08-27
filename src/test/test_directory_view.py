@@ -499,6 +499,13 @@ class TestDirectoryView(unittest.TestCase):
 
         self.assertFalse(proxy.filterAcceptsRow(0, QModelIndex()))
 
+    def test_directory_proxy_hides_sync_history_folder(self):
+        proxy = DirectorySortFilterProxyModel()
+        model = FakeDirectoryModel(["/tmp/.sync_history"])
+        proxy.setSourceModel(model)
+
+        self.assertFalse(proxy.filterAcceptsRow(0, QModelIndex()))
+
     def test_directory_proxy_does_not_apply_roll_regex_to_root_directory(self):
         proxy = DirectorySortFilterProxyModel()
         proxy.excluded_folders = []
