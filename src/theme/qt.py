@@ -437,15 +437,25 @@ def apply(app=None, theme=T.LIGHT):
 
     app.setStyle("Fusion")
     app.setPalette(build_palette(current))
+    app.setStyleSheet(build_stylesheet(current))
 
     # The application font is what every widget inherits, now that the style
     # sheet no longer declares one globally.
+    #
+    # It goes *after* the style sheet, and that order is the whole point.
+    # setStyleSheet() installs QStyleSheetStyle, which is a style change, and a
+    # style change re-seeds Qt's per-class widget font hash from the platform
+    # theme. Those per-class entries — QMenuBar, QTreeView, QCheckBox, QMenu,
+    # QToolButton, QListView — outrank the plain application font, so a font set
+    # before the sheet was silently overruled for exactly those classes and they
+    # came up in the desktop's font at the desktop's size. It looked like the
+    # startup state was correct and changing the theme shrank the interface; in
+    # fact the startup state was wrong and any later apply() fixed it, because
+    # by then the sheet was already installed.
     base = QFont(sans_family(current))
     base.setPixelSize(current.base_text_size)
     base.setWeight(QFont.Weight(400))
     app.setFont(base)
-
-    app.setStyleSheet(build_stylesheet(current))
     return current
 
 
