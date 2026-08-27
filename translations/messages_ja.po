@@ -920,29 +920,11 @@ msgstr "{value} 未満"
 msgid "STAT_TILE_ABOVE_MAX"
 msgstr "{value} 超過"
 
-#. Status pill: every statistic is inside its configured limits.
-msgid "STATUS_IN_SPEC"
-msgstr "規格内"
 
-#. Status pill: inside limits but within the warning band.
-msgid "STATUS_NEAR_LIMIT"
-msgstr "限界に接近"
 
-#. Status pill: a limit was exceeded.
-msgid "STATUS_OUT_OF_SPEC"
-msgstr "規格外"
 
-#. Status pill: nothing to judge yet — no data or no limits configured.
-msgid "STATUS_NO_VERDICT"
-msgstr "判定なし"
 
-#. Application header: the selected roll and how many profiles it holds.
-msgid "HEADER_ROLL_CONTEXT"
-msgstr "{name}・{count} プロファイル"
 
-#. Application header when no roll folder is selected.
-msgid "HEADER_NO_ROLL"
-msgstr "ロール未選択"
 
 #. Settings window: heading for the theme and density controls.
 msgid "APPEARANCE"

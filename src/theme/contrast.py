@@ -84,22 +84,10 @@ def pairs(theme):
     for role in ("limit", "target"):
         yield ("mark", f"chart {role} on plot", t.chart(role), plot, MARK_RATIO)
 
-    # The alarm band. White on red-600 is 3.93:1, below the 4.5:1 a 13 px label
-    # normally needs, and it is here because the guide pins the band to red-600
-    # with white text — a colour chosen to read as a failure from two metres
-    # away rather than to clear a ratio at reading distance. It is listed as a
-    # mark rather than dropped, so the number stays visible and the pair cannot
-    # quietly get worse. Raising it means darkening the band to red-800, which
-    # is a design-system decision.
-    yield ("mark", "white on the alarm band", "#FFFFFF", t.ramp("red", 600), MARK_RATIO)
-
     # Button labels against their own fill. A disabled control still has to be
     # legible, and every variant shares one disabled look: ink-muted on sunken.
     yield ("text", "accent-ink on accent", t.color("accent-ink"), t.color("accent"), TEXT_RATIO)
     yield ("text", "ink-inverse on inverse", t.color("ink-inverse"), t.color("inverse"), TEXT_RATIO)
-    yield ("text", "header-ink on header", t.color("header-ink"), t.color("header"), TEXT_RATIO)
-    yield ("text", "header context on header",
-           T.mix(t.color("header-ink"), t.color("header"), 0.66), t.color("header"), TEXT_RATIO)
     yield ("text", "disabled label on sunken", t.color("ink-muted"), t.color("sunken"), TEXT_RATIO)
 
 
