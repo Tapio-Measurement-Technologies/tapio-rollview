@@ -13,13 +13,14 @@ import pathlib
 import re
 import unittest
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QGridLayout, QVBoxLayout, QWidget
 
 import theme
 from theme import contrast
 from theme import paths
 from theme import qt as theme_qt
 from theme import tokens as T
+from test.qtcleanup import destroy
 
 SRC = pathlib.Path(__file__).resolve().parents[1]
 
@@ -242,6 +243,84 @@ class TestApply(ThemeRestoringTestCase):
         self.assertIn("IBM Plex Mono", families)
         self.assertEqual(theme_qt.sans_family(), "IBM Plex Sans")
         self.assertEqual(theme_qt.mono_family(), "IBM Plex Mono")
+
+
+class TestDensity(unittest.TestCase):
+    """Spacing is the one part of the system a new screen can silently miss.
+
+    Colour, type and the palette reach a widget through the application style
+    sheet whether or not its author knows the system exists. Layout metrics
+    cannot: Qt's defaults are 11 px margins and 6 px spacing, neither of which
+    is on the 4 px grid, and no style sheet rule can reach them. So every
+    layout in ``src/gui`` goes through ``theme_qt.pad`` / ``theme_qt.gap``, and
+    this fails the build when one does not.
+    """
+
+    RAW_CALLS = re.compile(
+        r"\.(setContentsMargins|setSpacing|setHorizontalSpacing|setVerticalSpacing)\("
+    )
+
+    def test_no_layout_sets_its_own_pixels(self):
+        offenders = []
+        for path in sorted((SRC / "gui").rglob("*.py")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if self.RAW_CALLS.search(line):
+                    offenders.append(f"{path.relative_to(SRC)}:{number}: {line.strip()}")
+        self.assertEqual(
+            offenders, [],
+            "layout metrics set in raw pixels; use theme_qt.pad() / theme_qt.gap()"
+            " so the spacing stays on the token grid:\n" + "\n".join(offenders),
+        )
+
+    def test_pad_and_gap_resolve_to_the_scale(self):
+        app = QApplication.instance() or QApplication([])
+        theme.apply(app, theme=T.LIGHT)
+        t = theme_qt.tokens()
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        theme_qt.pad(layout, 3)
+        margins = layout.contentsMargins()
+        self.assertEqual(
+            [margins.left(), margins.top(), margins.right(), margins.bottom()],
+            [t.space(3)] * 4,
+        )
+
+        # Two arguments are horizontal then vertical; four are Qt's own order.
+        theme_qt.pad(layout, 2, 1)
+        margins = layout.contentsMargins()
+        self.assertEqual(
+            [margins.left(), margins.top(), margins.right(), margins.bottom()],
+            [t.space(2), t.space(1), t.space(2), t.space(1)],
+        )
+
+        theme_qt.pad(layout, 2, 1, 2, 3)
+        margins = layout.contentsMargins()
+        self.assertEqual(
+            [margins.left(), margins.top(), margins.right(), margins.bottom()],
+            [t.space(2), t.space(1), t.space(2), t.space(3)],
+        )
+
+        # 0 is no margin, not a step on the scale.
+        theme_qt.pad(layout, 0)
+        margins = layout.contentsMargins()
+        self.assertEqual(
+            [margins.left(), margins.top(), margins.right(), margins.bottom()],
+            [0, 0, 0, 0],
+        )
+
+        theme_qt.gap(layout, 2)
+        self.assertEqual(layout.spacing(), t.space(2))
+        theme_qt.gap(layout, 0)
+        self.assertEqual(layout.spacing(), 0)
+
+        grid = QGridLayout()
+        theme_qt.gap(grid, 1, 3)
+        self.assertEqual(grid.horizontalSpacing(), t.space(1))
+        self.assertEqual(grid.verticalSpacing(), t.space(3))
+
+        destroy(widget)
 
 
 class TestPackaging(unittest.TestCase):

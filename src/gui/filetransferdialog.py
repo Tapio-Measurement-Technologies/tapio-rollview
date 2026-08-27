@@ -9,12 +9,9 @@ class FileTransferDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("FILE_TRANSFER_DIALOG_TITLE"))
         self.setMinimumWidth(400)
-        tokens = theme_qt.tokens()
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(
-            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(3)
-        )
-        self.layout.setSpacing(tokens.space(2))
+        theme_qt.pad(self.layout, 3)
+        theme_qt.gap(self.layout, 2)
 
         self.manager = manager
 
@@ -25,8 +22,8 @@ class FileTransferDialog(QDialog):
         # Current file progress. Not a group box: an untitled one is a box drawn
         # around nothing, and the file name below is already the label.
         current_file_layout = QVBoxLayout()
-        current_file_layout.setContentsMargins(0, 0, 0, 0)
-        current_file_layout.setSpacing(tokens.space(1))
+        theme_qt.pad(current_file_layout, 0)
+        theme_qt.gap(current_file_layout, 1)
 
         self.current_file_label = QLabel("")
         theme_qt.set_property(self.current_file_label, "role", "data")
@@ -42,9 +39,7 @@ class FileTransferDialog(QDialog):
         # Total progress
         total_progress_group = QGroupBox(_("TOTAL_PROGRESS"))
         total_progress_layout = QVBoxLayout(total_progress_group)
-        total_progress_layout.setContentsMargins(
-            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(3)
-        )
+        theme_qt.pad(total_progress_layout, 3, 2, 3, 3)
         self.total_progress_bar = QProgressBar(self)
         self.total_progress_bar.setTextVisible(False)
         total_progress_layout.addWidget(self.total_progress_bar)

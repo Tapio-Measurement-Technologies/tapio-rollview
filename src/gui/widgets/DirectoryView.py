@@ -133,11 +133,8 @@ class DirectoryView(QWidget):
         theme_qt.set_variant(self.changeDirButton, "ghost")
         self.changeDirButton.clicked.connect(self.change_root_directory)
 
-        tokens = theme_qt.tokens()
-        layout.setContentsMargins(
-            tokens.space(2), tokens.space(1), tokens.space(2), tokens.space(2)
-        )
-        layout.setSpacing(tokens.space(1))
+        theme_qt.pad(layout, 2, 1, 2, 2)
+        theme_qt.gap(layout, 1)
 
         # Add widgets to the layout
         layout.addWidget(self.rollFilterInput)

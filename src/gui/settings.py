@@ -67,10 +67,9 @@ class SettingsWindow(QWidget):
         self.setObjectName("settingsWindow")
         self.setGeometry(100, 100, 820, 560)
 
-        tokens = theme_qt.tokens()
         main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        theme_qt.pad(main_layout, 0)
+        theme_qt.gap(main_layout, 0)
         self.setLayout(main_layout)
 
         # The nav is a sunken rail against the pages, the same shape the main
@@ -82,9 +81,7 @@ class SettingsWindow(QWidget):
         main_layout.addWidget(self.list_widget)
 
         self.stacked_widget = QStackedWidget()
-        self.stacked_widget.setContentsMargins(
-            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
-        )
+        theme_qt.pad(self.stacked_widget, 4)
         main_layout.addWidget(self.stacked_widget, 1)
 
         self.general_settings_page = GeneralSettingsPage()
@@ -132,11 +129,10 @@ class AppearanceSettingsPage(QWidget):
 
     def __init__(self):
         super().__init__()
-        tokens = theme_qt.tokens()
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(tokens.space(2))
+        theme_qt.gap(layout, 2)
 
         heading = QLabel(_("APPEARANCE"))
         theme_qt.set_role(heading, "title")
@@ -171,11 +167,10 @@ class AppearanceSettingsPage(QWidget):
     @staticmethod
     def _field(label_text, control):
         """Label above the field, always."""
-        tokens = theme_qt.tokens()
         holder = QWidget()
         holder_layout = QVBoxLayout(holder)
-        holder_layout.setContentsMargins(0, 0, 0, 0)
-        holder_layout.setSpacing(tokens.space(1))
+        theme_qt.pad(holder_layout, 0)
+        theme_qt.gap(holder_layout, 1)
         label = QLabel(label_text)
         theme_qt.set_role(label, "label")
         holder_layout.addWidget(label)
@@ -288,7 +283,7 @@ class AlertLimitSettingsPage(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(theme_qt.tokens().space(1))
+        theme_qt.gap(layout, 1)
         self.setting_widgets = []
 
         heading = QLabel(_("ALERT_LIMITS"))
@@ -298,12 +293,9 @@ class AlertLimitSettingsPage(QWidget):
         # The column names, stated once: the rows below are a table of the same
         # two values for each statistic, and repeating "Lower"/"Upper" seven
         # times is noise on a page that already has a lot of it.
-        tokens = theme_qt.tokens()
         column_header = QHBoxLayout()
-        column_header.setContentsMargins(
-            tokens.space(2), 0, tokens.space(2), 0
-        )
-        column_header.setSpacing(tokens.space(2))
+        theme_qt.pad(column_header, 2, 0)
+        theme_qt.gap(column_header, 2)
         column_header.addStretch()
         for name in (_("MIN"), _("MAX")):
             column_label = EyebrowLabel(name)
@@ -367,12 +359,9 @@ class AlertLimitSetting(QFrame):
         self.setFrameShape(QFrame.Shape.NoFrame)
         theme_qt.set_panel(self, "row")
 
-        tokens = theme_qt.tokens()
         layout = QHBoxLayout()
-        layout.setContentsMargins(
-            tokens.space(2), tokens.space(1), tokens.space(2), tokens.space(1)
-        )
-        layout.setSpacing(tokens.space(2))
+        theme_qt.pad(layout, 2, 1)
+        theme_qt.gap(layout, 2)
         self.setLayout(layout)
 
         limit_name = limit.get('name', '')
@@ -385,7 +374,7 @@ class AlertLimitSetting(QFrame):
         layout.addStretch()
 
         input_layout = QHBoxLayout()
-        input_layout.setSpacing(theme_qt.tokens().space(2))
+        theme_qt.gap(input_layout, 2)
 
         # Seven statistics against the same two limits is a table, not seven
         # forms, so the column names are stated once in the header above and the
@@ -802,18 +791,18 @@ class HighlightRegionRowBase(QFrame):
 
     def _create_card_layout(self):
         layout = QVBoxLayout()
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(8)
+        theme_qt.pad(layout, 3, 2)
+        theme_qt.gap(layout, 2)
         self.setLayout(layout)
         top_row = QHBoxLayout()
-        top_row.setSpacing(10)
+        theme_qt.gap(top_row, 3)
         layout.addLayout(top_row)
         return top_row
 
     def _create_field_group(self, parent_layout):
         field_layout = QVBoxLayout()
-        field_layout.setSpacing(4)
-        field_layout.setContentsMargins(0, 0, 0, 0)
+        theme_qt.gap(field_layout, 1)
+        theme_qt.pad(field_layout, 0)
         parent_layout.addLayout(field_layout)
         return field_layout
 
@@ -876,7 +865,7 @@ class DistanceHighlightRow(HighlightRegionRowBase):
         range_group.addWidget(self.range_label)
 
         range_inputs = QHBoxLayout()
-        range_inputs.setSpacing(6)
+        theme_qt.gap(range_inputs, 2)
         range_group.addLayout(range_inputs)
         self.start_input = QLineEdit()
         theme_qt.set_property(self.start_input, "role", "data")
@@ -964,7 +953,7 @@ class HardnessHighlightRow(HighlightRegionRowBase):
         range_group.addWidget(self.range_label)
 
         range_inputs = QHBoxLayout()
-        range_inputs.setSpacing(6)
+        theme_qt.gap(range_inputs, 2)
         range_group.addLayout(range_inputs)
         self.first_input = QLineEdit()
         theme_qt.set_property(self.first_input, "role", "data")
@@ -1073,8 +1062,8 @@ class HighlightRegionsSettingsPageBase(QWidget):
         self.rows_container = QWidget()
         self.rows_layout = QVBoxLayout()
         self.rows_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.rows_layout.setSpacing(10)
-        self.rows_layout.setContentsMargins(0, 0, 0, 0)
+        theme_qt.gap(self.rows_layout, 2)
+        theme_qt.pad(self.rows_layout, 0)
         self.rows_container.setLayout(self.rows_layout)
 
         self.empty_state_card = self._create_empty_state_card(empty_title_key, empty_help_key)
@@ -1127,8 +1116,8 @@ class HighlightRegionsSettingsPageBase(QWidget):
         theme_qt.set_panel(card, "empty")
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(4)
+        theme_qt.pad(layout, 4)
+        theme_qt.gap(layout, 1)
         card.setLayout(layout)
 
         title = QLabel(_(title_key))
