@@ -5,6 +5,7 @@ from utils.rqft_support import (
     firmware_supports_rqft,
     is_syncable_prof,
     parse_firmware_version,
+    plan_device_deletes,
 )
 
 
@@ -96,6 +97,46 @@ class TestIsSyncableProf(unittest.TestCase):
         self.assertFalse(is_syncable_prof("readme.txt"))
         self.assertFalse(is_syncable_prof("logs/boot.log"))
         self.assertFalse(is_syncable_prof("250520-134139/export.profx"))
+
+
+class TestPlanDeviceDeletes(unittest.TestCase):
+    def test_a_fully_verified_folder_goes_as_a_unit(self):
+        folders, files = plan_device_deletes(
+            ["250520-134139/a.prof", "250520-134139/b.prof"], []
+        )
+        self.assertEqual(folders, ["250520-134139"])
+        self.assertEqual(files, [])
+
+    def test_a_folder_holding_something_unverified_is_deleted_file_by_file(self):
+        """Removing the folder would take the file this sync could not
+        verify with it."""
+        folders, files = plan_device_deletes(
+            ["roll/a.prof"], ["roll/b.prof"]
+        )
+        self.assertEqual(folders, [])
+        self.assertEqual(files, ["roll/a.prof"])
+
+    def test_root_level_files_are_never_folded_into_a_folder(self):
+        folders, files = plan_device_deletes(["a.prof"], [])
+        self.assertEqual(folders, [])
+        self.assertEqual(files, ["a.prof"])
+
+    def test_a_folder_is_listed_once_however_many_files_it_holds(self):
+        folders, files = plan_device_deletes(
+            ["roll/a.prof", "roll/b.prof", "roll/c.prof"], []
+        )
+        self.assertEqual(folders, ["roll"])
+        self.assertEqual(files, [])
+
+    def test_one_incomplete_folder_does_not_spare_the_others(self):
+        folders, files = plan_device_deletes(
+            ["good/a.prof", "bad/a.prof"], ["bad/b.prof"]
+        )
+        self.assertEqual(folders, ["good"])
+        self.assertEqual(files, ["bad/a.prof"])
+
+    def test_nothing_verified_deletes_nothing(self):
+        self.assertEqual(plan_device_deletes([], ["roll/a.prof"]), ([], []))
 
 
 if __name__ == "__main__":

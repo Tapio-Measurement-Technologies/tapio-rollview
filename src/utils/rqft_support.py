@@ -62,3 +62,33 @@ def is_syncable_prof(path: str) -> bool:
     """
     name = path.rsplit("/", 1)[-1]
     return name.endswith(".prof") and name != "mean.prof"
+
+
+def plan_device_deletes(verified, unverified):
+    """Split verified device paths into whole folders and single files.
+
+    Rollview only syncs .prof, so deleting file by file would leave every
+    .pro alongside it and the card would never actually empty. Where every
+    syncable file in a folder is verified, the folder goes as a unit and
+    takes the raw measurements and the device's index with it.
+
+    A folder still holding something this sync could not verify is deleted
+    file by file instead, so nothing unmirrored is lost. Root level files
+    have no folder to fold into and are always listed singly.
+
+    Returns (folders, files), each in first-seen order.
+    """
+    def folder_of(path):
+        head, sep, _tail = path.partition("/")
+        return head if sep else None
+
+    incomplete = {folder_of(path) for path in unverified}
+    folders = []
+    files = []
+    for path in verified:
+        folder = folder_of(path)
+        if folder is None or folder in incomplete:
+            files.append(path)
+        elif folder not in folders:
+            folders.append(folder)
+    return folders, files

@@ -50,7 +50,12 @@ from rqft.messages import (
 from rqft.serial_transport import SerialTransport
 from rqft.session import Session, SessionState
 from utils import preferences
-from utils.rqft_support import BusyPortStatus, DeviceIdentity, is_syncable_prof
+from utils.rqft_support import (
+    BusyPortStatus,
+    DeviceIdentity,
+    is_syncable_prof,
+    plan_device_deletes,
+)
 from utils.translation import _
 
 log = logging.getLogger(__name__)
@@ -615,7 +620,7 @@ class DeviceConnectionWorker(threading.Thread):
             )
         # A file already in the mirror was left on the device by an earlier
         # sync that could not delete it, so it is deletable too.
-        deletable = [entry.path for entry in mirrored] if delete_remote else []
+        verified = [entry.path for entry in mirrored]
 
         failed_files = 0
         for index, entry in enumerate(missing):
@@ -644,15 +649,20 @@ class DeviceConnectionWorker(threading.Thread):
             self._bridge.fileByteProgress.emit(done.size, done.size)
             self._apply_mtime(entry)
             fetched.append(entry.path)
-            if delete_remote:
-                deletable.append(entry.path)
+            verified.append(entry.path)
 
         if failed_files:
             log.warning(f"Sync {self.port}: {failed_files} files failed to fetch")
         # Deleting last keeps the GET stream uninterrupted, and an
         # interrupted sync leaves the device untouched.
-        deleted = self._delete_remote_files(deletable)
-        self._bridge.syncFinished.emit(self.port, list(fetched), skipped, len(deleted))
+        deleted = 0
+        if delete_remote:
+            unverified = [
+                entry.path for entry in missing if entry.path not in set(fetched)
+            ]
+            folders, files = plan_device_deletes(verified, unverified)
+            deleted = self._delete_from_device(folders, files)
+        self._bridge.syncFinished.emit(self.port, list(fetched), skipped, deleted)
 
     def _peer_allows_delete(self) -> bool:
         """Whether the device advertised the ALLOW_DELETE capability.
@@ -663,46 +673,52 @@ class DeviceConnectionWorker(threading.Thread):
             and bool(established.peer_caps & CAP_ALLOW_DELETE)
         )
 
-    def _delete_remote_files(self, paths: list) -> list:
-        """Remove already-mirrored files from the device, one DEL each.
+    def _delete_from_device(self, folders: list, files: list) -> int:
+        """Remove verified content from the device, whole folders first.
 
         A refused delete does not fail the sync: rollview holds a verified
-        copy either way, so it is logged and the batch continues. A delete
-        that takes the session down does stop the batch.
+        copy either way, and a refusal is the expected answer for the
+        folders the device is keeping. A delete that takes the session
+        down does stop the batch.
         """
-        if not paths or self._established is None:
-            # Nothing to clean, or the session went away with the batch;
-            # the device keeps its copies and the next full sync retries.
-            return []
-        deleted: list[str] = []
+        if self._established is None:
+            # The session went away with the batch; the device keeps its
+            # copies and the next sync retries.
+            return 0
+        deleted = 0
+        preserved = 0
         failed = 0
-        for path in paths:
-            self._session.request_del(path, is_dir=False, now_ms=self._driver.now_ms())
+        for path, is_dir in [(f, True) for f in folders] + [(f, False) for f in files]:
+            self._session.request_del(path, is_dir=is_dir, now_ms=self._driver.now_ms())
             try:
                 self._drive(
                     lambda event: event
                     if isinstance(event, DelDone)
                     and event.path == path
-                    and not event.is_dir
+                    and event.is_dir == is_dir
                     else None
                 )
             except _OperationFailed as e:
-                log.warning(f"Sync {self.port}: could not remove {path}: {e}")
-                failed += 1
+                if e.event.code == ErrCode.E_DENIED:
+                    # The device is keeping this one; not a problem.
+                    preserved += 1
+                else:
+                    log.warning(f"Sync {self.port}: could not remove {path}: {e}")
+                    failed += 1
                 if self._established is None:
                     end = self._pending_end
                     if end is not None:
                         raise _SessionEnded(end) from e
                     raise _OpTimeout("session lost while deleting") from e
                 continue
-            deleted.append(path)
+            deleted += 1
         if deleted:
-            log.info(
-                f"Sync {self.port}: removed {len(deleted)} synced files from the device"
-            )
+            log.info(f"Sync {self.port}: removed {deleted} synced entries from the device")
+        if preserved:
+            log.info(f"Sync {self.port}: device kept {preserved} entries it preserves")
         if failed:
             log.warning(
-                f"Sync {self.port}: {failed} files could not be removed from the device"
+                f"Sync {self.port}: {failed} entries could not be removed from the device"
             )
         return deleted
 
