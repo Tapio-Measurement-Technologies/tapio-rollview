@@ -327,6 +327,14 @@ def build_stylesheet(t):
         "tab_height": control - 12,
         "check_target": min(t.min_target, control),
         "dialog_button_width": 96,
+        # One handle size, spent three ways, so the pieces cannot drift apart:
+        # the widget's minimum, the handle's own box, and how far it overhangs
+        # the groove.
+        "slider_height": SLIDER_HANDLE_SIZE + 2,
+        "slider_handle_border": SLIDER_HANDLE_BORDER,
+        "slider_handle_inner": SLIDER_HANDLE_SIZE - SLIDER_HANDLE_BORDER * 2,
+        "slider_handle_radius": SLIDER_HANDLE_SIZE // 2,
+        "slider_handle_margin": (SLIDER_HANDLE_SIZE - SLIDER_GROOVE_SIZE) // 2,
         # baked glyphs
         "chevron_icon": icons.write_png("chevron-down", 12, t.color("ink-muted"), stroke=2.0),
         "check_icon": icons.write_png("check", 13, t.color("accent-ink"), stroke=3.0),
@@ -400,6 +408,15 @@ def set_variant(widget, variant):
     """
     set_property(widget, "variant", variant)
 
+
+# The slider handle, outer size including its border. Qt sizes a styled QSlider
+# from its groove alone, so the widget has to be told to leave room for this or
+# it clips the handle.
+SLIDER_HANDLE_SIZE = 16
+SLIDER_HANDLE_BORDER = 2
+SLIDER_GROOVE_SIZE = 4      # the groove rule's height; the handle's overhang is
+                            # measured against the groove's content box, not its
+                            # bordered one, so this is the 4 px and not the 6.
 
 # The guide's display-sized readout, for a screen carrying one or two numbers.
 DATA_LARGE_SIZE = 27
