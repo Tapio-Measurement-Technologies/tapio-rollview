@@ -1,0 +1,121 @@
+# Tapio RollView
+# Copyright 2024 Tapio Measurement Technologies Oy
+
+# Tapio RollView is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+"""A Matplotlib canvas that re-renders once a resize has settled.
+
+``FigureCanvasQTAgg.resizeEvent`` schedules a full Agg render of the figure, and
+Qt delivers a resize event for every pixel of a splitter drag. An Agg pass over
+a profile costs around 25 ms here, so dragging the sidebar asks for roughly
+forty renders a second that each take longer than the frame they are for — which
+is what made the window feel like it was dragging its heels.
+
+The figure's *size* is still updated on every event, so geometry stays correct
+and anything that measures the canvas gets the right answer. Only the render is
+held back. In between, Qt paints the last frame, which for the ~60 ms a drag
+takes to settle is a far better trade than a window that will not keep up with
+the pointer.
+"""
+
+import weakref
+
+from PySide6.QtCore import QThread, QTimer
+from PySide6.QtWidgets import QApplication
+
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+
+
+class PlotCanvas(FigureCanvasQTAgg):
+    """A canvas that reports when a resize has stopped instead of chasing it.
+
+    Pass ``on_resize_settled`` — or set it afterwards — to re-run layout and
+    redraw. Nothing is drawn automatically on resize; that callback is the whole
+    contract.
+
+    It is a plain callable and not a ``Signal`` on purpose. ``FigureCanvasQTAgg``
+    inherits from both a QWidget and Matplotlib's own base, and declaring a new
+    Signal on a class with that mix leaves PySide6 double-freeing the canvas
+    when its parent is torn down. A callback needs none of that machinery.
+
+    The callback is held *weakly*. It is nearly always a bound method of the
+    widget this canvas sits in — which is also its Qt parent — and a strong
+    reference the other way is a cycle through a C++ object that Python cannot
+    collect, so the whole widget tree leaks.
+    """
+
+    #: How long to wait for the size to stop moving. Long enough to swallow a
+    #: drag, short enough that letting go feels like an immediate redraw.
+    SETTLE_MS = 60
+
+    def __init__(self, figure, on_resize_settled=None):
+        super().__init__(figure)
+        self._on_resize_settled = None
+        self.on_resize_settled = on_resize_settled
+        self._suppress_idle_draw = False
+        self._settle_timer = self._make_settle_timer()
+
+    @property
+    def on_resize_settled(self):
+        """The callback, or None if it was never set or has been collected."""
+        if self._on_resize_settled is None:
+            return None
+        return self._on_resize_settled()
+
+    @on_resize_settled.setter
+    def on_resize_settled(self, callback):
+        if callback is None:
+            self._on_resize_settled = None
+        elif hasattr(callback, "__self__"):
+            self._on_resize_settled = weakref.WeakMethod(callback)
+        else:
+            self._on_resize_settled = weakref.ref(callback)
+
+    def _make_settle_timer(self):
+        """A timer owned by this canvas, or None when there is no GUI thread.
+
+        The plot_export postprocessor builds a figure on a worker thread to
+        render it once and save it. A QTimer may only be stopped on the thread
+        that created it, and that path has no event loop to defer into anyway,
+        so there it renders on the spot.
+        """
+        application = QApplication.instance()
+        if application is None or QThread.currentThread() is not application.thread():
+            return None
+        # Deliberately unparented. Handing a Python-created QTimer to the
+        # canvas as its Qt parent double-frees it when the canvas is collected
+        # rather than explicitly deleted — Qt deletes the child and Python then
+        # deletes it again. Holding it in an attribute means Python owns it
+        # outright: it lives exactly as long as the canvas and is torn down once.
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(self._notify_resize_settled)
+        return timer
+
+    def _notify_resize_settled(self):
+        callback = self.on_resize_settled
+        if callback is not None:
+            callback()
+
+    def resizeEvent(self, event):
+        # Let Matplotlib do its geometry work — set_size_inches, the resize
+        # callbacks — but swallow the draw it asks for at the end of it.
+        self._suppress_idle_draw = True
+        try:
+            super().resizeEvent(event)
+        finally:
+            self._suppress_idle_draw = False
+
+        if self._settle_timer is None:
+            self._notify_resize_settled()
+            return
+        self._settle_timer.start(self.SETTLE_MS)
+
+    def draw_idle(self):
+        if self._suppress_idle_draw:
+            return
+        super().draw_idle()

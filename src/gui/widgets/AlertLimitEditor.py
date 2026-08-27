@@ -21,9 +21,9 @@ class AlertLimitEditor(QDialog):
         tokens = theme_qt.tokens()
         layout = QVBoxLayout()
         layout.setContentsMargins(
-            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
+            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(3)
         )
-        layout.setSpacing(tokens.space(3))
+        layout.setSpacing(tokens.space(2))
 
         # Horizontal layout for min/max inputs
         inputs_layout = QHBoxLayout()

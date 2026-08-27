@@ -12,9 +12,9 @@ class FileTransferDialog(QDialog):
         tokens = theme_qt.tokens()
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(
-            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
+            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(3)
         )
-        self.layout.setSpacing(tokens.space(3))
+        self.layout.setSpacing(tokens.space(2))
 
         self.manager = manager
 

@@ -44,9 +44,11 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle(f"{_('WINDOW_TITLE_MAIN')} {store.app_version}")
         # Window minimum 1024x640; below that the layout stops being an
-        # analysis tool and starts being a puzzle.
+        # analysis tool and starts being a puzzle. It opens larger than that:
+        # the device list, the folder list and the file list all have to be
+        # visible at once for the window to make sense at a glance.
         self.setMinimumSize(1024, 640)
-        self.resize(1100, 650)
+        self.resize(1440, 900)
 
         self.file_transfer_manager = FileTransferManager()
         self.postprocess_manager = PostprocessManager(self)
@@ -59,7 +61,7 @@ class MainWindow(QMainWindow):
         self.serial_widget = SerialWidget(self.file_transfer_manager)
         self.directory_view = DirectoryView()
         self.sidebar = Sidebar()
-        self.sidebar.addWidget(self.serial_widget, 200)
+        self.sidebar.addWidget(self.serial_widget, 170)
         self.sidebar.addWidget(self.directory_view)
 
         # Built before anything can select a directory: the first selection
@@ -107,14 +109,14 @@ class MainWindow(QMainWindow):
         ver_splitter.setCollapsible(1, False)
         # The chart is the subject of this window, so it opens with the larger
         # share; the file list is a picker, not a view.
-        ver_splitter.setSizes([620, 200])
+        ver_splitter.setSizes([640, 240])
 
         hor_splitter = QSplitter(Qt.Orientation.Horizontal)
         hor_splitter.addWidget(self.sidebar)
         hor_splitter.addWidget(ver_splitter)
         hor_splitter.setStretchFactor(0, 0)
         hor_splitter.setStretchFactor(1, 1)
-        hor_splitter.setSizes([320, 960])
+        hor_splitter.setSizes([300, 1140])
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 

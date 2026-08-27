@@ -126,9 +126,9 @@ class DirectoryView(QWidget):
 
         tokens = theme_qt.tokens()
         layout.setContentsMargins(
-            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(3)
+            tokens.space(2), tokens.space(1), tokens.space(2), tokens.space(2)
         )
-        layout.setSpacing(tokens.space(2))
+        layout.setSpacing(tokens.space(1))
 
         # Add widgets to the layout
         layout.addWidget(self.rollFilterInput)

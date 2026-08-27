@@ -65,7 +65,7 @@ class SettingsWindow(QWidget):
         super().__init__()
         self.setWindowTitle(_("WINDOW_TITLE_SETTINGS"))
         self.setObjectName("settingsWindow")
-        self.setGeometry(100, 100, 860, 520)
+        self.setGeometry(100, 100, 820, 560)
 
         tokens = theme_qt.tokens()
         main_layout = QHBoxLayout()
@@ -83,7 +83,7 @@ class SettingsWindow(QWidget):
 
         self.stacked_widget = QStackedWidget()
         self.stacked_widget.setContentsMargins(
-            tokens.space(6), tokens.space(6), tokens.space(6), tokens.space(6)
+            tokens.space(4), tokens.space(4), tokens.space(4), tokens.space(4)
         )
         main_layout.addWidget(self.stacked_widget, 1)
 
@@ -120,15 +120,19 @@ class SettingsWindow(QWidget):
 class AppearanceSettingsPage(QWidget):
     """Theme and density.
 
-    Both are the same system at a different setting, not different systems:
-    tokens and components do not change between them, only the palette and the
-    control heights. Dark is always an explicit choice — on a screen that will
-    be read in daylight, glare beats contrast ratios, so nothing here switches
-    itself.
+    Dark is always an explicit choice — on a screen that will be read in
+    daylight, glare beats contrast ratios, so nothing here switches itself.
+
+    Density is deliberately not here. RollView ships compact, because that is
+    what fits seven statistics, two lists and a chart in one window; offering a
+    looser one would only offer a worse layout.
     """
 
     settings_updated = Signal()
     appearance_changed = Signal(str, str)
+
+    #: Density is not a user setting. See settings.UI_DENSITY_DEFAULT.
+    DENSITY = None
 
     def __init__(self):
         super().__init__()
@@ -158,18 +162,6 @@ class AppearanceSettingsPage(QWidget):
         hint.setWordWrap(True)
         theme_qt.set_role(hint, "hint")
         layout.addWidget(hint)
-
-        self.densities = {
-            theme.COMFORTABLE: _("APPEARANCE_DENSITY_COMFORTABLE"),
-            theme.COMPACT: _("APPEARANCE_DENSITY_COMPACT"),
-        }
-        self.density_selector = QComboBox()
-        self.density_selector.addItems(self.densities.values())
-        self.density_selector.setCurrentText(
-            self.densities.get(preferences.ui_density, self.densities[theme.COMFORTABLE])
-        )
-        self.density_selector.currentIndexChanged.connect(self.enable_save_button)
-        layout.addWidget(self._field(_("APPEARANCE_DENSITY"), self.density_selector))
 
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
@@ -201,13 +193,9 @@ class AppearanceSettingsPage(QWidget):
     @Slot()
     def save_settings(self):
         selected_theme = list(self.themes.keys())[self.theme_selector.currentIndex()]
-        selected_density = list(self.densities.keys())[self.density_selector.currentIndex()]
-        preferences.update_preferences({
-            'ui_theme': selected_theme,
-            'ui_density': selected_density,
-        })
+        preferences.update_preferences({'ui_theme': selected_theme})
         self.apply_button.setEnabled(False)
-        self.appearance_changed.emit(selected_theme, selected_density)
+        self.appearance_changed.emit(selected_theme, preferences.ui_density)
         self.settings_updated.emit()
 
 
@@ -317,9 +305,9 @@ class AlertLimitSettingsPage(QWidget):
         tokens = theme_qt.tokens()
         column_header = QHBoxLayout()
         column_header.setContentsMargins(
-            tokens.space(3), 0, tokens.space(3), 0
+            tokens.space(2), 0, tokens.space(2), 0
         )
-        column_header.setSpacing(tokens.space(3))
+        column_header.setSpacing(tokens.space(2))
         column_header.addStretch()
         for name in (_("MIN"), _("MAX")):
             column_label = EyebrowLabel(name)
@@ -381,9 +369,9 @@ class AlertLimitSetting(QFrame):
         tokens = theme_qt.tokens()
         layout = QHBoxLayout()
         layout.setContentsMargins(
-            tokens.space(3), tokens.space(2), tokens.space(3), tokens.space(2)
+            tokens.space(2), tokens.space(1), tokens.space(2), tokens.space(1)
         )
-        layout.setSpacing(tokens.space(3))
+        layout.setSpacing(tokens.space(2))
         self.setLayout(layout)
 
         limit_name = limit.get('name', '')
@@ -396,7 +384,7 @@ class AlertLimitSetting(QFrame):
         layout.addStretch()
 
         input_layout = QHBoxLayout()
-        input_layout.setSpacing(theme_qt.tokens().space(3))
+        input_layout.setSpacing(theme_qt.tokens().space(2))
 
         # Seven statistics against the same two limits is a table, not seven
         # forms, so the column names are stated once in the header above and the

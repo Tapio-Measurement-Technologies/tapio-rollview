@@ -120,8 +120,8 @@ class AppHeader(QWidget):
 
         tokens = theme_qt.tokens()
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(tokens.space(3), tokens.space(2),
-                                  tokens.space(3), tokens.space(2))
+        layout.setContentsMargins(tokens.space(2), tokens.space(1),
+                                  tokens.space(2), tokens.space(1))
         layout.setSpacing(tokens.space(2))
 
         self.mark = QLabel()

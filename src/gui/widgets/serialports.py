@@ -120,9 +120,9 @@ class SerialWidget(QWidget):
         tokens = theme_qt.tokens()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(
-            tokens.space(3), tokens.space(3), tokens.space(3), tokens.space(2)
+            tokens.space(2), tokens.space(2), tokens.space(2), tokens.space(1)
         )
-        layout.setSpacing(tokens.space(2))
+        layout.setSpacing(tokens.space(1))
         layout.addWidget(self.label)
         layout.addWidget(self.view)
         layout.addWidget(self.scanButton)

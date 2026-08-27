@@ -51,7 +51,12 @@ STAT_DECIMAL_PLACES = 1
 # contrast ratios. Dark is for night shift and control rooms, and is always an
 # explicit choice.
 UI_THEME_DEFAULT = "light"
-UI_DENSITY_DEFAULT = "comfortable"
+# RollView is an analysis tool: seven statistics, two lists and a chart share
+# one window, and the chart is what the space is for. Compact is the density
+# that fits, so it is the only one offered — the token table still defines the
+# others for the design system's sake, and this can be overridden in a
+# local_settings.py for a touch or handheld build.
+UI_DENSITY_DEFAULT = "compact"
 
 # See python strftime
 # https://docs.python.org/3/library/datetime.html

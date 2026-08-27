@@ -68,16 +68,33 @@ def load_fonts():
         if font_id != -1:
             families.update(QFontDatabase.applicationFontFamilies(font_id))
     _fonts_loaded = True
+    # What Qt can resolve just changed.
+    _family_cache.clear()
+    _font_cache.clear()
     return sorted(families)
+
+
+# Resolving a family means enumerating every font Qt knows about, and building a
+# QFont from a scale step means doing that plus the QFont construction. Both are
+# asked for per *table cell per repaint* — a model returns mono_font() from
+# Qt.FontRole — which during a splitter drag came to thousands of font-database
+# scans a second. Neither answer changes until the theme does, so both are
+# cached and both caches are dropped in apply().
+_family_cache = {}
+_font_cache = {}
 
 
 def _first_available(stack):
     """The first family in a token stack that Qt can actually resolve."""
+    key = tuple(stack)
+    cached = _family_cache.get(key)
+    if cached is not None:
+        return cached
+
     available = set(QFontDatabase.families())
-    for family in stack:
-        if family in available:
-            return family
-    return stack[-1]
+    resolved = next((family for family in stack if family in available), stack[-1])
+    _family_cache[key] = resolved
+    return resolved
 
 
 def sans_family(t=None):
@@ -95,6 +112,11 @@ def font(step, t=None):
     Qt style sheet, so the steps that need them are built here instead.
     """
     t = t or current
+    cached = _font_cache.get(("scale", step, t.theme, t.density))
+    if cached is not None:
+        # A copy, so a caller adjusting the size cannot reach into the cache.
+        return QFont(cached)
+
     spec = t.font(step)
     family = mono_family(t) if spec["family"] == "mono" else sans_family(t)
     result = QFont(family)
@@ -112,7 +134,8 @@ def font(step, t=None):
     # only through a QFont.Tag it gives Python no way to construct, so asking
     # for `tnum` explicitly is not available here — which is why the data steps
     # are pinned to the mono family rather than left to a font feature.
-    return result
+    _font_cache[("scale", step, t.theme, t.density)] = result
+    return QFont(result)
 
 
 def mono_font(step="body-sm", t=None):
@@ -123,9 +146,15 @@ def mono_font(step="body-sm", t=None):
     column. Models return this from ``Qt.FontRole`` instead.
     """
     t = t or current
+    key = ("mono", step, t.theme, t.density)
+    cached = _font_cache.get(key)
+    if cached is not None:
+        return cached
+
     result = QFont(mono_family(t))
     result.setPixelSize(t.font_size(step))
     result.setWeight(QFont.Weight(400))
+    _font_cache[key] = result
     return result
 
 
@@ -296,6 +325,8 @@ def apply(app=None, theme=T.LIGHT, density=T.COMFORTABLE):
 
     current = T.load(theme=theme, density=density)
     icons.clear_cache()
+    _family_cache.clear()
+    _font_cache.clear()
 
     app.setStyle("Fusion")
     app.setPalette(build_palette(current))
