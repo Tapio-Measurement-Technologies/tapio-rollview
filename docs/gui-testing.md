@@ -7,7 +7,15 @@ two that run the app sandbox `HOME`, so a run can never touch the real
 ## 1. pytest + pytest-qt
 
 `pytest.ini` and the root `conftest.py` add pytest on top of the existing
-`unittest` suite. Both runners work on the same tests; CI runs pytest.
+`unittest` suite. **CI runs pytest, and so should you** — a `unittest discover`
+run collects only the `TestCase` classes, so the fixture-based GUI tests
+(anything taking `main_window`, `qtbot` or `snap`) are silently absent from it.
+
+Both runners are sandboxed. The redirect lives in `src/test/sandbox.py` and is
+applied by `src/test/__init__.py`, which both runners import before any test
+module — `conftest.py` would only cover pytest, and for a while that meant a
+`unittest` run wrote to the real `~/.tapiorqp/preferences.json`. Set
+`ROLLVIEW_TEST_REAL_HOME=1` to opt out deliberately.
 
 ```bash
 .venv/bin/python -m pytest
@@ -165,6 +173,10 @@ be reachable only by mocking `serial.Serial`, which skips the protocol entirely.
 `FakeRqftDevice` puts a real file descriptor on the other end instead:
 `pty.openpty()` gives a `/dev/pts/N` that pyserial opens exactly as it would a
 physical device.
+
+POSIX only — Windows has no `pty`. The three test modules that use the fake
+open with `pytest.importorskip("pty")`, so a Windows run skips them rather than
+failing to collect; the device workflow is covered on Linux and in CI.
 
 ```python
 from test.fakedevice import FakeRqftDevice, make_profile_bytes

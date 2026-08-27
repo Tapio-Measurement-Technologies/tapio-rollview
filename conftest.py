@@ -1,46 +1,35 @@
 """Shared pytest setup for the RollView GUI suite.
 
-Everything here runs at import time, before any test module (and therefore
-before ``settings.py``) is imported, because ``settings.ROOT_DIRECTORY`` and
+The sandbox itself — HOME redirected away from the real ``~/.tapiorqp``, Qt
+pinned to the offscreen platform — lives in ``test/sandbox.py`` rather than
+here, because the suite is runnable with ``unittest discover`` too and a
+conftest is a pytest file. Importing ``test`` applies it, and both runners do
+that before any test module.
+
+Everything below runs at import time, which is before ``settings.py`` is
+imported: ``settings.ROOT_DIRECTORY`` and
 ``preferences.default_preferences_file_path`` are both computed from
 ``QDir.homePath()`` at module level.
 """
 
 import os
-import shutil
 import sys
-import tempfile
 from pathlib import Path
-
-# GUI tests must never require a display.
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-# Keep widget grabs pixel-comparable across machines.
-os.environ.setdefault("QT_SCALE_FACTOR", "1")
-os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "0")
-os.environ.setdefault("MPLBACKEND", "QtAgg")
 
 REPO_ROOT = Path(__file__).resolve().parent
 SRC = REPO_ROOT / "src"
 
-# Redirect HOME so a test run can never read or write the real ~/.tapiorqp.
-# Set ROLLVIEW_TEST_REAL_HOME=1 to opt out.
-_SANDBOX_HOME = None
-if os.environ.get("ROLLVIEW_TEST_REAL_HOME") != "1":
-    _SANDBOX_HOME = Path(tempfile.mkdtemp(prefix="rollview-pytest-"))
-    os.environ["HOME"] = str(_SANDBOX_HOME)
-    os.environ["XDG_CONFIG_HOME"] = str(_SANDBOX_HOME / ".config")
-    os.environ["XDG_DATA_HOME"] = str(_SANDBOX_HOME / ".local" / "share")
-    os.environ["XDG_CACHE_HOME"] = str(_SANDBOX_HOME / ".cache")
-
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+
+import test as _test_package  # noqa: E402,F401  -- activates the sandbox
+from test import sandbox  # noqa: E402
 
 import pytest  # noqa: E402
 
 
 def pytest_unconfigure(config):
-    if _SANDBOX_HOME is not None:
-        shutil.rmtree(_SANDBOX_HOME, ignore_errors=True)
+    sandbox.cleanup()
 
 
 def pytest_addoption(parser):
