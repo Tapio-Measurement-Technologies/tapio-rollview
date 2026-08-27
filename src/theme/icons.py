@@ -18,7 +18,9 @@ only. Icon-only buttons are permitted in dense toolbars, and then a tooltip is
 mandatory.
 """
 
+import atexit
 import os
+import shutil
 import tempfile
 
 from PySide6.QtCore import QByteArray, Qt
@@ -106,6 +108,11 @@ def write_png(name, size, color, stroke=None):
     global _icon_dir
     if _icon_dir is None:
         _icon_dir = tempfile.mkdtemp(prefix="tapio-theme-")
+        # One directory per process, and nothing else knows it exists, so its
+        # removal has to be booked here. Without this every launch left a
+        # tapio-theme-* directory behind in the system temp folder, for the
+        # lifetime of the machine.
+        atexit.register(shutil.rmtree, _icon_dir, ignore_errors=True)
 
     path = os.path.join(
         _icon_dir, f"{name}-{size}-{color.lstrip('#')}-{stroke or 'd'}.png"
