@@ -18,7 +18,7 @@ from utils.highlighted_regions import (
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSizePolicy, QLabel
-from PySide6.QtCore import Qt, QThread, QTimer
+from PySide6.QtCore import QEvent, Qt, QThread, QTimer
 from utils.translation import _
 
 from matplotlib.figure import Figure
@@ -93,6 +93,48 @@ class WarningLabel(QLabel):
         self.setText("")
 
 
+class PlotToolbar(NavigationToolbar):
+    """The Matplotlib navigation bar, re-tinted when the theme changes.
+
+    Matplotlib bakes each icon at construction: it reads the toolbar's palette
+    and, only if the background is dark, masks the black glyph and refills it
+    with the foreground colour. It never looks again. So a bar built in the
+    light theme keeps black icons on the dark theme's near-black ground, and
+    one built in dark keeps near-white icons on white — invisible either way.
+
+    Qt delivers PaletteChange to every widget when the application palette is
+    replaced, which is exactly what theme.apply() does, so the re-tint happens
+    on its own rather than being something a caller has to remember.
+    """
+
+    def __init__(self, canvas, parent=None):
+        super().__init__(canvas, parent)
+        # What each action was drawn from. Matplotlib keeps this in a private
+        # map keyed by callback name; reading it once here means a change to
+        # its internals shows up as icons that stop updating, which the test
+        # suite checks, rather than an exception in front of an operator.
+        self._icon_files = {}
+        actions = getattr(self, "_actions", {})
+        for text, _tooltip, image_file, callback in self.toolitems:
+            action = actions.get(callback)
+            if text is None or not image_file or action is None:
+                continue
+            self._icon_files[action] = image_file + ".png"
+
+    def retint(self):
+        """Rebuild every icon against the palette the toolbar has now."""
+        for action, filename in self._icon_files.items():
+            action.setIcon(self._icon(filename))
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (
+            QEvent.Type.PaletteChange,
+            QEvent.Type.ApplicationPaletteChange,
+        ):
+            self.retint()
+
+
 class ProfileWidget(QWidget):
     """The profile tab: the verdict, then the chart.
 
@@ -151,7 +193,7 @@ class ProfileWidget(QWidget):
         self._setup_axes()
         self._setup_zoom_pan()
 
-        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar = PlotToolbar(self.canvas, self)
         self.toolbar.setVisible(preferences.show_plot_toolbar)
         self.mean_profile = []
         self.mean_profile_distances = []
@@ -163,8 +205,15 @@ class ProfileWidget(QWidget):
         self.layout.addWidget(self.stats_widget)
         self.layout.addWidget(self.warning_label)
         self.layout.addWidget(self.empty_state_label)
-        self.layout.addWidget(self.canvas)
-        self.layout.addWidget(self.toolbar)
+
+        # The toolbar acts on the chart directly above it, so the two are one
+        # object and sit flush. Everything else in the column keeps the row gap.
+        plot_area = QVBoxLayout()
+        theme_qt.pad(plot_area, 0)
+        theme_qt.gap(plot_area, 0)
+        plot_area.addWidget(self.canvas)
+        plot_area.addWidget(self.toolbar)
+        self.layout.addLayout(plot_area)
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding,
                            QSizePolicy.Policy.Expanding)

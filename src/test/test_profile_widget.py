@@ -406,3 +406,80 @@ class TestLocalSettingsOverrides(unittest.TestCase):
             ax, [0, 1], [1, 2], color="#1E73BE", selected=False, selected_width=6.0
         )
         self.assertEqual(other.get_linewidth(), tapio_mpl.SUPPORTING_WIDTH)
+
+
+class TestPlotToolbar(unittest.TestCase):
+    """The navigation bar's icons follow the theme.
+
+    Matplotlib bakes each icon at construction — it masks the black glyph and
+    refills it with the foreground colour, but only when the palette it sees at
+    that moment is dark — and never looks again. Left alone, a bar built in
+    light keeps black icons on the dark theme's near-black ground.
+
+    This also pins the two private attributes the re-tint reads
+    (``_actions``, ``_icon``): if a matplotlib upgrade moves them, the icons go
+    back to not updating, and it should be this that says so.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        import theme
+        from theme import qt as theme_qt
+
+        self._restore = theme_qt.tokens().theme
+        theme.apply(self.app, theme="light")
+        self.widget = ProfileWidget()
+
+    def tearDown(self):
+        import theme
+        from test.qtcleanup import destroy
+
+        destroy(self.widget)
+        theme.apply(self.app, theme=self._restore)
+
+    @staticmethod
+    def _ink(action):
+        """The average colour of an icon's opaque pixels."""
+        image = action.icon().pixmap(24, 24).toImage()
+        total, count = [0, 0, 0], 0
+        for y in range(image.height()):
+            for x in range(image.width()):
+                pixel = image.pixelColor(x, y)
+                if pixel.alpha() > 100:
+                    total[0] += pixel.red()
+                    total[1] += pixel.green()
+                    total[2] += pixel.blue()
+                    count += 1
+        return tuple(channel // count for channel in total) if count else None
+
+    def test_the_toolbar_knows_what_its_icons_were_drawn_from(self):
+        self.assertTrue(
+            self.widget.toolbar._icon_files,
+            "matplotlib's action map has moved; the icons will stop re-tinting",
+        )
+
+    def test_the_icons_follow_the_theme(self):
+        import theme
+
+        action = next(iter(self.widget.toolbar._icon_files))
+
+        in_light = self._ink(action)
+        self.assertIsNotNone(in_light)
+
+        theme.apply(self.app, theme="dark")
+        self.app.processEvents()
+        in_dark = self._ink(action)
+
+        self.assertNotEqual(
+            in_light, in_dark,
+            "the toolbar icons did not change with the theme",
+        )
+        # Dark ground wants light glyphs, and light ground dark ones.
+        self.assertGreater(sum(in_dark), sum(in_light))
+
+        theme.apply(self.app, theme="light")
+        self.app.processEvents()
+        self.assertEqual(self._ink(action), in_light)
