@@ -117,10 +117,9 @@ def app_modules():
 def main_window(qtbot, app_modules):
     """A live MainWindow with serial scanning stubbed out.
 
-    ``qtbot.addWidget`` only *closes* the widget at teardown; a MainWindow and its
-    child dialogs survive that, so the teardown below destroys it explicitly and
-    drains the DeferredDelete queue. Without this a suite accumulates a
-    MainWindow (and ~150 descendants) per test.
+    ``qtbot.addWidget`` only *closes* the widget at teardown, so the teardown
+    below destroys it explicitly and drains the DeferredDelete queue. Without
+    this a suite accumulates a MainWindow (and ~150 descendants) per test.
     """
     from unittest.mock import patch
 
@@ -136,13 +135,9 @@ def main_window(qtbot, app_modules):
 
     yield window
 
-    # Several dialogs are constructed without a parent, so Qt's parent-child
-    # ownership never reclaims them when the window goes away:
-    # SerialWidget.transferDialog and PostprocessManager.dialog.
-    orphans = [window.settings_window, window.log_window]
-    orphans.append(getattr(window.serial_widget, "transferDialog", None))
-    orphans.append(getattr(window.postprocess_manager, "dialog", None))
-    for child in orphans:
+    # These two are deliberately parentless: they are separate top-level windows
+    # the user opens and closes independently of the main window.
+    for child in (window.settings_window, window.log_window):
         if child is not None:
             child.close()
             child.deleteLater()

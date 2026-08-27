@@ -4,8 +4,8 @@ from workers.file_transfer import FileTransferManager
 from utils.translation import _
 
 class FileTransferDialog(QDialog):
-    def __init__(self, manager: FileTransferManager):
-        super().__init__()
+    def __init__(self, manager: FileTransferManager, parent=None):
+        super().__init__(parent)
         self.setWindowTitle(_("FILE_TRANSFER_DIALOG_TITLE"))
         self.setMinimumWidth(400)
         self.layout = QVBoxLayout(self)

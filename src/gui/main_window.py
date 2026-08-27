@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         self.resize(1100, 650)
 
         self.file_transfer_manager = FileTransferManager()
-        self.postprocess_manager = PostprocessManager()
+        self.postprocess_manager = PostprocessManager(self)
         self.log_window = None
         self.settings_window = None
         self.directory_name = None

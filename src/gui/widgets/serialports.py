@@ -107,7 +107,7 @@ class SerialWidget(QWidget):
         self.syncButton.setEnabled(False)
 
         self.transferManager = transfer_manager
-        self.transferDialog = FileTransferDialog(self.transferManager)
+        self.transferDialog = FileTransferDialog(self.transferManager, self)
 
         self.scanner = PortScanner(self)
 

@@ -35,6 +35,17 @@ def wired_window(main_window, device):
         yield main_window
 
 
+def test_dialogs_are_parented_to_the_window(main_window):
+    """A parentless QDialog floats behind its window and gets its own taskbar entry.
+
+    Both of these used to be constructed without a parent, which also meant Qt
+    never reclaimed them; --leakcheck is the other half of this guarantee.
+    """
+    serial_widget = main_window.serial_widget
+    assert serial_widget.transferDialog.parent() is serial_widget
+    assert main_window.postprocess_manager.parent() is main_window
+
+
 def test_scan_lists_the_fake_device(wired_window, device, qtbot, snap):
     serial_widget = wired_window.serial_widget
     with qtbot.waitSignal(serial_widget.scan_finished, timeout=15000):
