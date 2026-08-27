@@ -200,13 +200,19 @@ QWidget#statTile:hover {
 /* ---------- application header ------------------------------------------- */
 /* The title bar states the object, not the app. */
 
+/* Its own role rather than `inverse`. Inverse means "the opposite of the page",
+   which in the dark theme is a near-white bar across the top of a dark window —
+   the loudest thing on screen and the one place nothing is happening. The band
+   is a dark navy in the light theme and a raised dark in the dark one, so it
+   reads as the same bar in both. */
 QWidget#appHeader {
-    background-color: ${inverse};
+    background-color: ${header};
     border: none;
+    border-bottom: 1px solid ${header_edge};
 }
 
 QWidget#appHeader QLabel {
-    color: ${ink_inverse};
+    color: ${header_ink};
     background: transparent;
 }
 
@@ -532,11 +538,13 @@ QHeaderView {
     border: none;
 }
 
-/* A `min-height` on a header section grows the box downward and leaves the
-   label at the top of it — which is what had every column heading sitting
-   against the top edge. The height comes from symmetric vertical padding
-   instead, which is the only thing that actually centres the text; the sort
-   indicator then lines up with it. */
+/* Height from `min-height`, and no vertical padding at all. The two together
+   are what pushed the label to the top of the section: padding offsets the
+   content box the label is drawn in, while min-height grows the section around
+   it. With only min-height, the section grows evenly and the header's
+   AlignVCenter — set in theme.qt.style_header() — centres the label in it.
+   The height must not also be set on the header *widget*: that grows the widget
+   past the section, and the sections then paint against its top edge. */
 QHeaderView::section {
     background-color: ${sunken};
     color: ${ink_muted};
@@ -546,7 +554,8 @@ QHeaderView::section {
     border: none;
     border-bottom: 1px solid ${border};
     border-right: none;
-    padding: ${header_pad}px ${s2}px;
+    padding: 0 ${s2}px;
+    min-height: ${header_inner}px;
 }
 
 QHeaderView::section:hover {

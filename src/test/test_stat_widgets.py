@@ -5,6 +5,7 @@ from gui.widgets.stats import StatsWidget, MeanWidget, StdWidget, CVWidget, MinW
 from utils import preferences
 import settings
 import theme
+from test.qtcleanup import destroy
 
 class TestStatWidgets(unittest.TestCase):
 
@@ -71,6 +72,35 @@ class TestStatWidgets(unittest.TestCase):
 
         widget.update_data([1.0])
         self.assertEqual(widget.foot_label.text(), "Below 4.5")
+
+    def test_editing_one_tile_re_judges_the_whole_run(self):
+        """The verdict belongs to the run, not to the tile that was edited.
+
+        The tile that opens the editor refreshes itself; without this the run's
+        verdict — and so the object bar at the top of the window — kept the old
+        answer until the operator changed folder.
+        """
+        widget = StatsWidget(self.data)
+        try:
+            verdicts = []
+            widget.verdict_changed.connect(verdicts.append)
+            limits = [dict(limit) for limit in preferences.alert_limits]
+            for limit in limits:
+                limit['min'] = None
+                limit['max'] = 0.5 if limit['name'] == 'max_g' else None
+            preferences.update_preferences({'alert_limits': limits})
+
+            tile = next(w for w in widget.widgets if w.func.name == 'max_g')
+            tile.limit = next(
+                l for l in preferences.alert_limits if l['name'] == 'max_g'
+            )
+            tile.update_data(tile.data)
+            tile.limit_edited.emit()
+
+            self.assertEqual(widget.verdict(), theme.STATUS_BAD)
+            self.assertEqual(verdicts[-1], theme.STATUS_BAD)
+        finally:
+            destroy(widget)
 
     def test_stat_widget_without_limits_says_so(self):
         widget = MeanWidget(self.data)

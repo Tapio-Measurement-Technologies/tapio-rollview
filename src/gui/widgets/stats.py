@@ -88,9 +88,12 @@ class StatsWidget(QWidget):
     """
 
     verdict_changed = Signal(str)
+    #: A limit was edited on one of the tiles.
+    limits_changed = Signal()
 
     def __init__(self, data):
         super().__init__()
+        self.data = data
         limit_map = self._get_limit_map()
 
         tokens = theme_qt.tokens()
@@ -114,7 +117,20 @@ class StatsWidget(QWidget):
         self.setLayout(self.layout)  # Set the layout for the StatsWidget
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
+        for widget in self.widgets:
+            widget.limit_edited.connect(self.on_limit_edited)
         self._relayout_widgets()
+
+    def on_limit_edited(self):
+        """A limit edited on one tile changes the verdict for the whole run.
+
+        The tile that opened the editor refreshes itself, but the run's verdict
+        — and the chart's limit lines, which come from the minimum and the
+        maximum — belong to everything above this widget, so the change has to
+        travel back out.
+        """
+        self.update_data(self.data)
+        self.limits_changed.emit()
 
     def verdict(self):
         return verdict_for(self.widgets)
@@ -198,6 +214,7 @@ class StatsWidget(QWidget):
         print("Statistics copied to clipboard.")
 
     def update_data(self, data):
+        self.data = data
         self._refresh_limits()
         for widget in self.widgets:
             widget.update_data(data)
@@ -212,6 +229,9 @@ class StatWidget(QWidget):
     Only the failing tile turns red. A row of red tiles tells the operator
     nothing about *which* statistic failed.
     """
+
+    #: This tile's limit was changed in the editor it opened.
+    limit_edited = Signal()
 
     def __init__(self, data, name, units, func, limit):
         super().__init__()
@@ -299,6 +319,7 @@ class StatWidget(QWidget):
                 # Reload preferences and update the limit
                 self.limit = next((limit for limit in preferences.alert_limits if limit['name'] == stat_name), None)
                 self.update_data(self.data)  # Refresh the widget display
+                self.limit_edited.emit()
 
     def _foot_text(self):
         """What the tile says under the number: the limit, or why it failed."""

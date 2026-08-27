@@ -97,6 +97,9 @@ def pairs(theme):
     # legible, and every variant shares one disabled look: ink-muted on sunken.
     yield ("text", "accent-ink on accent", t.color("accent-ink"), t.color("accent"), TEXT_RATIO)
     yield ("text", "ink-inverse on inverse", t.color("ink-inverse"), t.color("inverse"), TEXT_RATIO)
+    yield ("text", "header-ink on header", t.color("header-ink"), t.color("header"), TEXT_RATIO)
+    yield ("text", "header context on header",
+           T.mix(t.color("header-ink"), t.color("header"), 0.66), t.color("header"), TEXT_RATIO)
     yield ("text", "disabled label on sunken", t.color("ink-muted"), t.color("sunken"), TEXT_RATIO)
 
 
