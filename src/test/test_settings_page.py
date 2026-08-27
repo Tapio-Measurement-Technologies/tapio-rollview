@@ -1,9 +1,20 @@
 import unittest
 import copy
+from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QScrollArea,
+    QStyle,
+    QStyleOptionSlider,
+)
 
 import settings
+import theme
+from theme import qt as theme_qt
 from gui.settings import (
     AlertLimitSettingsPage,
     AdvancedSettingsPage,
@@ -18,6 +29,7 @@ from utils.highlighted_regions import (
     DistanceHighlightRegion,
 )
 from utils import preferences
+from utils.translation import _
 
 
 class TestAdvancedSettingsPage(unittest.TestCase):
@@ -46,6 +58,62 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.page.excluded_regions_mode_selector.setCurrentText(
             self.page.excluded_regions_modes[mode]
         )
+
+    def test_column_headings_sit_in_the_middle_of_their_section(self):
+        """QFileSystemModel answers TextAlignmentRole with a bare AlignLeft.
+
+        A model's answer overrides the header's defaultAlignment(), and with no
+        vertical flag Qt falls back to AlignTop — which is why the headings sat
+        against the top edge whatever the section's own height was.
+        """
+        from gui.widgets.FileView import CustomFileSystemModel as FileModel
+        from gui.widgets.DirectoryView import CustomFileSystemModel as FolderModel
+
+        wanted = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        for model_class in (FileModel, FolderModel):
+            model = model_class()
+            try:
+                self.assertEqual(
+                    model.headerData(
+                        0, Qt.Orientation.Horizontal,
+                        Qt.ItemDataRole.TextAlignmentRole,
+                    ),
+                    wanted,
+                    f"{model_class.__module__} leaves its headings top-aligned",
+                )
+            finally:
+                model.deleteLater()
+
+    def test_band_pass_slider_handle_fits_inside_the_slider(self):
+        """Qt sizes a styled QSlider from its groove, not its handle.
+
+        The groove is 6 px and the handle 16, so without a minimum height on the
+        widget the handle is drawn a pixel outside it and comes out flat-topped.
+        """
+        page = AdvancedSettingsPage()
+        try:
+            slider = page.band_pass_slider
+            option = QStyleOptionSlider()
+            slider.initStyleOption(option)
+            handle = slider.style().subControlRect(
+                QStyle.ComplexControl.CC_Slider, option,
+                QStyle.SubControl.SC_SliderHandle, slider,
+            )
+            self.assertGreaterEqual(handle.top(), 0)
+            self.assertLessEqual(handle.bottom(), slider.height() - 1)
+            # Round, not an ellipse: the handle is as tall as it is wide.
+            self.assertEqual(handle.width(), handle.height())
+        finally:
+            page.close()
+
+    def test_band_pass_input_can_show_its_longest_value(self):
+        """The one that clipped in the field: "100.0" in a 55 px box."""
+        page = AdvancedSettingsPage()
+        try:
+            field = page.band_pass_high_input
+            self.assertGreaterEqual(usable_width(field), text_width(field, "100.0"))
+        finally:
+            page.close()
 
     def test_switching_relative_to_absolute_keeps_text_unchanged(self):
         self.page.excluded_regions_input.setText("20-80")
@@ -109,6 +177,21 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.assertTrue(self.page.apply_button.isEnabled())
 
 
+def text_width(field, text):
+    """How wide *text* renders in the face this field actually uses."""
+    return QFontMetrics(field.font()).horizontalAdvance(text)
+
+
+def usable_width(field):
+    """The width left for text once the theme's padding and border are gone.
+
+    Read from maximumWidth rather than width(): these fields are all fixed, and
+    a page that was never shown has not had a layout pass to give width() its
+    final answer.
+    """
+    return field.maximumWidth() - theme_qt.tokens().space(3) * 2 - 4
+
+
 class TestAlertLimitSettingsPage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -129,8 +212,39 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         row = self.page.setting_widgets[0]
 
         self.assertIsInstance(row, QFrame)
-        self.assertEqual(row.min_input.maximumWidth(), row.INPUT_WIDTH)
-        self.assertEqual(row.max_input.maximumWidth(), row.INPUT_WIDTH)
+        expected = theme_qt.numeric_field_width(row.INPUT_WIDTH, sample=_("NOT_SET"))
+        self.assertEqual(row.min_input.maximumWidth(), expected)
+        self.assertEqual(row.max_input.maximumWidth(), expected)
+
+    def test_alert_limit_inputs_can_show_their_longest_value(self):
+        """A field narrower than its own value clips it, silently.
+
+        The theme gives every QLineEdit 12 px of padding a side, so widths
+        chosen against the unstyled metrics lost several characters. These are
+        sized from the face they actually render in.
+        """
+        row = self.page.setting_widgets[0]
+        for field in (row.min_input, row.max_input):
+            for text in ("0" * row.INPUT_WIDTH, _("NOT_SET")):
+                self.assertGreater(
+                    usable_width(field), text_width(field, text),
+                    f"{text!r} does not fit in this field",
+                )
+
+    def test_unknown_alert_limit_name_does_not_crash_settings_page(self):
+        self.page.close()
+        preferences.alert_limits = [
+            {
+                "name": "slope_dag",
+                "units": "g",
+                "min": None,
+                "max": None,
+            }
+        ]
+
+        self.page = AlertLimitSettingsPage()
+
+        self.assertEqual(self.page.setting_widgets[0].label.text(), "slope_dag [g]")
 
 
 class TestGeneralSettingsPage(unittest.TestCase):
@@ -143,11 +257,13 @@ class TestGeneralSettingsPage(unittest.TestCase):
         self.original_excluded_regions_mode = preferences.excluded_regions_mode
         self.original_excluded_regions = preferences.excluded_regions
         self.original_locale = preferences.locale
+        self.original_ui_theme = preferences.ui_theme
 
         preferences.distance_unit = "m"
         preferences.excluded_regions_mode = settings.EXCLUDED_REGIONS_MODE_ABSOLUTE
         preferences.excluded_regions = "1-2"
         preferences.locale = settings.LOCALE_DEFAULT
+        preferences.ui_theme = theme.LIGHT
 
         self.page = GeneralSettingsPage()
 
@@ -157,6 +273,7 @@ class TestGeneralSettingsPage(unittest.TestCase):
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
         preferences.excluded_regions = self.original_excluded_regions
         preferences.locale = self.original_locale
+        preferences.ui_theme = self.original_ui_theme
 
     def test_save_settings_converts_absolute_excluded_regions_when_distance_unit_changes(self):
         self.page.distance_unit_selector.setCurrentText(self.page.distance_units["in"])
@@ -169,6 +286,56 @@ class TestGeneralSettingsPage(unittest.TestCase):
     def test_distance_unit_selector_includes_centimeters(self):
         self.assertIn("cm", self.page.distance_units)
         self.assertEqual(self.page.distance_units["cm"], "Centimeters (cm)")
+
+    def test_the_theme_is_chosen_here(self):
+        """It used to have a page of its own, which was one control on it."""
+        self.assertEqual(
+            list(self.page.themes), [theme.SYSTEM, theme.LIGHT, theme.DARK]
+        )
+        self.assertEqual(self.page.theme_selector.count(), 3)
+        self.assertEqual(
+            self.page.theme_selector.currentText(), self.page.themes[theme.LIGHT]
+        )
+
+    def test_following_the_system_is_the_default(self):
+        self.assertEqual(settings.UI_THEME_DEFAULT, theme.SYSTEM)
+        # First in the list, because it is what a new install gets.
+        self.assertEqual(next(iter(self.page.themes)), theme.SYSTEM)
+
+    def test_saving_system_stores_the_choice_not_what_it_resolved_to(self):
+        """Otherwise the next desktop change would not be followed."""
+        announced = []
+        self.page.appearance_changed.connect(announced.append)
+
+        self.page.theme_selector.setCurrentText(self.page.themes[theme.SYSTEM])
+        self.page.save_settings()
+
+        self.assertEqual(preferences.ui_theme, theme.SYSTEM)
+        self.assertEqual(announced, [theme.SYSTEM])
+
+    def test_saving_a_new_theme_saves_it_and_says_so(self):
+        announced = []
+        self.page.appearance_changed.connect(announced.append)
+
+        self.page.theme_selector.setCurrentText(self.page.themes[theme.DARK])
+        self.page.save_settings()
+
+        self.assertEqual(preferences.ui_theme, theme.DARK)
+        self.assertEqual(announced, [theme.DARK])
+
+    def test_saving_without_touching_the_theme_stays_quiet(self):
+        """Applying a theme repolishes every widget and redraws both charts.
+
+        A change of distance unit should not be paying for that.
+        """
+        announced = []
+        self.page.appearance_changed.connect(announced.append)
+
+        self.page.distance_unit_selector.setCurrentText(self.page.distance_units["in"])
+        self.page.save_settings()
+
+        self.assertEqual(announced, [])
+        self.assertEqual(preferences.ui_theme, theme.LIGHT)
 
 
 class TestDistanceHighlightsSettingsPage(unittest.TestCase):
@@ -308,6 +475,17 @@ class TestSettingsWindow(unittest.TestCase):
             page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
             self.assertIn("Distance highlights", page_names)
             self.assertIn("Hardness highlights", page_names)
+        finally:
+            window.close()
+
+    def test_there_is_no_appearance_page(self):
+        """The theme sits in General settings; it was never a page's worth."""
+        window = SettingsWindow()
+        try:
+            page_names = [window.list_widget.item(i).text() for i in range(window.list_widget.count())]
+            self.assertNotIn("Appearance", page_names)
+            self.assertIn("General settings", page_names)
+            self.assertTrue(hasattr(window.general_settings_page, "theme_selector"))
         finally:
             window.close()
 

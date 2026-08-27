@@ -1,20 +1,68 @@
 from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from serial.tools import list_ports_common
 from utils import preferences
+from utils.rqft_support import firmware_supports_rqft
+from workers.device_connection import ConnectionState
 import re
 
 class SerialPortItem:
     """
     Represents a serial port with its details.
     """
-    def __init__(self, port: list_ports_common.ListPortInfo, device_responded=False):
+    def __init__(
+        self,
+        port: list_ports_common.ListPortInfo,
+        device_responded=False,
+        known_device=False,
+    ):
         self.device = port.device
         self.description = port.description
         self.serial_number = port.serial_number
         self.device_responded = device_responded
+        self.firmware_version = getattr(port, "firmware_version", "") or ""
+        # A worker-held port may be a known RQFT device without having a
+        # live session during this scan.
+        self.supports_rqft = (
+            device_responded or known_device
+        ) and firmware_supports_rqft(self.firmware_version)
 
     def is_pinned(self):
         return self.device in preferences.pinned_serial_ports
+
+
+# Connection indicator colors: (fill, outline); None fill = hollow.
+_STATE_BALL_COLORS = {
+    ConnectionState.CONNECTED: ("#2eb85c", "#1e7e34"),
+    ConnectionState.CONNECTING: ("#f0ad4e", "#c98a1e"),
+    ConnectionState.LISTENING: ("#f0ad4e", "#c98a1e"),
+    ConnectionState.OPEN_BACKOFF: ("#f0ad4e", "#c98a1e"),
+    ConnectionState.DISABLED: (None, "#9a9a9a"),
+    None: (None, "#9a9a9a"),
+}
+
+_state_icon_cache = {}
+
+
+def _state_icon(state):
+    """Small ball icon for one connection state (built lazily; requires
+    a QGuiApplication, so only views should trigger this)."""
+    icon = _state_icon_cache.get(state)
+    if icon is not None:
+        return icon
+    fill, outline = _STATE_BALL_COLORS.get(state, _STATE_BALL_COLORS[None])
+    pixmap = QPixmap(12, 12)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(QColor(outline))
+    if fill is not None:
+        painter.setBrush(QColor(fill))
+    painter.drawEllipse(1, 1, 9, 9)
+    painter.end()
+    icon = QIcon(pixmap)
+    _state_icon_cache[state] = icon
+    return icon
 
 def natural_sort_key(text):
     """
@@ -31,6 +79,9 @@ class SerialPortModel(QAbstractListModel):
         self.ports = ports
         self.filtered_ports = ports
         self.selected_port: SerialPortItem = None
+        # Callable(device) -> Optional[ConnectionState]; live state is
+        # queried, never stored on items (scans rebuild the items).
+        self.connection_state_provider = None
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.filtered_ports)
@@ -48,8 +99,26 @@ class SerialPortModel(QAbstractListModel):
             return display_text
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
+        elif role == Qt.ItemDataRole.DecorationRole:
+            if not item.supports_rqft:
+                return None
+            return _state_icon(self.getConnectionState(item.device))
 
         return None
+
+    def getConnectionState(self, device):
+        if self.connection_state_provider is None:
+            return None
+        return self.connection_state_provider(device)
+
+    def refreshStates(self, *args):
+        """Repaint connection indicators after a state change."""
+        if self.filtered_ports:
+            self.dataChanged.emit(
+                self.index(0, 0),
+                self.index(len(self.filtered_ports) - 1, 0),
+                [Qt.ItemDataRole.DecorationRole],
+            )
 
     def getPortItem(self, row):
         """Get the port item at the specified row"""

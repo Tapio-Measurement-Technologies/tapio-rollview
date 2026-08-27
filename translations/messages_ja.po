@@ -43,7 +43,7 @@ msgstr "受信中"
 
 #. Used in file transfer dialog as group box title.
 msgid "TOTAL_PROGRESS"
-msgstr "全体の進捗"
+msgstr "実行中"
 
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_FILE"
@@ -131,7 +131,7 @@ msgstr "青"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_ORANGE"
-msgstr "オレンジ"
+msgstr "アンバー"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GREEN"
@@ -143,27 +143,27 @@ msgstr "赤"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PURPLE"
-msgstr "紫"
+msgstr "バイオレット"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_BROWN"
-msgstr "茶"
+msgstr "ブロンズ"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_PINK"
-msgstr "ピンク"
+msgstr "マゼンタ"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_GRAY"
-msgstr "灰"
+msgstr "スレート"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_OLIVE"
-msgstr "オリーブ"
+msgstr "モス"
 
 #. Used in annotations settings page as color option label.
 msgid "COLOR_CYAN"
-msgstr "シアン"
+msgstr "ティール"
 
 #. Used in file tree context menu and directory view as button label and menu action
 #. label.
@@ -196,7 +196,7 @@ msgstr "変更に失敗しました"
 
 #. Used in file tree context menu as message text.
 msgid "DELETE_DIALOG_FOLDER_CONFIRM"
-msgstr "{path} とその中身をすべて削除しますか？"
+msgstr "フォルダとその中身をすべて削除しますか？"
 
 #. Used in file tree context menu as window or dialog title.
 msgid "DELETE_DIALOG_TITLE"
@@ -222,6 +222,14 @@ msgstr "ディレクトリの変更"
 msgid "CHANGE_DIRECTORY_DIALOG_TITLE"
 msgstr "ディレクトリの選択"
 
+#. Used in directory view folder filter input as placeholder text.
+msgid "FOLDER_FILTER_PLACEHOLDER"
+msgstr "フォルダをフィルター"
+
+#. Used in regex filter inputs as tooltip text when pattern is invalid.
+msgid "REGEX_FILTER_INVALID_TOOLTIP"
+msgstr "正規表現が無効です: {error}"
+
 #. Used in file list view and directory view as column header.
 msgid "TREEVIEW_HEADER_NAME"
 msgstr "名前"
@@ -238,9 +246,17 @@ msgstr "サイズ"
 msgid "TREEVIEW_HEADER_PROFILE_LENGTH"
 msgstr "測定長"
 
+#. Used in directory view as empty-state text.
+msgid "DIRECTORY_EMPTY_STATE_NO_FOLDERS"
+msgstr "選択したディレクトリにフォルダがありません"
+
+#. Used in file list view and profile chart as empty-state text.
+msgid "PROFILE_EMPTY_STATE_NO_PROFILES"
+msgstr "選択したフォルダにプロファイルがありません"
+
 #. Used in progress dialog as window or dialog title and window title.
 msgid "PROGRESS_DIALOG_TITLE"
-msgstr "Progress"
+msgstr "実行中"
 
 #. Used in QR config dialog, crash dialog, and progress dialog as button label and
 #. runtime status text.
@@ -337,6 +353,10 @@ msgstr "実行中の言語変更はまだサポートされていません。読
 msgid "SERIAL_DEVICE_LIST_TITLE"
 msgstr "ペアリング済みデバイス"
 
+#. Used in serial ports widget as empty-state text.
+msgid "SERIAL_EMPTY_STATE_NO_DEVICES"
+msgstr "デバイスが見つかりません"
+
 #. Used in serial ports widget as message text and button label.
 msgid "SERIAL_SCAN_BUTTON_TEXT"
 msgstr "デバイスの検出"
@@ -403,10 +423,9 @@ msgstr "最大値"
 msgid "ALERT_LIMIT_PP"
 msgstr "最大最小差"
 
-#. Used in statistics label definitions and QR config dialog as statistic label and
-#. QR config label.
+#. Used in statistics label definitions as statistic label.
 msgid "ALERT_LIMIT_SLOPE"
-msgstr "傾き"
+msgstr "回帰勾配"
 
 #. Used in postprocessing progress flow as message text and postprocessing progress
 #. text.
@@ -519,6 +538,10 @@ msgstr "直近30日間"
 msgid "FILTER_SHOW_ALL_ROLLS"
 msgstr "全表示"
 
+#. Used in statistics analysis view chart/export annotation as roll filter label.
+msgid "STATISTICS_ROLL_FILTER_LABEL"
+msgstr "ロールフィルター"
+
 #. Used in statistics analysis view as chart axis label.
 msgid "PLOT_TITLE_ROLL"
 msgstr "ロール"
@@ -553,10 +576,9 @@ msgstr "最大値"
 msgid "PP_LONG"
 msgstr "最大最小差"
 
-#. Used in statistics label definitions as statistic label and long-form statistic
-#. label.
+#. Used in statistics label definitions as long-form statistic label.
 msgid "SLOPE_LONG"
-msgstr "傾き"
+msgstr "回帰勾配"
 
 #. Used in main window as tab title.
 msgid "TAB_TITLE_PROFILES"
@@ -564,7 +586,7 @@ msgstr "プロファイル"
 
 #. Used in main window as tab title.
 msgid "TAB_TITLE_STATISTICS"
-msgstr "履歴"
+msgstr "統計"
 
 #. Used in stats widget as menu action label.
 msgid "COPY_STATS_TO_CLIPBOARD"
@@ -584,7 +606,7 @@ msgstr "QRコードをスキャン"
 
 #. Used in QR config dialog as label text.
 msgid "QR_CONFIG_INSTRUCTION"
-msgstr "RQP LiveでこのQRコードをスキャンして、現在のアラート設定をデバイスに適用してください。"
+msgstr "RQP LiveでこのQRコードをスキャンして、現在のアラート設定をデバイスに適用します。"
 
 #. Used in file utility dialogs, file list view, and directory view as message text
 #. and file operation error text.
@@ -607,7 +629,7 @@ msgstr "アクセス権限がありません: {directory}"
 #. Used in file utility dialogs, file list view, and directory view as message text
 #. and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_OPERATION_FAILED"
-msgstr "操作が失敗しました: {error}"
+msgstr "操作に失敗しました: {error}"
 
 #. Used in file utility dialogs as message text and file operation error text.
 msgid "ERROR_MSGBOX_TEXT_OPEN_EXPLORER_FAILED"
@@ -619,11 +641,11 @@ msgstr "このプラットフォームではファイルエクスプローラー
 
 #. Used in settings window as label text.
 msgid "OVERRIDE_DEFAULT_Y_LIMITS"
-msgstr "デフォルトのY範囲を上書き"
+msgstr "デフォルトのY軸設定を上書き"
 
 #. Used in settings window as label text.
 msgid "DEFAULT_Y_AXIS_SCALING"
-msgstr "デフォルトのY軸スケーリング"
+msgstr "デフォルトのY軸スケール"
 
 #. Used in settings window as dropdown option.
 msgid "Y_AXIS_SCALING_START_AT_ZERO"
@@ -631,7 +653,7 @@ msgstr "ゼロから開始"
 
 #. Used in settings window as dropdown option.
 msgid "Y_AXIS_SCALING_FIT_TO_DATA"
-msgstr "データに合わせる"
+msgstr "値に合わせて調整"
 
 #. Used in main window as window or dialog title and window title.
 msgid "WINDOW_TITLE_MAIN"
@@ -660,11 +682,11 @@ msgstr "ログをクリア"
 
 #. Used in log window as button label.
 msgid "EXPORT_TO_FILE"
-msgstr "ファイルに書き出す"
+msgstr "ファイルの出力"
 
 #. Used in log window as file dialog title.
 msgid "EXPORT_LOG"
-msgstr "ログを書き出す"
+msgstr "ログの出力"
 
 #. Used in log window and crash dialog as file dialog filter text.
 msgid "FILE_DIALOG_LOG_FILTER"
@@ -704,7 +726,7 @@ msgstr "アラート制限を編集"
 
 #. Used in language selector as English language option label.
 msgid "LANGUAGE_NAME_ENGLISH"
-msgstr "英語"
+msgstr "English"
 
 #. Used in language selector as Japanese language option label.
 msgid "LANGUAGE_NAME_JAPANESE"
@@ -716,11 +738,11 @@ msgstr "なし"
 
 #. Used in settings window as dropdown option.
 msgid "EXCLUDED_REGIONS_MODE_RELATIVE"
-msgstr "相対"
+msgstr "相対値"
 
 #. Used in settings window as dropdown option.
 msgid "EXCLUDED_REGIONS_MODE_ABSOLUTE"
-msgstr "絶対"
+msgstr "絶対値"
 
 #. Used in annotations settings page as page title.
 msgid "ANNOTATIONS"
@@ -873,3 +895,146 @@ msgstr "バイト"
 #. Used in statistics analysis view as statistic label.
 msgid "STATISTIC_VALUE"
 msgstr "統計値"
+
+#. Used on a stat tile when no alert limit is configured for that statistic.
+msgid "STAT_TILE_NO_LIMITS"
+msgstr "限界値未設定"
+
+#. Used on a stat tile to state the configured limits.
+msgid "STAT_TILE_LIMIT_RANGE"
+msgstr "限界 {min}〜{max}"
+
+#. Used on a stat tile when only a lower limit is configured.
+msgid "STAT_TILE_LIMIT_MIN"
+msgstr "下限 {value}"
+
+#. Used on a stat tile when only an upper limit is configured.
+msgid "STAT_TILE_LIMIT_MAX"
+msgstr "上限 {value}"
+
+#. Used on a stat tile when the value fell below its lower limit.
+msgid "STAT_TILE_BELOW_MIN"
+msgstr "{value} 未満"
+
+#. Used on a stat tile when the value rose above its upper limit.
+msgid "STAT_TILE_ABOVE_MAX"
+msgstr "{value} 超過"
+
+
+
+
+
+
+
+#. Settings window: label for the light/dark theme control.
+msgid "APPEARANCE_THEME"
+msgstr "テーマ"
+
+#. Settings window: the theme option that follows the desktop.
+msgid "APPEARANCE_THEME_SYSTEM"
+msgstr "システム"
+
+#. Settings window: the light theme option.
+msgid "APPEARANCE_THEME_LIGHT"
+msgstr "ライト"
+
+#. Settings window: the dark theme option.
+msgid "APPEARANCE_THEME_DARK"
+msgstr "ダーク"
+
+
+
+
+#. Profile chart legend entry for the hatched excluded-region overlay.
+msgid "CHART_EXCLUDED_REGION_LEGEND"
+msgstr "除外区間"
+
+
+
+#. Statistics analysis view: label above the time-range filter.
+msgid "STATISTICS_TIME_RANGE"
+msgstr "期間"
+
+#. Serial port context menu: open a persistent RQFT connection.
+msgid "SERIAL_CONNECT_DEVICE"
+msgstr "接続"
+
+#. Serial port context menu: close the persistent RQFT connection.
+msgid "SERIAL_DISCONNECT_DEVICE"
+msgstr "切断"
+
+#. Status bar message when the device aborts the session to measure.
+msgid "DEVICE_BUSY_STATUS"
+msgstr "デバイスは測定中です。測定終了後に同期が再開されます"
+
+#. Status bar message when a connected device disappears.
+msgid "DEVICE_DISCONNECTED_STATUS"
+msgstr "デバイス {device} が切断されました"
+
+#. Status bar warning when the device listing skipped unreadable files.
+msgid "SYNC_LIST_SKIPPED_WARNING"
+msgstr "デバイスのファイル一覧で読み取れないファイルを {count} 件スキップしました"
+
+
+#. Sync error: serial transport failed (device unplugged etc.).
+msgid "SYNC_ERROR_TRANSPORT"
+msgstr "デバイスとの接続に失敗しました:"
+
+#. Sync error: no progress within the watchdog time.
+msgid "SYNC_ERROR_TIMEOUT"
+msgstr "同期中にデバイスが応答しなくなりました"
+
+#. Sync error: the session ended mid-operation.
+msgid "SYNC_ERROR_ENDED"
+msgstr "デバイスがセッションを終了しました:"
+
+#. Sync error: a file operation was rejected by the device.
+msgid "SYNC_ERROR_OPERATION"
+msgstr "ファイル操作に失敗しました"
+
+#. RQFT protocol error code explanations.
+msgid "RQFT_ERR_FS_OPEN"
+msgstr "デバイスがファイルを開けませんでした"
+
+msgid "RQFT_ERR_FS_READ"
+msgstr "デバイスがファイルを読み取れませんでした"
+
+msgid "RQFT_ERR_FS_WRITE"
+msgstr "デバイスがファイルを書き込めませんでした"
+
+msgid "RQFT_ERR_FS_REMOVE"
+msgstr "デバイスがファイルを削除できませんでした"
+
+msgid "RQFT_ERR_PATH"
+msgstr "無効なファイルパスです"
+
+msgid "RQFT_ERR_CRC_FILE"
+msgstr "ファイル検証に失敗しました（CRC不一致）"
+
+msgid "RQFT_ERR_TOO_LARGE"
+msgstr "ファイルが大きすぎます"
+
+msgid "RQFT_ERR_DENIED"
+msgstr "デバイスが要求を拒否しました"
+
+msgid "RQFT_ERR_BAD_STATE"
+msgstr "デバイスが現在の状態で要求を拒否しました"
+
+msgid "RQFT_ERR_UNSUPPORTED"
+msgstr "デバイスがこの要求に対応していません"
+
+#. Status bar while a sync lists the device and diffs against local files.
+msgid "SYNC_CHECKING_TEXT"
+msgstr "デバイスの新しいファイルを確認しています..."
+
+#. Information dialog when a manual sync found nothing new to fetch.
+msgid "SYNC_UP_TO_DATE_TITLE"
+msgstr "同期完了"
+
+msgid "SYNC_UP_TO_DATE_TEXT"
+msgstr "すべてのファイルは最新で、Rollview に同期されています。"
+
+#. Status bar note after a sync removed synced measurements from the device.
+#. The count is of entries removed: a measurement folder counts as one.
+msgid "DEVICE_FILES_REMOVED"
+msgstr "デバイスから同期済みの {count} 件を削除しました。"

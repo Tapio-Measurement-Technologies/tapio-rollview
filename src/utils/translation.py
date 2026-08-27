@@ -1,7 +1,13 @@
 import gettext
-import os
+from utils import po_compile
 from utils import preferences
 import settings
+
+# The .mo catalogs are generated from translations/*.po and untracked; a
+# checkout compiles them here so a fresh clone or a pulled .po change is
+# translated without a separate build step.
+po_compile.ensure_compiled()
+
 
 def set_translation(lang):
     locale_dir = settings.LOCALE_FILES_PATH

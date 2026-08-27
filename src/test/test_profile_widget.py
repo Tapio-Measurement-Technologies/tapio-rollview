@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from models.Profile import Profile, ProfileData, ProfileHeader
 from gui.widgets.ProfileWidget import ProfileWidget
+from gui.widgets.stats import MISSING
 from utils.highlighted_regions import (
     AbsoluteMeanOffsetHardnessHighlightRegion,
     DISTANCE_HIGHLIGHT_MODE_ABSOLUTE,
@@ -243,6 +244,242 @@ class TestProfileWidget(unittest.TestCase):
         finally:
             widget.close()
 
+    def test_clear_plot_display_hides_graph_until_next_update(self):
+        profile = Profile(
+            path="short.prof",
+            data=ProfileData(
+                distances=np.array([0.0, 0.2, 0.4]),
+                hardnesses=np.array([9.0, 10.0, 11.0]),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=0,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            widget.clear_plot_display()
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertTrue(widget.toolbar.isHidden())
+            self.assertTrue(widget.stats_widget.isHidden())
+            self.assertTrue(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.figure.axes, [])
+
+            widget.update_plot([profile], "dir")
+
+            self.assertFalse(widget.canvas.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertTrue(widget.empty_state_label.isHidden())
+            self.assertGreater(len(widget.figure.axes), 0)
+        finally:
+            widget.close()
+
+    def test_update_plot_without_profiles_shows_message_outside_plot_and_resets_stats(self):
+        profile = Profile(
+            path="empty.prof",
+            data=None,
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=0,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+
+            widget.update_plot([profile], "empty-dir")
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertTrue(widget.toolbar.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertFalse(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
+            self.assertEqual(widget.figure.axes, [])
+            for stat_widget in widget.stats_widget.widgets:
+                self.assertIsNone(stat_widget.value)
+                self.assertEqual(stat_widget.value_label.text(), MISSING)
+        finally:
+            widget.close()
+
+    def test_update_plot_with_empty_profile_data_shows_message_and_resets_stats(self):
+        profile = Profile(
+            path="header-only.prof",
+            data=ProfileData(
+                distances=np.array([]),
+                hardnesses=np.array([]),
+            ),
+            header=ProfileHeader(prof_version=1, serial_number="test", sample_step=1.0),
+            file_size=128,
+            date_modified=0.0,
+        )
+
+        widget = ProfileWidget()
+        try:
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+
+            widget.update_plot([profile], "empty-dir")
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertTrue(widget.toolbar.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertFalse(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
+            self.assertEqual(widget.figure.axes, [])
+            for stat_widget in widget.stats_widget.widgets:
+                self.assertIsNone(stat_widget.value)
+                self.assertEqual(stat_widget.value_label.text(), MISSING)
+        finally:
+            widget.close()
+
+    def test_update_plot_with_no_profiles_shows_message_and_placeholder_stats(self):
+        widget = ProfileWidget()
+        try:
+            widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
+
+            widget.update_plot([], "empty-dir")
+
+            self.assertTrue(widget.canvas.isHidden())
+            self.assertFalse(widget.stats_widget.isHidden())
+            self.assertFalse(widget.empty_state_label.isHidden())
+            self.assertEqual(widget.empty_state_label.text(), "No profiles in selected folder")
+            for stat_widget in widget.stats_widget.widgets:
+                self.assertIsNone(stat_widget.value)
+                self.assertEqual(stat_widget.value_label.text(), MISSING)
+        finally:
+            widget.close()
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLocalSettingsOverrides(unittest.TestCase):
+    """settings.py is an installation's override file, so what it holds must act.
+
+    Both line widths were consumed before the design system landed and silently
+    stopped being read when the chart moved onto the system's mark weights —
+    while the colour beside them kept working, which is the combination most
+    likely to waste somebody's afternoon.
+    """
+
+    def test_the_mean_profile_honours_a_local_line_width(self):
+        from unittest.mock import patch
+
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib.figure import Figure
+
+        from theme import mpl as tapio_mpl
+
+        figure = Figure()
+        ax = figure.add_subplot(111)
+        with patch.object(settings, "MEAN_PROFILE_LINE_WIDTH", 7.5):
+            line = tapio_mpl.profile(
+                ax, [0, 1, 2], [1, 2, 3],
+                width=settings.MEAN_PROFILE_LINE_WIDTH,
+            )[-1]
+        self.assertEqual(line.get_linewidth(), 7.5)
+
+        # None means the system's own weight, as the colour beside it does.
+        line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
+        self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
+
+    def test_a_selected_profile_honours_a_local_line_width(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib.figure import Figure
+
+        from theme import mpl as tapio_mpl
+
+        figure = Figure()
+        ax = figure.add_subplot(111)
+
+        selected = tapio_mpl.supporting(
+            ax, [0, 1], [1, 2], color="#1E73BE", selected=True, selected_width=6.0
+        )
+        self.assertEqual(selected.get_linewidth(), 6.0)
+
+        # The unselected ones stay recessive whatever the override says; that is
+        # what keeps the mean readable over them.
+        other = tapio_mpl.supporting(
+            ax, [0, 1], [1, 2], color="#1E73BE", selected=False, selected_width=6.0
+        )
+        self.assertEqual(other.get_linewidth(), tapio_mpl.SUPPORTING_WIDTH)
+
+
+class TestPlotToolbar(unittest.TestCase):
+    """The navigation bar's icons follow the theme.
+
+    Matplotlib bakes each icon at construction — it masks the black glyph and
+    refills it with the foreground colour, but only when the palette it sees at
+    that moment is dark — and never looks again. Left alone, a bar built in
+    light keeps black icons on the dark theme's near-black ground.
+
+    This also pins the two private attributes the re-tint reads
+    (``_actions``, ``_icon``): if a matplotlib upgrade moves them, the icons go
+    back to not updating, and it should be this that says so.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        import theme
+        from theme import qt as theme_qt
+
+        self._restore = theme_qt.tokens().theme
+        theme.apply(self.app, theme="light")
+        self.widget = ProfileWidget()
+
+    def tearDown(self):
+        import theme
+        from test.qtcleanup import destroy
+
+        destroy(self.widget)
+        theme.apply(self.app, theme=self._restore)
+
+    @staticmethod
+    def _ink(action):
+        """The average colour of an icon's opaque pixels."""
+        image = action.icon().pixmap(24, 24).toImage()
+        total, count = [0, 0, 0], 0
+        for y in range(image.height()):
+            for x in range(image.width()):
+                pixel = image.pixelColor(x, y)
+                if pixel.alpha() > 100:
+                    total[0] += pixel.red()
+                    total[1] += pixel.green()
+                    total[2] += pixel.blue()
+                    count += 1
+        return tuple(channel // count for channel in total) if count else None
+
+    def test_the_toolbar_knows_what_its_icons_were_drawn_from(self):
+        self.assertTrue(
+            self.widget.toolbar._icon_files,
+            "matplotlib's action map has moved; the icons will stop re-tinting",
+        )
+
+    def test_the_icons_follow_the_theme(self):
+        import theme
+
+        action = next(iter(self.widget.toolbar._icon_files))
+
+        in_light = self._ink(action)
+        self.assertIsNotNone(in_light)
+
+        theme.apply(self.app, theme="dark")
+        self.app.processEvents()
+        in_dark = self._ink(action)
+
+        self.assertNotEqual(
+            in_light, in_dark,
+            "the toolbar icons did not change with the theme",
+        )
+        # Dark ground wants light glyphs, and light ground dark ones.
+        self.assertGreater(sum(in_dark), sum(in_light))
+
+        theme.apply(self.app, theme="light")
+        self.app.processEvents()
+        self.assertEqual(self._ink(action), in_light)

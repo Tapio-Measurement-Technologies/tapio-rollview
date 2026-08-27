@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QFileSystemModel,
     QFileDialog,
+    QHeaderView,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -16,16 +17,22 @@ from PySide6.QtCore import (
     QFileSystemWatcher,
     QItemSelectionModel,
     QTimer,
+    QSignalBlocker,
 )
 import settings
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
+from gui.widgets.RegexFilterLineEdit import RegexFilterLineEdit
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
 from gui.widgets.messagebox import show_error_msgbox
+from theme import qt as theme_qt
 import os
 from datetime import datetime
 
 CUSTOM_SORT_FILES_IN_DIRECTORY_LIMIT = 128
+
+# A roll folder is named for when it was measured: "250521-081510".
+ROLL_NAME_CHARACTERS = 13
 
 selection_flags = (
     QItemSelectionModel.SelectionFlag.Clear |
@@ -34,10 +41,26 @@ selection_flags = (
     QItemSelectionModel.SelectionFlag.Rows
 )
 
+class DirectoryTreeView(ContextMenuTreeView):
+    selectionCleared = Signal()
+
+    def mousePressEvent(self, event):
+        index = self.indexAt(event.pos())
+        if event.button() == Qt.MouseButton.LeftButton and not index.isValid():
+            self.selectionModel().clear()
+            self.selectionModel().clearCurrentIndex()
+            self.setCurrentIndex(QModelIndex())
+            self.selectionCleared.emit()
+            return
+
+        super().mousePressEvent(event)
+
+
 class DirectoryView(QWidget):
     root_directory_changed = Signal(str)
     directory_selected     = Signal(str)
     directory_contents_changed = Signal()
+    roll_filter_changed = Signal(str, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,6 +70,10 @@ class DirectoryView(QWidget):
         self._pending_focus_active = False
         self._focus_restore_scheduled = False
         self._root_directory = None
+        self._selected_directory_path = None
+        self.active_roll_filter_pattern = ""
+        self.active_roll_filter_regex = None
+        self._suppress_directory_contents_signal = False
 
         # Set up the layout
         layout = QVBoxLayout(self)
@@ -56,12 +83,15 @@ class DirectoryView(QWidget):
         self.model.setRootPath(QDir.homePath())
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
         self.model.directoryLoaded.connect(self.init_selection)
+        self.model.fileRenamed.connect(self.on_directory_renamed)
 
         self.proxy_model = DirectorySortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
 
-        self.treeView = ContextMenuTreeView(self.proxy_model)
+        self.treeView = DirectoryTreeView(self.proxy_model)
+        self.treeView.set_empty_message(_("DIRECTORY_EMPTY_STATE_NO_FOLDERS"))
         self.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
+        self.treeView.selectionCleared.connect(self.on_selection_cleared)
         self.treeView.deleteRequested.connect(self.on_delete_requested)
         # Sort the folders by custom modified date
         self.treeView.setSortingEnabled(True)
@@ -70,21 +100,44 @@ class DirectoryView(QWidget):
         # Disable expanding tree view items
         self.treeView.setItemsExpandable(False)
         self.treeView.setExpandsOnDoubleClick(False)
-        self.treeView.setColumnWidth(0, 200)
+        # A roll folder is a fixed-format identifier — "250521-081510", thirteen
+        # characters — so the name column is sized from that and the date column
+        # absorbs the slack. Not ResizeToContents: that asks QFileSystemModel how
+        # wide its contents are, and the answer includes rows that are not on
+        # screen plus whatever icon and indentation the platform style reserves,
+        # which on Windows came out far wider than the names it was sizing for.
+        directory_header = theme_qt.style_header(self.treeView.header())
+        directory_header.setStretchLastSection(True)
+        directory_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self.treeView.setColumnWidth(
+            0, theme_qt.tree_column_width(ROLL_NAME_CHARACTERS, self.treeView)
+        )
 
         # Show only the first and modified date columns
         for i in range(1, self.model.columnCount()):
             if i != 3:  # Assuming column 3 is the "Date Modified" column
                 self.treeView.setColumnHidden(i, True)
 
+        self.rollFilterInput = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
+        self.rollFilterInput.filter_changed.connect(self.set_roll_filter)
+
+        # Neither of these is the action this panel exists for — picking a roll
+        # is — so both stay tertiary and let the sync button upstairs be the one
+        # primary in the sidebar.
         self.openDirButton = QPushButton(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"))
+        theme_qt.set_variant(self.openDirButton, "ghost")
         self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
 
         # Create the button
         self.changeDirButton = QPushButton(_("BUTTON_TEXT_CHANGE_DIRECTORY"))
+        theme_qt.set_variant(self.changeDirButton, "ghost")
         self.changeDirButton.clicked.connect(self.change_root_directory)
 
+        theme_qt.pad(layout, 2, 2, 2, 2)
+        theme_qt.gap(layout, 1)
+
         # Add widgets to the layout
+        layout.addWidget(self.rollFilterInput)
         layout.addWidget(self.treeView)
         layout.addWidget(self.openDirButton)
         layout.addWidget(self.changeDirButton)
@@ -125,7 +178,7 @@ class DirectoryView(QWidget):
 
             # Add all immediate subdirectories
             for entry in os.scandir(directory):
-                if entry.is_dir():
+                if entry.is_dir() and entry.name not in settings.IGNORE_FOLDERS:
                     self.watcher.addPath(entry.path)
         except PermissionError:
             show_error_msgbox(
@@ -138,7 +191,7 @@ class DirectoryView(QWidget):
                 _("ERROR_MSGBOX_TITLE")
             )
 
-    def select_first_directory(self):
+    def select_first_directory(self, set_focus=True):
         # Get the first child of the current root index
         root_index = self.treeView.rootIndex()
         if not root_index.isValid():
@@ -148,7 +201,8 @@ class DirectoryView(QWidget):
         if not first_child.isValid():
             return
 
-        self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+        if set_focus:
+            self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
         self.treeView.setCurrentIndex(first_child)
         self.treeView.selectionModel().setCurrentIndex(first_child, selection_flags)
         self.treeView.scrollTo(first_child)
@@ -156,11 +210,44 @@ class DirectoryView(QWidget):
     def _apply_root_index(self):
         if not self._root_directory:
             return False
+        self.proxy_model.set_root_directory(self._root_directory)
         root_index = self.proxy_model.mapFromSource(self.model.index(self._root_directory))
         if not root_index.isValid():
             return False
         self.treeView.setRootIndex(root_index)
         return True
+
+    def _note_directory_load_failed(self, directory):
+        print(_("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory))
+
+    def _clear_current_selection(self, clear_logical_selection=False):
+        selection_model = self.treeView.selectionModel()
+        selection_model.clear()
+        selection_model.clearCurrentIndex()
+        self.treeView.setCurrentIndex(QModelIndex())
+        if clear_logical_selection:
+            self._selected_directory_path = None
+
+    def _clear_pending_focus_restore(self):
+        self._pending_focus_path = None
+        self._pending_focus_active = False
+        self._focus_restore_scheduled = False
+
+    def set_roll_filter(self, pattern, compiled_regex):
+        selected_path = self.get_selected_directory_path()
+        self.active_roll_filter_pattern = pattern
+        self.active_roll_filter_regex = compiled_regex
+        self._suppress_directory_contents_signal = True
+        selection_blocker = QSignalBlocker(self.treeView.selectionModel())
+        try:
+            self.proxy_model.set_roll_filter(compiled_regex)
+            self._apply_root_index()
+            self._selected_directory_path = selected_path
+            self._sync_selection_after_filter()
+        finally:
+            self._suppress_directory_contents_signal = False
+            del selection_blocker
+        self.roll_filter_changed.emit(pattern, compiled_regex)
 
     def init_selection(self):
         if not self.treeView.rootIndex().isValid():
@@ -168,27 +255,23 @@ class DirectoryView(QWidget):
         if not self.get_selected_directory_path() and self.treeView.rootIndex().isValid():
             self.select_first_directory()
 
-    def select_directory_by_path(self, path):
+    def select_directory_by_path(self, path, warn=True):
         index = self.proxy_model.mapFromSource(self.model.index(path))
         if index.isValid():
+            self._selected_directory_path = path
             self.treeView.setCurrentIndex(index)
             self.treeView.selectionModel().setCurrentIndex(index, selection_flags)
             self.treeView.scrollTo(index)
-        else:
+            return True
+        if warn:
             print(f"Invalid index provided to select_directory_by_path: '{path}'")
+        return False
 
     def open_directory_in_file_explorer(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())
         current_directory = self.model.filePath(current_index)
 
-        # Get the selected directory to highlight it in explorer
-        selected_indexes = self.treeView.selectionModel().selectedIndexes()
-        selected_path = None
-        if selected_indexes:
-            selected_index = self.proxy_model.mapToSource(selected_indexes[0])
-            selected_path = self.model.filePath(selected_index)
-
-        open_in_file_explorer(current_directory, selected_path)
+        open_in_file_explorer(current_directory, self.get_selected_directory_path())
 
     def change_root_directory(self, directory = None):
         if not directory:
@@ -214,24 +297,28 @@ class DirectoryView(QWidget):
                     )
                     return
 
-                # Update the root index of the tree view to reflect the new directory
-                self.model.setRootPath(directory)
-                root_index = self.proxy_model.mapFromSource(self.model.index(directory))
-                if not root_index.isValid():
-                    show_error_msgbox(
-                        _("ERROR_MSGBOX_TEXT_DIRECTORY_LOAD_FAILED").format(directory=directory),
-                        _("ERROR_MSGBOX_TITLE")
-                    )
-                    return
-
-                self.treeView.setRootIndex(root_index)
+                # Update the root index of the tree view to reflect the new directory.
+                # QFileSystemModel can resolve indexes asynchronously, so an
+                # initially invalid index is not a blocking user-facing error.
                 self._root_directory = directory
+                self._clear_current_selection(clear_logical_selection=True)
+                self._clear_pending_focus_restore()
+                self.model.setRootPath(directory)
+                self.proxy_model.set_root_directory(directory)
+                root_index = self.proxy_model.mapFromSource(self.model.index(directory))
+                root_index_valid = root_index.isValid()
+                if root_index_valid:
+                    self.treeView.setRootIndex(root_index)
+                else:
+                    self._note_directory_load_failed(directory)
+
                 self.root_directory_changed.emit(directory)
                 # Watch the new directory and its subdirectories
                 self.watch_directory_and_subdirs(directory)
 
                 # Initially select the first directory in the new root
-                self.select_first_directory()
+                if root_index_valid:
+                    self.select_first_directory()
             except PermissionError:
                 show_error_msgbox(
                     _("ERROR_MSGBOX_TEXT_PERMISSION_DENIED").format(directory=directory),
@@ -252,7 +339,29 @@ class DirectoryView(QWidget):
             return
 
         file_path = self.model.filePath(source_index)
+        self._selected_directory_path = file_path
         self.directory_selected.emit(file_path)
+
+    def on_selection_cleared(self):
+        if self._root_directory and os.path.isdir(self._root_directory):
+            self._selected_directory_path = self._root_directory
+            self.directory_selected.emit(self._root_directory)
+
+    def on_directory_renamed(self, path, old_name, new_name):
+        old_path = os.path.join(path, old_name)
+        new_path = os.path.join(path, new_name)
+        if not os.path.isdir(new_path):
+            return
+
+        self.model.invalidate_cache(old_path)
+        self.model.invalidate_cache(new_path)
+        if self._root_directory:
+            self.watch_directory_and_subdirs(self._root_directory)
+
+        current_path = self.get_selected_directory_path()
+        if current_path in (old_path, new_path):
+            self._selected_directory_path = new_path
+            self.directory_selected.emit(new_path)
 
     def on_delete_requested(self, index):
         proxy_index = index.siblingAtColumn(0)
@@ -270,11 +379,14 @@ class DirectoryView(QWidget):
         self._pending_delete_row = target_row
 
     def on_rows_removed(self, parent, first, last):
+        if self._suppress_directory_contents_signal:
+            return
         if self._pending_delete_row is None:
+            QTimer.singleShot(0, lambda: self.directory_contents_changed.emit())
             return
         QTimer.singleShot(0, self._restore_selection_after_delete)
 
-    def get_selected_directory_path(self):
+    def _get_visible_selected_directory_path(self):
         selection_model = self.treeView.selectionModel()
         selected_indexes = selection_model.selectedRows(0)
         selected_index = selected_indexes[0] if selected_indexes else selection_model.currentIndex()
@@ -285,9 +397,38 @@ class DirectoryView(QWidget):
         if not source_index.isValid():
             return None
 
-        return self.model.filePath(source_index)
+        selected_path = self.model.filePath(source_index)
+        if (
+            self._root_directory
+            and not self._path_is_within_directory(selected_path, self._root_directory)
+        ):
+            return None
+
+        return selected_path
+
+    def _is_selectable_directory_path(self, path):
+        return (
+            path
+            and os.path.isdir(path)
+            and (
+                not self._root_directory
+                or self._path_is_within_directory(path, self._root_directory)
+            )
+        )
+
+    def get_selected_directory_path(self):
+        if self._is_selectable_directory_path(self._selected_directory_path):
+            return self._selected_directory_path
+        self._selected_directory_path = None
+
+        selected_path = self._get_visible_selected_directory_path()
+        if selected_path:
+            self._selected_directory_path = selected_path
+        return selected_path
 
     def preserve_current_directory_focus(self):
+        if self._suppress_directory_contents_signal:
+            return
         self._pending_focus_path = self.get_selected_directory_path()
         self._pending_focus_active = self.treeView.hasFocus()
 
@@ -324,6 +465,8 @@ class DirectoryView(QWidget):
         self.schedule_focus_restore()
 
     def schedule_focus_restore(self):
+        if self._suppress_directory_contents_signal:
+            return
         if self._focus_restore_scheduled or not self._pending_focus_path:
             return
 
@@ -340,15 +483,31 @@ class DirectoryView(QWidget):
         if not focus_path or not os.path.isdir(focus_path):
             return
 
-        current_path = self.get_selected_directory_path()
+        current_path = self._get_visible_selected_directory_path()
         if current_path == focus_path:
             if focus_active:
                 self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
             return
 
-        self.select_directory_by_path(focus_path)
+        if not self.select_directory_by_path(focus_path, warn=False):
+            if self.active_roll_filter_regex:
+                self._clear_current_selection()
+            else:
+                self.select_first_directory(set_focus=False)
         if focus_active:
             self.treeView.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _sync_selection_after_filter(self):
+        selected_path = self.get_selected_directory_path()
+        if not selected_path:
+            self._clear_current_selection()
+            return
+        if self._root_directory and self._same_path(selected_path, self._root_directory):
+            self._clear_current_selection()
+            return
+
+        if not self.select_directory_by_path(selected_path, warn=False):
+            self._clear_current_selection()
 
     def _restore_selection_after_delete(self):
         if self._pending_delete_row is None:
@@ -359,6 +518,7 @@ class DirectoryView(QWidget):
         if row_count <= 0:
             self._pending_delete_parent = QPersistentModelIndex()
             self._pending_delete_row = None
+            self.directory_contents_changed.emit()
             return
 
         target_row = min(self._pending_delete_row, row_count - 1)
@@ -370,20 +530,10 @@ class DirectoryView(QWidget):
 
         self._pending_delete_parent = QPersistentModelIndex()
         self._pending_delete_row = None
+        self.directory_contents_changed.emit()
 
     def on_directory_changed(self, path):
-        # A directory changed event occurred
-        # Invalidate cache for this directory in the model
-        self.model.invalidate_cache(path)
-
-        # Since data might have changed, force the view to update
-        # We'll find the directory index and emit dataChanged accordingly
-        index = self.model.index(path)
-        if index.isValid():
-            # The "Date Modified" column is 3
-            top_left = self.proxy_model.mapFromSource(self.model.index(index.row(), 3, index.parent()))
-            bottom_right = top_left
-            self.proxy_model.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DisplayRole])
+        self.refresh_directory_dates([path])
         self.directory_contents_changed.emit()
 
     def on_file_changed(self, path):
@@ -392,12 +542,116 @@ class DirectoryView(QWidget):
         directory_path = os.path.dirname(path)
         self.on_directory_changed(directory_path)
 
+    @staticmethod
+    def _normalized_path_key(path):
+        return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+
+    @classmethod
+    def _same_path(cls, first_path, second_path):
+        return cls._normalized_path_key(first_path) == cls._normalized_path_key(second_path)
+
+    @classmethod
+    def _path_is_within_directory(cls, path, directory):
+        if not path or not directory:
+            return False
+
+        try:
+            path_abs = os.path.abspath(path)
+            directory_abs = os.path.abspath(directory)
+            common_path = os.path.commonpath([path_abs, directory_abs])
+        except (OSError, ValueError):
+            return False
+
+        return cls._same_path(common_path, directory_abs)
+
+    def _directory_date_refresh_paths(self, directory_paths):
+        refresh_paths = []
+        seen = set()
+        root_directory = self._root_directory
+
+        for path in directory_paths or []:
+            if not path:
+                continue
+
+            current_path = os.path.abspath(path)
+            if os.path.isfile(current_path):
+                current_path = os.path.dirname(current_path)
+            if not os.path.isdir(current_path):
+                continue
+
+            while current_path:
+                key = self._normalized_path_key(current_path)
+                if key not in seen:
+                    seen.add(key)
+                    refresh_paths.append(current_path)
+
+                if not root_directory or self._same_path(current_path, root_directory):
+                    break
+
+                parent_path = os.path.dirname(current_path)
+                if parent_path == current_path:
+                    break
+
+                if root_directory and not self._path_is_within_directory(parent_path, root_directory):
+                    break
+
+                current_path = parent_path
+
+        return refresh_paths
+
+    def _emit_directory_date_changed(self, directory_path):
+        source_index = self.model.index(directory_path)
+        if not source_index.isValid():
+            return
+
+        source_date_index = self.model.index(source_index.row(), 3, source_index.parent())
+        if not source_date_index.isValid():
+            return
+
+        proxy_date_index = self.proxy_model.mapFromSource(source_date_index)
+        if not proxy_date_index.isValid():
+            return
+
+        self.proxy_model.dataChanged.emit(
+            proxy_date_index,
+            proxy_date_index,
+            [Qt.ItemDataRole.DisplayRole],
+        )
+
+    def refresh_directory_dates(self, directory_paths):
+        refresh_paths = self._directory_date_refresh_paths(directory_paths)
+        if not refresh_paths:
+            return
+
+        self.preserve_current_directory_focus()
+
+        for directory_path in refresh_paths:
+            self.model.invalidate_cache(directory_path)
+            self._emit_directory_date_changed(directory_path)
+
+        if self._root_directory:
+            self.watch_directory_and_subdirs(self._root_directory)
+
+        sort_column = self.treeView.header().sortIndicatorSection()
+        sort_order = self.treeView.header().sortIndicatorOrder()
+        self.proxy_model.sort(sort_column, sort_order)
+        self.schedule_focus_restore()
+
 class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.modified_date_cache = {}
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal:
+            # QFileSystemModel answers TextAlignmentRole with a bare
+            # Qt::AlignLeft, and a model's answer overrides the header's
+            # defaultAlignment(). With no vertical flag Qt falls back to
+            # AlignTop, which is why the column headings sat against the top of
+            # their sections however the section itself was sized.
+            if role == Qt.ItemDataRole.TextAlignmentRole:
+                return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             match section:
                 case 0:
@@ -407,6 +661,11 @@ class CustomFileSystemModel(QFileSystemModel):
         return super().headerData(section, orientation, role)
 
     def data(self, index: QModelIndex, role: int):
+        # The roll name is an identifier and the date is a timestamp: both are
+        # scanned down a column rather than read, so both take the mono face.
+        if role == Qt.ItemDataRole.FontRole and index.column() in (0, 3):
+            return theme_qt.mono_font()
+
         if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:
             file_path = self.filePath(index)
             # Check if cached
@@ -437,7 +696,8 @@ class CustomFileSystemModel(QFileSystemModel):
                 if len(files) > CUSTOM_SORT_FILES_IN_DIRECTORY_LIMIT:
                     return None
                 for file_name in files:
-                    if '.prof' in file_name and file_name != "mean.prof":
+                    file_name_lower = file_name.lower()
+                    if file_name_lower.endswith('.prof') and file_name_lower != "mean.prof":
                         file_path = os.path.join(root, file_name)
                         file_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
                         if latest_date is None or file_modified > latest_date:
@@ -462,6 +722,32 @@ class DirectorySortFilterProxyModel(QSortFilterProxyModel):
         super().__init__(parent)
         # Define folders to exclude
         self.excluded_folders = settings.IGNORE_FOLDERS
+        self.roll_filter_regex = None
+        self.root_directory = None
+
+    def set_roll_filter(self, roll_filter_regex):
+        self.roll_filter_regex = roll_filter_regex
+        self.invalidateFilter()
+
+    def set_root_directory(self, root_directory):
+        if self.root_directory == root_directory:
+            return
+        self.root_directory = root_directory
+        self.invalidateFilter()
+
+    def is_root_or_root_ancestor(self, file_path):
+        if not self.root_directory:
+            return False
+
+        try:
+            normalized_path = os.path.normcase(os.path.abspath(file_path))
+            normalized_root = os.path.normcase(os.path.abspath(self.root_directory))
+            return (
+                normalized_path == normalized_root
+                or os.path.commonpath([normalized_path, normalized_root]) == normalized_path
+            )
+        except ValueError:
+            return False
 
     def filterAcceptsRow(self, source_row, source_parent):
         source_model = self.sourceModel()
@@ -469,8 +755,14 @@ class DirectorySortFilterProxyModel(QSortFilterProxyModel):
         file_path = source_model.filePath(index)
         dir_name = os.path.basename(file_path)
 
+        if self.is_root_or_root_ancestor(file_path):
+            return super().filterAcceptsRow(source_row, source_parent)
+
         # Skip excluded folders
         if dir_name in self.excluded_folders:
+            return False
+
+        if self.roll_filter_regex and not self.roll_filter_regex.search(dir_name):
             return False
 
         return super().filterAcceptsRow(source_row, source_parent)

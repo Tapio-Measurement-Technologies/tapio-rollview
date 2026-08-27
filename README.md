@@ -30,9 +30,20 @@ The [Tapio RQP Live](https://www.tapiotechnologies.com/tapio-rqp-live/) is an in
 ## Support
 More detailed instructions are available in the [Tapio RollView Manual](docs/rollview-manual.md).
 
+The interface follows the Tapio Design System. Everything it needs lives in
+`src/theme`: `tokens.json` is the source of truth, and the Qt palette, the style
+sheet and the Matplotlib settings are all generated from it, so a colour written
+anywhere else is a bug.
+
 For support, training, instruments and customizations please contact us at:
 - Email: [info@tapiotechnologies.com](mailto:info@tapiotechnologies.com)
 - Visit: [https://www.tapiotechnologies.com](https://www.tapiotechnologies.com)
+
+## Security
+
+Report security issues to [security@tapiotechnologies.com](mailto:security@tapiotechnologies.com). See [SECURITY.md](SECURITY.md) for supported releases and vulnerability handling.
+
+Release builds include CycloneDX JSON SBOM files named `rollview-${version}-${platform}.cdx.json`.
 
 
 ## Installation instructions
@@ -59,6 +70,18 @@ cd tapio-rollview
 ./install.bat
 ```
 
+### Updating dependency locks
+
+Runtime and build dependencies are declared in `requirements.in` and `requirements-build.in`. Install `tapio-build-tooling` 0.1.0 from its pinned repository commit, then generate both hashed lock files with Python 3.12:
+
+```bash
+tapio-build --project . python requirements compile
+```
+
+Edit direct dependency versions in the `.in` files, then run the command. Add `--upgrade` to refresh all transitive dependencies allowed by those pins. User installation remains `pip install -r requirements.txt`.
+
+Use `tapio-build --project . python requirements compile --check` to detect stale lock files without changing them. Configuration is in `build-tooling.toml`.
+
 ## Quick RQP Live Configuration
 We have created a simple tool to make it faster to set up your Tapio RQP Live for different types of rolls and grades. The [RQP Live Configurator](https://tapio-measurement-technologies.github.io/rqp-configurator/) is a browser-based tool to generate a configuration QR code for your device.
 You can flexibly adjust key parameters such as device time and alert thresholds.
@@ -79,4 +102,3 @@ Tapio RollView is free software: you can redistribute it and/or modify it under 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with this program. If not, see [GNU General Public License](https://www.gnu.org/licenses/).
-

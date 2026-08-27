@@ -52,7 +52,9 @@ cd tapio-rollview
 - The default working directory can be changed by providing the software with custom settings.
 
 ## Synchronization
-- On sync, the contents of the device SD card are synchronized to the computer using the ZMODEM protocol over serial connection.
+- Measurement profiles are copied from the device over the RQFT protocol on a serial connection. Devices with firmware older than v1.2.0 fall back to ZMODEM.
+- A sync copies whatever the working directory is missing, then removes what it has verified from the device. The device keeps as many of its newest folders as its own **Folders to keep** setting says, and refuses those deletions.
+- The device decides when an automatic sync happens, from its **Sync options** settings, **Auto sync** and **Auto sync delay**. Pressing **Sync data** here syncs immediately, whatever those are set to.
 
 ## Statistics
 The displayed statistics are based on the mean profile (calculated as the mean of multiple measured profiles in the same folder).
@@ -64,7 +66,7 @@ Available statistics are:
 - **Min [g]:** Smallest hardness value of the mean hardness profile.
 - **Max [g]:** Largest hardness value of the mean hardness profile.
 - **P-p [g]:** Peak-to-peak, the difference between the largest and smallest hardness values in the mean profile.
-- **Slope [g/RL]:** Fitted straight-line slope of the mean profile using normalized roll distance from 0 to 1.
+- **Slope [g]:** Fitted straight-line slope of the mean profile using normalized roll distance from 0 to 1.
 
 
 ## Settings System
