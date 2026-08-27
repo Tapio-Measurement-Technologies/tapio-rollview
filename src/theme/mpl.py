@@ -335,6 +335,16 @@ def finish(ax, xlabel=None, ylabel=None, title=None, t=None):
         ax.spines[side].set_color(t.chart("axis"))
     ax.grid(True, axis="both", color=t.chart("grid"), linewidth=1.0)
 
+    # Ink from the token table rather than from rcParams. use() puts the same
+    # values there, so on screen this changes nothing — but it is what lets a
+    # caller finish an axes against a table that is *not* the live one, which
+    # is how a plot exports light out of a dark session without touching
+    # process-wide state that the GUI thread is reading at the same time.
+    ax.tick_params(axis="both", colors=t.chart("axis"), labelcolor=t.chart("tick"))
+    ax.xaxis.label.set_color(t.color("ink-muted"))
+    ax.yaxis.label.set_color(t.color("ink-muted"))
+    ax.title.set_color(t.color("ink"))
+
     return ax
 
 

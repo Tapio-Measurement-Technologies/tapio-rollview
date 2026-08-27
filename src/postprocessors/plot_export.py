@@ -2,8 +2,6 @@ from gui.widgets.ProfileWidget import ProfileWidget
 from utils.translation import _
 from utils.figure_export import export_figure_with_annotations
 from models.Profile import Profile
-from theme import mpl as tapio_mpl
-from theme import qt as theme_qt
 from theme import tokens as theme_tokens
 import os
 
@@ -57,22 +55,23 @@ def run(folder_path) -> bool:
         profile_widget.figure.set_size_inches(*FIGURE_SIZE_INCHES)
 
         # Profiles print in the light palette regardless of the on-screen theme:
-        # a dark chart wastes toner and reads badly on a mill report. The chart
-        # tokens are swapped for the duration of the render and put back after,
-        # so a night-shift operator's screen is untouched.
-        screen_theme = tapio_mpl.current.theme
-        tapio_mpl.use(theme_tokens.LIGHT)
-        try:
-            profile_widget.update_plot(profiles, folder_name)
+        # a dark chart wastes toner and reads badly on a mill report.
+        #
+        # Pinned on this widget rather than swapped globally. Postprocessors run
+        # on a worker thread, and tapio_mpl.use() writes matplotlib's process-wide
+        # rcParams and the module's own token table — both of which the GUI thread
+        # reads while it draws. An export that swapped them could repaint the
+        # operator's dark chart in light halfway through. A table on the throwaway
+        # widget reaches only this render.
+        profile_widget.chart_tokens = theme_tokens.load(theme_tokens.LIGHT)
+        profile_widget.update_plot(profiles, folder_name)
 
-            # Export figure with annotations using the same method as clipboard copy
-            buffer = export_figure_with_annotations(
-                figure=profile_widget.figure,
-                canvas=profile_widget.canvas,
-                annotation_callback=profile_widget._draw_stats_on_figure
-            )
-        finally:
-            tapio_mpl.use(screen_theme)
+        # Export figure with annotations using the same method as clipboard copy
+        buffer = export_figure_with_annotations(
+            figure=profile_widget.figure,
+            canvas=profile_widget.canvas,
+            annotation_callback=profile_widget._draw_stats_on_figure
+        )
 
         # Write buffer to file
         with open(save_path, 'wb') as f:
