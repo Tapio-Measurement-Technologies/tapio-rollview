@@ -12,7 +12,7 @@ from PySide6.QtCore import Slot, Signal, Qt
 import store
 import os
 from typing import List, Dict, Any
-from matplotlib.colors import to_rgb
+from matplotlib.colors import to_hex
 from matplotlib.figure import Figure
 from gui.widgets.PlotCanvas import PlotCanvas
 from datetime import datetime, timedelta
@@ -22,6 +22,7 @@ from utils import profile_stats
 from workers.statistics_processor import StatisticsProcessor
 from gui.widgets.LoadingWidget import LoadingWidget
 from theme import mpl as tapio_mpl
+from theme import tokens as T
 from theme import qt as theme_qt
 from theme.widgets import SectionLabel
 
@@ -126,9 +127,6 @@ class StatisticsAnalysisChart(QWidget):
                 limit_low = matching_limit['min']
                 limit_high = matching_limit['max']
 
-        # Bars sit one step back from the accent so the selected roll can take
-        # the accent itself: colour here carries identity, and selection is a
-        # state laid on top of it.
         base_color = t.recency[0]
         bar_width = 0.7
         self.bars = self.ax.bar(x_indices, y, width=bar_width, alpha=1,
@@ -138,33 +136,56 @@ class StatisticsAnalysisChart(QWidget):
         for bar, value in zip(self.bars, y):
             if ((limit_low is not None and value < limit_low)
                     or (limit_high is not None and value > limit_high)):
-                bar.set_color(t.chart("limit"))
+                bar.set_facecolor(t.chart("limit"))
 
+        # Selection is a change of fill, on every bar, whatever it is filled
+        # with. It used to be an outline on a failing bar and a change of hue on
+        # a passing one: set_color() writes the edge as well as the face, so on
+        # a passing bar it overwrote the outline that had just been set, and the
+        # two states ended up looking nothing like each other.
+        #
+        # The selected bar keeps its hue and steps toward the ink, so a failing
+        # bar still reads as failing and a passing one as passing. Toward the
+        # ink rather than lighter or darker outright, because that is the
+        # direction that separates from the ground in both themes: near-black
+        # over a light panel, near-white over a dark one.
         if self.highlighted_point:
             for i, p in enumerate(stat_data):
                 if p['label'] == self.highlighted_point:
-                    self.bars[i].set_edgecolor(t.color("ink"))
-                    self.bars[i].set_linewidth(1.6)
-                    if self.bars[i].get_facecolor()[:3] == to_rgb(base_color):
-                        self.bars[i].set_color(t.color("accent"))
+                    fill = to_hex(self.bars[i].get_facecolor())
+                    self.bars[i].set_facecolor(T.mix(t.color("ink"), fill, 0.35))
                     self.bars[i].set_alpha(1.0)
                     break
 
-        # Limit lines and washes go on last, so they can reach the final axes
-        # extent rather than whatever it was before the bars were drawn.
+        # Limit lines go on last, so they can reach the final axes extent rather
+        # than whatever it was before the bars were drawn.
+        #
+        # No wash here, unlike the profile chart. There it earns its place: a
+        # curve carries no per-point status, so the shaded region is what the
+        # eye finds first. A bar already says whether it passed by its own
+        # colour, which leaves the wash restating it — and restating it over
+        # whatever share of the axis falls outside the limits, which for a
+        # statistic that ranges far past its limit is most of the plot. Seventy
+        # per cent of the panel tinted red buys nothing and costs the contrast
+        # every other mark needs.
+        # The line is ink, not the limit red, because the bars it has to be read
+        # against are that red already — two marks in the same hex are one mark,
+        # and the line disappeared wherever it crossed a failing bar. A limit is
+        # a reference rather than data, so it takes the one colour guaranteed to
+        # separate from every fill on the panel in both themes.
+        limit_line = t.color("ink")
         for value, side in ((limit_low, "down"), (limit_high, "up")):
             if value is None:
                 continue
-            tapio_mpl.limit_wash(self.ax, value, side, tapio_mpl.band_color(t))
-            self.ax.axhline(y=value, color=t.chart("limit"),
-                            linewidth=tapio_mpl.LIMIT_WIDTH, zorder=3)
+            self.ax.axhline(y=value, color=limit_line,
+                            linewidth=tapio_mpl.LIMIT_WIDTH, zorder=5)
             self.ax.annotate(
                 f"{value:g}",
                 xy=(1.0, value), xycoords=self.ax.get_yaxis_transform(),
                 xytext=(-5, 4 if side == "up" else -4), textcoords="offset points",
                 va="bottom" if side == "up" else "top", ha="right",
                 fontsize=t.font_size("eyebrow"), family="monospace",
-                color=t.chart("limit"), zorder=6,
+                color=limit_line, zorder=6,
             )
 
         # Get the selected statistic name for y-axis label
