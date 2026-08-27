@@ -128,26 +128,6 @@ class GeneralSettingsPage(QWidget):
         self.distance_unit_selector.currentIndexChanged.connect(self.enable_save_button)
         layout.addWidget(self.distance_unit_selector)
 
-        # Whether a full sync deletes the files it mirrored from the device
-        self.delete_synced_files_label = QLabel(_("DELETE_SYNCED_FILES_LABEL"))
-        layout.addWidget(self.delete_synced_files_label)
-
-        self.delete_synced_files_selector = QComboBox()
-        self.delete_synced_files_modes = {
-            settings.DELETE_SYNCED_FILES_ASK: _("DELETE_SYNCED_FILES_ASK"),
-            settings.DELETE_SYNCED_FILES_NEVER: _("DELETE_SYNCED_FILES_NEVER"),
-            settings.DELETE_SYNCED_FILES_ALWAYS: _("DELETE_SYNCED_FILES_ALWAYS"),
-        }
-        self.delete_synced_files_selector.addItems(self.delete_synced_files_modes.values())
-        self._select_delete_synced_files_mode(preferences.delete_synced_files_from_device)
-        self.delete_synced_files_selector.currentIndexChanged.connect(self.enable_save_button)
-        layout.addWidget(self.delete_synced_files_selector)
-
-        self.delete_synced_files_hint = QLabel(_("DELETE_SYNCED_FILES_HINT"))
-        self.delete_synced_files_hint.setWordWrap(True)
-        self.delete_synced_files_hint.setStyleSheet("color: gray; font-size: 12px;")
-        layout.addWidget(self.delete_synced_files_hint)
-
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()
 
@@ -158,20 +138,6 @@ class GeneralSettingsPage(QWidget):
 
         layout.addLayout(self.footer_layout)
 
-    def _select_delete_synced_files_mode(self, mode):
-        self.delete_synced_files_selector.setCurrentText(
-            self.delete_synced_files_modes.get(
-                mode,
-                self.delete_synced_files_modes[settings.DELETE_SYNCED_FILES_DEFAULT],
-            )
-        )
-
-    def _get_selected_delete_synced_files_mode(self):
-        return list(self.delete_synced_files_modes.keys())[
-            self.delete_synced_files_selector.currentIndex()
-        ]
-
-    @Slot()
     def enable_save_button(self):
         self.apply_button.setEnabled(True)
 
@@ -184,7 +150,6 @@ class GeneralSettingsPage(QWidget):
         preferences.update_preferences({
             'locale': selected_lang,
             'distance_unit': selected_distance_unit,
-            'delete_synced_files_from_device': self._get_selected_delete_synced_files_mode()
         })
 
         self.apply_button.setEnabled(False)

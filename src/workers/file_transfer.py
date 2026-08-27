@@ -144,15 +144,11 @@ class FileTransferManager(QObject):
         self._transfer_in_progress = False
         self.synced_folders = []
         self._connection_manager = None
-        # Callable(device_label) -> bool, injected by the GUI: whether a
-        # full sync may delete the files it mirrored from the device.
-        # Without it (tests, headless) nothing is ever deleted.
-        self.delete_decision_provider = None
         self._active_port = None
         self._active_bridge = None
         self._active_is_auto = False
-        # Queued automatic syncs as (port, incremental) pairs.
-        self._auto_queue: list[tuple[str, bool]] = []
+        # Ports with an automatic sync queued, at most one entry each.
+        self._auto_queue: list[str] = []
         # "ok" | "cancelled" | "error" — how the last transfer ended;
         # lets the GUI report "all up to date" only for clean empty runs.
         self.last_transfer_outcome = "ok"
@@ -170,7 +166,7 @@ class FileTransferManager(QObject):
         """Whether a sync for this port is running or queued."""
         if self._transfer_in_progress and self._active_port == port:
             return True
-        return any(queued == port for queued, _ in self._auto_queue)
+        return port in self._auto_queue
 
     # -- entry points --------------------------------------------------
 
@@ -193,12 +189,11 @@ class FileTransferManager(QObject):
         else:
             self._begin_zmodem(port, folder_path, on_complete)
 
-    def request_auto_sync(self, port, incremental=False):
+    def request_auto_sync(self, port):
         """
-        Queue an automatic sync (doorbell, periodic, on-connect) for a
-        connected RQFT device. One entry per port; drained one at a time
-        after the running transfer finishes. An incremental sync pulls
-        only files not recorded in the device's sync history.
+        Queue an automatic sync (doorbell, on-connect) for a connected
+        RQFT device. One entry per port; drained one at a time after the
+        running transfer finishes.
 
         A request for the port being synced right now is queued, not
         dropped: the running batch was planned before the request
@@ -206,60 +201,40 @@ class FileTransferManager(QObject):
         wait for the next doorbell.
         """
         if self._transfer_in_progress or self._auto_queue:
-            self._enqueue_auto_sync(port, incremental)
+            if port not in self._auto_queue:
+                self._auto_queue.append(port)
             return
-        self._start_auto_sync(port, incremental)
+        self._start_auto_sync(port)
 
-    def _enqueue_auto_sync(self, port, incremental):
-        """Add one queued sync per port, merging into any pending entry.
-
-        A full sync is the stronger mode — it re-pulls what the history
-        suppresses and is the only one that may clean the device — so it
-        is never downgraded by an incremental request queued next to it.
-        """
-        for index, (queued_port, queued_incremental) in enumerate(self._auto_queue):
-            if queued_port == port:
-                self._auto_queue[index] = (port, queued_incremental and incremental)
-                return
-        self._auto_queue.append((port, incremental))
-
-    def _start_auto_sync(self, port, incremental):
+    def _start_auto_sync(self, port):
         if self._connection_manager is None:
             return
         conn = self._connection_manager.get_connection(port)
         if conn is None:
             log.info(f"Skipping auto sync for {port}: no active connection")
             return
-        self._begin_rqft(
-            port, conn, store.root_directory, None, auto=True, incremental=incremental
-        )
+        self._begin_rqft(port, conn, store.root_directory, None, auto=True)
 
     def _drain_auto_queue(self):
         # Loop rather than pop once: a queued port whose connection went
         # away starts nothing, and the entries behind it must still run.
         while not self._transfer_in_progress and self._auto_queue:
-            self._start_auto_sync(*self._auto_queue.pop(0))
+            self._start_auto_sync(self._auto_queue.pop(0))
 
     # -- RQFT path -----------------------------------------------------
 
-    def _begin_rqft(self, port, conn, folder_path, on_complete, auto, incremental=False):
+    def _begin_rqft(self, port, conn, folder_path, on_complete, auto):
         bridge = self._connection_manager.bridge_for(port)
         if bridge is None:
             log.error(f"No connection bridge for {port}; cannot sync")
             return
 
-        # Claim the transfer before asking anything: the policy provider
-        # may run a modal dialog, and a queued auto sync must not start
-        # underneath it.
         self._transfer_in_progress = True
         self._active_port = port
         self._active_is_auto = auto
         self.last_transfer_outcome = "ok"
         self.last_transfer_was_auto = auto
         self.last_deleted_count = 0
-        # Automatic (incremental) syncs never delete; only a full sync
-        # cleans the device, and only when the user allows it.
-        delete_remote = False if incremental else self._resolve_delete_remote(port)
         self.model.removeItems()
         self.synced_folders = []
         self.sync_folder_path = folder_path
@@ -272,26 +247,8 @@ class FileTransferManager(QObject):
         bridge.syncFailed.connect(self._on_rqft_failed)
 
         self.transferStarted.emit()
-        log.info(
-            f"Requesting RQFT sync on {port} (auto={auto}, "
-            f"incremental={incremental}, delete_remote={delete_remote})"
-        )
-        conn.request_sync(auto, incremental, delete_remote)
-
-    def _resolve_delete_remote(self, port):
-        """Ask the injected policy whether this full sync may delete the
-        device's copies of the files it mirrors."""
-        provider = self.delete_decision_provider
-        if provider is None:
-            return False
-        label = port
-        if self._connection_manager is not None:
-            label = self._connection_manager.device_label(port)
-        try:
-            return bool(provider(label))
-        except Exception:
-            log.exception("Delete-after-sync policy failed; keeping device files")
-            return False
+        log.info(f"Requesting RQFT sync on {port} (auto={auto})")
+        conn.request_sync(auto)
 
     def _release_bridge(self):
         bridge = self._active_bridge

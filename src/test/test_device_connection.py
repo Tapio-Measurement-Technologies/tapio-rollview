@@ -260,39 +260,37 @@ class TestSyncFlow(DeviceConnectionTestBase):
         self.assertFalse((Path(self.local_dir.name) / "roll" / "mean.prof").exists())
         self.assertFalse((Path(self.local_dir.name) / "roll" / "readme.txt").exists())
 
-        # Second sync: everything is up to date, nothing is fetched and
-        # the plan announces zero files (keeps auto-syncs invisible).
+        # The first sync cleared the device, so the second finds nothing
+        # at all: no files fetched, none skipped, an empty plan (which is
+        # what keeps an automatic sync invisible).
         self.worker.request_sync(auto=True)
         self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 1))
         fetched2, skipped2 = self.recorder.sync_finished[1]
         self.assertEqual(fetched2, [])
-        self.assertEqual(skipped2, 1)
+        self.assertEqual(skipped2, 0)
         self.assertEqual(self.recorder.sync_started[-1][0], 0)
 
-    def test_incremental_sync_does_not_resurrect_deleted_local_file(self):
+    def test_a_file_the_device_still_holds_is_pulled_again(self):
+        """With no sync history, what the device still has is what gets
+        synced: a device that refused the delete keeps its copy, and a
+        mirror copy deleted locally comes back."""
         self.worker.enable()
         self.worker.start()
         self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
 
-        # Full sync records roll/a.prof in the device's sync history.
-        self.worker.request_sync(auto=False)
-        self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 0))
-        local = Path(self.local_dir.name) / "roll" / "a.prof"
-        self.assertTrue(local.is_file())
+        with patch.object(
+            DeviceConnectionWorker, "_peer_allows_delete", return_value=False
+        ):
+            self.worker.request_sync(auto=False)
+            self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 0))
+            local = Path(self.local_dir.name) / "roll" / "a.prof"
+            self.assertTrue(local.is_file())
 
-        # The user deletes the mirror copy; an incremental sync (the
-        # post-measurement NOTIFY) must not bring it back.
-        local.unlink()
-        self.worker.request_sync(auto=True, incremental=True)
-        self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 1))
+            local.unlink()
+            self.worker.request_sync(auto=True)
+            self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 1))
+
         fetched, _ = self.recorder.sync_finished[1]
-        self.assertEqual(fetched, [])
-        self.assertFalse(local.exists())
-
-        # A full sync (device sync button / manual PC sync) restores it.
-        self.worker.request_sync(auto=False)
-        self.assertTrue(wait_until(lambda: len(self.recorder.sync_finished) > 2))
-        fetched, _ = self.recorder.sync_finished[2]
         self.assertEqual(fetched, ["roll/a.prof"])
         self.assertTrue(local.is_file())
 
@@ -324,8 +322,9 @@ class TestSyncFlow(DeviceConnectionTestBase):
 
 
 class TestDeleteAfterSync(DeviceConnectionTestBase):
-    """Rollview, not the device, removes synced files — and only a full
-    sync does it."""
+    """Rollview, not the device, removes synced files - and every sync
+    does it. What survives is the device's own preserved-folders setting,
+    which it enforces by refusing those deletes."""
 
     def _start_device(self):
         self.seed_device_tree()
@@ -342,10 +341,10 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
             f"sync did not finish (failures: {self.recorder.sync_failed})",
         )
 
-    def test_full_sync_removes_fetched_files_from_the_device(self):
+    def test_a_sync_removes_fetched_files_from_the_device(self):
         remote = self._start_device()
 
-        self.worker.request_sync(auto=False, delete_remote=True)
+        self.worker.request_sync(auto=False)
         self._wait_for_sync(1)
 
         fetched, _skipped = self.recorder.sync_finished[0]
@@ -357,17 +356,31 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
         self.assertTrue((Path(self.device_dir.name) / "roll" / "mean.prof").exists())
         self.assertTrue((Path(self.device_dir.name) / "roll" / "readme.txt").exists())
 
-    def test_full_sync_removes_files_an_earlier_autosync_mirrored(self):
+    def test_an_automatic_sync_deletes_too(self):
+        """The distinction that used to spare automatic syncs is gone: a
+        sync does the same thing whoever asked for it."""
         remote = self._start_device()
 
-        # The post-measurement autosync pulls the file and leaves it.
-        self.worker.request_sync(auto=True, incremental=True)
+        self.worker.request_sync(auto=True)
         self._wait_for_sync(1)
+
+        self.assertEqual(self.recorder.sync_finished[0][0], ["roll/a.prof"])
+        self.assertEqual(self.recorder.deleted_counts[0], 1)
+        self.assertFalse(remote.exists())
+
+    def test_a_later_sync_removes_what_an_earlier_one_left_behind(self):
+        """A device that refused the delete keeps its copy; the next sync
+        fetches nothing and cleans it up."""
+        remote = self._start_device()
+        with patch.object(
+            DeviceConnectionWorker, "_peer_allows_delete", return_value=False
+        ):
+            self.worker.request_sync(auto=True)
+            self._wait_for_sync(1)
         self.assertEqual(self.recorder.deleted_counts[0], 0)
         self.assertTrue(remote.exists())
 
-        # The later full sync fetches nothing but still cleans the device.
-        self.worker.request_sync(auto=False, delete_remote=True)
+        self.worker.request_sync(auto=False)
         self._wait_for_sync(2)
         fetched, skipped = self.recorder.sync_finished[1]
         self.assertEqual(fetched, [])
@@ -375,22 +388,13 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
         self.assertEqual(self.recorder.deleted_counts[1], 1)
         self.assertFalse(remote.exists())
 
-    def test_incremental_sync_never_deletes_even_when_asked_to(self):
-        remote = self._start_device()
-
-        self.worker.request_sync(auto=True, incremental=True, delete_remote=True)
-        self._wait_for_sync(1)
-
-        self.assertEqual(self.recorder.deleted_counts[0], 0)
-        self.assertTrue(remote.exists())
-
     def test_device_that_denies_deletes_keeps_its_files(self):
         caps_patch = patch("rqft.demo.CAP_ALLOW_DELETE", 0)
         caps_patch.start()
         self.addCleanup(caps_patch.stop)
         remote = self._start_device()
 
-        self.worker.request_sync(auto=False, delete_remote=True)
+        self.worker.request_sync(auto=False)
         self._wait_for_sync(1)
 
         # The files still arrive; only the cleanup is skipped.
