@@ -116,7 +116,10 @@ class MainWindow(QMainWindow):
         hor_splitter.addWidget(ver_splitter)
         hor_splitter.setStretchFactor(0, 0)
         hor_splitter.setStretchFactor(1, 1)
-        hor_splitter.setSizes([300, 1140])
+        # Wide enough for the folder list's two columns — the roll name and a
+        # full timestamp — with room to spare, since the date column stretches
+        # into whatever is left and clips the moment there is nothing left.
+        hor_splitter.setSizes([360, 1080])
         hor_splitter.setCollapsible(0, False)
         hor_splitter.setCollapsible(1, False)
 

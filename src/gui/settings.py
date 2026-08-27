@@ -312,7 +312,9 @@ class AlertLimitSettingsPage(QWidget):
         for name in (_("MIN"), _("MAX")):
             column_label = EyebrowLabel(name)
             column_label.setFixedWidth(
-                theme_qt.numeric_field_width(AlertLimitSetting.INPUT_WIDTH)
+                theme_qt.numeric_field_width(
+                    AlertLimitSetting.INPUT_WIDTH, sample=_("NOT_SET")
+                )
             )
             column_label.setAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -411,7 +413,11 @@ class AlertLimitSetting(QFrame):
         field.setValidator(QDoubleValidator())
         theme_qt.set_property(field, "role", "data")
         field.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        field.setFixedWidth(theme_qt.numeric_field_width(self.INPUT_WIDTH))
+        # "Not set" has to fit as readily as a value does; a clipped placeholder
+        # is a field that looks broken before anyone has typed in it.
+        field.setFixedWidth(
+            theme_qt.numeric_field_width(self.INPUT_WIDTH, sample=_("NOT_SET"))
+        )
         field.setAccessibleName(accessible_name)
         field.setPlaceholderText(_("NOT_SET"))
         return field

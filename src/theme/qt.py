@@ -138,8 +138,16 @@ def font(step, t=None):
     return QFont(result)
 
 
-def numeric_field_width(characters, t=None):
+#: A field sized to exactly its own text clips the last glyph — the advance
+#: width a font reports and the pixels it actually inks are not the same number.
+FIELD_SLACK = 6
+
+
+def numeric_field_width(characters, sample=None, t=None):
     """Pixels a mono input needs to show *characters* digits without clipping.
+
+    Pass ``sample`` for anything else that has to fit — a placeholder, usually —
+    and the wider of the two wins.
 
     Widths for these were picked against the unstyled metrics and do not survive
     the theme: the style sheet gives every QLineEdit 12 px of padding a side, so
@@ -154,10 +162,13 @@ def numeric_field_width(characters, t=None):
     # would come out right only at whichever density happens to share it.
     face = QFont(mono_family(t))
     face.setPixelSize(t.base_text_size)
-    text = QFontMetrics(face).horizontalAdvance("0" * characters)
+    metrics = QFontMetrics(face)
+    text = metrics.horizontalAdvance("0" * characters)
+    if sample:
+        text = max(text, metrics.horizontalAdvance(sample))
     padding = t.space(3) * 2      # the QLineEdit rule's horizontal padding
     chrome = 2 * 2                # 1 px border a side, doubled by the focus ring
-    return text + padding + chrome
+    return text + padding + chrome + FIELD_SLACK
 
 
 def style_header(header, t=None):
