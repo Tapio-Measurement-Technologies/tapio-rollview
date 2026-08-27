@@ -465,3 +465,65 @@ class TestSystemTheme(ThemeRestoringTestCase):
         # ...but what was asked for is still "system", which is what lets a
         # later desktop change be followed.
         self.assertEqual(theme.requested(), T.SYSTEM)
+
+
+class TestApplicationFont(ThemeRestoringTestCase):
+    """The application font has to be set after the style sheet.
+
+    setStyleSheet() installs QStyleSheetStyle, and a style change re-seeds Qt's
+    per-class widget font hash from the platform theme. Those entries —
+    QMenuBar, QTreeView, QCheckBox, QMenu, QToolButton, QListView — outrank the
+    plain application font, so a font set *before* the sheet is silently
+    overruled for exactly those classes and they come up in the desktop's font
+    at the desktop's size. Every later apply() then corrected them, which read
+    as "changing the theme shrinks the interface".
+
+    Asserted as an ordering rather than by measuring a widget, because the
+    offscreen platform CI runs on supplies no per-class fonts at all: the bug is
+    invisible there and a measuring test would pass while shipping it.
+    """
+
+    class _Recorder:
+        """Stands in for the QApplication, and remembers the order of calls."""
+
+        def __init__(self, real):
+            self._real = real
+            self.calls = []
+
+        def __getattr__(self, name):
+            return getattr(self._real, name)
+
+        def setStyle(self, *a):
+            self.calls.append("setStyle")
+
+        def setPalette(self, *a):
+            self.calls.append("setPalette")
+
+        def setStyleSheet(self, *a):
+            self.calls.append("setStyleSheet")
+
+        def setFont(self, *a):
+            self.calls.append("setFont")
+
+    def test_the_font_is_asserted_after_the_style_sheet(self):
+        recorder = self._Recorder(self.app)
+
+        theme_qt.apply(recorder, theme=T.LIGHT)
+
+        self.assertIn("setFont", recorder.calls)
+        self.assertIn("setStyleSheet", recorder.calls)
+        self.assertGreater(
+            recorder.calls.index("setFont"), recorder.calls.index("setStyleSheet"),
+            "the style sheet re-seeds Qt's per-class font hash, so a font set "
+            "before it is overruled for QMenuBar, QTreeView, QCheckBox and the "
+            f"rest — order was {recorder.calls}",
+        )
+
+    def test_the_base_font_is_the_token_size_in_pixels(self):
+        theme.apply(self.app, theme=T.LIGHT)
+        base = self.app.font()
+        self.assertEqual(base.pixelSize(), theme_qt.tokens().base_text_size)
+        # Points, not pixels, would be a third too large at 96 dpi and out of
+        # step with every size in the style sheet.
+        self.assertEqual(base.pointSize(), -1)
+        self.assertEqual(base.family(), theme_qt.sans_family())
