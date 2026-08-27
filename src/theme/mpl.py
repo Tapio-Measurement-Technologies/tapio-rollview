@@ -32,6 +32,7 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap, to_rgba
 from matplotlib.font_manager import fontManager
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import AutoMinorLocator
 
 from theme import paths
 from theme import tokens as T
@@ -42,6 +43,7 @@ LIMIT_WIDTH = 1.5          # limit lines, solid
 TARGET_WIDTH = 1.0         # target and mean, dashed and recessive
 SUPPORTING_WIDTH = 1.5     # individual profiles behind the mean
 SUPPORTING_ALPHA = 0.7     # ...and how far back they sit
+MINOR_TICK_SIZE = 2        # half a major tick, for the unlabelled subdivisions
 
 #: The diagonal used for a region that is out of bounds — excluded from the
 #: analysis, or beyond an alert limit. One hatch, so the two read as one idea.
@@ -189,6 +191,30 @@ def diverging_cmap(name="tapio-diverging", t=None):
     """Blue to gold with a neutral midpoint. Blue is the positive pole."""
     t = t or current
     return LinearSegmentedColormap.from_list(name, t.diverging)
+
+
+def minor_ticks(ax, axis="x", t=None):
+    """Minor tick marks on an axis, and nothing across the panel.
+
+    A distance axis is read at finer intervals than it is labelled at, and the
+    marks give the reader those intervals without a second set of rules over
+    the profiles — the panel already carries the major grid, and a minor grid
+    on top of it is a texture, not information. Half the length of a major
+    tick, in the same ink, so they read as subdivisions rather than as ticks
+    someone forgot to label.
+    """
+    t = t or current
+    locator = AutoMinorLocator()
+    if axis in ("x", "both"):
+        ax.xaxis.set_minor_locator(locator)
+    if axis in ("y", "both"):
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.tick_params(
+        axis=axis, which="minor",
+        length=MINOR_TICK_SIZE, width=1.0, color=t.chart("axis"),
+    )
+    ax.grid(False, axis=axis, which="minor")
+    return ax
 
 
 def supporting_color(t=None):

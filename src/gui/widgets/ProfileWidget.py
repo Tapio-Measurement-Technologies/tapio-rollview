@@ -790,6 +790,11 @@ class ProfileWidget(QWidget):
             if preferences.show_spectrum:
                 self.spectrum_ax.grid(False)
 
+        # Distance is read at finer intervals than it is labelled at. The marks
+        # go on the axis only — a minor grid over the profiles would be texture
+        # rather than information.
+        tapio_mpl.minor_ticks(self.profile_ax, axis="x", t=self.tokens)
+
         # Calculate max value from all plotted data
         max_plotted_value = 0
         if self.profiles:
