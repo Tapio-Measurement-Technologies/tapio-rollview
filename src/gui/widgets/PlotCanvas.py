@@ -25,6 +25,7 @@ the pointer.
 import weakref
 
 from PySide6.QtCore import QThread, QTimer
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
@@ -58,6 +59,28 @@ class PlotCanvas(FigureCanvasQTAgg):
         self.on_resize_settled = on_resize_settled
         self._suppress_idle_draw = False
         self._settle_timer = self._make_settle_timer()
+        self.sync_background()
+
+    def sync_background(self):
+        """Paint the widget in the figure's own colour.
+
+        While a resize is outstanding the rendered buffer is smaller than the
+        widget, and Qt fills what the buffer does not cover with the widget's
+        background — white by default. Against a dark chart that is a flash of
+        white down the edge of every resize. Matching the widget to the figure
+        makes the uncovered strip indistinguishable from the plot.
+
+        Call it whenever the figure's face colour changes, which for RollView
+        means whenever the theme does.
+        """
+        red, green, blue = (int(round(channel * 255))
+                            for channel in self.figure.get_facecolor()[:3])
+        color = QColor(red, green, blue)
+        palette = self.palette()
+        for role in (QPalette.ColorRole.Window, QPalette.ColorRole.Base):
+            palette.setColor(role, color)
+        self.setPalette(palette)
+        self.setAutoFillBackground(True)
 
     @property
     def on_resize_settled(self):
@@ -109,6 +132,7 @@ class PlotCanvas(FigureCanvasQTAgg):
             super().resizeEvent(event)
         finally:
             self._suppress_idle_draw = False
+        self.sync_background()
 
         if self._settle_timer is None:
             self._notify_resize_settled()

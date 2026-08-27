@@ -93,12 +93,11 @@ def pairs(theme):
     # is a design-system decision.
     yield ("mark", "white on the alarm band", "#FFFFFF", t.ramp("red", 600), MARK_RATIO)
 
-    # Button labels against their own fill, disabled included: a disabled
-    # control still has to be legible.
+    # Button labels against their own fill. A disabled control still has to be
+    # legible, and every variant shares one disabled look: ink-muted on sunken.
     yield ("text", "accent-ink on accent", t.color("accent-ink"), t.color("accent"), TEXT_RATIO)
     yield ("text", "ink-inverse on inverse", t.color("ink-inverse"), t.color("inverse"), TEXT_RATIO)
-    disabled_fill = T.mix(t.color("accent"), t.color("surface"), 0.42)
-    yield ("text", "ink on disabled accent", t.color("ink"), disabled_fill, TEXT_RATIO)
+    yield ("text", "disabled label on sunken", t.color("ink-muted"), t.color("sunken"), TEXT_RATIO)
 
 
 def audit(theme=None):

@@ -131,13 +131,6 @@ def use(theme=T.LIGHT):
         "lines.solid_joinstyle": "round",
         "lines.markersize": 5,
 
-        "legend.frameon": True,
-        "legend.facecolor": t.chart("surface"),
-        "legend.edgecolor": t.color("border"),
-        "legend.framealpha": 1.0,
-        "legend.fontsize": t.font_size("body-sm"),
-        "legend.labelcolor": t.color("ink-secondary"),
-        "legend.borderpad": 0.5,
 
         "text.color": t.color("ink"),
         "font.family": "sans-serif",
@@ -396,37 +389,12 @@ def fit(figure, rect=None):
         figure.tight_layout(rect=rect) if rect is not None else figure.tight_layout()
 
 
-def legend_handles(mean=None, supporting=None, limits=False, excluded=False, t=None):
-    """Build legend entries for a profile chart.
-
-    The individual profiles are one channel at several moments rather than
-    several channels, so they get a single entry: the reader needs to know what
-    the thin lines *are*, not which of them is which.
-    """
-    from matplotlib.lines import Line2D
-    from matplotlib.patches import Patch
-
-    t = t or current
-    handles = []
-    if mean is not None:
-        handles.append(Line2D([], [], color=mean, linewidth=PROFILE_WIDTH))
-    if supporting is not None:
-        handles.append(Line2D([], [], color=supporting, linewidth=SUPPORTING_WIDTH))
-    if limits:
-        handles.append(Line2D([], [], color=t.chart("limit"), linewidth=LIMIT_WIDTH))
-    if excluded:
-        handles.append(Patch(facecolor=to_rgba(t.color("sunken"), 0.55),
-                             edgecolor=to_rgba(t.color("border-strong"), 0.7),
-                             hatch="///"))
-    return handles
-
-
-def finish(ax, xlabel=None, ylabel=None, title=None, legend=None, t=None):
+def finish(ax, xlabel=None, ylabel=None, title=None, t=None):
     """The last pass over an axes: labels, mono ticks, square corners.
 
-    Plot frames are square-cornered and sit on the chart surface. Direct labels
-    beat legends when there are four or fewer series, but with two or more a
-    legend is always present as well.
+    Plot frames are square-cornered and sit on the chart surface. The marks are
+    labelled directly — a limit line carries its own value at the right edge,
+    the extreme carries its position — so nothing here builds a legend.
     """
     t = t or current
     if xlabel:
@@ -445,28 +413,6 @@ def finish(ax, xlabel=None, ylabel=None, title=None, legend=None, t=None):
     ax.grid(True, axis="y", color=t.chart("grid"), linewidth=1.0)
     ax.grid(False, axis="x")
 
-    if legend:
-        place_legend(ax.figure, *legend, t=t)
     return ax
 
 
-LEGEND_HEIGHT = 0.07   # fraction of the figure the legend strip occupies
-
-
-def place_legend(figure, handles, labels, t=None):
-    """A horizontal legend strip along the bottom of the figure.
-
-    Not inside the axes: a profile fills its plot area edge to edge, so an
-    in-axes legend lands on the data whichever corner it picks. Callers should
-    reserve the strip with ``tight_layout(rect=(0, LEGEND_HEIGHT, 1, 1))``.
-    """
-    t = t or current
-    for existing in list(figure.legends):
-        existing.remove()
-    frame = figure.legend(
-        handles, labels,
-        loc="lower center", ncols=len(labels), frameon=False,
-        fontsize=t.font_size("eyebrow"), labelcolor=t.color("ink-secondary"),
-        borderaxespad=0.1, columnspacing=1.6, handlelength=1.6,
-    )
-    return frame

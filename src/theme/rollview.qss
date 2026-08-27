@@ -173,9 +173,19 @@ QWidget#statTile {
     border-radius: ${r_md}px;
 }
 
+/* When a tile fails, the whole tile is the alarm — the eyebrow and the unit go
+   red with the number rather than staying muted inside a red box. */
 QWidget#statTile[state="bad"] {
     background-color: ${bad_soft};
     border-color: ${bad_mark};
+}
+
+QWidget#statTile[state="bad"] QLabel {
+    color: ${bad};
+}
+
+QWidget#statTile[state="warn"] QLabel {
+    color: ${warn};
 }
 
 QWidget#statTile[state="warn"] {
@@ -251,10 +261,18 @@ QPushButton:focus {
     padding: 0 ${s4_focus}px;
 }
 
-QPushButton:disabled {
-    color: ${ink_disabled};
-    border-color: ${border};
-    background-color: ${surface};
+/* One disabled look for every variant. A primary button that keeps its blue at
+   reduced strength still reads as a button you can press; dropping the fill
+   entirely is what says "not now". The label stays at full `ink-muted` — 4.7:1
+   on the sunken ground — because an unreadable control is indistinguishable
+   from a broken one. */
+QPushButton:disabled,
+QPushButton[variant="primary"]:disabled,
+QPushButton[variant="ghost"]:disabled,
+QPushButton[variant="danger"]:disabled {
+    background-color: ${sunken};
+    color: ${ink_muted};
+    border: 1px solid ${border};
 }
 
 QPushButton[variant="primary"] {
@@ -265,11 +283,6 @@ QPushButton[variant="primary"] {
 QPushButton[variant="primary"]:hover   { background-color: ${accent_hover}; border-color: ${accent_hover}; }
 QPushButton[variant="primary"]:pressed { background-color: ${accent_active}; border-color: ${accent_active}; }
 QPushButton[variant="primary"]:focus   { border: 2px solid ${focus}; padding: 0 ${s4_focus}px; }
-QPushButton[variant="primary"]:disabled {
-    background-color: ${accent_disabled};
-    border-color: ${accent_disabled};
-    color: ${accent_ink_disabled};
-}
 
 QPushButton[variant="ghost"] {
     background-color: transparent;
@@ -278,7 +291,6 @@ QPushButton[variant="ghost"] {
 }
 QPushButton[variant="ghost"]:hover   { background-color: ${accent_soft}; }
 QPushButton[variant="ghost"]:pressed { background-color: ${accent_soft_pressed}; }
-QPushButton[variant="ghost"]:disabled { color: ${ink_disabled}; background-color: transparent; }
 
 /* Destructive only, and never the default focus target. */
 QPushButton[variant="danger"] {
