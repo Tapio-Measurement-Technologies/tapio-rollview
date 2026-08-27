@@ -109,8 +109,8 @@ class PostprocessResult:
 class PostprocessManager(QObject):
     postprocess_finished = Signal(PostprocessResult)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self._thread = None
         self.dialog = None
         self.error_paths = set()
@@ -129,7 +129,7 @@ class PostprocessManager(QObject):
         self.refresh_enabled_postprocessors()
         self._thread = PostprocessThread(folder_paths)
         self.error_paths = set()
-        self.dialog = ProgressBarDialog(auto_close=True)
+        self.dialog = ProgressBarDialog(auto_close=True, parent=self.parent())
         self.total_items_to_process = len(folder_paths) * len(self.enabled_postprocessors)
         self.processed_items = 0
 
