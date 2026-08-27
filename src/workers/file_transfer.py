@@ -170,11 +170,50 @@ class FileTransferManager(QObject):
             log.info("Requesting to cancel file transfer.")
             self.worker.stop()
 
+    def wait_for_transfer(self, timeout_ms=5000):
+        """
+        Blocks until the transfer thread has actually exited.
+
+        Returns True if no thread is running or it exited within the timeout.
+
+        The thread is quit directly rather than by waiting for the queued
+        ``worker.finished -> thread.quit`` connection: that slot is delivered on
+        the main thread, so a caller blocking here would prevent the very event
+        it is waiting for.
+        """
+        thread = self.thread
+        if thread is None:
+            return True
+        try:
+            thread.quit()
+            stopped = thread.wait(timeout_ms)
+        except RuntimeError:
+            # Already deleted, which means it had finished.
+            stopped = True
+
+        if stopped:
+            # _cleanup is queued on thread.finished and may never be delivered
+            # when the app is shutting down, so settle the flag here. Its signal
+            # is deliberately not emitted: nothing should kick off
+            # postprocessing on the way out.
+            self._transfer_in_progress = False
+        return stopped
+
     def _cleanup(self):
         """
         Called when the thread has finished executing. Cleans up references.
+
+        Waits on the thread first so that transferFinished means the worker's OS
+        thread has actually exited, not merely that its event loop is on the way
+        out. Without this, a listener can act on transferFinished and destroy the
+        window while the thread is still running, which aborts the process.
         """
         log.debug("Cleaning up thread and worker references.")
+        if self.thread is not None:
+            try:
+                self.thread.wait()
+            except RuntimeError:
+                pass  # already deleted, so it had finished
         self.thread = None
         self.worker = None
         self._transfer_in_progress = False

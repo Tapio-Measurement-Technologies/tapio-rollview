@@ -158,9 +158,15 @@ against that receiver: binary headers with 16-bit CRCs throughout, one ZDATA
 frame per file. It reuses the app's own `crc16`, so the two cannot silently
 disagree.
 
-Worked examples: `src/test/test_fake_device.py` (protocol level) and
+Worked examples: `src/test/test_fake_device.py` (protocol level),
 `src/test/test_gui_device_sync.py` (the same flow driven through the real GUI,
-with screenshots). `scripts/scenarios/sync_demo.py` records the whole thing.
+with screenshots) and `src/test/test_close_during_work.py` (closing the window
+mid-scan and mid-transfer). `scripts/scenarios/sync_demo.py` records the whole
+thing.
+
+Note that a regression in the shutdown path shows up as a *hang* in
+`test_close_during_work.py` rather than a failed assertion: leaving a transfer
+thread running while the window is destroyed deadlocks the teardown.
 
 ## 4. `scripts/contactsheet.py` — review many shots at once
 

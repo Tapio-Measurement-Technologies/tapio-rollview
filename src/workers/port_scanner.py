@@ -291,15 +291,24 @@ class PortScanner(QObject):
         log.info("Starting port scanner thread.")
         self._thread.start()
 
-    def stop(self):
+    def stop(self, timeout_ms=5000):
         """
-        Stops the port scan if it's running.
+        Stops the port scan if it's running, and waits for the thread to exit.
+
+        Returns True if no scan was running or the thread exited within the
+        timeout. The wait matters on shutdown: destroying a QThread whose OS
+        thread is still running aborts the process.
         """
         if self._worker:
             self._worker.stop()
-        if self.is_running():
-            log.info("Stopping port scanner thread.")
+        if not self.is_running():
+            return True
+        log.info("Stopping port scanner thread.")
+        try:
             self._thread.quit()
+            return self._thread.wait(timeout_ms)
+        except RuntimeError:
+            return True
 
     def is_running(self):
         if not self._thread:
@@ -312,6 +321,13 @@ class PortScanner(QObject):
             return False
 
     def _on_thread_finished(self):
+        # Wait before dropping the reference, so that by the time anything
+        # observes the scanner as idle the OS thread has genuinely exited.
+        if self._thread is not None:
+            try:
+                self._thread.wait()
+            except RuntimeError:
+                pass
         self._clear_thread_refs()
 
     def _clear_thread_refs(self):

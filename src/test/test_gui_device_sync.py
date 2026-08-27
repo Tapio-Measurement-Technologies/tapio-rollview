@@ -76,12 +76,6 @@ def test_sync_pulls_profiles_over_zmodem(wired_window, device, qtbot, tmp_path, 
     ):
         serial_widget.sync_data()
 
-    # transferFinished is emitted from a queued _cleanup on the main thread, which
-    # can run before the worker's OS thread has actually exited. Destroying the
-    # window at that moment aborts the process with "QThread: Destroyed while
-    # thread is still running", so give the thread a moment to die.
-    qtbot.wait(300)
-
     snap(serial_widget.transferDialog, "transfer-dialog")
 
     assert device.errors == []
