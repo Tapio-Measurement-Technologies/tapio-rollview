@@ -920,29 +920,11 @@ msgstr "Below {value}"
 msgid "STAT_TILE_ABOVE_MAX"
 msgstr "Above {value}"
 
-#. Status pill: every statistic is inside its configured limits.
-msgid "STATUS_IN_SPEC"
-msgstr "In spec"
 
-#. Status pill: inside limits but within the warning band.
-msgid "STATUS_NEAR_LIMIT"
-msgstr "Near limit"
 
-#. Status pill: a limit was exceeded.
-msgid "STATUS_OUT_OF_SPEC"
-msgstr "Out of spec"
 
-#. Status pill: nothing to judge yet — no data or no limits configured.
-msgid "STATUS_NO_VERDICT"
-msgstr "No verdict"
 
-#. Application header: the selected roll and how many profiles it holds.
-msgid "HEADER_ROLL_CONTEXT"
-msgstr "{name} · {count} profiles"
 
-#. Application header when no roll folder is selected.
-msgid "HEADER_NO_ROLL"
-msgstr "No roll selected"
 
 #. Settings window: heading for the theme and density controls.
 msgid "APPEARANCE"

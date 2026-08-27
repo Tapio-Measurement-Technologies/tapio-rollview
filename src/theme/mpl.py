@@ -101,12 +101,15 @@ def use(theme=T.LIGHT):
         "axes.titleweight": "semibold",
         "axes.titlelocation": "left",
         "axes.prop_cycle": mpl.cycler(color=t.series),
-        # Gridlines are hairlines, horizontal only for profiles. The top and
-        # right spines are chrome competing with the data.
+        # Gridlines are hairlines in both directions, and the plot carries a
+        # full frame. The system asks for horizontal-only rules and two spines;
+        # RollView reads positions off the distance axis as often as values off
+        # the hardness one, and a closed frame is what an instrument plot looks
+        # like. See docs/design-system.md.
         "axes.grid": True,
-        "axes.grid.axis": "y",
-        "axes.spines.top": False,
-        "axes.spines.right": False,
+        "axes.grid.axis": "both",
+        "axes.spines.top": True,
+        "axes.spines.right": True,
         "axes.axisbelow": True,
 
         "grid.color": t.chart("grid"),
@@ -413,10 +416,10 @@ def finish(ax, xlabel=None, ylabel=None, title=None, t=None):
         label.set_fontfamily("monospace")
 
     ax.set_facecolor(t.chart("surface"))
-    for side in ("left", "bottom"):
+    for side in ("left", "bottom", "top", "right"):
+        ax.spines[side].set_visible(True)
         ax.spines[side].set_color(t.chart("axis"))
-    ax.grid(True, axis="y", color=t.chart("grid"), linewidth=1.0)
-    ax.grid(False, axis="x")
+    ax.grid(True, axis="both", color=t.chart("grid"), linewidth=1.0)
 
     return ax
 

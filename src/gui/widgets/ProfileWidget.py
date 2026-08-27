@@ -18,7 +18,7 @@ from utils.highlighted_regions import (
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSizePolicy, QLabel
-from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtCore import Qt, QThread, QTimer
 from utils.translation import _
 
 from matplotlib.figure import Figure
@@ -115,8 +115,6 @@ class ProfileWidget(QWidget):
     a single axis, which is the whole point of putting them above the plot.
     """
 
-    verdict_changed = Signal(str)
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -170,7 +168,6 @@ class ProfileWidget(QWidget):
         self.mean_profile = []
         self.mean_profile_distances = []
         self.stats_widget = StatsWidget((self.mean_profile_distances, self.mean_profile))
-        self.stats_widget.verdict_changed.connect(self.verdict_changed)
         # The profile's limit lines are the minimum's lower and the maximum's
         # upper limit, so editing either from a tile has to redraw the chart.
         self.stats_widget.limits_changed.connect(self.replot)
@@ -201,9 +198,6 @@ class ProfileWidget(QWidget):
             timer.setInterval(interval)
         timer.timeout.connect(slot)
         return timer
-
-    def verdict(self):
-        return self.stats_widget.verdict()
 
     def replot(self):
         """Redraw what is already loaded, after something around it changed."""

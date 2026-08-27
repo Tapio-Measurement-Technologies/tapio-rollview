@@ -136,32 +136,10 @@ QLabel[role="dataValue"] {
     color: ${ink};
 }
 
-QWidget#appHeader QLabel[role="appName"] {
-    font-size: ${label}px;
-    font-weight: 600;
-}
-
 QLabel[state="good"] { color: ${good}; }
 QLabel[state="warn"] { color: ${warn}; }
 QLabel[state="bad"]  { color: ${bad}; }
 QLabel[state="idle"] { color: ${ink_muted}; }
-
-/* ---------- status pill --------------------------------------------------- */
-/* Icon + colour + label, never colour alone. The icon is painted by
-   theme.widgets.StatusPill; this is the wash and the outline. */
-
-QLabel[pill="good"], QLabel[pill="warn"], QLabel[pill="bad"], QLabel[pill="idle"] {
-    font-size: ${body_sm}px;
-    font-weight: 500;
-    border-radius: ${pill_radius}px;
-    padding: 2px ${s2}px;
-    border: 1px solid transparent;
-}
-
-QLabel[pill="good"] { background-color: ${good_soft}; color: ${good}; border-color: ${good_mark}; }
-QLabel[pill="warn"] { background-color: ${warn_soft}; color: ${warn}; border-color: ${warn_mark}; }
-QLabel[pill="bad"]  { background-color: ${bad_soft};  color: ${bad};  border-color: ${bad_mark}; }
-QLabel[pill="idle"] { background-color: ${sunken};    color: ${ink_muted}; border-color: ${border_strong}; }
 
 /* ---------- stat tile ----------------------------------------------------- */
 /* Only the failing tile turns red. A row of red tiles tells the operator
@@ -195,46 +173,6 @@ QWidget#statTile[state="warn"] {
 
 QWidget#statTile:hover {
     border-color: ${border_strong};
-}
-
-/* ---------- application header ------------------------------------------- */
-/* The title bar states the object, not the app. */
-
-/* Its own role rather than `inverse`. Inverse means "the opposite of the page",
-   which in the dark theme is a near-white bar across the top of a dark window —
-   the loudest thing on screen and the one place nothing is happening. The band
-   is a dark navy in the light theme and a raised dark in the dark one, so it
-   reads as the same bar in both. */
-QWidget#appHeader {
-    background-color: ${header};
-    border: none;
-    border-bottom: 1px solid ${header_edge};
-}
-
-QWidget#appHeader QLabel {
-    color: ${header_ink};
-    background: transparent;
-}
-
-QWidget#appHeader QLabel[role="context"] {
-    font-family: "${mono}";
-    font-size: ${body_sm}px;
-    color: ${header_context};
-}
-
-/* The alarm band is red-600 in both themes, not the theme's own `bad-mark`:
-   the guide pins it, and the dark theme's lighter mark would make white text
-   on it harder to read, not easier. */
-QWidget#appHeader[state="bad"] {
-    background-color: ${alarm_band};
-}
-
-QWidget#appHeader[state="bad"] QLabel {
-    color: #FFFFFF;
-}
-
-QWidget#appHeader[state="bad"] QLabel[role="context"] {
-    color: ${header_alarm_context};
 }
 
 /* ---------- buttons ------------------------------------------------------- */
@@ -715,11 +653,6 @@ QGroupBox::title {
     color: ${ink_muted};
 }
 
-/* Pills carry their own type: the size has to win over the parent widget's
-   font, and a pill is never handed a QFont of its own. */
-QLabel[pill="good"], QLabel[pill="warn"], QLabel[pill="bad"], QLabel[pill="idle"] {
-    font-family: "${sans}";
-}
 
 /* ---------- progress ------------------------------------------------------ */
 

@@ -31,6 +31,9 @@ from datetime import datetime
 
 CUSTOM_SORT_FILES_IN_DIRECTORY_LIMIT = 128
 
+# A roll folder is named for when it was measured: "250521-081510".
+ROLL_NAME_CHARACTERS = 13
+
 selection_flags = (
     QItemSelectionModel.SelectionFlag.Clear |
     QItemSelectionModel.SelectionFlag.Select |
@@ -97,12 +100,18 @@ class DirectoryView(QWidget):
         # Disable expanding tree view items
         self.treeView.setItemsExpandable(False)
         self.treeView.setExpandsOnDoubleClick(False)
-        # Roll names are fixed-length identifiers, so the name column takes
-        # exactly what it needs and the date column absorbs the slack. The other
-        # way round truncates the one string that identifies the row.
+        # A roll folder is a fixed-format identifier — "250521-081510", thirteen
+        # characters — so the name column is sized from that and the date column
+        # absorbs the slack. Not ResizeToContents: that asks QFileSystemModel how
+        # wide its contents are, and the answer includes rows that are not on
+        # screen plus whatever icon and indentation the platform style reserves,
+        # which on Windows came out far wider than the names it was sizing for.
         directory_header = theme_qt.style_header(self.treeView.header())
         directory_header.setStretchLastSection(True)
-        directory_header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        directory_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self.treeView.setColumnWidth(
+            0, theme_qt.tree_column_width(ROLL_NAME_CHARACTERS, self.treeView)
+        )
 
         # Show only the first and modified date columns
         for i in range(1, self.model.columnCount()):

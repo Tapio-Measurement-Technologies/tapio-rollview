@@ -28,7 +28,7 @@ def _retheme(ctx):
     wanted = os.environ.get("ROLLVIEW_REVIEW_THEME")
     if not wanted:
         return
-    ctx.window.apply_appearance(wanted, os.environ.get("ROLLVIEW_REVIEW_DENSITY", "comfortable"))
+    ctx.window.apply_appearance(wanted, os.environ.get("ROLLVIEW_REVIEW_DENSITY", "compact"))
     ctx.settle()
 
 
@@ -116,7 +116,6 @@ def run(ctx):
 
     # ---- the empty states ------------------------------------------------
     ctx.window.profile_widget.clear_plot_display()
-    ctx.window.update_header()
     ctx.settle()
     ctx.snap("10-empty-state")
 

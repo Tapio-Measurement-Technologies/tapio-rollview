@@ -171,6 +171,27 @@ def numeric_field_width(characters, sample=None, t=None):
     return text + padding + chrome + FIELD_SLACK
 
 
+def tree_column_width(characters, view, t=None):
+    """Pixels a tree column needs for *characters* of a mono identifier.
+
+    Use this rather than ``ResizeToContents`` for a column of fixed-format
+    values. ResizeToContents asks the *model* how wide its contents are, and a
+    QFileSystemModel answers for every row it has loaded — not just the visible
+    ones — including the icon and indentation the platform style reserves. Those
+    reservations differ enough between platforms that the same column comes out
+    reasonable on one and absurdly wide on another. Measuring the text is the
+    same answer everywhere.
+    """
+    from PySide6.QtGui import QFontMetrics
+
+    t = t or current
+    face = QFont(mono_family(t))
+    face.setPixelSize(t.base_text_size)
+    text = QFontMetrics(face).horizontalAdvance("0" * characters)
+    padding = t.space(2) * 2       # the item rule's horizontal padding
+    return text + padding + view.indentation() + FIELD_SLACK
+
+
 def style_header(header, t=None):
     """Give an item view's header the eyebrow face, and centre its labels.
 
@@ -296,13 +317,11 @@ def build_stylesheet(t):
         "sunken": t.color("sunken"),
         "sunken_pressed": T.mix(t.color("border"), surface, 0.85),
         "raised": t.color("raised"),
-        "inverse": t.color("inverse"),
         "border": t.color("border"),
         "border_strong": t.color("border-strong"),
         "ink": t.color("ink"),
         "ink_secondary": t.color("ink-secondary"),
         "ink_muted": t.color("ink-muted"),
-        "ink_inverse": t.color("ink-inverse"),
         "ink_disabled": T.mix(t.color("ink-muted"), surface, 0.55),
         # accent
         "accent": accent,
@@ -313,20 +332,11 @@ def build_stylesheet(t):
         "accent_ink": t.color("accent-ink"),
         "focus": t.color("focus"),
         # status
-        "good": t.color("good"), "good_soft": t.color("good-soft"), "good_mark": t.color("good-mark"),
+        "good": t.color("good"),
         "warn": t.color("warn"), "warn_soft": t.color("warn-soft"), "warn_mark": t.color("warn-mark"),
         "bad": t.color("bad"), "bad_soft": t.color("bad-soft"), "bad_mark": t.color("bad-mark"),
-        # header band
-        "header": t.color("header"),
-        "header_ink": t.color("header-ink"),
-        "header_edge": T.mix(t.color("header-ink"), t.color("header"), 0.16),
-        "header_context": T.mix(t.color("header-ink"), t.color("header"), 0.66),
-        "alarm_band": t.ramp("red", 600),
-        "header_alarm_context": T.mix("#FFFFFF", t.ramp("red", 600), 0.78),
         # type
-        "sans": sans_family(t),
         "mono": mono_family(t),
-        "text": t.base_text_size,
         "body_lg": t.font_size("body-lg"),
         "body_sm": t.font_size("body-sm"),
         "label": t.font_size("label"),
@@ -342,7 +352,6 @@ def build_stylesheet(t):
         "s4_focus": t.space(4) - 1,
         # radius
         "r_sm": t.radius("sm"), "r_md": t.radius("md"), "r_lg": t.radius("lg"),
-        "pill_radius": 11,
         # metrics
         "control_inner": control_inner,
         # Rows carry no vertical padding, so this is the density's row height
@@ -503,7 +512,7 @@ def tokens():
 
 
 __all__ = [
-    "apply", "tokens", "font", "mono_font", "style_header", "numeric_field_width",
+    "apply", "tokens", "font", "mono_font", "style_header", "numeric_field_width", "tree_column_width",
     "sans_family", "mono_family",
     "set_variant", "set_role", "set_state", "set_invalid", "set_panel",
     "build_palette", "build_stylesheet", "load_fonts",
