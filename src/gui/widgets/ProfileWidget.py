@@ -689,6 +689,7 @@ class ProfileWidget(QWidget):
                 upper=upper_limit,
                 label=_("CHART_MEAN_PROFILE_LABEL"),
                 units=f" {self.stats.mean.unit}",
+                x_units=f" {unit_info.unit}",
                 color=settings.MEAN_PROFILE_LINE_COLOR or tapio_mpl.series_color(0),
             )
 

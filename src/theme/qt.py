@@ -161,13 +161,28 @@ def numeric_field_width(characters, t=None):
 
 
 def style_header(header, t=None):
-    """Centre an item view's header labels vertically.
+    """Give an item view's header the eyebrow face, and centre its labels.
 
-    The height comes from `min-height` on `QHeaderView::section` in the style
-    sheet, and deliberately not from `setFixedHeight` here: that grows the
-    header *widget* past the sections it contains, which then paint against its
-    top edge. Alignment is the one half a style sheet cannot express.
+    The face is set here and *not* in the style sheet, which is the whole point:
+    a `font-*` rule on `QHeaderView::section` applies when the section is
+    painted, but Qt measures the label rect from the widget's own font. Declare
+    it in the sheet and the header is laid out for 13 px sans and drawn in 11 px
+    mono, so the label ends up above centre no matter what the alignment says.
+    One font, used for both, is what actually centres it.
+
+    Height is left alone deliberately. `min-height` on the section anchors the
+    label box to the top and lets the extra space fall below it, and setting a
+    height on the header *widget* grows the widget past its sections, which then
+    paint against its top edge. The section sizes itself from this font.
     """
+    t = t or current
+    face = font("eyebrow", t)
+    # The eyebrow uppercases its text, and a column heading can carry a unit:
+    # "Profile length [m]" becomes "[M]", which is mega and not metres. A unit
+    # symbol is not a style, so the heading keeps the face and the tracking and
+    # loses the capitalisation.
+    face.setCapitalization(QFont.Capitalization.MixedCase)
+    header.setFont(face)
     header.setDefaultAlignment(
         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
     )
@@ -319,10 +334,10 @@ def build_stylesheet(t):
         "pill_radius": 11,
         # metrics
         "control_inner": control_inner,
-        # Rows and header sections carry no vertical padding, so these are the
-        # density's row height less the 1 px hairline under each one.
+        # Rows carry no vertical padding, so this is the density's row height
+        # less the 1 px hairline under each one. Header sections size themselves
+        # from the eyebrow font style_header() gives them.
         "row_inner": t.row_height - 1,
-        "header_inner": t.row_height - 1,
 
         "tab_height": control - 12,
         "check_target": min(t.min_target, control),

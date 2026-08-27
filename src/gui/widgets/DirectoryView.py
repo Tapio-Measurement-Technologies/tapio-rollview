@@ -637,6 +637,15 @@ class CustomFileSystemModel(QFileSystemModel):
         self.modified_date_cache = {}
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal:
+            # QFileSystemModel answers TextAlignmentRole with a bare
+            # Qt::AlignLeft, and a model's answer overrides the header's
+            # defaultAlignment(). With no vertical flag Qt falls back to
+            # AlignTop, which is why the column headings sat against the top of
+            # their sections however the section itself was sized.
+            if role == Qt.ItemDataRole.TextAlignmentRole:
+                return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             match section:
                 case 0:
