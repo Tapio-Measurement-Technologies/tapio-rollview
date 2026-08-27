@@ -56,6 +56,7 @@ from utils.rqft_support import (
     is_syncable_prof,
     plan_device_deletes,
 )
+from utils.time_sync import device_wall_clock_to_epoch
 from utils.translation import _
 
 log = logging.getLogger(__name__)
@@ -785,9 +786,11 @@ class DeviceConnectionWorker(threading.Thread):
         Files from devices that report no mtime keep their download time."""
         if entry.mtime <= 0:
             return
+        # Device timestamps are local wall clock, not epoch. See time_sync.
+        mtime = device_wall_clock_to_epoch(entry.mtime)
         target = Path(self._fs.root).joinpath(*entry.path.split("/"))
         try:
-            os.utime(target, (entry.mtime, entry.mtime))
+            os.utime(target, (mtime, mtime))
         except OSError as e:
             log.warning(f"Could not set mtime for {entry.path}: {e}")
 
