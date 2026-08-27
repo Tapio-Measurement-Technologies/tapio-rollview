@@ -133,7 +133,7 @@ class DirectoryView(QWidget):
         theme_qt.set_variant(self.changeDirButton, "ghost")
         self.changeDirButton.clicked.connect(self.change_root_directory)
 
-        theme_qt.pad(layout, 2, 1, 2, 2)
+        theme_qt.pad(layout, 2, 2, 2, 2)
         theme_qt.gap(layout, 1)
 
         # Add widgets to the layout
