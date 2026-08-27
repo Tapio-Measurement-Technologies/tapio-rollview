@@ -62,10 +62,17 @@ class LogManager(QObject):
     def append_message(self, message, level="INFO"):
         from PySide6.QtCore import QTime
 
+        # The log is the one place a stack trace lands in front of a user, so
+        # its red is the same red as everything else that means "something is
+        # wrong" — taken from the tokens rather than named by hand.
+        from theme import qt as theme_qt
+
+        tokens = theme_qt.tokens()
         color_map = {
-            "INFO": "black",
-            "ERROR": "red"
+            "INFO": tokens.color("ink-secondary"),
+            "ERROR": tokens.color("bad"),
         }
+        timestamp_color = tokens.color("ink-muted")
 
         lines = message.rstrip().splitlines()
         if not lines:
@@ -73,12 +80,12 @@ class LogManager(QObject):
 
         for line in lines:
             timestamp = QTime.currentTime().toString("HH:mm:ss.zzz") if self.show_timestamps else ""
-            color = color_map.get(level, "black")
+            color = color_map.get(level, tokens.color("ink"))
             level_tag = f"[{level}]"
 
             # HTML log version
             html_line = (
-                f'<span style="color:gray">[{timestamp}]</span> '
+                f'<span style="color:{timestamp_color}">[{timestamp}]</span> '
                 f'<span style="color:{color}">{level_tag} {self._escape_html(line)}</span>'
             )
 

@@ -23,3 +23,8 @@ name = "build"
 input = "requirements-build.in"
 lock = "requirements-build.txt"
 
+[[ecosystems.python.requirements]]
+name = "dev"
+input = "requirements-dev.in"
+lock = "requirements-dev.txt"
+

@@ -11,6 +11,8 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QPushButton
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
+import theme
+from theme import qt as theme_qt
 from utils import preferences
 from utils.translation import _
 import math
@@ -42,7 +44,10 @@ class QRConfigDialog(QDialog):
         self.limits_label = QLabel()
         self.limits_label.setWordWrap(True)
         self.limits_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.limits_label.setStyleSheet("font-family: monospace; padding: 10px; background-color: #f0f0f0;")
+        # A block of limit values: mono, on the sunken surface.
+        theme_qt.set_property(self.limits_label, "role", "data")
+        theme_qt.set_panel(self.limits_label, "sunken")
+        self.limits_label.setMargin(theme_qt.tokens().space(3))
         instructions_layout.addWidget(self.limits_label)
 
         content_layout.addLayout(instructions_layout)
@@ -64,14 +69,22 @@ class QRConfigDialog(QDialog):
         # Generate and display QR code
         self.generate_qr_code()
 
+    # What the device expects on the wire for "no limit". It is not what a
+    # person should have to read, so the display uses an em dash instead.
+    UNSET_WIRE = "NaN"
+    UNSET_DISPLAY = "\u2014"
+
+    @staticmethod
+    def _is_unset(value):
+        return value is None or (isinstance(value, float) and math.isnan(value))
+
     def format_value(self, value):
-        """Format a value for the config string, converting None to NaN."""
-        if value is None:
-            return "NaN"
-        # Check if value is NaN (for float type)
-        if isinstance(value, float) and math.isnan(value):
-            return "NaN"
-        return str(value)
+        """Format a value for the config string the device parses."""
+        return self.UNSET_WIRE if self._is_unset(value) else str(value)
+
+    def display_value(self, value):
+        """Format a value for the block of limits shown beside the QR code."""
+        return self.UNSET_DISPLAY if self._is_unset(value) else str(value)
 
     def generate_config_string(self):
         """Generate the configuration string from preferences."""
@@ -135,8 +148,8 @@ class QRConfigDialog(QDialog):
         for stat_name in ['mean_g', 'stdev_g', 'cv_pct', 'min_g', 'max_g', 'pp_g']:
             limits = limits_map.get(stat_name, {'min': None, 'max': None, 'units': ''})
             display_name = display_names.get(stat_name, stat_name)
-            min_val = self.format_value(limits['min'])
-            max_val = self.format_value(limits['max'])
+            min_val = self.display_value(limits['min'])
+            max_val = self.display_value(limits['max'])
             units = limits['units']
             # Left-align name, right-align values with padding, add units
             lines.append(f"{display_name:<{max_name_length}}  {min_val:>8} - {max_val:<8} {units}")
@@ -185,7 +198,7 @@ class QRConfigDialog(QDialog):
             # Show any other error
             error_label = QLabel(f"{_('ERROR_MSGBOX_TITLE')}: {str(e)}")
             error_label.setWordWrap(True)
-            error_label.setStyleSheet("color: red;")
+            theme_qt.set_state(error_label, theme.STATUS_BAD)
             error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.qr_label.setParent(None)
             self.layout().addWidget(error_label)

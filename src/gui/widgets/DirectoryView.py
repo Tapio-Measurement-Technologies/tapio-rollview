@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QFileSystemModel,
     QFileDialog,
+    QHeaderView,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -24,10 +25,14 @@ from gui.widgets.RegexFilterLineEdit import RegexFilterLineEdit
 from utils.file_utils import open_in_file_explorer
 from utils.translation import _
 from gui.widgets.messagebox import show_error_msgbox
+from theme import qt as theme_qt
 import os
 from datetime import datetime
 
 CUSTOM_SORT_FILES_IN_DIRECTORY_LIMIT = 128
+
+# A roll folder is named for when it was measured: "250521-081510".
+ROLL_NAME_CHARACTERS = 13
 
 selection_flags = (
     QItemSelectionModel.SelectionFlag.Clear |
@@ -95,7 +100,18 @@ class DirectoryView(QWidget):
         # Disable expanding tree view items
         self.treeView.setItemsExpandable(False)
         self.treeView.setExpandsOnDoubleClick(False)
-        self.treeView.setColumnWidth(0, 200)
+        # A roll folder is a fixed-format identifier — "250521-081510", thirteen
+        # characters — so the name column is sized from that and the date column
+        # absorbs the slack. Not ResizeToContents: that asks QFileSystemModel how
+        # wide its contents are, and the answer includes rows that are not on
+        # screen plus whatever icon and indentation the platform style reserves,
+        # which on Windows came out far wider than the names it was sizing for.
+        directory_header = theme_qt.style_header(self.treeView.header())
+        directory_header.setStretchLastSection(True)
+        directory_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        self.treeView.setColumnWidth(
+            0, theme_qt.tree_column_width(ROLL_NAME_CHARACTERS, self.treeView)
+        )
 
         # Show only the first and modified date columns
         for i in range(1, self.model.columnCount()):
@@ -105,12 +121,20 @@ class DirectoryView(QWidget):
         self.rollFilterInput = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
         self.rollFilterInput.filter_changed.connect(self.set_roll_filter)
 
+        # Neither of these is the action this panel exists for — picking a roll
+        # is — so both stay tertiary and let the sync button upstairs be the one
+        # primary in the sidebar.
         self.openDirButton = QPushButton(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"))
+        theme_qt.set_variant(self.openDirButton, "ghost")
         self.openDirButton.clicked.connect(self.open_directory_in_file_explorer)
 
         # Create the button
         self.changeDirButton = QPushButton(_("BUTTON_TEXT_CHANGE_DIRECTORY"))
+        theme_qt.set_variant(self.changeDirButton, "ghost")
         self.changeDirButton.clicked.connect(self.change_root_directory)
+
+        theme_qt.pad(layout, 2, 2, 2, 2)
+        theme_qt.gap(layout, 1)
 
         # Add widgets to the layout
         layout.addWidget(self.rollFilterInput)
@@ -619,6 +643,15 @@ class CustomFileSystemModel(QFileSystemModel):
         self.modified_date_cache = {}
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal:
+            # QFileSystemModel answers TextAlignmentRole with a bare
+            # Qt::AlignLeft, and a model's answer overrides the header's
+            # defaultAlignment(). With no vertical flag Qt falls back to
+            # AlignTop, which is why the column headings sat against the top of
+            # their sections however the section itself was sized.
+            if role == Qt.ItemDataRole.TextAlignmentRole:
+                return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             match section:
                 case 0:
@@ -628,6 +661,11 @@ class CustomFileSystemModel(QFileSystemModel):
         return super().headerData(section, orientation, role)
 
     def data(self, index: QModelIndex, role: int):
+        # The roll name is an identifier and the date is a timestamp: both are
+        # scanned down a column rather than read, so both take the mono face.
+        if role == Qt.ItemDataRole.FontRole and index.column() in (0, 3):
+            return theme_qt.mono_font()
+
         if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:
             file_path = self.filePath(index)
             # Check if cached

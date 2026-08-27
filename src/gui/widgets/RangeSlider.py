@@ -46,7 +46,10 @@ class RangeSlider(QtWidgets.QSlider):
         self.low_label.setFixedHeight(22)
         self.low_label.returnPressed.connect(self._on_low_label_changed)
         self.low_label.editingFinished.connect(self._update_low_label_text)
-        self.low_label.setStyleSheet("QLineEdit { background: transparent; border: none; }")
+        # These two sit *inside* the 22 px slider track, so they opt out of the
+        # theme's QLineEdit chrome — border, background and the 12 px padding
+        # that would push the digits out of the box.
+        self.low_label.setStyleSheet("QLineEdit { background: transparent; border: none; padding: 0; }")
 
         self.high_label = QtWidgets.QLineEdit(self)
         self.high_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -54,7 +57,7 @@ class RangeSlider(QtWidgets.QSlider):
         self.high_label.setFixedHeight(22)
         self.high_label.returnPressed.connect(self._on_high_label_changed)
         self.high_label.editingFinished.connect(self._update_high_label_text)
-        self.high_label.setStyleSheet("QLineEdit { background: transparent; border: none; }")
+        self.high_label.setStyleSheet("QLineEdit { background: transparent; border: none; padding: 0; }")
 
         # Ensure minimum height for the slider to accommodate labels
         self.setMinimumHeight(50)

@@ -3,6 +3,7 @@ import re
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QLineEdit
 
+from theme import qt as theme_qt
 from utils.translation import _
 
 
@@ -54,12 +55,7 @@ class RegexFilterLineEdit(QLineEdit):
         self.filter_changed.emit(pattern, compiled_regex)
 
     def _set_error(self, error_text):
-        if error_text:
-            self.setStyleSheet(
-                "QLineEdit { border: 1px solid #c0392b; background-color: #fff6f6; }"
-            )
-            self.setToolTip(_("REGEX_FILTER_INVALID_TOOLTIP").format(error=error_text))
-            return
-
-        self.setStyleSheet("")
-        self.setToolTip("")
+        theme_qt.set_invalid(self, bool(error_text))
+        self.setToolTip(
+            _("REGEX_FILTER_INVALID_TOOLTIP").format(error=error_text) if error_text else ""
+        )

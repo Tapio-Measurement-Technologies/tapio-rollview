@@ -7,6 +7,7 @@ import os
 from PySide6.QtCore import QDir
 
 import settings
+from theme import tokens as theme_tokens
 from utils.highlighted_regions import (
     normalize_distance_highlight_regions,
     normalize_hardness_highlight_regions,
@@ -56,6 +57,7 @@ _DEFAULTS = {
     'default_y_axis_scaling': settings.Y_AXIS_SCALING_DEFAULT,
     'band_pass_low': settings.BAND_PASS_LOW_DEFAULT,
     'band_pass_high': settings.BAND_PASS_HIGH_DEFAULT,
+    'ui_theme': settings.UI_THEME_DEFAULT,
 }
 
 # Type converters for loading from JSON (for special types like sets)
@@ -253,6 +255,8 @@ def _coerce_preference_value(key, value):
         return _coerce_float(value, default)
     if key == 'band_pass_high':
         return _coerce_band_pass_high(value, default)
+    if key == 'ui_theme':
+        return _coerce_choice(value, theme_tokens.CHOICES, default)
     if key == 'alert_limits':
         return _normalize_alert_limits(value)
     if key == 'distance_highlight_regions':
@@ -353,6 +357,7 @@ y_lim_high_override = _default_value('y_lim_high_override')
 default_y_axis_scaling = _default_value('default_y_axis_scaling')
 band_pass_low = _default_value('band_pass_low')
 band_pass_high = _default_value('band_pass_high')
+ui_theme = _default_value('ui_theme')
 
 
 def get_preferences_file_path():

@@ -2,6 +2,8 @@ from PySide6.QtWidgets import QListView, QWidget, QPushButton, QVBoxLayout, QLab
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
 from gui.widgets.EmptyStateView import draw_empty_view_text
+from theme import qt as theme_qt
+from theme.widgets import SectionLabel
 from models.SerialPort import SerialPortModel, SerialPortItem, list_ports_common
 from gui.filetransferdialog import FileTransferDialog
 from workers.file_transfer import FileTransferManager
@@ -97,22 +99,27 @@ class SerialWidget(QWidget):
         # Create the COM Ports TreeView
         self.view = SerialPortView()
 
-        self.label = QLabel(_("SERIAL_DEVICE_LIST_TITLE"))
+        self.label = SectionLabel(_("SERIAL_DEVICE_LIST_TITLE"))
 
         self.scanButton = QPushButton(_("SERIAL_SCAN_BUTTON_TEXT"))
         self.scanButton.clicked.connect(self.scan_devices)
 
+        # One primary per view: pulling the measurements off the device is the
+        # action this panel exists for. Scanning is how you get there.
         self.syncButton = QPushButton(_("SERIAL_SYNC_BUTTON_TEXT"))
+        theme_qt.set_variant(self.syncButton, "primary")
         self.syncButton.clicked.connect(self.sync_data)
         self.syncButton.setEnabled(False)
 
         self.transferManager = transfer_manager
-        self.transferDialog = FileTransferDialog(self.transferManager)
+        self.transferDialog = FileTransferDialog(self.transferManager, self)
 
         self.scanner = PortScanner(self)
 
         # Arrange the tree view and button in a vertical layout
         layout = QVBoxLayout(self)
+        theme_qt.pad(layout, 2, 2, 2, 2)
+        theme_qt.gap(layout, 1)
         layout.addWidget(self.label)
         layout.addWidget(self.view)
         layout.addWidget(self.scanButton)
