@@ -916,18 +916,6 @@ msgstr "Device {device} disconnected"
 msgid "SYNC_LIST_SKIPPED_WARNING"
 msgstr "Device listing skipped {count} unreadable file(s)"
 
-#. Advanced settings section heading for device sync options.
-msgid "SECTION_HEADING_DEVICE_SYNC"
-msgstr "Device sync"
-
-#. Checkbox label for the periodic sync check; followed by an interval spin box.
-msgid "PERIODIC_SYNC_ENABLED"
-msgstr "Check connected devices for new files every"
-
-
-#. Minutes unit suffix in the periodic sync interval spin box.
-msgid "UNIT_MINUTES"
-msgstr "min"
 
 #. Sync error: serial transport failed (device unplugged etc.).
 msgid "SYNC_ERROR_TRANSPORT"

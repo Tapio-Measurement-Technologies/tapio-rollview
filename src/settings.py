@@ -152,9 +152,6 @@ RQFT_WINDOW = 8
 # bypassing the firmware version gate. CLI only (rollview --force-rqft),
 # and ignored in frozen (PyInstaller) builds.
 FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
-PERIODIC_SYNC_ENABLED_DEFAULT = False
-PERIODIC_SYNC_INTERVAL_MINUTES_DEFAULT = 15
-PERIODIC_SYNC_INTERVAL_MINUTES_MAX = 1440
 # Rollview removes measurement files from the device once it holds verified
 # copies; the device never deletes on its own. How much of the card survives is
 # the device's own "preserved folders" setting, which it enforces by refusing

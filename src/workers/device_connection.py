@@ -22,7 +22,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, Signal
 
 import settings
 import store
@@ -801,9 +801,6 @@ class DeviceConnectionManager(QObject):
         self.identities: dict[str, DeviceIdentity] = {}
         self._manually_disconnected: set[str] = set()
         self._transfer_manager = None
-        self._periodic_timer = QTimer(self)
-        self._periodic_timer.timeout.connect(self._on_periodic_timeout)
-        self.apply_settings()
 
     def set_transfer_manager(self, transfer_manager):
         self._transfer_manager = transfer_manager
@@ -920,23 +917,6 @@ class DeviceConnectionManager(QObject):
 
     def _on_connection_lost(self, port: str, reason: str):
         self.connectionLost.emit(port, reason)
-
-    # -- periodic sync -------------------------------------------------
-
-    def apply_settings(self):
-        """(Re)start the periodic sync timer from current preferences."""
-        if preferences.periodic_sync_enabled:
-            interval_ms = preferences.periodic_sync_interval_minutes * 60 * 1000
-            self._periodic_timer.start(interval_ms)
-        else:
-            self._periodic_timer.stop()
-
-    def _on_periodic_timeout(self):
-        if self._transfer_manager is None:
-            return
-        for port, state in self._states.items():
-            if state is ConnectionState.CONNECTED:
-                self._transfer_manager.request_auto_sync(port)
 
     # -- shutdown ------------------------------------------------------
 

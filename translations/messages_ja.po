@@ -916,18 +916,6 @@ msgstr "デバイス {device} が切断されました"
 msgid "SYNC_LIST_SKIPPED_WARNING"
 msgstr "デバイスのファイル一覧で読み取れないファイルを {count} 件スキップしました"
 
-#. Advanced settings section heading for device sync options.
-msgid "SECTION_HEADING_DEVICE_SYNC"
-msgstr "デバイス同期"
-
-#. Checkbox label for the periodic sync check; followed by an interval spin box.
-msgid "PERIODIC_SYNC_ENABLED"
-msgstr "接続中のデバイスの新しいファイルを確認する間隔"
-
-
-#. Minutes unit suffix in the periodic sync interval spin box.
-msgid "UNIT_MINUTES"
-msgstr "分"
 
 #. Sync error: serial transport failed (device unplugged etc.).
 msgid "SYNC_ERROR_TRANSPORT"
