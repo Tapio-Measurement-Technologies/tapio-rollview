@@ -128,7 +128,6 @@ class SerialWidget(QWidget):
         self.transferManager = transfer_manager
         self.connectionManager = connection_manager
         self.transferDialog = FileTransferDialog(self.transferManager)
-        self._open_prompts = {}
         # Full syncs ask here before removing anything from a device.
         self.transferManager.delete_decision_provider = self._ask_delete_after_sync
 
@@ -153,8 +152,6 @@ class SerialWidget(QWidget):
             self.view.connect_requested.connect(self.connectionManager.manual_connect)
             self.view.disconnect_requested.connect(self.connectionManager.manual_disconnect)
             self.connectionManager.connectionStateChanged.connect(self.view.model.refreshStates)
-            self.connectionManager.syncPromptRequested.connect(self._show_sync_prompt)
-            self.connectionManager.syncPromptDismissRequested.connect(self._dismiss_sync_prompt)
 
     def on_port_selected(self, current, previous):
         if not current.isValid():
@@ -233,45 +230,6 @@ class SerialWidget(QWidget):
         if nfiles > 0 and not self.transferDialog.isVisible():
             self._set_dialog_title(port)
             self.transferDialog.show()
-
-    def _show_sync_prompt(self, port, label):
-        """Sync-on-connect confirmation; non-modal so a doorbell or a
-        disconnect can dismiss it programmatically."""
-        if port in self._open_prompts:
-            return
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Question)
-        box.setWindowTitle(_("SYNC_CONFIRM_TITLE"))
-        box.setText(_("SYNC_CONFIRM_TEXT").format(device=label))
-        box.setStandardButtons(
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        box.setWindowModality(Qt.WindowModality.NonModal)
-        box.finished.connect(
-            lambda result, port=port: self._on_sync_prompt_finished(port, result)
-        )
-        self._open_prompts[port] = box
-        box.show()
-
-    def _dismiss_sync_prompt(self, port):
-        box = self._open_prompts.pop(port, None)
-        if box is not None:
-            box.close()
-
-    def _on_sync_prompt_finished(self, port, result):
-        self._open_prompts.pop(port, None)
-        if result != QMessageBox.StandardButton.Yes:
-            return
-        if self.transferManager.is_transfer_in_progress():
-            self.transferManager.request_auto_sync(port)
-            return
-        # Dialog opens from _on_sync_batch_started when there are files.
-        self.transferManager.start_transfer(
-            port,
-            store.root_directory,
-            self.transferDialog.on_complete,
-            supports_rqft=True,
-        )
 
     def _on_transfer_started(self):
         self.syncButton.setEnabled(False)

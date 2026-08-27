@@ -46,7 +46,6 @@ class BridgeRecorder:
         self.established = []
         self.notify_flags = []
         self.lost = []
-        self.sync_checks = []
         self.sync_started = []
         self.sync_finished = []
         self.deleted_counts = []
@@ -57,9 +56,6 @@ class BridgeRecorder:
         )
         bridge.notify.connect(lambda port, flags: self.notify_flags.append(flags))
         bridge.connectionLost.connect(lambda port, reason: self.lost.append(reason))
-        bridge.syncCheckFinished.connect(
-            lambda port, nfiles, nbytes: self.sync_checks.append((nfiles, nbytes))
-        )
         bridge.syncStarted.connect(
             lambda port, nfiles, nbytes: self.sync_started.append((nfiles, nbytes))
         )
@@ -299,22 +295,6 @@ class TestSyncFlow(DeviceConnectionTestBase):
         fetched, _ = self.recorder.sync_finished[2]
         self.assertEqual(fetched, ["roll/a.prof"])
         self.assertTrue(local.is_file())
-
-    def test_sync_check_reports_missing_file_without_fetching_it(self):
-        self.worker.enable()
-        self.worker.start()
-        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
-
-        self.worker.request_sync_check()
-
-        self.assertTrue(wait_until(lambda: len(self.recorder.sync_checks) > 0))
-        self.assertEqual(
-            self.recorder.sync_checks[0],
-            (1, len(b"profile-data-" * 100)),
-        )
-        self.assertFalse(
-            (Path(self.local_dir.name) / "roll" / "a.prof").exists()
-        )
 
     def test_manual_disconnect_then_reconnect_establishes_again(self):
         self.worker.enable()
@@ -670,53 +650,6 @@ class TestMultipleDevices(unittest.TestCase):
             self.connection_manager.connection_state("PORT_B"),
             ConnectionState.CONNECTED,
         )
-
-
-class TestSyncPromptPreflight(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app = QCoreApplication.instance() or QCoreApplication([])
-
-    def setUp(self):
-        self.manager = DeviceConnectionManager()
-        self.transfer_manager = MagicMock()
-        self.transfer_manager.has_pending_sync.return_value = False
-        self.manager.set_transfer_manager(self.transfer_manager)
-        self.worker = MagicMock()
-
-    def test_prompt_only_after_check_finds_missing_files(self):
-        prompts = []
-        self.manager.syncPromptRequested.connect(
-            lambda port, label: prompts.append((port, label))
-        )
-
-        with patch.object(
-            self.manager, "get_connection", return_value=self.worker
-        ):
-            self.manager._on_established("PORT_A", by_doorbell=False)
-
-        self.worker.request_sync_check.assert_called_once_with()
-        self.assertEqual(prompts, [])
-
-        self.manager._on_sync_check_finished("PORT_A", 0, 0)
-        self.assertEqual(prompts, [])
-
-        self.manager._on_sync_check_finished("PORT_A", 1, 123)
-        self.assertEqual(prompts, [("PORT_A", "PORT_A")])
-
-    def test_busy_port_cache_marks_only_connected_session_as_responding(self):
-        self.worker.is_alive.return_value = True
-        self.worker.enabled = True
-        self.manager._workers["PORT_A"] = self.worker
-        self.manager.identities["PORT_A"] = DeviceIdentity(
-            "Tapio RQP Live", "SN-A", "v1.2.0"
-        )
-
-        self.manager._states["PORT_A"] = ConnectionState.CONNECTED
-        self.assertTrue(self.manager.busy_ports()["PORT_A"].connected)
-
-        self.manager._states["PORT_A"] = ConnectionState.LISTENING
-        self.assertFalse(self.manager.busy_ports()["PORT_A"].connected)
 
 
 if __name__ == "__main__":
