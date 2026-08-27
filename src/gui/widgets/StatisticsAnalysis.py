@@ -173,19 +173,35 @@ class StatisticsAnalysisChart(QWidget):
         # and the line disappeared wherever it crossed a failing bar. A limit is
         # a reference rather than data, so it takes the one colour guaranteed to
         # separate from every fill on the panel in both themes.
-        limit_line = t.color("ink")
+        # The line keeps the limit red and goes *behind* the bars. Colour was
+        # the wrong lever: on top it either fought the red bars it crossed or,
+        # in a colour loud enough to win, out-shouted the data it was there to
+        # judge. A limit belongs on the ground the data stands on — clearly
+        # visible across the background, occluded by whatever crosses it, which
+        # is also the moment the bar's own colour has already said so.
+        limit_line = tapio_mpl.limit_line_color(t)
+        # The value rides at the right edge, where a tall bar can sit under it,
+        # so it carries a chip of the chart surface to stay readable. No border:
+        # it is a label, not a callout.
+        chip = dict(boxstyle="square,pad=0.15", facecolor=t.chart("surface"),
+                    edgecolor="none")
         for value, side in ((limit_low, "down"), (limit_high, "up")):
             if value is None:
                 continue
+            # The wash and the line are both ground, not data: they sit above
+            # the gridlines and below every bar, so a bar reading its own status
+            # in its own colour is never competing with either.
+            tapio_mpl.limit_wash(self.ax, value, side, tapio_mpl.band_color(t),
+                                 hatch_color=limit_line)
             self.ax.axhline(y=value, color=limit_line,
-                            linewidth=tapio_mpl.LIMIT_WIDTH, zorder=5)
+                            linewidth=tapio_mpl.LIMIT_WIDTH, zorder=1)
             self.ax.annotate(
                 f"{value:g}",
                 xy=(1.0, value), xycoords=self.ax.get_yaxis_transform(),
                 xytext=(-5, 4 if side == "up" else -4), textcoords="offset points",
                 va="bottom" if side == "up" else "top", ha="right",
                 fontsize=t.font_size("eyebrow"), family="monospace",
-                color=limit_line, zorder=6,
+                color=limit_line, zorder=6, bbox=chip,
             )
 
         # Get the selected statistic name for y-axis label
