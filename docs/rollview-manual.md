@@ -52,7 +52,9 @@ cd tapio-rollview
 - The default working directory can be changed by providing the software with custom settings.
 
 ## Synchronization
-- On sync, the contents of the device SD card are synchronized to the computer using the ZMODEM protocol over serial connection.
+- Measurement profiles are copied from the device over the RQFT protocol on a serial connection. Devices with firmware older than v1.2.0 fall back to ZMODEM.
+- A sync copies whatever the working directory is missing, then removes what it has verified from the device. The device keeps the newest folders its own **Preserved folders** setting names, and refuses those deletions.
+- The device decides when an automatic sync happens, from its **Auto sync** and **Auto sync delay** settings. Pressing **Sync data** here syncs immediately, whatever those are set to.
 
 ## Statistics
 The displayed statistics are based on the mean profile (calculated as the mean of multiple measured profiles in the same folder).
