@@ -207,7 +207,7 @@ class DeviceConnectionWorker(threading.Thread):
         """Queue a sync; connects first when needed. Results arrive as
         syncFinished/syncFailed bridge signals. Every sync removes what it
         has verified from the device; how much of the card survives is the
-        device's own preserved-folders setting, which it enforces by
+        device's own folders-to-keep setting, which it enforces by
         refusing the deletes that would break it."""
         self._cancel.clear()
         self._queue.put(_Op("sync", auto=auto))
@@ -598,7 +598,7 @@ class DeviceConnectionWorker(threading.Thread):
 
         Everything this sync leaves CRC-verified in the mirror is then
         removed from the device. What survives is the device's own
-        preserved-folders setting: it refuses those deletes, and a refusal
+        folders-to-keep setting: it refuses those deletes, and a refusal
         is not a failure.
         """
         missing, total_bytes, mirrored, list_complete = self._build_sync_plan()
@@ -689,7 +689,7 @@ class DeviceConnectionWorker(threading.Thread):
             # copies and the next sync retries.
             return 0
         deleted = 0
-        preserved = 0
+        kept = 0
         failed = 0
         for path, is_dir in [(f, True) for f in folders] + [(f, False) for f in files]:
             self._session.request_del(path, is_dir=is_dir, now_ms=self._driver.now_ms())
@@ -704,7 +704,7 @@ class DeviceConnectionWorker(threading.Thread):
             except _OperationFailed as e:
                 if e.event.code == ErrCode.E_DENIED:
                     # The device is keeping this one; not a problem.
-                    preserved += 1
+                    kept += 1
                 else:
                     log.warning(f"Sync {self.port}: could not remove {path}: {e}")
                     failed += 1
@@ -717,8 +717,8 @@ class DeviceConnectionWorker(threading.Thread):
             deleted += 1
         if deleted:
             log.info(f"Sync {self.port}: removed {deleted} synced entries from the device")
-        if preserved:
-            log.info(f"Sync {self.port}: device kept {preserved} entries it preserves")
+        if kept:
+            log.info(f"Sync {self.port}: device kept {kept} entries it was told to keep")
         if failed:
             log.warning(
                 f"Sync {self.port}: {failed} entries could not be removed from the device"
