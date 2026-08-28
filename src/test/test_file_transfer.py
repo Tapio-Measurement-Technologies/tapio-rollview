@@ -4,8 +4,6 @@ from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QCoreApplication
 
-from gui.filetransferdialog import FileTransferDialog
-from models.FileTransfer import FileTransferItem
 from workers.device_connection import ConnectionBridge, SyncError
 from workers.file_transfer import FileTransferManager
 
@@ -29,24 +27,6 @@ class TestFileTransferManager(unittest.TestCase):
             manager.start_transfer("COM1", "C:/rolls", MagicMock())
 
         self.assertEqual(manager.synced_folders, [])
-
-
-class TestFileTransferDialogProgress(unittest.TestCase):
-    def test_total_progress_includes_current_file(self):
-        dialog = MagicMock()
-        dialog.manager.model.getTotalFileCount.return_value = 4
-
-        dialog.manager.model.getLatestItem.return_value = FileTransferItem(
-            "first.prof", 4
-        )
-        FileTransferDialog.update_progress(dialog)
-        dialog.total_progress_bar.setValue.assert_called_with(25)
-
-        dialog.manager.model.getLatestItem.return_value = FileTransferItem(
-            "last.prof", 1
-        )
-        FileTransferDialog.update_progress(dialog)
-        dialog.total_progress_bar.setValue.assert_called_with(100)
 
 
 class TestRqftRouting(unittest.TestCase):

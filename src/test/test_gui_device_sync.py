@@ -41,14 +41,12 @@ def wired_window(main_window, device):
         yield main_window
 
 
-def test_dialogs_are_parented_to_the_window(main_window):
-    """A parentless QDialog floats behind its window and gets its own taskbar entry.
+def test_the_postprocess_manager_is_parented_to_the_window(main_window):
+    """A parentless QObject is one Qt never reclaims.
 
-    Both of these used to be constructed without a parent, which also meant Qt
-    never reclaimed them; --leakcheck is the other half of this guarantee.
+    --leakcheck is the other half of this guarantee. The transfer and progress
+    dialogs this used to cover are gone: both report into the status bar now.
     """
-    serial_widget = main_window.serial_widget
-    assert serial_widget.transferDialog.parent() is serial_widget
     assert main_window.postprocess_manager.parent() is main_window
 
 
@@ -82,7 +80,7 @@ def test_sync_pulls_profiles_over_zmodem(wired_window, device, qtbot, tmp_path, 
     ):
         serial_widget.sync_data()
 
-    snap(serial_widget.transferDialog, "transfer-dialog")
+    snap(wired_window, "after-sync")
 
     assert device.errors == []
     assert sorted(device.files_sent) == [

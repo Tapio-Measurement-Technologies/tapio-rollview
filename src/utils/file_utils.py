@@ -5,6 +5,15 @@ from PySide6.QtCore import QDir
 from gui.widgets.messagebox import show_error_msgbox
 from utils.translation import _
 
+def format_bytes(size_bytes):
+    """A byte count in the largest unit that keeps it a small number."""
+    if size_bytes > 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.2f} {_('UNIT_MB')}"
+    if size_bytes > 1024:
+        return f"{size_bytes / 1024:.2f} {_('UNIT_KB')}"
+    return f"{size_bytes} {_('UNIT_BYTES')}"
+
+
 def open_in_file_explorer(folder_path, selected_path=None):
     try:
         # Validate that folder_path exists
