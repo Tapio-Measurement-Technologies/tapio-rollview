@@ -363,6 +363,54 @@ class TestStateReachesTheChildren(ThemeRestoringTestCase):
         )
 
 
+class TestStatTileFooter(ThemeRestoringTestCase):
+    """The limit line is the first thing on a tile asked to give up width.
+
+    Seven tiles across one row leave it about a dozen characters, and a bound
+    that elides to "≤ 5…" states nothing at all, so it is set a step below the
+    rest of the tile.
+    """
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    def test_the_limit_line_is_set_a_step_below_the_value(self):
+        from gui.widgets.stats import MaxWidget
+
+        tile = MaxWidget([1.0, 2.0], limit={'name': 'max_g', 'min': 1.0, 'max': 5.0})
+        self.addCleanup(destroy, tile)
+        tile.show()
+
+        tokens = theme_qt.tokens()
+        self.assertEqual(
+            tile.foot_label.min_chunk.font().pixelSize(), tokens.font_size("eyebrow")
+        )
+        self.assertLess(
+            tile.foot_label.min_chunk.font().pixelSize(),
+            tile.value_label.font().pixelSize(),
+        )
+
+    def test_a_two_sided_limit_is_not_cut_short_at_a_row_width(self):
+        """Seven tiles across a 900 px row is what the tiles actually get.
+
+        Both bounds have to be readable there; a footer that elides at the
+        width the row hands out is a footer that elides all the time.
+        """
+        from PySide6.QtWidgets import QLabel
+        from gui.widgets.stats import MaxWidget
+
+        tile = MaxWidget([1.0, 2.0], limit={'name': 'max_g', 'min': 10.0, 'max': 22.0})
+        self.addCleanup(destroy, tile)
+        tile.resize(128, tile.sizeHint().height())
+        tile.show()
+        tile.foot_label.adjustSize()
+
+        for chunk in (tile.foot_label.min_chunk, tile.foot_label.max_chunk):
+            # ElidedLabel keeps the full string; QLabel holds what is painted.
+            self.assertEqual(QLabel.text(chunk), chunk.text())
+
+
 class TestComboBoxPopup(ThemeRestoringTestCase):
     """A drop-down opens below its field and scrolls like a list.
 

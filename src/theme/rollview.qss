@@ -175,6 +175,15 @@ QWidget#statTile:hover {
     border-color: ${border_strong};
 }
 
+/* The limit line is the smallest thing on the tile and the first to be asked
+   to give up width: seven tiles across one row leave it about a dozen
+   characters, and a bound that elides to "≤ 5…" states nothing. It takes the
+   eyebrow's size without the eyebrow's mono and tracking — this is a number to
+   read, not a heading. */
+QWidget#limitFooter QLabel {
+    font-size: ${eyebrow}px;
+}
+
 /* The tile is the alarm; the footer says which end of the range the value
    left. The breached bound takes a chip of the tile's own resting surface and
    the system's one emphasis weight — the same red as everything else in a
