@@ -195,8 +195,8 @@ class MainWindow(QMainWindow):
         activity_layout = QHBoxLayout(activity_group)
         theme_qt.pad(activity_layout, 0)
         theme_qt.gap(activity_layout, 1)
-        activity_layout.addWidget(self.activity_stop_button)
         activity_layout.addWidget(self.activity_progress_bar)
+        activity_layout.addWidget(self.activity_stop_button)
         self.activity_progress_bar.setVisible(False)
         self.status_bar.addPermanentWidget(activity_group)
 
@@ -230,12 +230,16 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(hor_splitter)
         self.init_menu()
 
-        # Scan devices on startup
-        self.serial_widget.scan_devices()
+        # Wired before the scan, not after: the startup scan announces itself
+        # the moment it starts, and a scan whose start nobody heard put a
+        # moving bar in the row with no way to stop it.
         self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
         self.serial_widget.scan_started.connect(self.on_scan_started)
         self.serial_widget.scan_progress.connect(self.on_scan_progress)
         self.serial_widget.scan_finished.connect(self.on_scan_finished)
+
+        # Scan devices on startup
+        self.serial_widget.scan_devices()
 
         # Run postprocessors when file transfer is finished
         self.file_transfer_manager.transferStarted.connect(self.on_file_transfer_started)
@@ -277,10 +281,14 @@ class MainWindow(QMainWindow):
         self.activity_stop_button.setVisible(cancel is not None)
         self.activity_progress_bar.setValue(0)
         self.activity_progress_bar.setVisible(True)
+        self.activity_stop_button.setToolTip(_("BUTTON_TEXT_STOP"))
         self.set_status_message(message)
 
     def update_activity(self, value, message=None):
-        self.activity_progress_bar.setVisible(True)
+        # Deliberately does not raise the bar: start_activity is the only thing
+        # that does, and it is the only thing that takes a way to stop the work.
+        # That keeps "a bar is moving" and "there is a square to press" from
+        # ever coming apart.
         self.activity_progress_bar.setValue(max(0, min(100, int(value))))
         if message:
             self.set_status_message(message)

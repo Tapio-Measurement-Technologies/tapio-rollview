@@ -273,12 +273,12 @@ QPushButton[variant="danger"] {
 QPushButton[variant="danger"]:hover   { background-color: ${bad_soft}; }
 QPushButton[variant="danger"]:pressed { background-color: ${bad_soft}; border-color: ${bad_mark}; }
 
-/* The status bar's stop square. No fill and no border at rest — the bar
-   beside it is the thing being looked at — and the accent wash on hover that
-   every other pressable glyph in the window gets. */
+/* The status bar's stop square: the row's one pressable thing, so it carries
+   the same ground and edge every other button in the window does, at the size
+   the row has room for. */
 QPushButton#activityStop {
-    background: transparent;
-    border: 1px solid transparent;
+    background-color: ${surface};
+    border: 1px solid ${border_strong};
     border-radius: ${r_sm}px;
     padding: 0;
     min-height: 0;
@@ -289,9 +289,18 @@ QPushButton#activityStop:hover {
     border-color: ${accent};
 }
 
+QPushButton#activityStop:pressed {
+    background-color: ${accent_soft_pressed};
+    border-color: ${accent};
+}
+
+QPushButton#activityStop:focus {
+    border: 2px solid ${focus};
+}
+
 QPushButton#activityStop:disabled {
-    background: transparent;
-    border-color: transparent;
+    background-color: ${sunken};
+    border-color: ${border};
 }
 
 /* ---------- inputs -------------------------------------------------------- */
