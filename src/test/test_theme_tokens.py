@@ -363,6 +363,70 @@ class TestStateReachesTheChildren(ThemeRestoringTestCase):
         )
 
 
+class TestAlertLimitEditorStyling(ThemeRestoringTestCase):
+    """A dialog opened from a failing tile is not itself an alarm.
+
+    The sheet paints a failing tile's labels red through an ancestor selector,
+    and Qt resolves those selectors down the parent chain — through a dialog
+    parented to the tile as readily as through the tile's own layout. That put
+    "Lower" and "Upper" in alarm red in a dialog whose job is to edit a number.
+    """
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    def test_the_editor_does_not_inherit_the_tiles_alarm(self):
+        from unittest.mock import patch
+
+        from PySide6.QtWidgets import QDialog
+        from gui.widgets.AlertLimitEditor import AlertLimitEditor
+        from gui.widgets.stats import MaxWidget
+
+        window = QWidget()
+        layout = QVBoxLayout(window)
+        tile = MaxWidget([1.0, 2.0], limit={'name': 'max_g', 'min': None, 'max': 0.5})
+        layout.addWidget(tile)
+        self.addCleanup(destroy, window)
+        window.show()
+
+        self.assertEqual(tile.property("state"), theme.STATUS_BAD)
+
+        opened = []
+
+        def capture(dialog):
+            opened.append(dialog)
+            return QDialog.DialogCode.Rejected
+
+        with patch.object(AlertLimitEditor, "exec", capture):
+            tile.open_alert_limit_editor()
+
+        editor = opened[0]
+        self.addCleanup(destroy, editor)
+        editor.show()
+
+        bad = theme_qt.tokens().color("bad").upper()
+        field_labels = [
+            label for label in editor.findChildren(QLabel)
+            if label.text() and label is not editor.error_label
+        ]
+        self.assertTrue(field_labels)
+        for label in field_labels:
+            with self.subTest(label=label.text()):
+                self.assertNotEqual(
+                    label.palette().color(QPalette.ColorRole.WindowText).name().upper(),
+                    bad,
+                )
+
+        # The one label that *is* an alarm keeps its colour, since it carries
+        # the state itself rather than inheriting it.
+        editor.error_label.show()
+        self.assertEqual(
+            editor.error_label.palette().color(QPalette.ColorRole.WindowText).name().upper(),
+            bad,
+        )
+
+
 class TestStatTileFooter(ThemeRestoringTestCase):
     """The limit line is the first thing on a tile asked to give up width.
 

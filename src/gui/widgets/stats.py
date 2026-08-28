@@ -403,7 +403,12 @@ class StatWidget(QWidget):
         # Find the stat name from the function
         stat_name = getattr(self.func, 'name', None)
         if stat_name:
-            editor = AlertLimitEditor(stat_name, self.limit, self)
+            # Parented to the window, not to this tile. The sheet paints a
+            # failing tile's labels red through an ancestor selector, and a
+            # dialog parented to the tile is inside that ancestor — which put
+            # "Lower" and "Upper" in alarm red in a dialog that is not an
+            # alarm. A dialog is a window; it belongs to the window.
+            editor = AlertLimitEditor(stat_name, self.limit, self.window())
             if editor.exec() == AlertLimitEditor.DialogCode.Accepted:
                 # Reload preferences and update the limit
                 self.limit = next((limit for limit in preferences.alert_limits if limit['name'] == stat_name), None)
