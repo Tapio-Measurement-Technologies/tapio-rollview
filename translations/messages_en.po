@@ -15,15 +15,6 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
-#. Used in file transfer dialog as window or dialog title and window title.
-msgid "FILE_TRANSFER_DIALOG_TITLE"
-msgstr "File Transfer Progress"
-
-#. Used in file transfer dialog and progress dialog as runtime status text and label
-#. text.
-msgid "PROGRESS_DIALOG_STARTING"
-msgstr "Starting..."
-
 #. Used in loading widget as loading label and label text.
 msgid "LOADING"
 msgstr "Loading..."
@@ -36,14 +27,6 @@ msgstr "Cancel"
 #. Used in statistics analysis view as button label.
 msgid "BUTTON_TEXT_REFRESH"
 msgstr "Refresh"
-
-#. Used in file transfer dialog as message text and runtime status text.
-msgid "FILE_TRANSFER_DIALOG_RECEIVING"
-msgstr "Receiving file"
-
-#. Used in file transfer dialog as group box title.
-msgid "TOTAL_PROGRESS"
-msgstr "Total progress"
 
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_FILE"
@@ -278,10 +261,6 @@ msgstr "No folders in selected directory"
 msgid "PROFILE_EMPTY_STATE_NO_PROFILES"
 msgstr "No profiles in selected folder"
 
-#. Used in progress dialog as window or dialog title and window title.
-msgid "PROGRESS_DIALOG_TITLE"
-msgstr "Progress"
-
 #. Used in QR config dialog, crash dialog, and progress dialog as button label and
 #. runtime status text.
 msgid "BUTTON_TEXT_CLOSE"
@@ -451,23 +430,49 @@ msgstr "P-p"
 msgid "ALERT_LIMIT_SLOPE"
 msgstr "Slope"
 
-#. Used in postprocessing progress flow as message text and postprocessing progress
-#. text.
-msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
-msgstr "Running postprocessors"
-
-#. Used in postprocessing progress flow as message text and postprocessing progress
-#. text.
-msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
-msgstr "Finished"
-
 #. Used in main window as message text.
 msgid "POSTPROCESSORS_ERROR_TEXT"
 msgstr "Postprocessing failed for {count} folder(s)."
 
-#. Used in main window as message text.
-msgid "POSTPROCESSORS_FINISHED_TEXT"
-msgstr "Postprocessing complete."
+#. Status bar: the device has said how much it is about to send.
+msgid "SYNC_BATCH_STATUS"
+msgstr "Receiving {count} files ({size})"
+
+#. Status bar: a file is arriving, before its byte count is known.
+msgid "SYNC_RECEIVING_STATUS"
+msgstr "Receiving {number} / {total} · {filename}"
+
+#. Status bar: a file is arriving, with how much of it has landed.
+msgid "SYNC_RECEIVING_BYTES_STATUS"
+msgstr "Receiving {number} / {total} · {filename} · {done} / {size}"
+
+#. Status bar: what a finished sync brought in.
+msgid "SYNC_FINISHED_STATUS"
+msgstr "Synced {files} profiles into {folders} rolls"
+
+#. Status bar: the postprocessors have started over this many folders.
+msgid "POSTPROCESSORS_RUNNING_STATUS"
+msgstr "Running postprocessors on {count} folders"
+
+#. Status bar: which postprocessor is running on which folder.
+msgid "POSTPROCESSORS_RUNNING_ITEM_STATUS"
+msgstr "{postprocessor} · {folder}"
+
+#. Status bar: what a finished postprocessor run covered.
+msgid "POSTPROCESSORS_FINISHED_STATUS"
+msgstr "Postprocessors finished on {count} folders"
+
+#. Status bar: the operator stopped the postprocessors part way.
+msgid "POSTPROCESSORS_CANCELLED_STATUS"
+msgstr "Postprocessing cancelled"
+
+#. Title of the dialog raised when a postprocessor failed on some folders.
+msgid "POSTPROCESSORS_FAILED_TITLE"
+msgstr "Postprocessing failed"
+
+#. Body of that dialog; the folder names follow it.
+msgid "POSTPROCESSORS_FAILED_TEXT"
+msgstr "A postprocessor failed on {count} folders. Their exports are missing or incomplete:"
 
 #. Used in port scanner worker as message text and scan progress text.
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
@@ -532,15 +537,6 @@ msgstr "Language settings will be applied after restart!"
 #. Used in progress dialog as button label and runtime status text.
 msgid "BUTTON_TEXT_CANCELLING"
 msgstr "Cancelling..."
-
-#. Used in postprocessing progress flow as message text and postprocessing progress
-#. text.
-msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
-msgstr "Processing cancelled."
-
-#. Used in main window as message text and status bar message.
-msgid "FILE_TRANSFER_FINISHED"
-msgstr "File transfer finished!"
 
 #. Used in profile chart as message text and status tip.
 msgid "CHART_STATUS_TIP_TEXT"

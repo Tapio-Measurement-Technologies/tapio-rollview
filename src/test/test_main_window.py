@@ -261,6 +261,93 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
             run.assert_not_called()
 
+    def test_the_status_bar_carries_the_work_and_then_the_outcome(self):
+        """One area, three kinds of work, and a summary that outlives the bar."""
+        cancelled = []
+        self.window.start_activity("Scanning", cancel=lambda: cancelled.append(True))
+
+        self.assertTrue(self.window.activity_progress_bar.isVisibleTo(self.window))
+        self.assertTrue(self.window.activity_cancel_button.isVisibleTo(self.window))
+        self.assertEqual(self.window.status_bar.currentMessage(), "Scanning")
+
+        self.window.update_activity(40, "Half way")
+        self.assertEqual(self.window.activity_progress_bar.value(), 40)
+
+        self.window.activity_cancel_button.click()
+        self.assertEqual(cancelled, [True])
+        self.assertFalse(self.window.activity_cancel_button.isEnabled())
+
+        self.window.finish_activity("Done, 3 rolls")
+        self.assertFalse(self.window.activity_progress_bar.isVisibleTo(self.window))
+        self.assertFalse(self.window.activity_cancel_button.isVisibleTo(self.window))
+        self.assertEqual(self.window.status_bar.currentMessage(), "Done, 3 rolls")
+
+    def test_work_that_cannot_be_stopped_offers_no_cancel(self):
+        self.window.start_activity("Scanning")
+        self.assertFalse(self.window.activity_cancel_button.isVisibleTo(self.window))
+        self.window.finish_activity()
+
+    def test_transfer_progress_counts_the_file_in_flight(self):
+        self.window._transfer_total_files = 4
+        self.window._transfer_file_number = 1
+        self.assertEqual(self.window._transfer_percent(0.0), 0)
+        self.assertEqual(self.window._transfer_percent(0.5), 12)
+        self.window._transfer_file_number = 4
+        self.assertEqual(self.window._transfer_percent(1.0), 100)
+
+    def test_a_finished_sync_says_what_it_brought_in(self):
+        from models.FileTransfer import FileTransferItem
+
+        manager = self.window.file_transfer_manager
+        manager.model.removeItems()
+        for index in range(3):
+            manager.model.addItem(FileTransferItem(f"{index}.prof", 3 - index))
+        manager.last_deleted_count = 0
+
+        # The postprocessors follow a sync; this test is about what the sync
+        # says, and starting a real run here would leave a thread and a failure
+        # dialog behind for whichever test next spins an event loop.
+        with patch.object(self.window.postprocess_manager, "run_postprocessors"):
+            self.window.on_file_transfer_finished(["/rolls/a", "/rolls/b"])
+
+        # Postprocessing starts on the same breath and takes the bar over, so
+        # what the sync did is held and stays in front of it.
+        summary = _("SYNC_FINISHED_STATUS").format(files=3, folders=2)
+        self.assertEqual(self.window._sync_summary, summary)
+        self.assertEqual(self.window.status_bar.currentMessage(), summary)
+
+    def test_a_failed_postprocessor_is_not_left_to_the_status_bar_alone(self):
+        """A roll that silently has no report is worth interrupting for."""
+        from utils.postprocess import PostprocessResult
+
+        self.window.postprocess_manager.was_cancelled = False
+        result = PostprocessResult(
+            processed_folders=["/rolls/a"], failed_folders=["/rolls/b"])
+
+        with patch.object(QMessageBox, "warning") as warning:
+            self.window.on_postprocess_finished(result)
+
+        warning.assert_called_once()
+        self.assertIn(
+            _("POSTPROCESSORS_ERROR_TEXT").format(count=1),
+            self.window.status_bar.currentMessage(),
+        )
+
+    def test_a_clean_postprocessor_run_does_not_interrupt(self):
+        from utils.postprocess import PostprocessResult
+
+        self.window.postprocess_manager.was_cancelled = False
+        result = PostprocessResult(processed_folders=["/rolls/a", "/rolls/b"])
+
+        with patch.object(QMessageBox, "warning") as warning:
+            self.window.on_postprocess_finished(result)
+
+        warning.assert_not_called()
+        self.assertEqual(
+            self.window.status_bar.currentMessage(),
+            _("POSTPROCESSORS_FINISHED_STATUS").format(count=2),
+        )
+
     def test_directory_name_initialized_before_load_settings_file(self):
         self.assertIsNone(self.window.directory_name)
 

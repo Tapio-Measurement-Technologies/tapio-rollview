@@ -15,15 +15,6 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
-#. Used in file transfer dialog as window or dialog title and window title.
-msgid "FILE_TRANSFER_DIALOG_TITLE"
-msgstr "ファイル転送"
-
-#. Used in file transfer dialog and progress dialog as runtime status text and label
-#. text.
-msgid "PROGRESS_DIALOG_STARTING"
-msgstr "転送中"
-
 #. Used in loading widget as loading label and label text.
 msgid "LOADING"
 msgstr "読み込み中..."
@@ -36,14 +27,6 @@ msgstr "キャンセル"
 #. Used in statistics analysis view as button label.
 msgid "BUTTON_TEXT_REFRESH"
 msgstr "更新"
-
-#. Used in file transfer dialog as message text and runtime status text.
-msgid "FILE_TRANSFER_DIALOG_RECEIVING"
-msgstr "受信中"
-
-#. Used in file transfer dialog as group box title.
-msgid "TOTAL_PROGRESS"
-msgstr "実行中"
 
 #. Used in main window as menu label and menu title.
 msgid "MENU_BAR_FILE"
@@ -278,10 +261,6 @@ msgstr "選択したディレクトリにフォルダがありません"
 msgid "PROFILE_EMPTY_STATE_NO_PROFILES"
 msgstr "選択したフォルダにプロファイルがありません"
 
-#. Used in progress dialog as window or dialog title and window title.
-msgid "PROGRESS_DIALOG_TITLE"
-msgstr "実行中"
-
 #. Used in QR config dialog, crash dialog, and progress dialog as button label and
 #. runtime status text.
 msgid "BUTTON_TEXT_CLOSE"
@@ -451,23 +430,49 @@ msgstr "最大最小差"
 msgid "ALERT_LIMIT_SLOPE"
 msgstr "回帰勾配"
 
-#. Used in postprocessing progress flow as message text and postprocessing progress
-#. text.
-msgid "POSTPROCESSORS_DIALOG_RUNNING_TEXT"
-msgstr "処理中"
-
-#. Used in postprocessing progress flow as message text and postprocessing progress
-#. text.
-msgid "POSTPROCESSORS_DIALOG_FINISHED_TEXT"
-msgstr "完了"
-
 #. Used in main window as message text.
 msgid "POSTPROCESSORS_ERROR_TEXT"
 msgstr "{count} 個のフォルダでデータ処理に失敗しました。"
 
-#. Used in main window as message text.
-msgid "POSTPROCESSORS_FINISHED_TEXT"
-msgstr "ポストプロセスが完了しました。"
+#. Status bar: the device has said how much it is about to send.
+msgid "SYNC_BATCH_STATUS"
+msgstr "{count} 件のファイルを受信します ({size})"
+
+#. Status bar: a file is arriving, before its byte count is known.
+msgid "SYNC_RECEIVING_STATUS"
+msgstr "受信中 {number} / {total} · {filename}"
+
+#. Status bar: a file is arriving, with how much of it has landed.
+msgid "SYNC_RECEIVING_BYTES_STATUS"
+msgstr "受信中 {number} / {total} · {filename} · {done} / {size}"
+
+#. Status bar: what a finished sync brought in.
+msgid "SYNC_FINISHED_STATUS"
+msgstr "{files} 件のプロファイルを {folders} 件のロールに同期しました"
+
+#. Status bar: the postprocessors have started over this many folders.
+msgid "POSTPROCESSORS_RUNNING_STATUS"
+msgstr "{count} 件のフォルダでデータ処理を実行中"
+
+#. Status bar: which postprocessor is running on which folder.
+msgid "POSTPROCESSORS_RUNNING_ITEM_STATUS"
+msgstr "{postprocessor} · {folder}"
+
+#. Status bar: what a finished postprocessor run covered.
+msgid "POSTPROCESSORS_FINISHED_STATUS"
+msgstr "{count} 件のフォルダのデータ処理が完了しました"
+
+#. Status bar: the operator stopped the postprocessors part way.
+msgid "POSTPROCESSORS_CANCELLED_STATUS"
+msgstr "データ処理を中止しました"
+
+#. Title of the dialog raised when a postprocessor failed on some folders.
+msgid "POSTPROCESSORS_FAILED_TITLE"
+msgstr "データ処理に失敗しました"
+
+#. Body of that dialog; the folder names follow it.
+msgid "POSTPROCESSORS_FAILED_TEXT"
+msgstr "{count} 件のフォルダでデータ処理に失敗しました。出力が欠落または不完全です:"
 
 #. Used in port scanner worker as message text and scan progress text.
 msgid "PORTSCAN_SCANNING_PORT_TEXT"
@@ -532,15 +537,6 @@ msgstr "言語設定は再起動後に適用されます。"
 #. Used in progress dialog as button label and runtime status text.
 msgid "BUTTON_TEXT_CANCELLING"
 msgstr "キャンセル中..."
-
-#. Used in postprocessing progress flow as message text and postprocessing progress
-#. text.
-msgid "POSTPROCESSORS_DIALOG_CANCELLED_TEXT"
-msgstr "処理がキャンセルされました。"
-
-#. Used in main window as message text and status bar message.
-msgid "FILE_TRANSFER_FINISHED"
-msgstr "ファイル転送が完了しました！"
 
 #. Used in profile chart as message text and status tip.
 msgid "CHART_STATUS_TIP_TEXT"

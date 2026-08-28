@@ -5,7 +5,6 @@ from gui.widgets.EmptyStateView import draw_empty_view_text
 from theme import qt as theme_qt
 from theme.widgets import SectionLabel
 from models.SerialPort import SerialPortModel, SerialPortItem, list_ports_common
-from gui.filetransferdialog import FileTransferDialog
 from workers.file_transfer import FileTransferManager
 from workers.device_connection import ConnectionState, DeviceConnectionManager
 from workers.port_scanner import PortScanner
@@ -131,7 +130,6 @@ class SerialWidget(QWidget):
 
         self.transferManager = transfer_manager
         self.connectionManager = connection_manager
-        self.transferDialog = FileTransferDialog(self.transferManager, self)
 
         self.scanner = PortScanner(self)
 
@@ -149,7 +147,6 @@ class SerialWidget(QWidget):
         self.scanner.finished.connect(self.on_scan_finished)
         self.transferManager.transferStarted.connect(self._on_transfer_started)
         self.transferManager.transferFinished.connect(self._on_transfer_finished)
-        self.transferManager.syncBatchStarted.connect(self._on_sync_batch_started)
 
         if self.connectionManager is not None:
             self.view.model.connection_state_provider = self.connectionManager.connection_state
@@ -204,40 +201,19 @@ class SerialWidget(QWidget):
         port_item = self.view.model.getSelectedPort()
         if not port_item:
             return
-        if not port_item.supports_rqft:
-            # ZMODEM has no plan phase; show the dialog right away. RQFT
-            # syncs open it from _on_sync_batch_started only when files
-            # will actually move, so an up-to-date check stays quiet.
-            self._set_dialog_title(port_item.device)
-            self.transferDialog.show()
+        # No completion callback: a sync reports itself through the window's
+        # status bar now, and there is no dialog left to close.
         self.transferManager.start_transfer(
             port_item.device,
             sync_folder,
-            self.transferDialog.on_complete,
+            None,
             supports_rqft=port_item.supports_rqft,
         )
-
-    def _set_dialog_title(self, port):
-        title = _("FILE_TRANSFER_DIALOG_TITLE")
-        if self.connectionManager is not None:
-            title += f" — {self.connectionManager.device_label(port)}"
-        self.transferDialog.setWindowTitle(title)
-
-    def _on_sync_batch_started(self, port, nfiles, nbytes):
-        # Automatic syncs open the dialog only when files will actually
-        # move; a doorbell that finds nothing to fetch stays invisible.
-        if nfiles > 0 and not self.transferDialog.isVisible():
-            self._set_dialog_title(port)
-            self.transferDialog.show()
 
     def _on_transfer_started(self):
         self.syncButton.setEnabled(False)
 
     def _on_transfer_finished(self, *_):
-        # Close the dialog if it is still open (automatic syncs have no
-        # on_complete callback to do it).
-        if self.transferDialog.isVisible():
-            self.transferDialog.accept()
         # Re-enable sync button only if a valid port is still selected
         if self.view.selectionModel().hasSelection():
             self.syncButton.setEnabled(True)

@@ -8,14 +8,14 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QPushButton, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtCore import QDir, Qt, QSignalBlocker, QTimer
 
 import theme
 from theme import qt as theme_qt
 
-from utils.file_utils import list_prof_files, open_in_file_explorer
+from utils.file_utils import list_prof_files, open_in_file_explorer, format_bytes
 from utils.postprocess import (toggle_postprocessor, PostprocessManager, get_postprocessors,
                                PostprocessResult, reload_postprocessors, user_postprocessors_path,
                                BUILTIN, CUSTOM)
@@ -154,12 +154,30 @@ class MainWindow(QMainWindow):
         self.status_bar = self.statusBar()
         self.status_bar.setFixedHeight(30)
 
-        # The status bar states what the scan is doing in words beside it.
-        self.scan_progress_bar = QProgressBar()
-        self.scan_progress_bar.setTextVisible(False)
-        self.scan_progress_bar.setFixedWidth(160)
-        self.scan_progress_bar.setVisible(False)
-        self.status_bar.addPermanentWidget(self.scan_progress_bar)
+        # One place in the window says what background work is going on: the
+        # port scan, a sync, the postprocessors afterwards. They used to be
+        # three different answers — two of them modal windows in front of the
+        # measurement the operator was reading — and none of them said what had
+        # happened once it was over.
+        self.activity_cancel_button = QPushButton(_("BUTTON_TEXT_CANCEL"))
+        theme_qt.set_variant(self.activity_cancel_button, "ghost")
+        self.activity_cancel_button.setVisible(False)
+        self.activity_cancel_button.clicked.connect(self.on_activity_cancelled)
+        self.status_bar.addPermanentWidget(self.activity_cancel_button)
+
+        self.activity_progress_bar = QProgressBar()
+        self.activity_progress_bar.setTextVisible(False)
+        self.activity_progress_bar.setFixedWidth(160)
+        self.activity_progress_bar.setVisible(False)
+        self.status_bar.addPermanentWidget(self.activity_progress_bar)
+        self._activity_cancel = None
+        #: What the last sync brought in, held until the postprocessors that
+        #: follow it have finished, so the two are read out together.
+        self._sync_summary = None
+        self._postprocess_folder_count = 0
+        self._transfer_total_files = 0
+        self._transfer_file_number = 0
+        self._transfer_file_name = ""
 
         # After the items, not before: QStatusBar rebuilds its own box layout
         # when one is added and puts the spacing back to Qt's default.
@@ -183,16 +201,67 @@ class MainWindow(QMainWindow):
         self.device_connection_manager.connectionLost.connect(self.on_connection_lost)
         self.device_connection_manager.listWarnings.connect(self.on_sync_list_warnings)
 
+        self.postprocess_manager.postprocess_started.connect(self.on_postprocess_started)
+        self.postprocess_manager.postprocess_progress.connect(self.on_postprocess_progress)
         self.postprocess_manager.postprocess_finished.connect(self.on_postprocess_finished)
 
+        # The file list the transfer fills in is where the per-file progress
+        # comes from — the same two signals the transfer dialog used to read.
+        self.file_transfer_manager.model.rowsInserted.connect(self.on_transfer_file_started)
+        self.file_transfer_manager.fileByteProgress.connect(self.on_transfer_byte_progress)
+        self.file_transfer_manager.syncBatchStarted.connect(self.on_sync_batch_started)
+
+    # ---- the status bar's one activity area ------------------------------
+
+    def start_activity(self, message, cancel=None):
+        """Say that background work has started, and how to stop it.
+
+        *cancel* is called if the operator presses the button beside the bar;
+        without one the button stays hidden, because a button that cannot be
+        pressed is worse than no button.
+        """
+        self._activity_cancel = cancel
+        self.activity_cancel_button.setEnabled(cancel is not None)
+        self.activity_cancel_button.setText(_("BUTTON_TEXT_CANCEL"))
+        self.activity_cancel_button.setVisible(cancel is not None)
+        self.activity_progress_bar.setValue(0)
+        self.activity_progress_bar.setVisible(True)
+        self.status_bar.showMessage(message)
+
+    def update_activity(self, value, message=None):
+        self.activity_progress_bar.setVisible(True)
+        self.activity_progress_bar.setValue(max(0, min(100, int(value))))
+        if message:
+            self.status_bar.showMessage(message)
+
+    def finish_activity(self, message=""):
+        """Put the bar away and leave the outcome in words.
+
+        The summary stays in the status bar rather than vanishing with the
+        progress: what happened is the part worth reading, and it is the part
+        the old dialogs threw away when they closed themselves.
+        """
+        self._activity_cancel = None
+        self.activity_cancel_button.setVisible(False)
+        self.activity_progress_bar.setVisible(False)
+        if message:
+            self.status_bar.showMessage(message)
+        else:
+            self.status_bar.clearMessage()
+
+    def on_activity_cancelled(self):
+        cancel = self._activity_cancel
+        if cancel is None:
+            return
+        self.activity_cancel_button.setEnabled(False)
+        self.activity_cancel_button.setText(_("BUTTON_TEXT_CANCELLING"))
+        cancel()
+
     def on_scan_progress(self, value, text):
-        self.scan_progress_bar.setVisible(True)
-        self.scan_progress_bar.setValue(value)
-        self.status_bar.showMessage(text)
+        self.update_activity(value, text)
 
     def on_scan_finished(self):
-        self.scan_progress_bar.setVisible(False)
-        self.status_bar.clearMessage()
+        self.finish_activity()
 
     def keyPressEvent(self, event):
         """Handle Ctrl+C to copy current tab view to clipboard."""
@@ -764,16 +833,122 @@ class MainWindow(QMainWindow):
     def on_device_count_changed(self, count):
         self.status_bar.showMessage(_("SERIAL_SYNC_STATUS_BAR_TEXT").format(count=count))
 
+    def on_postprocess_started(self, folder_count):
+        self._postprocess_folder_count = folder_count
+        message = _("POSTPROCESSORS_RUNNING_STATUS").format(count=folder_count)
+        if self._sync_summary:
+            # What the sync brought in stays on screen while its exports are
+            # written, instead of being replaced by them a blink after it lands.
+            message = f"{self._sync_summary} · {message}"
+        self.start_activity(message, cancel=self.postprocess_manager.request_cancellation)
+
+    def on_postprocess_progress(self, percent, folder_name, postprocessor_name):
+        self.update_activity(
+            percent,
+            _("POSTPROCESSORS_RUNNING_ITEM_STATUS").format(
+                folder=folder_name, postprocessor=postprocessor_name),
+        )
+
     def on_postprocess_finished(self, result: PostprocessResult):
-        message = _("POSTPROCESSORS_FINISHED_TEXT")
+        """State what the run did, and interrupt only if something failed.
+
+        A folder whose export failed without anyone noticing is a roll that
+        silently has no report, which is worth a dialog. A clean run is not.
+        """
+        if self.postprocess_manager.was_cancelled:
+            cancelled = _("POSTPROCESSORS_CANCELLED_STATUS")
+            if self._sync_summary:
+                cancelled = f"{self._sync_summary} · {cancelled}"
+                self._sync_summary = None
+            self.finish_activity(cancelled)
+            return
+
+        # The folders the run was over, not the ones that came back clean: a
+        # folder where one export worked and another failed is still a folder
+        # the run covered, and the failure count beside it is what says so.
+        message = _("POSTPROCESSORS_FINISHED_STATUS").format(
+            count=self._postprocess_folder_count or len(result.processed_folders))
         if result.failed_folders:
-            message += f" {_('POSTPROCESSORS_ERROR_TEXT').format(count=len(result.failed_folders))}"
-        self.status_bar.showMessage(message)
+            message = f"{message} {_('POSTPROCESSORS_ERROR_TEXT').format(count=len(result.failed_folders))}"
+        if self._sync_summary:
+            message = f"{self._sync_summary} · {message}"
+            self._sync_summary = None
+        self.finish_activity(message)
+
+        if result.failed_folders:
+            folders = "\n".join(
+                os.path.basename(path.rstrip(os.sep)) for path in sorted(result.failed_folders)
+            )
+            QMessageBox.warning(
+                self,
+                _("POSTPROCESSORS_FAILED_TITLE"),
+                f"{_('POSTPROCESSORS_FAILED_TEXT').format(count=len(result.failed_folders))}\n\n{folders}",
+            )
 
     def on_file_transfer_started(self):
-        self.status_bar.showMessage(_("SYNC_CHECKING_TEXT"))
+        self.start_activity(
+            _("SYNC_CHECKING_TEXT"),
+            cancel=self.file_transfer_manager.cancel_transfer,
+        )
+
+    def on_sync_batch_started(self, port, file_count, byte_count):
+        """The device has said what it is about to send.
+
+        Worth stating before the first file lands: how many and how much is
+        what tells the operator whether this is a five-second sync or one to
+        walk away from.
+        """
+        if file_count <= 0:
+            return
+        self._transfer_total_files = file_count
+        self._transfer_file_number = 0
+        self.update_activity(
+            0,
+            _("SYNC_BATCH_STATUS").format(count=file_count, size=format_bytes(byte_count)),
+        )
+
+    def on_transfer_file_started(self, *_args):
+        """A new file started arriving; the model row is what says so."""
+        model = self.file_transfer_manager.model
+        latest = model.getLatestItem()
+        if not latest:
+            return
+        total = model.getTotalFileCount()
+        self._transfer_file_number = total - latest.files_remaining + 1
+        self._transfer_total_files = total
+        self._transfer_file_name = latest.filename
+        self.update_activity(
+            self._transfer_percent(0.0),
+            _("SYNC_RECEIVING_STATUS").format(
+                number=self._transfer_file_number, total=total, filename=latest.filename),
+        )
+
+    def on_transfer_byte_progress(self, transferred, total_bytes):
+        if not getattr(self, "_transfer_total_files", 0):
+            return
+        fraction = (transferred / total_bytes) if total_bytes else 0.0
+        self.update_activity(
+            self._transfer_percent(fraction),
+            _("SYNC_RECEIVING_BYTES_STATUS").format(
+                number=self._transfer_file_number,
+                total=self._transfer_total_files,
+                filename=self._transfer_file_name,
+                done=format_bytes(transferred),
+                size=format_bytes(total_bytes),
+            ),
+        )
+
+    def _transfer_percent(self, fraction_of_current):
+        """Whole-transfer percent, counting the file in flight as a fraction."""
+        total = getattr(self, "_transfer_total_files", 0)
+        if not total:
+            return 0
+        completed = self._transfer_file_number - 1 + fraction_of_current
+        return int((completed / total) * 100)
 
     def on_file_transfer_finished(self, folder_paths: list[str]):
+        received_count = self.file_transfer_manager.model.rowCount()
+        self._transfer_total_files = 0
         removed_count = self.file_transfer_manager.last_deleted_count
         removed_text = (
             _("DEVICE_FILES_REMOVED").format(count=removed_count)
@@ -781,14 +956,20 @@ class MainWindow(QMainWindow):
             else ""
         )
         if folder_paths:
-            self.status_bar.showMessage(
-                f"{_('FILE_TRANSFER_FINISHED')} {removed_text}".strip()
-            )
+            # The summary counts both what arrived and where it went: "12
+            # profiles" and "3 rolls" are the two numbers an operator checks
+            # against what they expected the device to be carrying.
+            summary = _("SYNC_FINISHED_STATUS").format(
+                files=received_count, folders=len(folder_paths))
+            summary = f"{summary} {removed_text}".strip()
+            # Postprocessing starts on the next line and takes the status bar
+            # over, so the sync's own summary would be on screen for a blink.
+            # It is held and read out again with theirs, once the whole
+            # sequence the operator pressed one button for is actually done.
+            self._sync_summary = summary
+            self.finish_activity(summary)
         elif self.file_transfer_manager.last_transfer_outcome == "ok":
-            if removed_text:
-                self.status_bar.showMessage(removed_text)
-            else:
-                self.status_bar.clearMessage()
+            self.finish_activity(removed_text)
             if not self.file_transfer_manager.last_transfer_was_auto:
                 QMessageBox.information(
                     self,
@@ -798,7 +979,9 @@ class MainWindow(QMainWindow):
         elif self.status_bar.currentMessage() == _("SYNC_CHECKING_TEXT"):
             # Cancel/error before anything moved: the error handlers own
             # the message, just drop the stale "checking" text.
-            self.status_bar.clearMessage()
+            self.finish_activity()
+        else:
+            self.finish_activity(self.status_bar.currentMessage())
         if not folder_paths:
             return
         self.directory_view.refresh_directory_dates(folder_paths)
@@ -806,11 +989,11 @@ class MainWindow(QMainWindow):
         self.on_directory_contents_changed()
 
     def on_transfer_error(self, message):
+        self.finish_activity(message)
         # transferError also carries an is_auto flag, which the status
         # bar does not need: both cases want the message here, and a
         # manual failure additionally gets a popup from the transfer
         # manager.
-        self.status_bar.showMessage(message)
 
     def on_connection_lost(self, port, reason):
         if reason == "busy":

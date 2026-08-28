@@ -1,7 +1,5 @@
 from PySide6.QtCore import QThread, Signal, QObject
-from gui.widgets.ProgressBarDialog import ProgressBarDialog
 from utils.dynamic_loader import load_modules_from_folder
-from utils.translation import _
 from utils import preferences
 from dataclasses import dataclass, field
 import os
@@ -148,13 +146,18 @@ class PostprocessResult:
 
 class PostprocessManager(QObject):
     postprocess_finished = Signal(PostprocessResult)
+    #: A run began, over this many folders. Whoever is showing progress owns
+    #: what that looks like — this class no longer opens a window of its own.
+    postprocess_started = Signal(int)
+    #: Percent complete, and what is being run on which folder.
+    postprocess_progress = Signal(int, str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._thread = None
-        self.dialog = None
         self.error_paths = set()
         self.success_paths = set()
+        self.was_cancelled = False
         self.enabled_postprocessors = []
         self.total_items_to_process = 0
         self.refresh_enabled_postprocessors()
@@ -168,6 +171,16 @@ class PostprocessManager(QObject):
         except RuntimeError:  # the C++ side is already gone
             return False
 
+    def request_cancellation(self):
+        """Ask a run to stop between postprocessors. Non-blocking."""
+        thread = self._thread
+        if thread is None:
+            return
+        try:
+            thread.request_cancellation()
+        except RuntimeError:  # the C++ side is already gone
+            pass
+
     def refresh_enabled_postprocessors(self):
         sync_postprocessors_with_preferences()
         self.enabled_postprocessors = [
@@ -178,7 +191,7 @@ class PostprocessManager(QObject):
         self.refresh_enabled_postprocessors()
         self._thread = PostprocessThread(folder_paths)
         self.error_paths = set()
-        self.dialog = ProgressBarDialog(auto_close=True, parent=self.parent())
+        self.success_paths = set()
         self.total_items_to_process = len(folder_paths) * len(self.enabled_postprocessors)
         self.processed_items = 0
 
@@ -186,9 +199,8 @@ class PostprocessManager(QObject):
         self._thread.processing_failed.connect(self.on_postprocess_fail)
         self._thread.processing_successful.connect(self.on_postprocess_success)
         self._thread.finished.connect(self.on_finished)
-        self.dialog.cancelled.connect(self._thread.request_cancellation)
 
-        self.dialog.show()
+        self.postprocess_started.emit(len(folder_paths))
         self._thread.start()
 
     def on_postprocess_fail(self, folder_path):
@@ -199,9 +211,11 @@ class PostprocessManager(QObject):
 
     def on_now_processing(self, folder_path, postprocessor_name):
         self.processed_items += 1
-        if not self._thread._is_cancellation_requested:
-            self.dialog.update_progress((self.processed_items / (self.total_items_to_process or 1)) *
-                                100, f"{_("POSTPROCESSORS_DIALOG_RUNNING_TEXT")}:\n{folder_path}\n{postprocessor_name}")
+        if self._thread is not None and self._thread._is_cancellation_requested:
+            return
+        percent = int((self.processed_items / (self.total_items_to_process or 1)) * 100)
+        self.postprocess_progress.emit(
+            percent, os.path.basename(folder_path.rstrip(os.sep)), postprocessor_name)
 
     def stop_postprocessing(self, timeout_ms=5000):
         """
@@ -223,11 +237,9 @@ class PostprocessManager(QObject):
             return True
 
     def on_finished(self):
-        if self._thread and self._thread._is_cancellation_requested:
+        self.was_cancelled = bool(self._thread and self._thread._is_cancellation_requested)
+        if self.was_cancelled:
             print("Postprocessing cancelled by user")
-            self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_CANCELLED_TEXT"))
-        else:
-            self.dialog.update_progress(100, _("POSTPROCESSORS_DIALOG_FINISHED_TEXT"))
 
         if self.error_paths:
             print(f"Postprocessing failed for folders:\n{"\n".join(self.error_paths)}")
