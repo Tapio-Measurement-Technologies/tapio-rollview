@@ -753,14 +753,10 @@ class ProfileWidget(QWidget):
         if preferences.show_spectrum:
             spectrum_frequencies, spectrum_amplitudes = self._get_spectrum_plot_data(mean_profile_values)
             spectrum_color = tapio_mpl.series_color(0, self.tokens)
+            # The line alone. An area fill under a spectrum reads as magnitude
+            # over a band, which is not what a peak at one wavelength means.
             self.spectrum_ax.plot(spectrum_frequencies, spectrum_amplitudes,
                                   color=spectrum_color)
-            # Area fill under the curve gives the spectrum weight without
-            # competing with anything sitting on top of it.
-            self.spectrum_ax.fill_between(
-                spectrum_frequencies, spectrum_amplitudes,
-                color=spectrum_color, alpha=0.13, linewidth=0,
-            )
 
             tapio_mpl.finish(
                 self.spectrum_ax,
