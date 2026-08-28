@@ -8,9 +8,9 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QPushButton, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QHBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QPushButton, QLabel, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtCore import QDir, Qt, QSignalBlocker, QTimer
+from PySide6.QtCore import QDir, Qt, QEvent, QSignalBlocker, QTimer
 
 import theme
 from theme import qt as theme_qt
@@ -39,6 +39,13 @@ from gui.settings import SettingsWindow
 from gui.qr_config_dialog import QRConfigDialog
 from gui.widgets.messagebox import show_info_msgbox, show_error_msgbox
 from utils.translation import _
+
+#: The stop square in the status bar: a control-height target for the button,
+#: with the glyph drawn small inside it so it reads as a mark, not a button
+#: with an icon in it.
+ACTIVITY_STOP_SIZE = 22
+ACTIVITY_STOP_GLYPH = 16
+
 
 class MainWindow(QMainWindow):
 
@@ -159,17 +166,53 @@ class MainWindow(QMainWindow):
         # three different answers — two of them modal windows in front of the
         # measurement the operator was reading — and none of them said what had
         # happened once it was over.
-        self.activity_cancel_button = QPushButton(_("BUTTON_TEXT_CANCEL"))
-        theme_qt.set_variant(self.activity_cancel_button, "ghost")
-        self.activity_cancel_button.setVisible(False)
-        self.activity_cancel_button.clicked.connect(self.on_activity_cancelled)
-        self.status_bar.addPermanentWidget(self.activity_cancel_button)
+        # A square, next to the bar, wherever the bar is: one gesture stops a
+        # scan, a sync or the postprocessors, and it is in the same place every
+        # time rather than in whichever window happened to be open.
+        self.activity_stop_button = QPushButton()
+        self.activity_stop_button.setObjectName("activityStop")
+        self.activity_stop_button.setFixedSize(
+            ACTIVITY_STOP_SIZE, ACTIVITY_STOP_SIZE)
+        self.activity_stop_button.setToolTip(_("BUTTON_TEXT_STOP"))
+        self.activity_stop_button.setVisible(False)
+        self.activity_stop_button.clicked.connect(self.on_activity_cancelled)
+        self._refresh_stop_icon()
+
+        # The row is built out of labels rather than QStatusBar's own message,
+        # which is painted across the non-permanent area and hides any widget
+        # sharing it — the bar could then only ever sit to one side. Two
+        # stretchy labels with the work between them is what centres it.
+        self.activity_label = QLabel()
+        self.status_bar.addWidget(self.activity_label, 1)
 
         self.activity_progress_bar = QProgressBar()
         self.activity_progress_bar.setTextVisible(False)
-        self.activity_progress_bar.setFixedWidth(160)
+        self.activity_progress_bar.setFixedWidth(240)
+
+        # The square belongs to the bar, so they travel as one item, closer to
+        # each other than to anything else in the row.
+        activity_group = QWidget()
+        activity_layout = QHBoxLayout(activity_group)
+        theme_qt.pad(activity_layout, 0)
+        theme_qt.gap(activity_layout, 1)
+        activity_layout.addWidget(self.activity_stop_button)
+        activity_layout.addWidget(self.activity_progress_bar)
         self.activity_progress_bar.setVisible(False)
-        self.status_bar.addPermanentWidget(self.activity_progress_bar)
+        self.status_bar.addPermanentWidget(activity_group)
+
+        # Hover guidance goes here rather than into the message area. Qt sends a
+        # widget's status tip to the window, whose default handler shows it as a
+        # status bar message — so moving the mouse over the chart wiped out
+        # whatever the sync or the postprocessors were saying. It gets its own
+        # label at the far end, and the stretch on that label is what leaves the
+        # bar in the middle: a stretchy message area on one side, a stretchy
+        # guide on the other, the work between them.
+        self.guide_label = QLabel()
+        theme_qt.set_role(self.guide_label, "hint")
+        self.guide_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.status_bar.addPermanentWidget(self.guide_label, 1)
+
         self._activity_cancel = None
         #: What the last sync brought in, held until the postprocessors that
         #: follow it have finished, so the two are read out together.
@@ -190,6 +233,7 @@ class MainWindow(QMainWindow):
         # Scan devices on startup
         self.serial_widget.scan_devices()
         self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
+        self.serial_widget.scan_started.connect(self.on_scan_started)
         self.serial_widget.scan_progress.connect(self.on_scan_progress)
         self.serial_widget.scan_finished.connect(self.on_scan_finished)
 
@@ -213,6 +257,14 @@ class MainWindow(QMainWindow):
 
     # ---- the status bar's one activity area ------------------------------
 
+    def set_status_message(self, message=""):
+        """What the window is doing or has just done, on the left of the row."""
+        self.activity_label.setText(message)
+
+    def status_message(self):
+        return self.activity_label.text()
+
+
     def start_activity(self, message, cancel=None):
         """Say that background work has started, and how to stop it.
 
@@ -221,18 +273,17 @@ class MainWindow(QMainWindow):
         pressed is worse than no button.
         """
         self._activity_cancel = cancel
-        self.activity_cancel_button.setEnabled(cancel is not None)
-        self.activity_cancel_button.setText(_("BUTTON_TEXT_CANCEL"))
-        self.activity_cancel_button.setVisible(cancel is not None)
+        self.activity_stop_button.setEnabled(cancel is not None)
+        self.activity_stop_button.setVisible(cancel is not None)
         self.activity_progress_bar.setValue(0)
         self.activity_progress_bar.setVisible(True)
-        self.status_bar.showMessage(message)
+        self.set_status_message(message)
 
     def update_activity(self, value, message=None):
         self.activity_progress_bar.setVisible(True)
         self.activity_progress_bar.setValue(max(0, min(100, int(value))))
         if message:
-            self.status_bar.showMessage(message)
+            self.set_status_message(message)
 
     def finish_activity(self, message=""):
         """Put the bar away and leave the outcome in words.
@@ -242,26 +293,48 @@ class MainWindow(QMainWindow):
         the old dialogs threw away when they closed themselves.
         """
         self._activity_cancel = None
-        self.activity_cancel_button.setVisible(False)
+        self.activity_stop_button.setVisible(False)
         self.activity_progress_bar.setVisible(False)
         if message:
-            self.status_bar.showMessage(message)
+            self.set_status_message(message)
         else:
-            self.status_bar.clearMessage()
+            self.set_status_message()
 
     def on_activity_cancelled(self):
         cancel = self._activity_cancel
         if cancel is None:
             return
-        self.activity_cancel_button.setEnabled(False)
-        self.activity_cancel_button.setText(_("BUTTON_TEXT_CANCELLING"))
+        self.activity_stop_button.setEnabled(False)
         cancel()
+
+    def on_scan_started(self):
+        self.start_activity(
+            _("SCAN_STARTED_STATUS"), cancel=self.serial_widget.stop_scan)
 
     def on_scan_progress(self, value, text):
         self.update_activity(value, text)
 
     def on_scan_finished(self):
         self.finish_activity()
+
+    def _refresh_stop_icon(self):
+        """The glyph is baked with a colour, so it is redrawn per theme."""
+        self.activity_stop_button.setIcon(
+            theme.icons.icon("stop", ACTIVITY_STOP_GLYPH,
+                             theme_qt.tokens().color("ink-secondary"))
+        )
+
+    def event(self, event):
+        """Route status tips to the guide label instead of the message area.
+
+        QMainWindow's own handler calls showMessage() with the tip, which is
+        the behaviour this is here to prevent — a sync in progress should not
+        be erased by the mouse passing over the chart.
+        """
+        if event.type() == QEvent.Type.StatusTip:
+            self.guide_label.setText(event.tip())
+            return True
+        return super().event(event)
 
     def keyPressEvent(self, event):
         """Handle Ctrl+C to copy current tab view to clipboard."""
@@ -759,6 +832,9 @@ class MainWindow(QMainWindow):
         inside the banners, and the two Matplotlib canvases.
         """
         theme.apply(QApplication.instance(), theme=ui_theme)
+        # The stop mark is a pixmap baked in one theme's ink, so it is redrawn
+        # rather than repolished.
+        self._refresh_stop_icon()
         self.refresh_plot()
         self.statistics_analysis_widget.update_chart()
         for widget in self.findChildren(QWidget):
@@ -831,7 +907,7 @@ class MainWindow(QMainWindow):
         self.postprocess_manager.run_postprocessors([folder_path])
 
     def on_device_count_changed(self, count):
-        self.status_bar.showMessage(_("SERIAL_SYNC_STATUS_BAR_TEXT").format(count=count))
+        self.set_status_message(_("SERIAL_SYNC_STATUS_BAR_TEXT").format(count=count))
 
     def on_postprocess_started(self, folder_count):
         self._postprocess_folder_count = folder_count
@@ -976,12 +1052,12 @@ class MainWindow(QMainWindow):
                     _("SYNC_UP_TO_DATE_TITLE"),
                     f"{_('SYNC_UP_TO_DATE_TEXT')} {removed_text}".strip(),
                 )
-        elif self.status_bar.currentMessage() == _("SYNC_CHECKING_TEXT"):
+        elif self.status_message() == _("SYNC_CHECKING_TEXT"):
             # Cancel/error before anything moved: the error handlers own
             # the message, just drop the stale "checking" text.
             self.finish_activity()
         else:
-            self.finish_activity(self.status_bar.currentMessage())
+            self.finish_activity(self.status_message())
         if not folder_paths:
             return
         self.directory_view.refresh_directory_dates(folder_paths)
@@ -997,16 +1073,16 @@ class MainWindow(QMainWindow):
 
     def on_connection_lost(self, port, reason):
         if reason == "busy":
-            self.status_bar.showMessage(_("DEVICE_BUSY_STATUS"))
+            self.set_status_message(_("DEVICE_BUSY_STATUS"))
         elif reason in ("unplugged", "dead"):
-            self.status_bar.showMessage(
+            self.set_status_message(
                 _("DEVICE_DISCONNECTED_STATUS").format(
                     device=self.device_connection_manager.device_label(port)
                 )
             )
 
     def on_sync_list_warnings(self, port, skipped_count):
-        self.status_bar.showMessage(
+        self.set_status_message(
             _("SYNC_LIST_SKIPPED_WARNING").format(count=skipped_count)
         )
 

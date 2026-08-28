@@ -273,6 +273,27 @@ QPushButton[variant="danger"] {
 QPushButton[variant="danger"]:hover   { background-color: ${bad_soft}; }
 QPushButton[variant="danger"]:pressed { background-color: ${bad_soft}; border-color: ${bad_mark}; }
 
+/* The status bar's stop square. No fill and no border at rest — the bar
+   beside it is the thing being looked at — and the accent wash on hover that
+   every other pressable glyph in the window gets. */
+QPushButton#activityStop {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: ${r_sm}px;
+    padding: 0;
+    min-height: 0;
+}
+
+QPushButton#activityStop:hover {
+    background-color: ${accent_soft};
+    border-color: ${accent};
+}
+
+QPushButton#activityStop:disabled {
+    background: transparent;
+    border-color: transparent;
+}
+
 /* ---------- inputs -------------------------------------------------------- */
 /* Numeric fields are mono, tabular and right-aligned; alignment is set in code
    because a style sheet cannot. The error state is never colour-only. */

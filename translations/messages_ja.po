@@ -434,6 +434,14 @@ msgstr "回帰勾配"
 msgid "POSTPROCESSORS_ERROR_TEXT"
 msgstr "{count} 個のフォルダでデータ処理に失敗しました。"
 
+#. Tooltip on the status bar square that stops whatever is running.
+msgid "BUTTON_TEXT_STOP"
+msgstr "停止"
+
+#. Status bar: a port scan has started.
+msgid "SCAN_STARTED_STATUS"
+msgstr "デバイスを検索中"
+
 #. Status bar: the device has said how much it is about to send.
 msgid "SYNC_BATCH_STATUS"
 msgstr "{count} 件のファイルを受信します ({size})"

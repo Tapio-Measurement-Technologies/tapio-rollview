@@ -54,6 +54,7 @@ PATHS = {
     "check":        "M4 12.5l5.5 5.5L20 7",
     "close":        "M6 6l12 12M18 6L6 18",
     "plus":         "M12 5v14M5 12h14",
+    "stop":         "M7 7h10v10H7z",
 }
 
 # Stroke widths per status mark, matching the guide's specimens: the check and
@@ -64,7 +65,20 @@ _cache = {}
 _icon_dir = None
 
 
+#: Marks that are shapes rather than strokes. A stop square drawn as an
+#: outline reads as a checkbox, and drawn as a heavy stroke it rounds into a
+#: dot; it wants a fill.
+FILLED = {"stop"}
+
+
 def _svg(name, color, stroke=None):
+    if name in FILLED:
+        return (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
+            'width="24" height="24">'
+            f'<path d="{PATHS[name]}" fill="{color}"/></svg>'
+        ).encode("utf-8")
+
     width = stroke if stroke is not None else _WEIGHTS.get(name, STROKE)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
