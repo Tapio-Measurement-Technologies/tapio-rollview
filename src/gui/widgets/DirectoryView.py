@@ -61,6 +61,8 @@ class DirectoryView(QWidget):
     directory_selected     = Signal(str)
     directory_contents_changed = Signal()
     roll_filter_changed = Signal(str, object)
+    #: One roll folder, asked for by name from its own context menu.
+    postprocess_requested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -93,6 +95,10 @@ class DirectoryView(QWidget):
         self.treeView.selectionModel().currentChanged.connect(self.on_directory_selected)
         self.treeView.selectionCleared.connect(self.on_selection_cleared)
         self.treeView.deleteRequested.connect(self.on_delete_requested)
+        # These rows are roll folders, so postprocessing one of them on its own
+        # is a thing the operator can ask for here.
+        self.treeView.postprocess_action_enabled = True
+        self.treeView.postprocessRequested.connect(self.on_postprocess_requested)
         # Sort the folders by custom modified date
         self.treeView.setSortingEnabled(True)
         self.treeView.header().setSortIndicatorShown(True)
@@ -266,6 +272,13 @@ class DirectoryView(QWidget):
         if warn:
             print(f"Invalid index provided to select_directory_by_path: '{path}'")
         return False
+
+    def on_postprocess_requested(self, index):
+        """Ask for one folder to be postprocessed, by path."""
+        source_index = self.proxy_model.mapToSource(index)
+        directory_path = self.model.filePath(source_index)
+        if directory_path:
+            self.postprocess_requested.emit(directory_path)
 
     def open_directory_in_file_explorer(self):
         current_index = self.proxy_model.mapToSource(self.treeView.rootIndex())

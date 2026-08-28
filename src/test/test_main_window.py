@@ -233,6 +233,34 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             self.assertTrue(os.path.isdir(folder))
             opener.assert_called_once_with(folder)
 
+    def test_one_folder_can_be_postprocessed_on_its_own(self):
+        """The menu item sweeps the working directory and applies the cutoff.
+
+        Pointed at a folder, the context menu runs that folder whatever its
+        date — an operator asking for a specific roll has already decided.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            roll = os.path.join(tmpdir, "250521-081510")
+            os.makedirs(roll)
+
+            with patch.object(self.window.postprocess_manager, "run_postprocessors") as run:
+                self.window.directory_view.postprocess_requested.emit(roll)
+
+            run.assert_called_once_with([roll])
+
+    def test_a_folder_that_is_not_a_roll_is_not_postprocessed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            postprocessors_dir = os.path.join(tmpdir, "postprocessors")
+            os.makedirs(postprocessors_dir)
+            missing = os.path.join(tmpdir, "gone")
+
+            with patch.object(self.window.postprocess_manager, "run_postprocessors") as run:
+                self.window.directory_view.postprocess_requested.emit(postprocessors_dir)
+                self.window.directory_view.postprocess_requested.emit(missing)
+                self.window.directory_view.postprocess_requested.emit("")
+
+            run.assert_not_called()
+
     def test_directory_name_initialized_before_load_settings_file(self):
         self.assertIsNone(self.window.directory_name)
 
