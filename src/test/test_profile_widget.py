@@ -403,6 +403,29 @@ class TestLocalSettingsOverrides(unittest.TestCase):
         line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
         self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
 
+    def test_the_spectrum_is_a_line_and_not_an_area(self):
+        """A wash under a spectrum reads as magnitude over a band.
+
+        A peak at one wavelength is not that, and the shading sat under every
+        line in the panel whether or not there was anything to weigh.
+        """
+        from matplotlib.collections import PolyCollection
+
+        original_show_spectrum = preferences.show_spectrum
+        preferences.show_spectrum = True
+        widget = ProfileWidget()
+        try:
+            widget.update_plot(_synthetic_profiles(1), "roll")
+            self.assertEqual(
+                [artist for artist in widget.spectrum_ax.collections
+                 if isinstance(artist, PolyCollection)],
+                [],
+            )
+            self.assertTrue(widget.spectrum_ax.lines)
+        finally:
+            preferences.show_spectrum = original_show_spectrum
+            widget.deleteLater()
+
     def test_the_distance_axis_is_subdivided_by_marks_not_by_rules(self):
         """Finer intervals belong on the axis, not across the profiles.
 
