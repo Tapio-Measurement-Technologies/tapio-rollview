@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop
 from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 
 import store
@@ -286,6 +287,37 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.start_activity("Scanning")
         self.assertFalse(self.window.activity_stop_button.isVisibleTo(self.window))
         self.window.finish_activity()
+
+    def test_the_scan_that_runs_at_startup_can_be_stopped_too(self):
+        """The window used to scan before it had wired the scan up.
+
+        The bar then moved with no square beside it, which is the one state
+        this row is not allowed to be in: something is running and nothing can
+        stop it.
+        """
+        from gui.widgets.serialports import SerialWidget
+
+        def scan_and_announce(widget):
+            widget.scan_started.emit()
+
+        with patch.object(SerialWidget, "scan_devices", scan_and_announce), \
+             patch.object(self.main_window_class, "on_directory_selected"):
+            window = self.main_window_class()
+
+        try:
+            self.assertTrue(window.activity_progress_bar.isVisibleTo(window))
+            self.assertTrue(window.activity_stop_button.isVisibleTo(window))
+            self.assertTrue(window.activity_stop_button.isEnabled())
+        finally:
+            # Closing a QMainWindow is not destroying it, and a window left
+            # alive here is ~180 widgets the leak check will find in whichever
+            # module happens to run next.
+            window.close()
+            window.deleteLater()
+            del window
+            for _ in range(5):
+                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+                QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 20)
 
     def test_a_scan_can_be_stopped_like_anything_else(self):
         """Every moving bar has the same square beside it, whatever is moving."""
