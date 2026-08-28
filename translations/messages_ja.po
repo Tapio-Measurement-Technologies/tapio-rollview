@@ -85,6 +85,10 @@ msgstr "データ処理"
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
 msgstr "データ処理実行"
 
+#. Used in the folder list's right-click menu; runs them for that folder alone.
+msgid "CONTEXT_MENU_RUN_POSTPROCESSORS"
+msgstr "このフォルダのデータ処理を実行"
+
 #. Used in the postprocessors menu; rescans the postprocessor folders.
 msgid "MENU_BAR_REFRESH_POSTPROCESSORS"
 msgstr "データ処理の再読み込み"

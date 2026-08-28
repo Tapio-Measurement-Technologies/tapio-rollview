@@ -45,10 +45,15 @@ class RenameDialog(QDialog):
 class ContextMenuTreeView(QTreeView):
     rootIndexChanged = Signal()
     deleteRequested = Signal(QModelIndex)
+    #: A row was asked to be postprocessed on its own. Only emitted by a view
+    #: that has opted in — the rows have to be roll folders for it to mean
+    #: anything, which is not true of the file list.
+    postprocessRequested = Signal(QModelIndex)
 
     def __init__(self, model: QFileSystemModel | QSortFilterProxyModel):
         super().__init__()
         self._empty_message = ""
+        self.postprocess_action_enabled = False
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_context_menu)
         self.setModel(model)
@@ -89,6 +94,16 @@ class ContextMenuTreeView(QTreeView):
             return
 
         context_menu = QMenu()
+
+        # First, and ruled off from the file operations: it is the one item
+        # here that acts on the measurement rather than on the folder.
+        if self.postprocess_action_enabled:
+            postprocess_action = QAction(_("CONTEXT_MENU_RUN_POSTPROCESSORS"), self)
+            postprocess_action.triggered.connect(
+                lambda: self.postprocessRequested.emit(indexes[0]))
+            context_menu.addAction(postprocess_action)
+            context_menu.addSeparator()
+
         open_action   = QAction(_("BUTTON_TEXT_OPEN_FILE_EXPLORER"), self)
         rename_action = QAction(_("BUTTON_TEXT_RENAME"), self)
         delete_action = QAction(_("BUTTON_TEXT_DELETE"), self)

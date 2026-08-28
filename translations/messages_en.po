@@ -85,6 +85,10 @@ msgstr "Postprocessors"
 msgid "MENU_BAR_RUN_POSTPROCESSORS"
 msgstr "Run postprocessors"
 
+#. Used in the folder list's right-click menu; runs them for that folder alone.
+msgid "CONTEXT_MENU_RUN_POSTPROCESSORS"
+msgstr "Run postprocessors for this folder"
+
 #. Used in the postprocessors menu; rescans the postprocessor folders.
 msgid "MENU_BAR_REFRESH_POSTPROCESSORS"
 msgstr "Refresh postprocessors"

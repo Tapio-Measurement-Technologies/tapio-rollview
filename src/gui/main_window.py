@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
         self.directory_view.directory_contents_changed.connect(self.on_directory_contents_changed)
         self.directory_view.directory_contents_changed.connect(self.statistics_analysis_widget.update)
         self.directory_view.roll_filter_changed.connect(self.statistics_analysis_widget.set_roll_filter)
+        self.directory_view.postprocess_requested.connect(self.run_postprocessors_for_folder)
 
         # Attempt to create default root dir if it does not exist
         if QDir().mkpath(store.root_directory):
@@ -746,6 +747,19 @@ class MainWindow(QMainWindow):
 
         # Run postprocessors on the filtered list of folders
         self.postprocess_manager.run_postprocessors(folder_paths)
+
+    def run_postprocessors_for_folder(self, folder_path):
+        """Run the enabled postprocessors over one roll folder.
+
+        The menu's own item sweeps the working directory and drops anything
+        older than the cutoff; this one was pointed at a folder, so it runs on
+        that folder whatever its date.
+        """
+        if not folder_path or not os.path.isdir(folder_path):
+            return
+        if os.path.basename(folder_path) in settings.IGNORE_FOLDERS:
+            return
+        self.postprocess_manager.run_postprocessors([folder_path])
 
     def on_device_count_changed(self, count):
         self.status_bar.showMessage(_("SERIAL_SYNC_STATUS_BAR_TEXT").format(count=count))
