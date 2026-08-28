@@ -278,6 +278,10 @@ msgstr "距離"
 msgid "CHART_MEAN_PROFILE_LABEL"
 msgstr "平均プロファイル"
 
+#. Used in the profile chart when every profile has been unticked.
+msgid "CHART_NOTE_NO_PROFILES_SELECTED"
+msgstr "プロファイルが選択されていません"
+
 #. Used in profile chart as chart label or message.
 msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
 msgstr "測定長が短すぎます"

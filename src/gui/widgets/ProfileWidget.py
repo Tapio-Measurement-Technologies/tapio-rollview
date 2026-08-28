@@ -81,11 +81,26 @@ class WarningLabel(QLabel):
         theme_qt.set_property(self, "banner", "warn")
         self.setHidden(True)
 
-    def set_text(self, text):
+    def set_text(self, text, level=theme.STATUS_WARN):
+        """Say something about the chart. *level* is a status, not a colour.
+
+        Not everything the chart cannot draw is a fault: an operator who has
+        unticked every profile asked for an empty chart, and answering that
+        with an amber warning tells them something has gone wrong when nothing
+        has.
+        """
         tokens = theme_qt.tokens()
-        mark = icons.write_png(theme.STATUS_WARN, 13, tokens.color("warn"))
+        theme_qt.set_property(
+            self, "banner", "info" if level == theme.STATUS_IDLE else level)
         self.setHidden(False)
-        self.setText(f'<img src="{mark}" width="13" height="13">&nbsp;&nbsp;{text}')
+        if level == theme.STATUS_IDLE:
+            # No mark: the status marks all say something is wrong or waiting,
+            # and a note about what the operator just chose says neither.
+            self.setText(text)
+        else:
+            mark = icons.write_png(level, 13, tokens.status_ink(level))
+            self.setText(
+                f'<img src="{mark}" width="13" height="13">&nbsp;&nbsp;{text}')
         self.setAccessibleName(text)
 
     def clear(self):
@@ -746,6 +761,12 @@ class ProfileWidget(QWidget):
                     mean_profile_distances,
                     unit_info.conversion_factor,
                 )
+        elif not self.profiles:
+            # Every profile unticked: the chart is empty because that is what
+            # was asked for, so this states the situation rather than warning
+            # about it.
+            self.warning_label.set_text(
+                _("CHART_NOTE_NO_PROFILES_SELECTED"), level=theme.STATUS_IDLE)
         else:
             self.warning_label.set_text(
                 _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"))

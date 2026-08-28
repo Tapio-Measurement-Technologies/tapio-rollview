@@ -403,6 +403,52 @@ class TestLocalSettingsOverrides(unittest.TestCase):
         line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
         self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
 
+    def test_unticking_every_profile_is_not_an_error(self):
+        """The chart is empty because that is what was asked for.
+
+        It used to answer an empty selection with the amber warning about
+        profiles being too short to average, which says something is wrong
+        with the measurement when nothing is.
+        """
+        from utils.translation import _
+
+        original_recalculate = preferences.recalculate_mean
+        preferences.recalculate_mean = True
+        widget = ProfileWidget()
+        try:
+            profiles = _synthetic_profiles(3)
+            for profile in profiles:
+                profile.hidden = True
+            widget.update_plot(profiles, "roll")
+
+            self.assertEqual(
+                widget.warning_label.accessibleName(),
+                _("CHART_NOTE_NO_PROFILES_SELECTED"),
+            )
+            self.assertEqual(widget.warning_label.property("banner"), "info")
+        finally:
+            preferences.recalculate_mean = original_recalculate
+            widget.deleteLater()
+
+    def test_profiles_too_short_to_average_still_warn(self):
+        from utils.translation import _
+
+        widget = ProfileWidget()
+        try:
+            # There are profiles; they just cannot be averaged — which is the
+            # case the amber warning is actually for.
+            with patch("gui.widgets.ProfileWidget.calc_mean_profile",
+                       return_value=([], [])):
+                widget.update_plot(_synthetic_profiles(1), "roll")
+
+            self.assertEqual(
+                widget.warning_label.accessibleName(),
+                _("CHART_WARNING_TEXT_TOO_SHORT_PROFILES"),
+            )
+            self.assertEqual(widget.warning_label.property("banner"), "warn")
+        finally:
+            widget.deleteLater()
+
     def test_the_spectrum_is_a_line_and_not_an_area(self):
         """A wash under a spectrum reads as magnitude over a band.
 
