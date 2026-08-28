@@ -250,13 +250,19 @@ QPushButton[variant="primary"]:hover   { background-color: ${accent_hover}; bord
 QPushButton[variant="primary"]:pressed { background-color: ${accent_active}; border-color: ${accent_active}; }
 QPushButton[variant="primary"]:focus   { border: 2px solid ${focus}; padding: 0 ${s4_focus}px; }
 
+/* Tertiary, but still a control: with a transparent edge it read as a link
+   sitting on the panel, and two of them under the folder list had nothing to
+   say they could be pressed. It keeps the accent label and the empty ground —
+   that is what ranks it below the secondary — and takes the hairline border
+   rather than the secondary's stronger one, so the three ranks read as fill,
+   then edge, then edge-in-light. */
 QPushButton[variant="ghost"] {
     background-color: transparent;
     color: ${accent};
-    border: 1px solid transparent;
+    border: 1px solid ${border};
 }
-QPushButton[variant="ghost"]:hover   { background-color: ${accent_soft}; }
-QPushButton[variant="ghost"]:pressed { background-color: ${accent_soft_pressed}; }
+QPushButton[variant="ghost"]:hover   { background-color: ${accent_soft}; border-color: ${accent}; }
+QPushButton[variant="ghost"]:pressed { background-color: ${accent_soft_pressed}; border-color: ${accent}; }
 
 /* Destructive only, and never the default focus target. */
 QPushButton[variant="danger"] {
