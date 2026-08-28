@@ -123,6 +123,7 @@ class LimitFooter(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("limitFooter")
         row = QHBoxLayout(self)
         theme_qt.pad(row, 0)
         theme_qt.gap(row, 1)
