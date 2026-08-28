@@ -114,6 +114,11 @@ class LimitFooter(QWidget):
     footer switched vocabulary. What changes when a bound is crossed is which
     bound is emphasised — the tile is already the alarm, so the footer's job is
     to say *which end* of the range the value left.
+
+    The bounds are given without a word in front of them. Seven tiles have to
+    fit across one row, and a label that elides to "Limi…" spends the width the
+    numbers need in order to say something the operator can already see from
+    where the line sits.
     """
 
     def __init__(self, parent=None):
@@ -122,18 +127,15 @@ class LimitFooter(QWidget):
         theme_qt.pad(row, 0)
         theme_qt.gap(row, 1)
 
-        self.prefix = ElidedChunk()
         self.min_chunk = ElidedChunk()
         self.max_chunk = ElidedChunk()
-        for chunk in (self.prefix, self.min_chunk, self.max_chunk):
+        for chunk in (self.min_chunk, self.max_chunk):
             theme_qt.set_role(chunk, "hint")
             row.addWidget(chunk)
         row.addStretch(1)
 
     def set_limits(self, minimum, maximum, breached=None):
         """State the limits. *breached* is ``"min"``, ``"max"`` or None."""
-        self.prefix.setText(_("STAT_TILE_LIMIT_PREFIX"))
-
         if minimum is None and maximum is None:
             # Missing is an em dash here too: an unset limit is not a limit of
             # zero, and seven tiles each spelling out a sentence about it was
@@ -168,7 +170,7 @@ class LimitFooter(QWidget):
 
     def text(self):
         """The whole line, for the accessible name and for the tests."""
-        parts = [self.prefix.text(), self.min_chunk.text(), self.max_chunk.text()]
+        parts = [self.min_chunk.text(), self.max_chunk.text()]
         return " ".join(part for part in parts if part)
 
 

@@ -127,7 +127,7 @@ class MainWindow(QMainWindow):
         # The chart is the subject of this window, so it opens with the larger
         # share; the file list is a picker, not a view, and every row it gives
         # back goes to the chart above it.
-        ver_splitter.setSizes([664, 216])
+        ver_splitter.setSizes([696, 184])
 
         hor_splitter = QSplitter(Qt.Orientation.Horizontal)
         hor_splitter.addWidget(self.sidebar)
