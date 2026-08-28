@@ -278,6 +278,10 @@ msgstr "Distance"
 msgid "CHART_MEAN_PROFILE_LABEL"
 msgstr "Mean profile"
 
+#. Used in the profile chart when every profile has been unticked.
+msgid "CHART_NOTE_NO_PROFILES_SELECTED"
+msgstr "No profiles selected"
+
 #. Used in profile chart as chart label or message.
 msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
 msgstr "Profiles are too short to calculate mean profile"
