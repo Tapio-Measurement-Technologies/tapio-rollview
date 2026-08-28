@@ -42,7 +42,7 @@ PROFILE_WIDTH = 2.0        # profile lines, round joins and caps
 LIMIT_WIDTH = 1.5          # limit lines, solid
 TARGET_WIDTH = 1.0         # target and mean, dashed and recessive
 SUPPORTING_WIDTH = 1.5     # individual profiles behind the mean
-SUPPORTING_ALPHA = 0.7     # ...and how far back they sit
+SUPPORTING_ALPHA = 0.5     # ...and how far back they sit
 MINOR_TICK_SIZE = 2        # half a major tick, for the unlabelled subdivisions
 
 #: The diagonal used for a region that is out of bounds — excluded from the
