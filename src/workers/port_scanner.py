@@ -324,6 +324,16 @@ class PortScanner(QObject):
         log.info("Starting port scanner thread.")
         self._thread.start()
 
+    def request_stop(self):
+        """Ask a running scan to stop, without waiting for its thread.
+
+        For the stop button: the worker checks the flag between ports, so the
+        scan winds down on its own while the window stays responsive. Shutdown
+        wants stop(), which waits.
+        """
+        if self._worker:
+            self._worker.stop()
+
     def stop(self, timeout_ms=5000):
         """
         Stops the port scan if it's running, and waits for the thread to exit.

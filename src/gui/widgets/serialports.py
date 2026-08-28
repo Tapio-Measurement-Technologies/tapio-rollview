@@ -106,6 +106,7 @@ class SerialPortView(QListView):
 
 class SerialWidget(QWidget):
     device_count_changed = Signal(int)
+    scan_started = Signal()
     scan_progress = Signal(int, str)
     scan_finished = Signal()
 
@@ -164,8 +165,13 @@ class SerialWidget(QWidget):
         self.view.model.selectPort(selected_port_device)
         self.syncButton.setEnabled(current.isValid() and not self.transferManager.is_transfer_in_progress())
 
+    def stop_scan(self):
+        """Stop a scan in progress. Non-blocking; the worker winds down."""
+        self.scanner.request_stop()
+
     def scan_devices(self):
         self.scanButton.setDisabled(True)
+        self.scan_started.emit()
         self.view.model.removeItems()
 
         # Add pinned ports first, so they are visible during scan

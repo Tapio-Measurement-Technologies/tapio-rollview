@@ -434,6 +434,14 @@ msgstr "Slope"
 msgid "POSTPROCESSORS_ERROR_TEXT"
 msgstr "Postprocessing failed for {count} folder(s)."
 
+#. Tooltip on the status bar square that stops whatever is running.
+msgid "BUTTON_TEXT_STOP"
+msgstr "Stop"
+
+#. Status bar: a port scan has started.
+msgid "SCAN_STARTED_STATUS"
+msgstr "Scanning for devices"
+
 #. Status bar: the device has said how much it is about to send.
 msgid "SYNC_BATCH_STATUS"
 msgstr "Receiving {count} files ({size})"

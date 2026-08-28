@@ -263,29 +263,54 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
     def test_the_status_bar_carries_the_work_and_then_the_outcome(self):
         """One area, three kinds of work, and a summary that outlives the bar."""
-        cancelled = []
-        self.window.start_activity("Scanning", cancel=lambda: cancelled.append(True))
+        stopped = []
+        self.window.start_activity("Scanning", cancel=lambda: stopped.append(True))
 
         self.assertTrue(self.window.activity_progress_bar.isVisibleTo(self.window))
-        self.assertTrue(self.window.activity_cancel_button.isVisibleTo(self.window))
-        self.assertEqual(self.window.status_bar.currentMessage(), "Scanning")
+        self.assertTrue(self.window.activity_stop_button.isVisibleTo(self.window))
+        self.assertEqual(self.window.status_message(), "Scanning")
 
         self.window.update_activity(40, "Half way")
         self.assertEqual(self.window.activity_progress_bar.value(), 40)
 
-        self.window.activity_cancel_button.click()
-        self.assertEqual(cancelled, [True])
-        self.assertFalse(self.window.activity_cancel_button.isEnabled())
+        self.window.activity_stop_button.click()
+        self.assertEqual(stopped, [True])
+        self.assertFalse(self.window.activity_stop_button.isEnabled())
 
         self.window.finish_activity("Done, 3 rolls")
         self.assertFalse(self.window.activity_progress_bar.isVisibleTo(self.window))
-        self.assertFalse(self.window.activity_cancel_button.isVisibleTo(self.window))
-        self.assertEqual(self.window.status_bar.currentMessage(), "Done, 3 rolls")
+        self.assertFalse(self.window.activity_stop_button.isVisibleTo(self.window))
+        self.assertEqual(self.window.status_message(), "Done, 3 rolls")
 
-    def test_work_that_cannot_be_stopped_offers_no_cancel(self):
+    def test_work_that_cannot_be_stopped_offers_no_square(self):
         self.window.start_activity("Scanning")
-        self.assertFalse(self.window.activity_cancel_button.isVisibleTo(self.window))
+        self.assertFalse(self.window.activity_stop_button.isVisibleTo(self.window))
         self.window.finish_activity()
+
+    def test_a_scan_can_be_stopped_like_anything_else(self):
+        """Every moving bar has the same square beside it, whatever is moving."""
+        with patch.object(self.window.serial_widget, "stop_scan") as stop_scan:
+            self.window.on_scan_started()
+            self.assertTrue(self.window.activity_stop_button.isVisibleTo(self.window))
+            self.window.activity_stop_button.click()
+
+        stop_scan.assert_called_once()
+        self.window.finish_activity()
+
+    def test_hover_guidance_does_not_wipe_out_what_the_work_is_saying(self):
+        """Qt's own handler shows a status tip as the status bar message.
+
+        Moving the mouse over the chart then erased the sync in progress, which
+        is why the tip gets a label of its own at the other end of the row.
+        """
+        from PySide6.QtGui import QStatusTipEvent
+
+        self.window.set_status_message("Receiving 4 / 12")
+        handled = self.window.event(QStatusTipEvent("Scroll to zoom."))
+
+        self.assertTrue(handled)
+        self.assertEqual(self.window.guide_label.text(), "Scroll to zoom.")
+        self.assertEqual(self.window.status_message(), "Receiving 4 / 12")
 
     def test_transfer_progress_counts_the_file_in_flight(self):
         self.window._transfer_total_files = 4
@@ -314,7 +339,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         # what the sync did is held and stays in front of it.
         summary = _("SYNC_FINISHED_STATUS").format(files=3, folders=2)
         self.assertEqual(self.window._sync_summary, summary)
-        self.assertEqual(self.window.status_bar.currentMessage(), summary)
+        self.assertEqual(self.window.status_message(), summary)
 
     def test_a_failed_postprocessor_is_not_left_to_the_status_bar_alone(self):
         """A roll that silently has no report is worth interrupting for."""
@@ -330,7 +355,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         warning.assert_called_once()
         self.assertIn(
             _("POSTPROCESSORS_ERROR_TEXT").format(count=1),
-            self.window.status_bar.currentMessage(),
+            self.window.status_message(),
         )
 
     def test_a_clean_postprocessor_run_does_not_interrupt(self):
@@ -344,7 +369,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
         warning.assert_not_called()
         self.assertEqual(
-            self.window.status_bar.currentMessage(),
+            self.window.status_message(),
             _("POSTPROCESSORS_FINISHED_STATUS").format(count=2),
         )
 
@@ -523,7 +548,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             _("SYNC_UP_TO_DATE_TITLE"),
             _("SYNC_UP_TO_DATE_TEXT"),
         )
-        self.assertEqual(self.window.status_bar.currentMessage(), "")
+        self.assertEqual(self.window.status_message(), "")
         self.window.directory_view.refresh_directory_dates.assert_not_called()
         self.window.postprocess_manager.run_postprocessors.assert_not_called()
         self.window.on_directory_contents_changed.assert_not_called()
@@ -540,7 +565,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.on_connection_lost("COM4", "unplugged")
 
         self.assertEqual(
-            self.window.status_bar.currentMessage(),
+            self.window.status_message(),
             _("DEVICE_DISCONNECTED_STATUS").format(device="Tapio RQP Live (SN1)"),
         )
 
@@ -548,7 +573,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.on_connection_lost("COM9", "dead")
 
         self.assertEqual(
-            self.window.status_bar.currentMessage(),
+            self.window.status_message(),
             _("DEVICE_DISCONNECTED_STATUS").format(device="COM9"),
         )
 
@@ -557,7 +582,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.file_transfer_manager.transferError.emit("sync broke", True)
         QApplication.processEvents()
 
-        self.assertEqual(self.window.status_bar.currentMessage(), "sync broke")
+        self.assertEqual(self.window.status_message(), "sync broke")
 
     def test_empty_successful_auto_sync_does_not_show_message_box(self):
         self.window.file_transfer_manager.last_transfer_outcome = "ok"
@@ -568,7 +593,7 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             self.window.on_file_transfer_finished([])
 
         information.assert_not_called()
-        self.assertEqual(self.window.status_bar.currentMessage(), "")
+        self.assertEqual(self.window.status_message(), "")
 
 
 if __name__ == "__main__":
