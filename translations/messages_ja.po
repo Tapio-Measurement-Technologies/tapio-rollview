@@ -916,10 +916,6 @@ msgstr "バイト"
 msgid "STATISTIC_VALUE"
 msgstr "統計値"
 
-#. Used on a stat tile before the configured alert limits.
-msgid "STAT_TILE_LIMIT_PREFIX"
-msgstr "限界値:"
-
 #. Used on a stat tile between a lower and an upper limit.
 msgid "STAT_TILE_LIMIT_SEPARATOR"
 msgstr "、"

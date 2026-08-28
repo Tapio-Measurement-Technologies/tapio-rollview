@@ -18,10 +18,14 @@ def open_in_file_explorer(folder_path, selected_path=None):
         os_name = platform.system()
         if os_name == "Windows":
             if selected_path and os.path.exists(selected_path):
-                # Use explorer.exe with /select to open and select the file
-                # Convert forward slashes to backslashes for Windows
-                selected_path = selected_path.replace('/', '\\')
-                subprocess.run(["explorer", "/select,", selected_path])
+                # One argument, not two: explorer.exe wants the path attached
+                # to the switch with no space after the comma, and an argument
+                # list puts one there, which is enough for it to drop the
+                # selection and open the default folder instead. Passing the
+                # command line as a string keeps the quotes where Explorer
+                # expects them for a path with spaces in it.
+                selected_path = os.path.normpath(selected_path)
+                subprocess.run(f'explorer /select,"{selected_path}"')
             else:
                 os.startfile(folder_path)
         elif os_name == "Darwin":

@@ -67,12 +67,12 @@ class TestStatWidgets(unittest.TestCase):
         widget = MaxWidget(self.data, limit=self.limits['max_g'])
 
         widget.update_data([4.8])
-        self.assertEqual(widget.foot_label.text(), "Limits: \u2265 4.5, \u2264 5.0")
+        self.assertEqual(widget.foot_label.text(), "\u2265 4.5, \u2264 5.0")
         self.assertIsNone(widget.foot_label.min_chunk.property("limit"))
         self.assertIsNone(widget.foot_label.max_chunk.property("limit"))
 
         widget.update_data([7.0])
-        self.assertEqual(widget.foot_label.text(), "Limits: \u2265 4.5, \u2264 5.0")
+        self.assertEqual(widget.foot_label.text(), "\u2265 4.5, \u2264 5.0")
         self.assertEqual(widget.foot_label.max_chunk.property("limit"), "breached")
         self.assertIsNone(widget.foot_label.min_chunk.property("limit"))
 
@@ -82,7 +82,7 @@ class TestStatWidgets(unittest.TestCase):
 
     def test_stat_widget_with_one_bound_states_only_that_bound(self):
         widget = MaxWidget(self.data, limit={'name': 'max_g', 'min': 4.5, 'max': None})
-        self.assertEqual(widget.foot_label.text(), "Limits: \u2265 4.5")
+        self.assertEqual(widget.foot_label.text(), "\u2265 4.5")
         self.assertFalse(widget.foot_label.max_chunk.isVisible())
 
     def test_a_long_limit_never_widens_the_tile(self):
@@ -127,9 +127,10 @@ class TestStatWidgets(unittest.TestCase):
 
     def test_stat_widget_without_limits_says_so(self):
         # An em dash, and the same shape as a tile that has limits: seven tiles
-        # each spelling out a sentence about having none was the noise.
+        # each spelling out a sentence about having none was the noise, and the
+        # word "Limits" in front of every one of them was the next layer of it.
         widget = MeanWidget(self.data)
-        self.assertEqual(widget.foot_label.text(), "Limits: \u2014")
+        self.assertEqual(widget.foot_label.text(), "\u2014")
 
     def test_stat_widget_without_data_shows_em_dash(self):
         # Missing is an em dash, not 0, not blank, not NaN. Zero is a measurement.
