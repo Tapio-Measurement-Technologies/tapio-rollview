@@ -17,8 +17,9 @@ from utils.highlighted_regions import (
 )
 import numpy as np
 from gui.widgets.stats import StatsWidget, format_stat_value
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSizePolicy, QLabel
-from PySide6.QtCore import QEvent, Qt, QThread, QTimer
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSizePolicy, QLabel, QToolButton
+from PySide6.QtCore import QCoreApplication, QEvent, Qt, QThread, QTimer
+from PySide6.QtGui import QStatusTipEvent
 from utils.translation import _
 
 from matplotlib.figure import Figure
@@ -149,6 +150,23 @@ class PlotToolbar(NavigationToolbar):
         ):
             self.retint()
 
+    def refuse_tooltips(self):
+        """Swallow the popups Matplotlib gives its buttons.
+
+        Clearing them is not enough: an action with no tooltip falls back to
+        its own text, and every re-tint re-syncs the button from the action and
+        brings "Home" and "Zoom" back. Refusing the event is the only place the
+        answer stays put. What each button does is said in the guidance row
+        instead — see ProfileWidget._move_toolbar_tips_to_the_row.
+        """
+        for button in self.findChildren(QToolButton):
+            button.installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.ToolTip:
+            return True
+        return super().eventFilter(watched, event)
+
 
 class ProfileWidget(QWidget):
     """The profile tab: the verdict, then the chart.
@@ -159,8 +177,6 @@ class ProfileWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        self.setStatusTip(_("CHART_STATUS_TIP_TEXT"))
 
         self.layout = QVBoxLayout(self)
         theme_qt.pad(self.layout, 2, 2, 2, 1)
@@ -208,8 +224,22 @@ class ProfileWidget(QWidget):
         self._setup_axes()
         self._setup_zoom_pan()
 
+        # The guidance follows the axes, not the widget. Scrolling and dragging
+        # only do anything where the data is, and that is the same moment the
+        # toolbar starts reading out x and y — so the row says how to zoom
+        # exactly while the pointer is somewhere the gestures would work, and
+        # is quiet over the margins, the axis labels and the tiles above.
+        #
+        # A status tip rather than a tooltip on purpose: it appears the instant
+        # the pointer arrives, where a tooltip waits for it to come to rest.
+        self.canvas.mpl_connect("axes_enter_event", self._on_axes_enter)
+        self.canvas.mpl_connect("axes_leave_event", self._on_axes_leave)
+        self.canvas.mpl_connect("figure_leave_event", self._on_axes_leave)
+
         self.toolbar = PlotToolbar(self.canvas, self)
         self.toolbar.setVisible(preferences.show_plot_toolbar)
+        self._move_toolbar_tips_to_the_row()
+        self.toolbar.refuse_tooltips()
         self.mean_profile = []
         self.mean_profile_distances = []
         self.stats_widget = StatsWidget((self.mean_profile_distances, self.mean_profile))
@@ -238,6 +268,35 @@ class ProfileWidget(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.customize_toolbar()
+
+    def _on_axes_enter(self, event=None):
+        self.show_guidance(_("CHART_STATUS_TIP_TEXT"))
+
+    def _on_axes_leave(self, event=None):
+        self.show_guidance("")
+
+    def show_guidance(self, text):
+        """Put *text* in the window guidance row, or clear it with "".
+
+        Sent as a status tip so it lands wherever the window puts those — the
+        label at the far end of the status bar — rather than this widget having
+        to know the window exists.
+        """
+        QCoreApplication.sendEvent(self, QStatusTipEvent(text))
+
+    def _move_toolbar_tips_to_the_row(self):
+        """Matplotlib gives every toolbar button a popup; this window does not.
+
+        The text is moved rather than dropped — hovering a button says what it
+        does in the same row as everything else — and flattened to one line,
+        because two of Matplotlib's own tips are two lines long and the row is one.
+        """
+        for action in self.toolbar.actions():
+            tip = action.toolTip()
+            if not tip:
+                continue
+            action.setStatusTip(" ".join(tip.split()))
+            action.setToolTip("")
 
     def _make_timer(self, slot, interval=None):
         """A single-shot timer owned by this widget, or None off the GUI thread."""

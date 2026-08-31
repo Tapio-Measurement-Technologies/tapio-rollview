@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
 import theme
 from theme import qt as theme_qt
+from theme.guidance import set_guidance
 from utils import preferences
 from utils.translation import _
 import math
@@ -48,6 +49,7 @@ class QRConfigDialog(QDialog):
         theme_qt.set_property(self.limits_label, "role", "data")
         theme_qt.set_panel(self.limits_label, "sunken")
         self.limits_label.setMargin(theme_qt.tokens().space(3))
+        set_guidance(self.limits_label, _("ALERT_LIMITS"), _("GUIDANCE_QR_ALERT_LIMITS"))
         instructions_layout.addWidget(self.limits_label)
 
         content_layout.addLayout(instructions_layout)

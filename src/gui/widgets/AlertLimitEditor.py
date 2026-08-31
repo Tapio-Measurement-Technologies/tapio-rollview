@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit, QPushButton, QHBoxLayout, QVBo
 from PySide6.QtCore import Qt
 import theme
 from theme import qt as theme_qt
+from theme.guidance import set_guidance
 from utils import preferences, profile_stats
 from utils.translation import _
 
@@ -33,6 +34,10 @@ class AlertLimitEditor(QDialog):
         # right-aligned. The placeholder colour comes from the palette.
         self.min_edit.setPlaceholderText(_("NOT_SET"))
         self.max_edit.setPlaceholderText(_("NOT_SET"))
+        # An empty field is a decision — no limit at that end — and the
+        # placeholder says which state it is in, not what it means.
+        set_guidance(self.min_edit, _("MIN"), _("GUIDANCE_LIMIT_FIELD"))
+        set_guidance(self.max_edit, _("MAX"), _("GUIDANCE_LIMIT_FIELD"))
         for field in (self.min_edit, self.max_edit):
             theme_qt.set_property(field, "role", "data")
             field.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -68,6 +73,7 @@ class AlertLimitEditor(QDialog):
         self.cancel_button = QPushButton(_("CANCEL"))
         self.clear_button = QPushButton(_("CLEAR"))
         theme_qt.set_variant(self.clear_button, "ghost")
+        set_guidance(self.clear_button, _("CLEAR"), _("GUIDANCE_CLEAR_LIMITS"))
 
         # Set save as default button and connect Enter key
         self.save_button.setDefault(True)

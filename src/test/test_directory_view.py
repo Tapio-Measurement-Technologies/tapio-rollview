@@ -608,7 +608,7 @@ class TestDirectoryView(unittest.TestCase):
 
             self.assertEqual([pattern for pattern, _ in emitted], ["roll"])
             self.assertEqual(widget.active_pattern, "roll")
-            self.assertTrue(widget.toolTip())
+            self.assertTrue(widget.statusTip())
         finally:
             widget.close()
 

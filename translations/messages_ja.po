@@ -1058,3 +1058,176 @@ msgstr "すべてのファイルは最新で、Rollview に同期されていま
 #. The count is of entries removed: a measurement folder counts as one.
 msgid "DEVICE_FILES_REMOVED"
 msgstr "デバイスから同期済みの {count} 件を削除しました。"
+
+#. Stat tile guidance: the limits, in the same words as the line under the
+#. number.
+msgid "GUIDANCE_ALERT_LIMITS"
+msgstr "アラート制限: {limits}"
+
+#. Stat tile guidance: a tile is a button that does not look like one.
+msgid "GUIDANCE_EDIT_ALERT_LIMITS"
+msgstr "クリックしてアラート制限を編集"
+
+#. Status bar: the square beside the progress bar.
+msgid "GUIDANCE_STOP_ACTIVITY"
+msgstr "実行中の処理を中止します"
+
+#. File menu guidance.
+msgid "GUIDANCE_MENU_SETTINGS"
+msgstr "設定ウィンドウを開きます"
+
+#. File menu guidance.
+msgid "GUIDANCE_MENU_LOAD_SETTINGS_FILE"
+msgstr "設定ファイルの内容で現在の設定を置き換えます"
+
+#. File menu guidance.
+msgid "GUIDANCE_MENU_EXPORT_SETTINGS_FILE"
+msgstr "現在の設定をファイルに書き出し、他のPCへ持ち運べるようにします"
+
+#. View menu guidance.
+msgid "GUIDANCE_SHOW_ALL_COM_PORTS"
+msgstr "測定デバイスとして応答したポートだけでなく、すべてのシリアルポートを表示します"
+
+#. View menu guidance.
+msgid "GUIDANCE_SHOW_PLOT_TOOLBAR"
+msgstr "チャートの下にズーム・移動・保存の操作を表示します"
+
+#. View menu guidance.
+msgid "GUIDANCE_RECALCULATE_MEAN"
+msgstr "プロファイルの表示/非表示を切り替えるたびに平均プロファイルを計算し直します"
+
+#. View menu and advanced settings guidance; the same switch in both places.
+msgid "GUIDANCE_FLIP_PROFILES"
+msgstr "逆方向に測定したロールのために、すべてのプロファイルを反対の端から描画します"
+
+#. View menu guidance.
+msgid "GUIDANCE_APPLICATION_LOGS"
+msgstr "アプリケーションの動作を確認できるログウィンドウを開きます"
+
+#. Postprocessors menu guidance.
+msgid "GUIDANCE_RUN_POSTPROCESSORS"
+msgstr "すべてのロールフォルダに対して、有効なデータ処理を実行します"
+
+#. Postprocessors menu guidance.
+msgid "GUIDANCE_REFRESH_POSTPROCESSORS"
+msgstr "データ処理フォルダを読み直し、起動後に追加・変更されたモジュールを反映します"
+
+#. Postprocessors menu guidance; the folder path follows it on its own line.
+msgid "GUIDANCE_OPEN_POSTPROCESSOR_FOLDER"
+msgstr "独自のデータ処理モジュールを読み込むフォルダを開きます"
+
+#. Device panel: the scan button.
+msgid "GUIDANCE_SCAN_DEVICES"
+msgstr "シリアルポートを検索して、接続中のデバイスを探します"
+
+#. Device panel: the sync button, when it can be pressed.
+msgid "GUIDANCE_SYNC_DEVICE"
+msgstr "選択したデバイスの測定データをロールフォルダにコピーします"
+
+#. Device panel: why the sync button is greyed out.
+msgid "GUIDANCE_SYNC_NEEDS_DEVICE"
+msgstr "先にリストからデバイスを選択してください"
+
+#. Device panel: why the sync button is greyed out.
+msgid "GUIDANCE_SYNC_BUSY"
+msgstr "同期はすでに実行中です"
+
+#. Device row guidance.
+msgid "GUIDANCE_SERIAL_NUMBER"
+msgstr "シリアル番号 {number}"
+
+#. Device row guidance.
+msgid "GUIDANCE_FIRMWARE_VERSION"
+msgstr "ファームウェア {version}"
+
+#. Device row guidance, for a port the operator pinned.
+msgid "GUIDANCE_PORT_PINNED"
+msgstr "ピン留め済み: 応答がなくてもリストに残ります"
+
+#. Device row guidance: a list gives no sign that it has a context menu.
+msgid "GUIDANCE_PORT_ACTIONS"
+msgstr "右クリックでこのポートをピン留め/解除できます"
+
+#. Device row guidance, for a device the software can talk to.
+msgid "GUIDANCE_PORT_ACTIONS_RQFT"
+msgstr "右クリックでポートのピン留め、デバイスの接続/切断ができます"
+
+#. Folder panel: the filter field.
+msgid "GUIDANCE_FOLDER_FILTER"
+msgstr "名前が一致するロールフォルダだけを表示します。正規表現も使えます"
+
+#. Folder panel button guidance; the folder path follows it on its own line.
+msgid "GUIDANCE_OPEN_FILE_EXPLORER"
+msgstr "ロールフォルダをファイルエクスプローラーで開きます"
+
+#. Folder panel button guidance; the folder path follows it on its own line.
+msgid "GUIDANCE_CHANGE_DIRECTORY"
+msgstr "ロール一覧を読み込むフォルダを選びます"
+
+#. Folder list row guidance.
+msgid "GUIDANCE_ROLL_FOLDER_ACTIONS"
+msgstr "右クリックでこのロールのデータ処理・名前の変更・削除ができます"
+
+#. File list row guidance.
+msgid "GUIDANCE_PROFILE_ROW_ACTIONS"
+msgstr "右クリックでこのプロファイルを開く・名前の変更・削除ができます"
+
+#. File list: the checkbox column, which has no room for a heading.
+msgid "GUIDANCE_PROFILE_VISIBILITY"
+msgstr "プロファイルの表示"
+
+#. File list: the checkbox column, when the profile is in the chart.
+msgid "GUIDANCE_PROFILE_SHOWN"
+msgstr "チャートに表示中"
+
+#. File list: the checkbox column, when the profile is left out of the chart.
+msgid "GUIDANCE_PROFILE_HIDDEN"
+msgstr "チャートで非表示"
+
+#. File list: the checkbox column.
+msgid "GUIDANCE_TOGGLE_PROFILE"
+msgstr "クリックでこのプロファイルの表示/非表示を切り替えます"
+
+#. Statistics tab: the statistic dropdown.
+msgid "GUIDANCE_STATISTIC_VALUE"
+msgstr "各ロールについてトレンドに描画する統計値です"
+
+#. Statistics tab: the time range dropdown.
+msgid "GUIDANCE_STATISTICS_TIME_RANGE"
+msgstr "トレンドをさかのぼる期間です"
+
+#. Statistics tab: the refresh button.
+msgid "GUIDANCE_REFRESH_STATISTICS"
+msgstr "すべてのロールフォルダを読み直して、トレンドを作り直します"
+
+#. Statistics tab: the trend chart.
+msgid "GUIDANCE_STATISTICS_CHART_DETAIL"
+msgstr "1つの点が1つのロールで、古い順に並びます"
+
+#. Statistics tab: the trend chart.
+msgid "GUIDANCE_STATISTICS_CHART_ACTION"
+msgstr "点をクリックすると、そのロールを開きます"
+
+#. Advanced settings: the flip switch is in the View menu too.
+msgid "GUIDANCE_ALSO_IN_VIEW_MENU"
+msgstr "表示メニューからも切り替えられます"
+
+#. Alert limit fields, in the editor and in the settings table.
+msgid "GUIDANCE_LIMIT_FIELD"
+msgstr "この側に制限を設けない場合は空欄のままにします"
+
+#. Alert limit editor: the clear button.
+msgid "GUIDANCE_CLEAR_LIMITS"
+msgstr "両方の欄を空にして、この統計値を制限なしにします"
+
+#. Alert limits, in the settings page and its rows: what a limit is for.
+msgid "GUIDANCE_ALERT_LIMIT_ROW"
+msgstr "この範囲を外れた測定値は、プロファイルのタイルで警告表示されます"
+
+#. Alert limits settings page: the save button.
+msgid "GUIDANCE_SAVE_ALERT_LIMITS"
+msgstr "この制限を保存します。プロファイルのタイルにすぐ反映されます"
+
+#. QR configuration dialog: the block of limit values.
+msgid "GUIDANCE_QR_ALERT_LIMITS"
+msgstr "このQRコードでデバイスに適用される制限です"

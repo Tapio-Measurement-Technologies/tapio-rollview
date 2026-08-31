@@ -24,6 +24,7 @@ from gui.widgets.LoadingWidget import LoadingWidget
 from theme import mpl as tapio_mpl
 from theme import tokens as T
 from theme import qt as theme_qt
+from theme.guidance import set_guidance
 from theme.widgets import SectionLabel
 
 stat_label_map = profile_stats.analysis_stat_label_map
@@ -352,9 +353,13 @@ class StatisticsAnalysisWidget(QWidget):
 
         self.stat_selection_dropdown = StatSelectionDropdown(self)
         self.stat_selection_dropdown.currentTextChanged.connect(self.on_stat_selection_changed)
+        set_guidance(self.stat_selection_dropdown, _("STATISTIC_VALUE"),
+                    _("GUIDANCE_STATISTIC_VALUE"))
 
         self.filter_dropdown = FilterDropdown(self)
         self.filter_dropdown.currentTextChanged.connect(self.on_filter_changed)
+        set_guidance(self.filter_dropdown, _("STATISTICS_TIME_RANGE"),
+                    _("GUIDANCE_STATISTICS_TIME_RANGE"))
 
         # Labels sit above the field, always: a bare control is only legible to
         # whoever configured it.
@@ -375,6 +380,8 @@ class StatisticsAnalysisWidget(QWidget):
         self.refresh_button = QPushButton(_("BUTTON_TEXT_REFRESH"), self)
         theme_qt.set_variant(self.refresh_button, "ghost")
         self.refresh_button.clicked.connect(self.refresh_data)
+        set_guidance(self.refresh_button, _("BUTTON_TEXT_REFRESH"),
+                    _("GUIDANCE_REFRESH_STATISTICS"))
         self.refresh_button_layout.addStretch()
         self.refresh_button_layout.addWidget(self.refresh_button)
 
@@ -391,6 +398,11 @@ class StatisticsAnalysisWidget(QWidget):
         # Create chart widget
         self.chart = StatisticsAnalysisChart(self)
         self.chart.point_selected.connect(self.on_point_selected)
+        # A point is a roll, and clicking one opens it in the profile tab.
+        # Nothing about a scatter plot says that.
+        set_guidance(self.chart, _("TAB_TITLE_STATISTICS"),
+                    _("GUIDANCE_STATISTICS_CHART_DETAIL"),
+                    _("GUIDANCE_STATISTICS_CHART_ACTION"))
 
         # Add widgets to stacked widget
         self.stacked_widget.addWidget(self.chart)  # index 0

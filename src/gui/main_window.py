@@ -8,12 +8,13 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QHBoxLayout, QWidgetAction, QSplitter, QTabWidget, QProgressBar, QPushButton, QLabel, QFileDialog, QMessageBox
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QHBoxLayout, QWidgetAction, QSizePolicy, QSplitter, QTabWidget, QProgressBar, QPushButton, QLabel, QFileDialog, QMessageBox
+from PySide6.QtGui import QAction, QFontMetrics, QIcon
 from PySide6.QtCore import QDir, Qt, QEvent, QSignalBlocker, QTimer
 
 import theme
 from theme import qt as theme_qt
+from theme.guidance import set_guidance
 
 from utils.file_utils import list_prof_files, open_in_file_explorer, format_bytes
 from utils.postprocess import (toggle_postprocessor, PostprocessManager, get_postprocessors,
@@ -173,7 +174,8 @@ class MainWindow(QMainWindow):
         self.activity_stop_button.setObjectName("activityStop")
         self.activity_stop_button.setFixedSize(
             ACTIVITY_STOP_SIZE, ACTIVITY_STOP_SIZE)
-        self.activity_stop_button.setToolTip(_("BUTTON_TEXT_STOP"))
+        set_guidance(self.activity_stop_button, _("BUTTON_TEXT_STOP"),
+                     _("GUIDANCE_STOP_ACTIVITY"))
         self.activity_stop_button.setVisible(False)
         self.activity_stop_button.clicked.connect(self.on_activity_cancelled)
         self._refresh_stop_icon()
@@ -211,6 +213,12 @@ class MainWindow(QMainWindow):
         theme_qt.set_role(self.guide_label, "hint")
         self.guide_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        # Asks for no width of its own. Guidance lines vary from two words to a
+        # folder path, and a label sized to its text would push the bar — and
+        # with it the window's minimum width — around as the pointer moves.
+        # show_guidance() cuts the line to whatever room the row has instead.
+        self.guide_label.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.status_bar.addPermanentWidget(self.guide_label, 1)
 
         self._activity_cancel = None
@@ -281,7 +289,6 @@ class MainWindow(QMainWindow):
         self.activity_stop_button.setVisible(cancel is not None)
         self.activity_progress_bar.setValue(0)
         self.activity_progress_bar.setVisible(True)
-        self.activity_stop_button.setToolTip(_("BUTTON_TEXT_STOP"))
         self.set_status_message(message)
 
     def update_activity(self, value, message=None):
@@ -340,9 +347,30 @@ class MainWindow(QMainWindow):
         be erased by the mouse passing over the chart.
         """
         if event.type() == QEvent.Type.StatusTip:
-            self.guide_label.setText(event.tip())
+            self.show_guidance(event.tip())
             return True
         return super().event(event)
+
+    def show_guidance(self, text):
+        """Put *text* in the guidance row, shortened to the room it has.
+
+        The row shares the status bar with whatever the window is reporting, so
+        a long line is cut rather than allowed to widen the bar — and the whole
+        of it stays in the accessible name and in guidance().
+        """
+        self._guidance = text or ""
+        self.guide_label.setAccessibleName(self._guidance)
+        width = self.guide_label.width()
+        if width > 0:
+            metrics = QFontMetrics(self.guide_label.font())
+            self.guide_label.setText(
+                metrics.elidedText(self._guidance, Qt.TextElideMode.ElideRight, width))
+        else:
+            self.guide_label.setText(self._guidance)
+
+    def guidance(self):
+        """The whole guidance line, however much of it the row could show."""
+        return getattr(self, "_guidance", "")
 
     def keyPressEvent(self, event):
         """Handle Ctrl+C to copy current tab view to clipboard."""
@@ -360,14 +388,20 @@ class MainWindow(QMainWindow):
 
         settings_action = QAction(_('MENU_BAR_SETTINGS'), self)
         settings_action.triggered.connect(self.open_settings_window)
+        set_guidance(settings_action, _('MENU_BAR_SETTINGS'),
+                    _('GUIDANCE_MENU_SETTINGS'))
         file_menu.addAction(settings_action)
 
         self.load_settings_file_action = QAction(_('MENU_BAR_LOAD_SETTINGS_FILE'), self)
         self.load_settings_file_action.triggered.connect(self.load_settings_file)
+        set_guidance(self.load_settings_file_action, _('MENU_BAR_LOAD_SETTINGS_FILE'),
+                    _('GUIDANCE_MENU_LOAD_SETTINGS_FILE'))
         file_menu.addAction(self.load_settings_file_action)
 
         export_settings_action = QAction(_('MENU_BAR_EXPORT_SETTINGS_FILE'), self)
         export_settings_action.triggered.connect(self.export_settings_file)
+        set_guidance(export_settings_action, _('MENU_BAR_EXPORT_SETTINGS_FILE'),
+                    _('GUIDANCE_MENU_EXPORT_SETTINGS_FILE'))
         file_menu.addAction(export_settings_action)
 
         view_menu = menu_bar.addMenu(_('MENU_BAR_VIEW'))
@@ -376,7 +410,8 @@ class MainWindow(QMainWindow):
             # 'Show all COM ports'
             view_menu,
             preferences.show_all_com_ports,
-            self.on_show_all_com_ports_changed
+            self.on_show_all_com_ports_changed,
+            hint=_('GUIDANCE_SHOW_ALL_COM_PORTS'),
         )
         self.view_menu_checkboxes['show_all_com_ports'] = show_all_com_ports_checkbox.defaultWidget().findChild(QCheckBox)
 
@@ -385,7 +420,8 @@ class MainWindow(QMainWindow):
             # 'Show toolbar',
             view_menu,
             preferences.show_plot_toolbar,
-            self.on_show_plot_toolbar_changed
+            self.on_show_plot_toolbar_changed,
+            hint=_('GUIDANCE_SHOW_PLOT_TOOLBAR'),
         )
         self.view_menu_checkboxes['show_plot_toolbar'] = show_plot_toolbar_checkbox.defaultWidget().findChild(QCheckBox)
 
@@ -394,16 +430,36 @@ class MainWindow(QMainWindow):
             # 'Recalculate mean on profile show/hide',
             view_menu,
             preferences.recalculate_mean,
-            self.on_recalculate_mean_changed
+            self.on_recalculate_mean_changed,
+            hint=_('GUIDANCE_RECALCULATE_MEAN'),
         )
         self.view_menu_checkboxes['recalculate_mean'] = recalculate_mean_checkbox.defaultWidget().findChild(QCheckBox)
 
+        # The same switch as the one in the advanced settings, put where the
+        # chart it turns around is. Which end a roll was measured from is a
+        # property of the roll on screen, not of how the software is set up, and
+        # the operator who needs it needs it while looking at the profile.
+        flip_profiles_checkbox = self.create_checkbox_menu_item(
+            _('FLIP_PROFILES'),
+            view_menu,
+            preferences.flip_profiles,
+            self.on_flip_profiles_changed,
+            hint=_('GUIDANCE_FLIP_PROFILES'),
+        )
+        self.view_menu_checkboxes['flip_profiles'] = flip_profiles_checkbox.defaultWidget().findChild(QCheckBox)
+
         log_window_action = QAction(_("APPLICATION_LOGS"), self)
         log_window_action.triggered.connect(self.open_log_window)
+        set_guidance(log_window_action, _("APPLICATION_LOGS"),
+                    _('GUIDANCE_APPLICATION_LOGS'))
 
         view_menu.addAction(show_all_com_ports_checkbox)
         view_menu.addAction(show_plot_toolbar_checkbox)
         view_menu.addAction(recalculate_mean_checkbox)
+        view_menu.addAction(flip_profiles_checkbox)
+        # The switches above change what the chart shows; the log window is a
+        # window. A line between them says which is which.
+        view_menu.addSeparator()
         view_menu.addAction(log_window_action)
 
         self.postprocessors_menu = menu_bar.addMenu(_('MENU_BAR_POSTPROCESSORS'))
@@ -415,19 +471,31 @@ class MainWindow(QMainWindow):
         self.run_postprocessors_action = QAction(_('MENU_BAR_RUN_POSTPROCESSORS'), self)
         self.run_postprocessors_action.triggered.connect(
             self.run_postprocessors_for_all_folders)
+        set_guidance(self.run_postprocessors_action, _('MENU_BAR_RUN_POSTPROCESSORS'),
+                    _('GUIDANCE_RUN_POSTPROCESSORS'))
 
         self.refresh_postprocessors_action = QAction(_('MENU_BAR_REFRESH_POSTPROCESSORS'), self)
         self.refresh_postprocessors_action.triggered.connect(self.on_refresh_postprocessors)
+        set_guidance(self.refresh_postprocessors_action, _('MENU_BAR_REFRESH_POSTPROCESSORS'),
+                    _('GUIDANCE_REFRESH_POSTPROCESSORS'))
 
         self.open_postprocessor_folder_action = QAction(
             _('MENU_BAR_OPEN_POSTPROCESSOR_FOLDER'), self)
         self.open_postprocessor_folder_action.triggered.connect(self.open_postprocessor_folder)
+        # The path is the detail: the point of the item is to say where a .py
+        # file has to be dropped for the software to find it.
+        set_guidance(self.open_postprocessor_folder_action,
+                    _('MENU_BAR_OPEN_POSTPROCESSOR_FOLDER'),
+                    [_('GUIDANCE_OPEN_POSTPROCESSOR_FOLDER'),
+                     os.path.normpath(user_postprocessors_path)])
 
         self.build_postprocessors_menu()
 
         scan_menu = menu_bar.addMenu(_('MENU_BAR_DEVICE_CONFIG'))
         apply_alert_limits_action = QAction(_('MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE'), self)
         apply_alert_limits_action.triggered.connect(self.open_qr_config_dialog)
+        set_guidance(apply_alert_limits_action, _('MENU_BAR_APPLY_ALERT_LIMITS_TO_DEVICE'),
+                    _('QR_CONFIG_INSTRUCTION'))
         scan_menu.addAction(apply_alert_limits_action)
 
     def add_postprocessor_items(self, modules):
@@ -511,8 +579,14 @@ class MainWindow(QMainWindow):
             return
         open_in_file_explorer(user_postprocessors_path)
 
-    def create_checkbox_menu_item(self, label, parent_menu, checked, callback):
-        """Helper method to create a persistent checkbox menu item."""
+    def create_checkbox_menu_item(self, label, parent_menu, checked, callback, hint=None):
+        """Helper method to create a persistent checkbox menu item.
+
+        *hint* is what the switch does, in the sentence the label has no room
+        for. It goes on the checkbox and on the widget carrying it, because a
+        menu row is wider than its checkbox and the pointer lands wherever it
+        lands.
+        """
         widget = QWidget()
         layout = QVBoxLayout()
         # Reduce margins for better alignment
@@ -522,11 +596,19 @@ class MainWindow(QMainWindow):
         checkbox.setChecked(checked)
         # Connect checkbox state change to callback
         checkbox.stateChanged.connect(callback)
+        # Both, because the row is wider than its checkbox and the pointer
+        # lands wherever it lands; Qt asks no parent for a status tip.
+        set_guidance(checkbox, label, hint)
+        set_guidance(widget, label, hint)
         layout.addWidget(checkbox)
         widget.setLayout(layout)
 
         widget_action = QWidgetAction(parent_menu)
         widget_action.setDefaultWidget(widget)
+        # On the action as well: a menu sends the status tip of the action the
+        # pointer is on, and it is the only one of the three that is reliably
+        # inside the window's parent chain while the menu is open.
+        set_guidance(widget_action, label, hint)
 
         return widget_action
 
@@ -540,6 +622,16 @@ class MainWindow(QMainWindow):
 
     def on_recalculate_mean_changed(self, checked):
         preferences.update_preferences({'recalculate_mean': checked})
+        self.refresh_plot()
+
+    def on_flip_profiles_changed(self, checked):
+        """Turn every profile end for end, from the menu or from the settings.
+
+        Flipping happens as a profile is read, so the folder has to be read
+        again for the chart to catch up. refresh_plot() does that and puts back
+        whatever the operator had hidden.
+        """
+        preferences.update_preferences({'flip_profiles': checked})
         self.refresh_plot()
 
     def load_settings_file(self):
@@ -671,6 +763,7 @@ class MainWindow(QMainWindow):
             'show_all_com_ports': preferences.show_all_com_ports,
             'show_plot_toolbar': preferences.show_plot_toolbar,
             'recalculate_mean': preferences.recalculate_mean,
+            'flip_profiles': preferences.flip_profiles,
         }
         for key, checked in checkbox_states.items():
             checkbox = self.view_menu_checkboxes.get(key)
@@ -820,6 +913,8 @@ class MainWindow(QMainWindow):
     def open_settings_window(self):
         self.settings_window = SettingsWindow()
         self.settings_window.settings_updated.connect(self.refresh_plot)
+        # Two places show the same switches; saving in one has to move the other.
+        self.settings_window.settings_updated.connect(self._sync_menu_checkbox_states)
         self.settings_window.general_settings_page.appearance_changed.connect(self.apply_appearance)
         self.settings_window.show()
 

@@ -8,6 +8,7 @@ from utils.profile_stats import Stats
 from utils import preferences, profile_stats
 from utils.translation import _
 from theme.widgets import EyebrowLabel
+from theme.guidance import set_guidance_everywhere
 from .AlertLimitEditor import AlertLimitEditor
 
 stats = Stats()
@@ -47,7 +48,8 @@ class ElidedLabel(QLabel):
 
     Used for the limit line under a stat: it should say as much as fits and no
     more, rather than dictating how wide the tile is. The full text stays in the
-    tooltip and in the accessible name.
+    accessible name, and the tile states it in the guidance row at the foot of
+    the window, which has room a 120 px tile never will.
     """
 
     def __init__(self, text="", parent=None):
@@ -77,7 +79,6 @@ class ElidedLabel(QLabel):
             if available else self._full_text
         )
         QLabel.setText(self, elided)
-        self.setToolTip(self._full_text if elided != self._full_text else "")
 
 
 class ElidedChunk(ElidedLabel):
@@ -88,6 +89,7 @@ class ElidedChunk(ElidedLabel):
     collapses to nothing. This asks for the width of its text and accepts none
     of it, so the row packs left, shrinks under pressure and elides rather than
     widening the tile the way a plain QLabel would.
+
     """
 
     def __init__(self, text="", parent=None):
@@ -428,14 +430,28 @@ class StatWidget(QWidget):
             return "max"
         return None
 
-    def update_tooltip(self):
+    def update_guidance(self):
+        """What the tile is, what its limits are, and that a click edits them.
+
+        The last part is the reason this line exists: the tile is a button that
+        does not look like one, and the pointing-hand cursor is the only other
+        thing that says so. The limits are in it because the footer under the
+        number elides on a narrow tile, and this row has more room than a tile
+        ever will.
+
+        They are read off the footer rather than formatted a second time here,
+        so the row and the line under the number cannot come to disagree about
+        how a bound is written.
+        """
         if self.has_limit():
-            min_val = self.limit['min']
-            max_val = self.limit['max']
-            tooltip = f"{_('ALERT_LIMITS')}:\n{_('MIN')}: {min_val}\n{_('MAX')}: {max_val}"
+            detail = _("GUIDANCE_ALERT_LIMITS").format(limits=self.foot_label.text())
         else:
-            tooltip = _("ALERT_LIMITS_NOT_SET")
-        self.setToolTip(tooltip)
+            detail = _("ALERT_LIMITS_NOT_SET")
+        # On every label inside the tile as well: Qt emits the status tip of
+        # the widget the pointer entered and asks no parent, and the number and
+        # the limit line cover most of the tile.
+        set_guidance_everywhere(self, self.name, detail,
+                                _("GUIDANCE_EDIT_ALERT_LIMITS"))
 
     def update_data(self, data):
         self.data = data
@@ -466,7 +482,7 @@ class StatWidget(QWidget):
             self.limit.get('max') if self.limit else None,
             self._breached_bound(),
         )
-        self.update_tooltip()
+        self.update_guidance()
 
 class MeanWidget(StatWidget):
     def __init__(self, data, limit=None):

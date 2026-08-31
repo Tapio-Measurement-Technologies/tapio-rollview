@@ -1058,3 +1058,176 @@ msgstr "All files are already up to date and synced to Rollview."
 #. The count is of entries removed: a measurement folder counts as one.
 msgid "DEVICE_FILES_REMOVED"
 msgstr "Removed {count} synced item(s) from the device."
+
+#. Stat tile guidance: the limits, in the same words as the line under the
+#. number.
+msgid "GUIDANCE_ALERT_LIMITS"
+msgstr "Alert limits: {limits}"
+
+#. Stat tile guidance: a tile is a button that does not look like one.
+msgid "GUIDANCE_EDIT_ALERT_LIMITS"
+msgstr "Click to edit the alert limits"
+
+#. Status bar: the square beside the progress bar.
+msgid "GUIDANCE_STOP_ACTIVITY"
+msgstr "Stop the work in progress"
+
+#. File menu guidance.
+msgid "GUIDANCE_MENU_SETTINGS"
+msgstr "Open the settings window"
+
+#. File menu guidance.
+msgid "GUIDANCE_MENU_LOAD_SETTINGS_FILE"
+msgstr "Replace the current preferences with the ones in a settings file"
+
+#. File menu guidance.
+msgid "GUIDANCE_MENU_EXPORT_SETTINGS_FILE"
+msgstr "Write the current preferences to a file, to carry to another machine"
+
+#. View menu guidance.
+msgid "GUIDANCE_SHOW_ALL_COM_PORTS"
+msgstr "List every serial port, not only the ones that answered as a measuring device"
+
+#. View menu guidance.
+msgid "GUIDANCE_SHOW_PLOT_TOOLBAR"
+msgstr "Show the zoom, pan and save controls under the chart"
+
+#. View menu guidance.
+msgid "GUIDANCE_RECALCULATE_MEAN"
+msgstr "Recalculate the mean profile whenever a profile is shown or hidden"
+
+#. View menu and advanced settings guidance; the same switch in both places.
+msgid "GUIDANCE_FLIP_PROFILES"
+msgstr "Draw every profile from the other end, for rolls measured in the opposite direction"
+
+#. View menu guidance.
+msgid "GUIDANCE_APPLICATION_LOGS"
+msgstr "Open the log window, to see what the application has been doing"
+
+#. Postprocessors menu guidance.
+msgid "GUIDANCE_RUN_POSTPROCESSORS"
+msgstr "Run the enabled postprocessors for every roll folder"
+
+#. Postprocessors menu guidance.
+msgid "GUIDANCE_REFRESH_POSTPROCESSORS"
+msgstr "Read the postprocessor folders again, picking up modules added or changed since launch"
+
+#. Postprocessors menu guidance; the folder path follows it on its own line.
+msgid "GUIDANCE_OPEN_POSTPROCESSOR_FOLDER"
+msgstr "Open the folder your own postprocessor modules are read from"
+
+#. Device panel: the scan button.
+msgid "GUIDANCE_SCAN_DEVICES"
+msgstr "Look through the serial ports for connected devices"
+
+#. Device panel: the sync button, when it can be pressed.
+msgid "GUIDANCE_SYNC_DEVICE"
+msgstr "Copy the measurements on the selected device into the roll folder"
+
+#. Device panel: why the sync button is greyed out.
+msgid "GUIDANCE_SYNC_NEEDS_DEVICE"
+msgstr "Select a device in the list first"
+
+#. Device panel: why the sync button is greyed out.
+msgid "GUIDANCE_SYNC_BUSY"
+msgstr "A sync is already running"
+
+#. Device row guidance.
+msgid "GUIDANCE_SERIAL_NUMBER"
+msgstr "Serial number {number}"
+
+#. Device row guidance.
+msgid "GUIDANCE_FIRMWARE_VERSION"
+msgstr "Firmware {version}"
+
+#. Device row guidance, for a port the operator pinned.
+msgid "GUIDANCE_PORT_PINNED"
+msgstr "Pinned: kept in the list even when it does not answer"
+
+#. Device row guidance: a list gives no sign that it has a context menu.
+msgid "GUIDANCE_PORT_ACTIONS"
+msgstr "Right-click to pin or unpin this port"
+
+#. Device row guidance, for a device the software can talk to.
+msgid "GUIDANCE_PORT_ACTIONS_RQFT"
+msgstr "Right-click to pin the port, or to connect and disconnect the device"
+
+#. Folder panel: the filter field.
+msgid "GUIDANCE_FOLDER_FILTER"
+msgstr "Show only the roll folders whose name matches; regular expressions work"
+
+#. Folder panel button guidance; the folder path follows it on its own line.
+msgid "GUIDANCE_OPEN_FILE_EXPLORER"
+msgstr "Open the roll folder in the file explorer"
+
+#. Folder panel button guidance; the folder path follows it on its own line.
+msgid "GUIDANCE_CHANGE_DIRECTORY"
+msgstr "Choose the folder the roll list is read from"
+
+#. Folder list row guidance.
+msgid "GUIDANCE_ROLL_FOLDER_ACTIONS"
+msgstr "Right-click to postprocess, rename or delete this roll"
+
+#. File list row guidance.
+msgid "GUIDANCE_PROFILE_ROW_ACTIONS"
+msgstr "Right-click to open, rename or delete this profile"
+
+#. File list: the checkbox column, which has no room for a heading.
+msgid "GUIDANCE_PROFILE_VISIBILITY"
+msgstr "Profile visibility"
+
+#. File list: the checkbox column, when the profile is in the chart.
+msgid "GUIDANCE_PROFILE_SHOWN"
+msgstr "Drawn in the chart"
+
+#. File list: the checkbox column, when the profile is left out of the chart.
+msgid "GUIDANCE_PROFILE_HIDDEN"
+msgstr "Hidden from the chart"
+
+#. File list: the checkbox column.
+msgid "GUIDANCE_TOGGLE_PROFILE"
+msgstr "Click to show or hide this profile"
+
+#. Statistics tab: the statistic dropdown.
+msgid "GUIDANCE_STATISTIC_VALUE"
+msgstr "Which statistic the trend below plots for every roll"
+
+#. Statistics tab: the time range dropdown.
+msgid "GUIDANCE_STATISTICS_TIME_RANGE"
+msgstr "How far back the trend reaches"
+
+#. Statistics tab: the refresh button.
+msgid "GUIDANCE_REFRESH_STATISTICS"
+msgstr "Read every roll folder again and rebuild the trend"
+
+#. Statistics tab: the trend chart.
+msgid "GUIDANCE_STATISTICS_CHART_DETAIL"
+msgstr "One point per roll, oldest first"
+
+#. Statistics tab: the trend chart.
+msgid "GUIDANCE_STATISTICS_CHART_ACTION"
+msgstr "Click a point to open that roll"
+
+#. Advanced settings: the flip switch is in the View menu too.
+msgid "GUIDANCE_ALSO_IN_VIEW_MENU"
+msgstr "Also in the View menu"
+
+#. Alert limit fields, in the editor and in the settings table.
+msgid "GUIDANCE_LIMIT_FIELD"
+msgstr "Leave empty for no limit at this end"
+
+#. Alert limit editor: the clear button.
+msgid "GUIDANCE_CLEAR_LIMITS"
+msgstr "Empty both fields, leaving this statistic without limits"
+
+#. Alert limits, in the settings page and its rows: what a limit is for.
+msgid "GUIDANCE_ALERT_LIMIT_ROW"
+msgstr "A measurement outside these limits is flagged on the profile tiles"
+
+#. Alert limits settings page: the save button.
+msgid "GUIDANCE_SAVE_ALERT_LIMITS"
+msgstr "Store these limits; the profile tiles use them straight away"
+
+#. QR configuration dialog: the block of limit values.
+msgid "GUIDANCE_QR_ALERT_LIMITS"
+msgstr "The limits this QR code carries to the device"
