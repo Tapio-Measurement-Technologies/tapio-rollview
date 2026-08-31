@@ -114,12 +114,33 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         preferences.show_all_com_ports = True
         preferences.show_plot_toolbar = False
         preferences.recalculate_mean = False
+        preferences.flip_profiles = True
 
         self.window.apply_loaded_preferences()
 
         self.assertTrue(self.window.view_menu_checkboxes["show_all_com_ports"].isChecked())
         self.assertFalse(self.window.view_menu_checkboxes["show_plot_toolbar"].isChecked())
         self.assertFalse(self.window.view_menu_checkboxes["recalculate_mean"].isChecked())
+        self.assertTrue(self.window.view_menu_checkboxes["flip_profiles"].isChecked())
+
+    def test_flipping_from_the_view_menu_stores_it_and_redraws(self):
+        """The menu switch is the settings switch: same preference, one state."""
+        original = preferences.flip_profiles
+        try:
+            with patch.object(self.window, "refresh_plot") as refresh_plot:
+                self.window.view_menu_checkboxes["flip_profiles"].setChecked(not original)
+
+            self.assertEqual(preferences.flip_profiles, not original)
+            refresh_plot.assert_called_once()
+        finally:
+            preferences.update_preferences({"flip_profiles": original})
+
+    def test_the_view_menu_switches_say_what_they_do(self):
+        # The labels are names; the sentence explaining each one goes to the
+        # guidance row at the foot of the window, not into a popup.
+        for checkbox in self.window.view_menu_checkboxes.values():
+            self.assertTrue(checkbox.statusTip())
+            self.assertEqual(checkbox.toolTip(), "")
 
     def test_apply_loaded_preferences_syncs_postprocessor_states(self):
         postprocessors = get_postprocessors()
@@ -341,8 +362,102 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         handled = self.window.event(QStatusTipEvent("Scroll to zoom."))
 
         self.assertTrue(handled)
-        self.assertEqual(self.window.guide_label.text(), "Scroll to zoom.")
+        # guidance() is the whole line; the label shows as much of it as the
+        # row has room for, which on a window this narrow is not all of it.
+        self.assertEqual(self.window.guidance(), "Scroll to zoom.")
         self.assertEqual(self.window.status_message(), "Receiving 4 / 12")
+
+    def test_the_chart_guidance_is_confined_to_the_axes(self):
+        """How to zoom is said where zooming does something, and nowhere else.
+
+        The tip used to sit on the whole profile tab, so it followed the
+        pointer up onto the stat tiles: an operator reading a tile was told
+        about scrolling a chart they were not pointing at. It is not on the
+        canvas widget either — the margins, the axis labels and the toolbar are
+        not the plot. Matplotlib says when the pointer crosses into the axes,
+        which is the same moment the toolbar starts reading out x and y.
+        """
+        profile_widget = self.window.profile_widget
+
+        self.assertEqual(profile_widget.statusTip(), "")
+        self.assertEqual(profile_widget.canvas.statusTip(), "")
+
+        self.window.show_guidance("")
+        profile_widget._on_axes_enter()
+        self.assertEqual(self.window.guidance(), _("CHART_STATUS_TIP_TEXT"))
+
+        profile_widget._on_axes_leave()
+        self.assertEqual(self.window.guidance(), "")
+
+    def test_a_tile_says_what_a_click_does_the_moment_it_is_entered(self):
+        """The row, and nothing that hovers over the measurement.
+
+        Qt raises a tooltip only once the pointer has rested for the best part
+        of a second, so sweeping across the tiles showed nothing at all. The
+        guidance goes out on arrival — and Qt emits the tip of the widget
+        actually entered, never a parent's, which is why every part of the tile
+        carries it.
+        """
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QEnterEvent
+
+        tile = self.window.profile_widget.stats_widget.widgets[0]
+
+        def enter(widget):
+            point = QPointF(widget.rect().center())
+            QApplication.sendEvent(
+                widget,
+                QEnterEvent(point, point, widget.mapToGlobal(point.toPoint())),
+            )
+
+        for part in (tile, tile.label, tile.value_label, tile.unit_label,
+                     tile.foot_label, tile.foot_label.min_chunk):
+            with self.subTest(part=part.__class__.__name__):
+                self.window.show_guidance("")
+                enter(part)
+                self.assertIn(_("GUIDANCE_EDIT_ALERT_LIMITS"), self.window.guidance())
+                self.assertEqual(part.toolTip(), "")
+
+                QApplication.sendEvent(part, QEvent(QEvent.Type.Leave))
+                self.assertEqual(self.window.guidance(), "")
+
+    def test_nothing_in_the_window_raises_a_hover_popup(self):
+        """Guidance goes in the row at the foot; nothing hovers over the work.
+
+        Matplotlib gives its toolbar buttons tooltips of their own and an action
+        with no tooltip falls back to its own text, so the toolbar refuses the
+        event rather than trying to keep a string empty. What each button does
+        is in the row instead.
+        """
+        from PySide6.QtGui import QHelpEvent
+        from PySide6.QtWidgets import QToolTip
+
+        answered = []
+        for widget in self.window.findChildren(QWidget):
+            if not widget.isVisible():
+                continue
+            QToolTip.hideText()
+            centre = widget.rect().center()
+            event = QHelpEvent(QEvent.Type.ToolTip, centre,
+                               widget.mapToGlobal(centre))
+            event.setAccepted(False)
+            QApplication.sendEvent(widget, event)
+            if QToolTip.isVisible() and QToolTip.text():
+                answered.append((widget.__class__.__name__, QToolTip.text()))
+        QToolTip.hideText()
+
+        self.assertEqual(answered, [])
+
+    def test_the_plot_toolbar_says_what_it_does_in_the_row(self):
+        # Moved, not dropped: the text Matplotlib wrote for each button is what
+        # the row says, flattened to the one line the row has.
+        actions = [action for action in self.window.profile_widget.toolbar.actions()
+                   if action.text()]
+        self.assertTrue(actions)
+        for action in actions:
+            with self.subTest(action=action.text()):
+                self.assertTrue(action.statusTip())
+                self.assertNotIn("\n", action.statusTip())
 
     def test_transfer_progress_counts_the_file_in_flight(self):
         self.window._transfer_total_files = 4

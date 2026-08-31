@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
 from gui.widgets.EmptyStateView import draw_empty_view_text
 from theme import qt as theme_qt
+from theme.guidance import set_guidance
 from theme.widgets import SectionLabel
 from models.SerialPort import SerialPortModel, SerialPortItem, list_ports_common
 from workers.file_transfer import FileTransferManager
@@ -121,13 +122,15 @@ class SerialWidget(QWidget):
 
         self.scanButton = QPushButton(_("SERIAL_SCAN_BUTTON_TEXT"))
         self.scanButton.clicked.connect(self.scan_devices)
+        set_guidance(self.scanButton, _("SERIAL_SCAN_BUTTON_TEXT"),
+                    _("GUIDANCE_SCAN_DEVICES"))
 
         # One primary per view: pulling the measurements off the device is the
         # action this panel exists for. Scanning is how you get there.
         self.syncButton = QPushButton(_("SERIAL_SYNC_BUTTON_TEXT"))
         theme_qt.set_variant(self.syncButton, "primary")
         self.syncButton.clicked.connect(self.sync_data)
-        self.syncButton.setEnabled(False)
+        self._set_sync_enabled(False)
 
         self.transferManager = transfer_manager
         self.connectionManager = connection_manager
@@ -155,15 +158,35 @@ class SerialWidget(QWidget):
             self.view.disconnect_requested.connect(self.connectionManager.manual_disconnect)
             self.connectionManager.connectionStateChanged.connect(self.view.model.refreshStates)
 
+    def _set_sync_enabled(self, enabled):
+        """Enable or disable Sync, and say in the tooltip why it is off.
+
+        A greyed-out primary button that gives no reason is where an operator
+        gets stuck. Qt still shows a tooltip on a disabled widget, so the answer
+        is one hover away instead of a phone call.
+
+        The reason is read back off the state that was just set rather than
+        asked of the transfer manager again: what the button is doing and what
+        it says about itself then cannot come apart.
+        """
+        self.syncButton.setEnabled(enabled)
+        if enabled:
+            detail = _("GUIDANCE_SYNC_DEVICE")
+        elif self.view.selectionModel().hasSelection():
+            detail = _("GUIDANCE_SYNC_BUSY")
+        else:
+            detail = _("GUIDANCE_SYNC_NEEDS_DEVICE")
+        set_guidance(self.syncButton, _("SERIAL_SYNC_BUTTON_TEXT"), detail)
+
     def on_port_selected(self, current, previous):
         if not current.isValid():
-            self.syncButton.setEnabled(False)
+            self._set_sync_enabled(False)
             self.view.model.selectPort(None)
             return
 
         selected_port_device = current.data(Qt.ItemDataRole.UserRole)
         self.view.model.selectPort(selected_port_device)
-        self.syncButton.setEnabled(current.isValid() and not self.transferManager.is_transfer_in_progress())
+        self._set_sync_enabled(current.isValid() and not self.transferManager.is_transfer_in_progress())
 
     def stop_scan(self):
         """Stop a scan in progress. Non-blocking; the worker winds down."""
@@ -217,9 +240,9 @@ class SerialWidget(QWidget):
         )
 
     def _on_transfer_started(self):
-        self.syncButton.setEnabled(False)
+        self._set_sync_enabled(False)
 
     def _on_transfer_finished(self, *_):
         # Re-enable sync button only if a valid port is still selected
         if self.view.selectionModel().hasSelection():
-            self.syncButton.setEnabled(True)
+            self._set_sync_enabled(True)

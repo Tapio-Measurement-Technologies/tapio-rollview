@@ -10,11 +10,16 @@ from utils.translation import _
 class RegexFilterLineEdit(QLineEdit):
     filter_changed = Signal(str, object)
 
-    def __init__(self, placeholder_text="", debounce_ms=200, parent=None):
+    def __init__(self, placeholder_text="", debounce_ms=200, parent=None, guidance=""):
         super().__init__(parent)
         self._active_pattern = ""
         self._active_regex = None
+        # What the field is for, said in the guidance row whenever the pattern
+        # in it is valid. The error replaces it while it is not, and it comes
+        # back when the pattern is fixed rather than leaving the field mute.
+        self._base_guidance = guidance
 
+        self.setStatusTip(guidance)
         self.setPlaceholderText(placeholder_text)
         self.setClearButtonEnabled(True)
 
@@ -56,6 +61,7 @@ class RegexFilterLineEdit(QLineEdit):
 
     def _set_error(self, error_text):
         theme_qt.set_invalid(self, bool(error_text))
-        self.setToolTip(
-            _("REGEX_FILTER_INVALID_TOOLTIP").format(error=error_text) if error_text else ""
+        self.setStatusTip(
+            _("REGEX_FILTER_INVALID_TOOLTIP").format(error=error_text)
+            if error_text else self._base_guidance
         )

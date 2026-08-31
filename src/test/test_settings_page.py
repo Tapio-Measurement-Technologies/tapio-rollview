@@ -247,6 +247,40 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         self.assertEqual(self.page.setting_widgets[0].label.text(), "slope_dag [g]")
 
 
+    def test_the_statistic_name_answers_a_hover(self):
+        # Only the two cells used to say anything, so a pointer anywhere else
+        # along the row — the name, the gap before the numbers — got nothing.
+        row = self.page.setting_widgets[0]
+        self.assertIn(row.label.text(), row.label.statusTip())
+        self.assertIn(_("GUIDANCE_ALERT_LIMIT_ROW"), row.statusTip())
+
+    def test_the_cells_say_the_thing_only_they_can_say(self):
+        row = self.page.setting_widgets[0]
+        self.assertIn(_("GUIDANCE_LIMIT_FIELD"), row.min_input.statusTip())
+        self.assertIn(_("GUIDANCE_LIMIT_FIELD"), row.max_input.statusTip())
+
+    def test_nothing_on_the_row_pops_up(self):
+        row = self.page.setting_widgets[0]
+        for part in (row, row.label, row.min_input, row.max_input):
+            with self.subTest(part=part.__class__.__name__):
+                self.assertEqual(part.toolTip(), "")
+
+    def test_the_row_states_the_limits_it_holds(self):
+        row = self.page.setting_widgets[0]
+        row.min_input.setText("1.5")
+        row.max_input.setText("5.0")
+        row.save_values()
+        self.assertIn("1.5", row.statusTip())
+        self.assertIn("5.0", row.statusTip())
+
+    def test_a_row_without_limits_says_so(self):
+        row = self.page.setting_widgets[0]
+        row.min_input.setText("")
+        row.max_input.setText("")
+        row.save_values()
+        self.assertIn(_("ALERT_LIMITS_NOT_SET"), row.statusTip())
+
+
 class TestGeneralSettingsPage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

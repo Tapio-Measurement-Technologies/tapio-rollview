@@ -1,8 +1,10 @@
 from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from serial.tools import list_ports_common
+from theme.guidance import compose
 from utils import preferences
 from utils.rqft_support import firmware_supports_rqft
+from utils.translation import _
 from workers.device_connection import ConnectionState
 import re
 
@@ -97,6 +99,8 @@ class SerialPortModel(QAbstractListModel):
             if item.serial_number:
                 display_text += f" ({item.serial_number})"
             return display_text
+        elif role == Qt.ItemDataRole.StatusTipRole:
+            return self.tooltip_for(item)
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
         elif role == Qt.ItemDataRole.DecorationRole:
@@ -105,6 +109,27 @@ class SerialPortModel(QAbstractListModel):
             return _state_icon(self.getConnectionState(item.device))
 
         return None
+
+    @staticmethod
+    def tooltip_for(item):
+        """The whole row, which the sidebar is too narrow to show.
+
+        The port name is the identifier, so it is the title; the description
+        and the numbers underneath it are what the display line loses first
+        when the pane is dragged narrower. The last line is the one nothing
+        else says: the pin and the connection live in a context menu, and a
+        list gives no sign that it has one.
+        """
+        detail = [item.description]
+        if item.serial_number:
+            detail.append(_("GUIDANCE_SERIAL_NUMBER").format(number=item.serial_number))
+        if item.firmware_version:
+            detail.append(_("GUIDANCE_FIRMWARE_VERSION").format(version=item.firmware_version))
+        if item.is_pinned():
+            detail.append(_("GUIDANCE_PORT_PINNED"))
+        action = (_("GUIDANCE_PORT_ACTIONS_RQFT") if item.supports_rqft
+                  else _("GUIDANCE_PORT_ACTIONS"))
+        return compose(item.device, detail, action)
 
     def getConnectionState(self, device):
         if self.connection_state_provider is None:

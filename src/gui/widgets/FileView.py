@@ -5,6 +5,7 @@ from gui.widgets.messagebox import show_error_msgbox
 from utils.translation import _
 from utils import preferences
 from theme import qt as theme_qt
+from theme.guidance import compose
 import settings
 import store
 import os
@@ -119,6 +120,25 @@ class CustomFileSystemModel(QFileSystemModel):
 
         if role == Qt.ItemDataRole.TextAlignmentRole and column in NUMERIC_COLUMNS:
             return Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+
+        # The name column elides, and the row has a context menu nothing hints
+        # at.
+        if role == Qt.ItemDataRole.StatusTipRole and column == 0:
+            file_info = self.fileInfo(index)
+            if file_info.isFile():
+                return compose(file_info.fileName(), file_info.filePath(),
+                               _("GUIDANCE_PROFILE_ROW_ACTIONS"))
+
+        # The visibility column has no heading — there is no width for one —
+        # so the tooltip is the only place its two states are named.
+        if role == Qt.ItemDataRole.StatusTipRole and column == 5:
+            profile = store.get_profile_by_filename(self.fileInfo(index).filePath())
+            shown = profile is None or not profile.hidden
+            return compose(
+                _("GUIDANCE_PROFILE_VISIBILITY"),
+                _("GUIDANCE_PROFILE_SHOWN") if shown else _("GUIDANCE_PROFILE_HIDDEN"),
+                _("GUIDANCE_TOGGLE_PROFILE"),
+            )
 
         # Handle original timestamp column
         if column == 3 and role == Qt.ItemDataRole.DisplayRole:

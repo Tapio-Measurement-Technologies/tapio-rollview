@@ -19,6 +19,7 @@ from utils.highlighted_regions import (
 )
 import theme
 from theme import qt as theme_qt
+from theme.guidance import set_guidance
 from theme.widgets import EyebrowLabel
 import settings
 
@@ -257,6 +258,7 @@ class AlertLimitSettingsPage(QWidget):
 
         heading = QLabel(_("ALERT_LIMITS"))
         theme_qt.set_role(heading, "title")
+        set_guidance(heading, _("ALERT_LIMITS"), _("GUIDANCE_ALERT_LIMIT_ROW"))
         layout.addWidget(heading)
 
         # The column names, stated once: the rows below are a table of the same
@@ -291,6 +293,8 @@ class AlertLimitSettingsPage(QWidget):
         theme_qt.set_variant(self.apply_button, "primary")
         self.apply_button.setEnabled(False)  # Initially disabled
         self.apply_button.clicked.connect(self.save_alert_limits)
+        set_guidance(self.apply_button, _("BUTTON_TEXT_SAVE"),
+                    _("GUIDANCE_SAVE_ALERT_LIMITS"))
         self.footer_layout.addWidget(self.apply_button)
 
         layout.addLayout(self.footer_layout)
@@ -361,6 +365,37 @@ class AlertLimitSetting(QFrame):
 
         layout.addLayout(input_layout)
 
+        self._set_row_tooltip()
+
+    def _set_row_tooltip(self):
+        """One tooltip for the whole row, fields excepted.
+
+        A hover landing anywhere along the row — the statistic name, the space
+        between it and the numbers — used to answer nothing at all, because
+        only the two input cells carried a tip. The fields keep their own, and
+        a child tooltip wins over the row it sits in.
+        """
+        limits = self.limit_summary()
+        set_guidance(self, self.label.text(),
+                    [limits, _("GUIDANCE_ALERT_LIMIT_ROW")])
+        set_guidance(self.label, self.label.text(),
+                    [limits, _("GUIDANCE_ALERT_LIMIT_ROW")])
+
+    def limit_summary(self):
+        """The two bounds as one line, or the words for having neither."""
+        bounds = []
+        if self.limit.get('min') is not None:
+            bounds.append(_("STAT_TILE_LIMIT_MIN").format(value=self.limit['min']))
+        if self.limit.get('max') is not None:
+            bounds.append(_("STAT_TILE_LIMIT_MAX").format(value=self.limit['max']))
+        if not bounds:
+            return _("ALERT_LIMITS_NOT_SET")
+        # The separator carries a space after it here. On the tile the same
+        # comma sits at the end of the lower chunk and the row layout supplies
+        # the gap; a plain join has no layout to lean on.
+        separator = _("STAT_TILE_LIMIT_SEPARATOR") + " "
+        return _("GUIDANCE_ALERT_LIMITS").format(limits=separator.join(bounds))
+
     def _numeric_field(self, accessible_name):
         """One limit cell: mono, right-aligned, named for anyone not reading the header."""
         field = QLineEdit()
@@ -374,6 +409,9 @@ class AlertLimitSetting(QFrame):
         )
         field.setAccessibleName(accessible_name)
         field.setPlaceholderText(_("NOT_SET"))
+        # The column name is stated once, at the top of a table seven rows
+        # deep; by the last row the header is a scroll away.
+        set_guidance(field, accessible_name, _("GUIDANCE_LIMIT_FIELD"))
         return field
 
     @Slot()
@@ -383,6 +421,7 @@ class AlertLimitSetting(QFrame):
     def save_values(self):
         self.limit['min'] = float(self.min_input.text()) if self.min_input.text() else None
         self.limit['max'] = float(self.max_input.text()) if self.max_input.text() else None
+        self._set_row_tooltip()
 
 class AdvancedSettingsPage(QWidget):
     settings_updated = Signal()
@@ -515,10 +554,14 @@ class AdvancedSettingsPage(QWidget):
         self.continuous_mode_checkbox.stateChanged.connect(self.enable_save_button)
         layout.addWidget(self.continuous_mode_checkbox)
 
-        # Flip profiles checkbox
+        # Flip profiles checkbox. The View menu carries the same switch, and
+        # the tooltip says so: two paths to one preference is only confusing
+        # while neither of them admits the other exists.
         self.flip_profiles_checkbox = QCheckBox(_("FLIP_PROFILES"))
         self.flip_profiles_checkbox.setChecked(preferences.flip_profiles)
         self.flip_profiles_checkbox.stateChanged.connect(self.enable_save_button)
+        set_guidance(self.flip_profiles_checkbox, _("FLIP_PROFILES"),
+                    [_("GUIDANCE_FLIP_PROFILES"), _("GUIDANCE_ALSO_IN_VIEW_MENU")])
         layout.addWidget(self.flip_profiles_checkbox)
 
         excluded_regions_heading = self._create_section_heading(_("EXCLUDED_REGIONS_ENABLED"))

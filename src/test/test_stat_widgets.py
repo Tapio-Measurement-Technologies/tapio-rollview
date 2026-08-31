@@ -1,8 +1,9 @@
 import unittest
 import numpy as np
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 from gui.widgets.stats import StatsWidget, MeanWidget, StdWidget, CVWidget, MinWidget, MaxWidget, PeakToPeakWidget, SlopeWidget
 from utils import preferences
+from utils.translation import _
 import settings
 import theme
 from test.qtcleanup import destroy
@@ -38,9 +39,70 @@ class TestStatWidgets(unittest.TestCase):
         self.assertAlmostEqual(widget.value, np.mean(self.data))
         self.assertEqual(widget.value_label.text(), f"{np.mean(self.data):.1f}")
 
-    def test_stat_widget_tooltip(self):
+    def test_the_tile_guidance_names_it_its_limits_and_the_click(self):
         widget = MeanWidget(self.data, limit=self.limits['mean_g'])
-        self.assertEqual(widget.toolTip(), "Alert limits:\nLower: 1.0\nUpper: 5.0")
+        guidance = widget.statusTip()
+        self.assertIn(widget.name, guidance)
+        # The same words as the footer under the number, not a second wording
+        # of the same two bounds.
+        self.assertIn(widget.foot_label.text(), guidance)
+        self.assertIn(_("GUIDANCE_EDIT_ALERT_LIMITS"), guidance)
+
+    def test_every_part_of_the_tile_answers_a_hover(self):
+        # Qt emits the status tip of the widget the pointer entered and asks no
+        # parent for one, so the line has to be on every label as well — the
+        # number and the limit line cover most of the tile.
+        widget = MeanWidget(self.data, limit=self.limits['mean_g'])
+        parts = [
+            widget.label,
+            widget.value_label,
+            widget.unit_label,
+            widget.foot_label,
+            widget.foot_label.min_chunk,
+            widget.foot_label.max_chunk,
+        ]
+        for part in parts:
+            with self.subTest(part=part.__class__.__name__):
+                self.assertEqual(part.statusTip(), widget.statusTip())
+
+    def test_a_squeezed_limit_line_is_still_readable_somewhere(self):
+        """A narrow tile elides its limit line; the guidance must not.
+
+        The row at the foot of the window has room a 120 px tile never will, so
+        it is where both bounds stay legible when the footer is cut to "≥ 1.0,".
+        """
+        widget = MeanWidget(self.data, limit=self.limits['mean_g'])
+        chunk = widget.foot_label.min_chunk
+        # setText re-elides against the width the chunk has now, which is the
+        # same path a splitter drag takes through resizeEvent.
+        chunk.setFixedWidth(12)
+        chunk.setText(chunk.text())
+
+        # Painted short, still whole underneath: this is the elided case.
+        self.assertNotEqual(QLabel.text(chunk), chunk.text())
+        # Nothing pops up over the cut text; the row carries both bounds.
+        self.assertEqual(chunk.toolTip(), "")
+        self.assertEqual(chunk.statusTip(), widget.statusTip())
+        self.assertIn("5.0", widget.statusTip())
+        self.assertIn(_("GUIDANCE_EDIT_ALERT_LIMITS"), widget.statusTip())
+
+    def test_no_part_of_the_tile_pops_anything_up(self):
+        """Guidance goes in the row at the foot; nothing hovers over the data."""
+        widget = MeanWidget(self.data, limit=self.limits['mean_g'])
+        parts = [widget, widget.label, widget.value_label, widget.unit_label,
+                 widget.foot_label, widget.foot_label.min_chunk,
+                 widget.foot_label.max_chunk]
+        for part in parts:
+            with self.subTest(part=part.__class__.__name__):
+                self.assertEqual(part.toolTip(), "")
+
+    def test_stat_widget_without_limits_still_offers_the_editor(self):
+        # The tile with nothing configured is the one an operator most needs
+        # told that a click is what configures it.
+        widget = MeanWidget(self.data)
+        guidance = widget.statusTip()
+        self.assertIn(_("ALERT_LIMITS_NOT_SET"), guidance)
+        self.assertIn(_("GUIDANCE_EDIT_ALERT_LIMITS"), guidance)
 
     def test_stat_widget_limit_exceeded(self):
         # The tile does not carry its own colour: it sets the `state` property

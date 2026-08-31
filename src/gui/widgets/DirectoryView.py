@@ -26,6 +26,7 @@ from utils.file_utils import open_in_file_explorer
 from utils.translation import _
 from gui.widgets.messagebox import show_error_msgbox
 from theme import qt as theme_qt
+from theme.guidance import compose, set_guidance
 import os
 from datetime import datetime
 
@@ -124,7 +125,11 @@ class DirectoryView(QWidget):
             if i != 3:  # Assuming column 3 is the "Date Modified" column
                 self.treeView.setColumnHidden(i, True)
 
-        self.rollFilterInput = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
+        self.rollFilterInput = RegexFilterLineEdit(
+            _("FOLDER_FILTER_PLACEHOLDER"),
+            guidance=compose(_("FOLDER_FILTER_PLACEHOLDER"),
+                             _("GUIDANCE_FOLDER_FILTER")),
+        )
         self.rollFilterInput.filter_changed.connect(self.set_roll_filter)
 
         # Neither of these is the action this panel exists for — picking a roll
@@ -138,6 +143,10 @@ class DirectoryView(QWidget):
         self.changeDirButton = QPushButton(_("BUTTON_TEXT_CHANGE_DIRECTORY"))
         theme_qt.set_variant(self.changeDirButton, "ghost")
         self.changeDirButton.clicked.connect(self.change_root_directory)
+
+        # Both buttons act on a folder whose path is nowhere on screen. The
+        # tooltips carry it, and are re-stated whenever the root moves.
+        self._refresh_directory_button_tooltips()
 
         theme_qt.pad(layout, 2, 2, 2, 2)
         theme_qt.gap(layout, 1)
@@ -157,6 +166,18 @@ class DirectoryView(QWidget):
         self.proxy_model.rowsInserted.connect(self.on_rows_inserted)
         self.proxy_model.layoutAboutToBeChanged.connect(self.on_layout_about_to_change)
         self.proxy_model.layoutChanged.connect(self.on_layout_changed)
+
+    def _refresh_directory_button_tooltips(self):
+        """Name the folder each button works on, in the tooltip.
+
+        The window shows roll folders, never the path they were read from, so
+        "which directory is this?" has no answer anywhere else in the sidebar.
+        """
+        root = self._root_directory or ""
+        set_guidance(self.openDirButton, _("BUTTON_TEXT_OPEN_FILE_EXPLORER"),
+                    [_("GUIDANCE_OPEN_FILE_EXPLORER"), root])
+        set_guidance(self.changeDirButton, _("BUTTON_TEXT_CHANGE_DIRECTORY"),
+                    [_("GUIDANCE_CHANGE_DIRECTORY"), root])
 
     @staticmethod
     def get_row_to_select_after_delete(deleted_row, row_count):
@@ -314,6 +335,7 @@ class DirectoryView(QWidget):
                 # QFileSystemModel can resolve indexes asynchronously, so an
                 # initially invalid index is not a blocking user-facing error.
                 self._root_directory = directory
+                self._refresh_directory_button_tooltips()
                 self._clear_current_selection(clear_logical_selection=True)
                 self._clear_pending_focus_restore()
                 self.model.setRootPath(directory)
@@ -678,6 +700,13 @@ class CustomFileSystemModel(QFileSystemModel):
         # scanned down a column rather than read, so both take the mono face.
         if role == Qt.ItemDataRole.FontRole and index.column() in (0, 3):
             return theme_qt.mono_font()
+
+        # Where the folder actually is, and that the row has a menu on it. A
+        # tree gives no sign of either.
+        if role == Qt.ItemDataRole.StatusTipRole and index.column() == 0:
+            return compose(self.fileName(index),
+                           self.filePath(index),
+                           _("GUIDANCE_ROLL_FOLDER_ACTIONS"))
 
         if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:
             file_path = self.filePath(index)
