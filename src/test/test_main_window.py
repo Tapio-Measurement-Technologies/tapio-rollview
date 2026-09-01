@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop
-from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSizePolicy, QWidget
 
 import store
 from utils import preferences
@@ -330,6 +330,87 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.start_activity("Scanning")
         self.assertFalse(self.window.activity_stop_button.isVisibleTo(self.window))
         self.window.finish_activity()
+
+    def test_a_wait_nothing_can_count_shows_that_it_is_alive(self):
+        """The one animation in the product, and what it is for.
+
+        A sync cannot be counted until the device says how many files it holds,
+        and a device that is switched off answers exactly as fast as one that is
+        thinking. Without the indicator the row is a line of text that looks the
+        same on a working sync and a dead one.
+        """
+        try:
+            self.window.start_activity("Checking", counted=False)
+            self.assertFalse(self.window.activity_is_counted())
+            self.assertTrue(
+                self.window.activity_progress_bar.isVisibleTo(self.window))
+
+            # The first real number ends the uncertainty, so the indicator ends
+            # with it: from here the bar has something better to say.
+            self.window.update_activity(25, "3 files")
+            self.assertTrue(self.window.activity_is_counted())
+            self.assertEqual(self.window.activity_progress_bar.value(), 25)
+        finally:
+            self.window.finish_activity()
+        # And the next piece of work starts from the ordinary case.
+        self.assertTrue(self.window.activity_is_counted())
+
+    def test_the_bar_stands_with_the_sentence_it_is_about(self):
+        """One group: what is happening, how far in, and how to stop it.
+
+        The bar used to sit at the far right of the row with the message at the
+        far left and the whole window between them, which left the operator
+        reading "Receiving 3/12" in one place and watching an unlabelled bar
+        move in another. The stop button carries the word rather than a glyph —
+        it is the only control in the row, so there is no grouped toolbar to
+        make an icon legible.
+        """
+        window = self.window
+        group = window.activity_group
+        for widget in (window.activity_label,
+                       window.activity_progress_bar,
+                       window.activity_stop_button):
+            with self.subTest(widget.objectName() or type(widget).__name__):
+                self.assertIs(widget.parent(), group)
+
+        self.assertTrue(window.activity_stop_button.text())
+        self.assertTrue(window.activity_stop_button.icon().isNull())
+        # ...and the guidance is the half that gives up room, not the work.
+        self.assertEqual(
+            window.guide_label.sizePolicy().horizontalPolicy(),
+            QSizePolicy.Policy.Ignored,
+        )
+
+    def test_only_one_thing_in_the_window_can_move_indeterminately(self):
+        """One indeterminate indicator, and it lives in the progress row.
+
+        A screen with two of them has said nothing twice, and a panel that spins
+        in its own content area is simulating content rather than reporting on
+        it. Checked in the source because the rule is about what may exist, not
+        about what happens to be on screen during one test.
+        """
+        import pathlib
+        import re
+
+        source = pathlib.Path(__file__).resolve().parents[1]
+        pattern = re.compile(r"setRange\(\s*0\s*,\s*0\s*\)")
+        found = sorted(
+            path.relative_to(source).as_posix()
+            for path in source.rglob("*.py")
+            if not path.name.startswith("test_") and pattern.search(
+                path.read_text(encoding="utf-8"))
+        )
+        self.assertEqual(found, ["gui/main_window.py"])
+
+    def test_a_sync_is_the_wait_that_cannot_be_counted(self):
+        self.window.on_file_transfer_started()
+        try:
+            self.assertFalse(self.window.activity_is_counted())
+            # ...until the device answers with a file count.
+            self.window.on_sync_batch_started("COM3", 12, 4096)
+            self.assertTrue(self.window.activity_is_counted())
+        finally:
+            self.window.finish_activity()
 
     def test_the_scan_that_runs_at_startup_can_be_stopped_too(self):
         """The window used to scan before it had wired the scan up.

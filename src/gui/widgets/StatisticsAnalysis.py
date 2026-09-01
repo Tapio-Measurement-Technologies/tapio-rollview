@@ -394,6 +394,7 @@ class StatisticsAnalysisWidget(QWidget):
 
         # Create loading widget
         self.loading_widget = LoadingWidget(self)
+        self.loading_widget.became_visible.connect(self._show_the_wait)
 
         # Create chart widget
         self.chart = StatisticsAnalysisChart(self)
@@ -471,9 +472,11 @@ class StatisticsAnalysisWidget(QWidget):
         if self.processor.is_running():
             self.processor.stop()
 
-        # Show loading widget
-        self.loading_widget.reset()
-        self.stacked_widget.setCurrentWidget(self.loading_widget)
+        # The wait is announced only if it lasts. A folder that is already warm
+        # comes back inside the quiet window and the panel never says anything —
+        # a "Loading..." that appears and vanishes again reads as a fault, not
+        # as speed. Until then the chart page stays up, painting its own surface.
+        self.loading_widget.arm()
         self.refresh_button.setEnabled(False)
 
         # Start processing in worker thread
@@ -493,6 +496,7 @@ class StatisticsAnalysisWidget(QWidget):
         chart_data = self.prepare_chart_data(filtered_data)
 
         # Update chart
+        self.loading_widget.disarm()
         self.chart.plot(chart_data)
         self.stacked_widget.setCurrentWidget(self.chart)
 
@@ -542,6 +546,10 @@ class StatisticsAnalysisWidget(QWidget):
 
         return chart_data
 
+    def _show_the_wait(self):
+        """Bring the waiting page forward, once the wait has earned a line."""
+        self.stacked_widget.setCurrentWidget(self.loading_widget)
+
     @Slot(int, str)
     def on_processing_progress(self, value: int, status_text: str):
         """Update loading widget with processing progress."""
@@ -562,6 +570,10 @@ class StatisticsAnalysisWidget(QWidget):
     def on_processing_error(self, error_message: str):
         """Handle processing errors."""
         self.refresh_button.setEnabled(True)
+        # The wait is over even though it failed: without this a run that errors
+        # inside the quiet window brings the waiting page up afterwards, over a
+        # panel that has already given up waiting.
+        self.loading_widget.disarm()
         # Switch back to chart view (which will show "No data available")
         self.stacked_widget.setCurrentWidget(self.chart)
         # Could show error dialog here if desired

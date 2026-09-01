@@ -420,6 +420,10 @@ def build_stylesheet(t):
         "row_inner": t.row_height - 1,
 
         "tab_height": control - 12,
+        # The status row's button, inside a 30 px row: two hairlines and two
+        # steps of air off the row height, so it sits in the line rather than
+        # filling it.
+        "status_control": STATUS_ROW_CONTROL,
         "check_target": min(t.min_target, control),
         "dialog_button_width": 96,
         # One handle size, spent three ways, so the pieces cannot drift apart:
@@ -603,6 +607,11 @@ def set_variant(widget, variant):
         )
     set_property(widget, "variant", variant)
 
+
+#: The height of the one control in the status row. The row is a line of text
+#: with a button beside it, not a toolbar, so the button is shorter than a
+#: control elsewhere in the window.
+STATUS_ROW_CONTROL = 20
 
 # The slider handle, outer size including its border. Qt sizes a styled QSlider
 # from its groove alone, so the widget has to be told to leave room for this or
