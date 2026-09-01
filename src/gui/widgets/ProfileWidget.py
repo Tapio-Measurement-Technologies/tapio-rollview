@@ -189,6 +189,11 @@ class ProfileWidget(QWidget):
         self.chart_tokens = None
 
         self.figure = Figure()
+        # In the theme's colours before anything is plotted. The canvas paints
+        # itself in the figure's own colour while it waits for a first render,
+        # and Matplotlib's default white one is a flash of the wrong theme in a
+        # dark session.
+        tapio_mpl.restyle_figure(self.figure, self.tokens)
         self.warning_label = WarningLabel()
         self.empty_state_label = QLabel()
         self.empty_state_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

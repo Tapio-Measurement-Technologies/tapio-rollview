@@ -59,6 +59,26 @@ class TestProfileWidget(unittest.TestCase):
         preferences.distance_unit = self.original_distance_unit
         preferences.alert_limits = self.original_alert_limits
 
+    def test_the_chart_is_in_the_theme_before_anything_is_plotted(self):
+        """The blank panel is the chart's own colour from the first frame.
+
+        The canvas paints itself in the figure's colour while it waits for a
+        first render, and Matplotlib's default figure is white - which in a
+        dark session is a panel of the wrong theme where the chart will be.
+        """
+        from theme import mpl as tapio_mpl
+
+        widget = ProfileWidget()
+        try:
+            expected = tapio_mpl.current.color("surface").upper()
+            red, green, blue = (
+                int(round(channel * 255))
+                for channel in widget.figure.get_facecolor()[:3]
+            )
+            self.assertEqual(f"#{red:02X}{green:02X}{blue:02X}", expected)
+        finally:
+            destroy(widget)
+
     def test_sync_toolbar_layout_positions_updates_saved_home_geometry(self):
         widget = ProfileWidget()
         try:
