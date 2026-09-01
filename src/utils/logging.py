@@ -40,6 +40,26 @@ def get_platform_info_header():
     return "\n".join(header)
 
 
+def report_crash_without_gui(traceback_text):
+    """Print a crash that happened before there was anywhere to show it.
+
+    Writes to the stream the process started with rather than to ``sys.stderr``:
+    that one has been replaced by an ``EmittingStream`` whose only readers are
+    part of the interface that does not exist yet. A windowed build has neither
+    a console nor an original stream, and there the report is dropped -- the
+    alternative is a second failure on the way out of the first.
+    """
+    stream = getattr(sys.stderr, "original_stream", None) or sys.__stderr__
+    if stream is None:
+        return
+    try:
+        stream.write(traceback_text if traceback_text.endswith("\n")
+                     else traceback_text + "\n")
+        stream.flush()
+    except Exception:
+        pass
+
+
 class LogManager(QObject):
     log_updated = Signal()
 
@@ -139,6 +159,18 @@ class LogManager(QObject):
         self.append_message("BEGIN CRASH TRACEBACK:", "ERROR")
         self.append_message("**************************", "ERROR")
         self.append_message(traceback_text, "ERROR")
+
+        # A crash before the QApplication exists -- an import that fails, a data
+        # file that is not where it was expected -- has no dialog to go in:
+        # building a QWidget without an application is fatal to Qt, which aborts
+        # with "Must construct a QApplication before a QWidget" and takes the
+        # real traceback down with it. The console is the whole interface at
+        # that point, so the traceback goes there and the process ends.
+        from PySide6.QtWidgets import QApplication
+
+        if QApplication.instance() is None:
+            report_crash_without_gui(traceback_text)
+            sys.exit(1)
 
         # Show the crash dialog
         dialog = CrashDialog(self, traceback_text)

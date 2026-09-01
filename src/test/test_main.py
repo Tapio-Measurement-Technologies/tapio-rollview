@@ -133,3 +133,37 @@ class TestSettingsSysArgvGuard(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestStartupOrder(unittest.TestCase):
+    """Nothing under gui/ is imported until there is an application to build
+    widgets against. A module that touches Qt while being imported is fatal
+    without one, and Qt's abort replaces the traceback that explains why."""
+
+    def test_the_application_exists_before_the_gui_is_imported(self):
+        import builtins
+
+        order = []
+        real_import = builtins.__import__
+
+        def tracking_import(name, *args, **kwargs):
+            if name == "gui.main_window":
+                order.append("gui")
+            return real_import(name, *args, **kwargs)
+
+        mock_app = MagicMock()
+        mock_app.exec.return_value = 0
+
+        def build_app(*args, **kwargs):
+            order.append("app")
+            return mock_app
+
+        with patch.object(sys, "argv", ["main.py"]), \
+             patch("PySide6.QtWidgets.QApplication", side_effect=build_app), \
+             patch("gui.main_window.MainWindow"), \
+             patch("PySide6.QtGui.QIcon"), \
+             patch.object(builtins, "__import__", side_effect=tracking_import):
+            import main
+            main.main()
+
+        self.assertEqual(order, ["app", "gui"])

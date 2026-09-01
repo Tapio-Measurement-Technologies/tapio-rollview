@@ -56,7 +56,6 @@ def main():
     import argparse
     from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QIcon
-    from gui.main_window import MainWindow
 
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--settings-file', metavar='PATH', help='Path to a settings JSON file to load on startup. Created with defaults if it does not exist.')
@@ -66,6 +65,15 @@ def main():
     args, _ = parser.parse_known_args()
 
     app = QApplication(sys.argv)
+
+    # Everything under gui/ is imported after the application exists, not
+    # before. A module that builds a QWidget, a QPixmap or an icon while it is
+    # being imported is fatal to Qt without a live QApplication, and what the
+    # console gets is Qt's own abort -- "Must construct a QApplication before a
+    # QWidget" -- in place of whatever the real problem was. With the
+    # application up first, an import that goes wrong lands in the crash
+    # dialog, with its traceback.
+    from gui.main_window import MainWindow
 
     # Before the first window is created: a window built without an icon can
     # keep the default one for the life of its taskbar button.
