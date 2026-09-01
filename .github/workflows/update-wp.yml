@@ -1,28 +1,30 @@
+# Manual re-sync only. The automatic path lives in the publish-website job of
+# build.yml, which knows exactly which tag it just published. Use this workflow
+# when the release notes were edited by hand after the release went out, or to
+# repoint the download page at a specific tag.
 name: Update release information to WordPress
 on:
-  workflow_run:
-    workflows: ["Build Executable"]
-    types:
-      - completed
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish to the website (e.g. v1.5.0)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   update-wp:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
       - name: Get Release Data
         id: release_data
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_JSON=$(gh release view --repo ${{ github.repository }} --json assets,body)
+          RELEASE_JSON=$(gh release view "${{ inputs.tag }}" \
+            --repo "${{ github.repository }}" --json assets,body)
           RAW_EXE_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".exe")) | .url' | head -n 1)
           RAW_BODY=$(echo "$RELEASE_JSON" | jq -r '.body')
           PAYLOAD=$(jq -n \
