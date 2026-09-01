@@ -154,7 +154,14 @@ NPERSEG = 3000
 NOVERLAP = 0.75
 SPECTRUM_LOWER_LIMIT_1M = 0
 SPECTRUM_UPPER_LIMIT_1M = 60
-SPECTRUM_WAVELENGTH_TICKS = False
+# The reciprocal wavelength scale along the top edge of the spectrum. On,
+# because wavelength is what names a machine element and the chart is read to
+# find one. It is a second scale with its own ticks, never the frequency axis
+# relabelled: rewriting the frequency ticks as λ = 1/f leaves the ordinate
+# describing a quantity those ticks are not for, which is the one thing the
+# design system's spectra chapter says never to do. (This replaces
+# SPECTRUM_WAVELENGTH_TICKS, which did exactly that.)
+SPECTRUM_WAVELENGTH_SCALE = True
 PINNED_SERIAL_PORTS_DEFAULT = set()
 ALLOWED_SERIAL_USB_IDS = {(0x16C0, 0x0483)}
 SERIAL_BLUETOOTH_PORT_MARKERS = ("bluetooth", "bthenum", "bthmodem", "rfcomm")

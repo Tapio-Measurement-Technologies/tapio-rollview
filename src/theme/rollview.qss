@@ -1,8 +1,15 @@
 /* ==========================================================================
-   Tapio Design System v1.0 — Qt style sheet template.
+   Tapio Design System — Qt style sheet template.
 
-   GENERATED INPUT, NOT A PLACE TO PUT COLOURS. Every placeholder below is substituted
-   from tokens.json by theme/qt.py. A literal hex added to this file is a bug.
+   GENERATED INPUT, NOT A PLACE TO PUT COLOURS. Every placeholder below is
+   substituted by theme/qt.py from the design system's own token file. A literal
+   hex added to this file is a bug.
+
+   The placeholders are the system's semantic role names with the hyphens
+   Python cannot take: ${surface_sunken}, ${danger_mark}, ${ink_link}. They are
+   emitted wholesale rather than listed, so a rule written in the guide's
+   vocabulary can be pasted in and work, and a role added upstream needs no code
+   change to be usable here.
 
    Qt style sheets cannot express letter-spacing, text-transform, tabular
    figures or box-shadow. Those four are applied in theme/qt.py through QFont
@@ -41,7 +48,7 @@ QFrame[panel="true"] {
 }
 
 QFrame[panel="sunken"] {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: 1px solid ${border};
     border-radius: ${r_lg}px;
 }
@@ -58,7 +65,7 @@ QFrame[panel="row"] {
 /* An empty state is a placeholder for something that is not there yet, and the
    dashed outline says so without needing a sentence. */
 QFrame[panel="empty"] {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: 1px dashed ${border_strong};
     border-radius: ${r_lg}px;
 }
@@ -137,8 +144,8 @@ QLabel[role="dataValue"] {
 }
 
 QLabel[state="good"] { color: ${good}; }
-QLabel[state="warn"] { color: ${warn}; }
-QLabel[state="bad"]  { color: ${bad}; }
+QLabel[state="warn"] { color: ${warning}; }
+QLabel[state="bad"]  { color: ${danger}; }
 QLabel[state="idle"] { color: ${ink_muted}; }
 
 /* ---------- stat tile ----------------------------------------------------- */
@@ -154,21 +161,21 @@ QWidget#statTile {
 /* When a tile fails, the whole tile is the alarm — the eyebrow and the unit go
    red with the number rather than staying muted inside a red box. */
 QWidget#statTile[state="bad"] {
-    background-color: ${bad_soft};
-    border-color: ${bad_mark};
+    background-color: ${danger_soft};
+    border-color: ${danger_mark};
 }
 
 QWidget#statTile[state="bad"] QLabel {
-    color: ${bad};
+    color: ${danger};
 }
 
 QWidget#statTile[state="warn"] QLabel {
-    color: ${warn};
+    color: ${warning};
 }
 
 QWidget#statTile[state="warn"] {
-    background-color: ${warn_soft};
-    border-color: ${warn_mark};
+    background-color: ${warning_soft};
+    border-color: ${warning_mark};
 }
 
 QWidget#statTile:hover {
@@ -196,8 +203,8 @@ QWidget#statTile[state="bad"] QLabel[limit="breached"] {
 }
 
 /* ---------- buttons ------------------------------------------------------- */
-/* Four variants. One primary per view — the single most likely next action.
-   Focus is a 2 px ring in ${focus} on every control; padding drops by 1 px so
+/* Five variants. One primary per view — the single most likely next action.
+   Focus is a 2 px ring in ${border_focus} on every control; padding drops by 1 px so
    the label does not shift when the ring appears. */
 
 QPushButton {
@@ -212,16 +219,16 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border-color: ${ink_muted};
 }
 
 QPushButton:pressed {
-    background-color: ${sunken_pressed};
+    background-color: ${surface_sunken_pressed};
 }
 
 QPushButton:focus {
-    border: 2px solid ${focus};
+    border: 2px solid ${border_focus};
     padding: 0 ${s4_focus}px;
 }
 
@@ -229,12 +236,24 @@ QPushButton:focus {
    reduced strength still reads as a button you can press; dropping the fill
    entirely is what says "not now". The label stays at full `ink-muted` — 4.7:1
    on the sunken ground — because an unreadable control is indistinguishable
-   from a broken one. */
+   from a broken one.
+
+   Every variant has to be named. `QPushButton:disabled` and
+   `QPushButton[variant="primary"]` tie on specificity — a pseudo-state and an
+   attribute count the same — so the one declared later wins, and the variant
+   rules are below this one. Left unnamed, a disabled primary renders pixel for
+   pixel like an enabled one: no fill change, no label change, nothing to say it
+   will not respond. Naming the variant makes the selector strictly more
+   specific and takes the ordering out of it. The list is generated from the
+   variant vocabulary in `theme.qt`, so a variant added there cannot be left out
+   of it here.
+
+   The same bug is live in the design system's own `tapio_qt.py`, where
+   primary, ghost and danger all render identically enabled and disabled. This
+   is the fix that belongs upstream. */
 QPushButton:disabled,
-QPushButton[variant="primary"]:disabled,
-QPushButton[variant="ghost"]:disabled,
-QPushButton[variant="danger"]:disabled {
-    background-color: ${sunken};
+${disabled_variants} {
+    background-color: ${surface_sunken};
     color: ${ink_muted};
     border: 1px solid ${border};
 }
@@ -246,30 +265,45 @@ QPushButton[variant="primary"] {
 }
 QPushButton[variant="primary"]:hover   { background-color: ${accent_hover}; border-color: ${accent_hover}; }
 QPushButton[variant="primary"]:pressed { background-color: ${accent_active}; border-color: ${accent_active}; }
-QPushButton[variant="primary"]:focus   { border: 2px solid ${focus}; padding: 0 ${s4_focus}px; }
+QPushButton[variant="primary"]:focus   { border: 2px solid ${border_focus}; padding: 0 ${s4_focus}px; }
 
-/* Tertiary, but still a control: with a transparent edge it read as a link
-   sitting on the panel, and two of them under the folder list had nothing to
-   say they could be pressed. It keeps the accent label and the empty ground —
-   that is what ranks it below the secondary — and takes the hairline border
-   rather than the secondary's stronger one, so the three ranks read as fill,
-   then edge, then edge-in-light. */
+/* Tertiary, and still a control before it is hovered. It carries the soft fill
+   by default: a transparent, borderless button is indistinguishable from a line
+   of text until the pointer reaches it, and a mill-floor tablet has no pointer
+   at all. The border matches the fill rather than being absent, so the box is
+   the same height as every other button in the row. */
 QPushButton[variant="ghost"] {
+    background-color: ${ghost_bg};
+    color: ${ghost_ink};
+    border: 1px solid ${ghost_bg};
+}
+QPushButton[variant="ghost"]:hover   { background-color: ${ghost_hover}; border-color: ${accent}; }
+QPushButton[variant="ghost"]:pressed { background-color: ${ghost_pressed}; border-color: ${accent}; }
+
+/* Truly borderless, and the only variant that is. Permitted for icon-only
+   actions inside a visually grouped toolbar, where the grouping and the icon do
+   the affordance work — never for a text action standing on its own. */
+QPushButton[variant="bare"], QToolButton[variant="bare"] {
     background-color: transparent;
     color: ${accent};
-    border: 1px solid ${border};
+    border: 1px solid transparent;
+    padding: 0 ${s2}px;
 }
-QPushButton[variant="ghost"]:hover   { background-color: ${accent_soft}; border-color: ${accent}; }
-QPushButton[variant="ghost"]:pressed { background-color: ${accent_soft_pressed}; border-color: ${accent}; }
+QPushButton[variant="bare"]:hover, QToolButton[variant="bare"]:hover {
+    background-color: ${accent_soft};
+}
+QPushButton[variant="bare"]:pressed, QToolButton[variant="bare"]:pressed {
+    background-color: ${accent_soft_pressed};
+}
 
 /* Destructive only, and never the default focus target. */
 QPushButton[variant="danger"] {
     background-color: ${surface};
-    color: ${bad};
-    border: 1px solid ${bad};
+    color: ${danger};
+    border: 1px solid ${danger};
 }
-QPushButton[variant="danger"]:hover   { background-color: ${bad_soft}; }
-QPushButton[variant="danger"]:pressed { background-color: ${bad_soft}; border-color: ${bad_mark}; }
+QPushButton[variant="danger"]:hover   { background-color: ${danger_soft}; }
+QPushButton[variant="danger"]:pressed { background-color: ${danger_soft}; border-color: ${danger_mark}; }
 
 /* The status bar's stop square: the row's one pressable thing, so it carries
    the same ground and edge every other button in the window does, at the size
@@ -293,11 +327,11 @@ QPushButton#activityStop:pressed {
 }
 
 QPushButton#activityStop:focus {
-    border: 2px solid ${focus};
+    border: 2px solid ${border_focus};
 }
 
 QPushButton#activityStop:disabled {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border-color: ${border};
 }
 
@@ -322,12 +356,12 @@ QPlainTextEdit, QTextEdit {
 
 QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus,
 QSpinBox:focus, QDoubleSpinBox:focus {
-    border: 2px solid ${focus};
+    border: 2px solid ${border_focus};
     padding: 0 ${s3_focus}px;
 }
 
 QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     color: ${ink_disabled};
 }
 
@@ -336,11 +370,11 @@ QLineEdit[role="data"], QDoubleSpinBox[role="data"], QSpinBox[role="data"] {
 }
 
 QLineEdit[invalid="true"] {
-    border: 1px solid ${bad_mark};
-    background-color: ${bad_soft};
+    border: 1px solid ${danger_mark};
+    background-color: ${danger_soft};
 }
 QLineEdit[invalid="true"]:focus {
-    border: 2px solid ${bad_mark};
+    border: 2px solid ${danger_mark};
     padding: 0 ${s3_focus}px;
 }
 
@@ -354,10 +388,10 @@ QComboBox {
 }
 QComboBox:hover { border-color: ${ink_muted}; }
 QComboBox:focus {
-    border: 2px solid ${focus};
+    border: 2px solid ${border_focus};
     padding: 0 ${s3_focus}px;
 }
-QComboBox:disabled { color: ${ink_disabled}; background-color: ${sunken}; }
+QComboBox:disabled { color: ${ink_disabled}; background-color: ${surface_sunken}; }
 QComboBox::drop-down {
     border: none;
     width: ${s6}px;
@@ -370,7 +404,7 @@ QComboBox::down-arrow {
     height: 10px;
 }
 QComboBox QAbstractItemView {
-    background-color: ${raised};
+    background-color: ${surface_raised};
     color: ${ink};
     border: 1px solid ${border};
     border-radius: ${r_md}px;
@@ -434,7 +468,7 @@ QRadioButton::indicator:checked {
     border: 4px solid ${accent};
 }
 QCheckBox::indicator:disabled, QRadioButton::indicator:disabled {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border-color: ${border};
 }
 QCheckBox:focus, QRadioButton:focus {
@@ -448,7 +482,7 @@ QCheckBox:focus, QRadioButton:focus {
 QTabWidget::pane {
     border: none;
     border-top: 1px solid ${border};
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     top: -1px;
 }
 
@@ -510,7 +544,7 @@ QTreeWidget::item, QListWidget::item {
 
 QTreeView::item:hover, QListView::item:hover,
 QTreeWidget::item:hover, QListWidget::item:hover {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
 }
 
 QTreeView::item:selected, QTableView::item:selected, QListView::item:selected,
@@ -551,7 +585,7 @@ QTreeView::indicator:checked, QListView::indicator:checked, QTableView::indicato
 }
 
 QHeaderView {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: none;
 }
 
@@ -563,7 +597,7 @@ QHeaderView {
    The height must not also be set on the header *widget*: that grows the widget
    past the section, and the sections then paint against its top edge. */
 QHeaderView::section {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     color: ${ink_muted};
     border: none;
     border-bottom: 1px solid ${border};
@@ -587,7 +621,7 @@ QHeaderView::down-arrow { image: url(${sort_down_icon}); }
 QHeaderView::up-arrow   { image: url(${sort_up_icon}); }
 
 QTableCornerButton::section {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: none;
     border-bottom: 1px solid ${border};
 }
@@ -595,7 +629,7 @@ QTableCornerButton::section {
 /* ---------- the settings sidebar ------------------------------------------ */
 
 QListWidget#settingsNav {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: none;
     border-right: 1px solid ${border};
     border-radius: 0;
@@ -643,7 +677,7 @@ QMenuBar::item:selected {
 }
 
 QMenu {
-    background-color: ${raised};
+    background-color: ${surface_raised};
     color: ${ink};
     border: 1px solid ${border};
     border-radius: ${r_lg}px;
@@ -729,7 +763,7 @@ QToolButton:pressed, QToolButton:checked {
    same pixel and the glyph does not shift when focus arrives — the rule
    QPushButton:focus has carried since the sheet was written. */
 QToolButton:focus {
-    border: 2px solid ${focus};
+    border: 2px solid ${border_focus};
     padding: ${s1_focus}px;
 }
 
@@ -763,7 +797,7 @@ QGroupBox::title {
    (`setTextVisible(False)`) and states it beside the bar, where it can be typeset
    properly. This colour is the fallback for any bar that still shows it. */
 QProgressBar {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: 1px solid ${border};
     border-radius: ${r_md}px;
     height: ${s3}px;
@@ -790,7 +824,7 @@ QSlider:horizontal {
 }
 
 QSlider::groove:horizontal {
-    background-color: ${sunken};
+    background-color: ${surface_sunken};
     border: 1px solid ${border};
     height: 4px;
     border-radius: 2px;
@@ -894,7 +928,7 @@ QStatusBar QLabel {
    pointer convenience, not the only path to it. */
 
 QToolTip {
-    background-color: ${raised};
+    background-color: ${surface_raised};
     color: ${ink};
     border: 1px solid ${border_strong};
     border-radius: ${r_md}px;
@@ -906,18 +940,18 @@ QToolTip {
 /* Conditions that persist, and stay until the condition is resolved. */
 
 QLabel#banner, QLabel[banner="warn"] {
-    background-color: ${warn_soft};
-    color: ${warn};
-    border: 1px solid ${warn_mark};
+    background-color: ${warning_soft};
+    color: ${warning};
+    border: 1px solid ${warning_mark};
     border-radius: ${r_md}px;
     padding: ${s2}px ${s3}px;
     font-size: ${body_sm}px;
 }
 
 QLabel[banner="bad"] {
-    background-color: ${bad_soft};
-    color: ${bad};
-    border-color: ${bad_mark};
+    background-color: ${danger_soft};
+    color: ${danger};
+    border-color: ${danger_mark};
 }
 
 QLabel[banner="info"] {

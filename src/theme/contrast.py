@@ -16,6 +16,14 @@ fails and the build says so.
 
 Text needs 4.5:1. UI marks — focus rings, status marks, chart series against the
 plot surface — need 3:1.
+
+The design system runs its own audit over the same numbers
+(``build/audit_contrast.mjs``), and now that RollView reads the system's token
+file rather than a copy of it, the two are auditing the same values: a token
+that fails here fails there. What this one adds is the pairings that only exist
+because RollView renders them — a ghost button's label on its own fill, a
+disabled label on the sunken ground, the chart chrome against the plot surface.
+Neither list is a subset of the other, and both are cheap.
 """
 
 from theme import tokens as T
@@ -45,14 +53,17 @@ def ratio(foreground, background):
 #
 # `accent` is deliberately absent from the text list: it is a fill and a mark
 # (button backgrounds, the tab underline, the focus ring), and prose in accent
-# blue is not a pattern the system has. Links use the darker `link` token.
+# blue is not a pattern the system has. Links use the darker `ink-link` token.
 # Hairlines — `border`, `border-strong`, the chart axis and gridlines — are not
 # marks either: they carry no state and no information, so WCAG 1.4.11 does not
 # reach them and holding them to 3:1 would only make the interface louder.
-_SURFACES = ("bg", "surface", "sunken", "raised")
-_TEXT_ON_SURFACE = ("ink", "ink-secondary", "ink-muted", "link")
-_STATUS_INKS = ("good", "warn", "bad")
-_MARKS_ON_SURFACE = ("focus", "accent", "good-mark", "warn-mark", "bad-mark")
+_SURFACES = ("bg", "surface", "surface-sunken", "surface-raised")
+_TEXT_ON_SURFACE = ("ink", "ink-secondary", "ink-muted", "ink-link")
+#: The three status inks, and the soft wash each one is set on.
+_STATUS_INKS = ("good", "warning", "danger")
+#: The system has no `good-mark`: in spec is one colour for the ink and the mark
+#: alike, which is what the guide's status row and `tapio.css` both say.
+_MARKS_ON_SURFACE = ("border-focus", "accent", "good", "warning-mark", "danger-mark")
 
 
 def pairs(theme):
@@ -68,27 +79,39 @@ def pairs(theme):
     # or straight on a panel (the failing stat value).
     for ink in _STATUS_INKS:
         yield ("text", f"{ink} on {ink}-soft", t.color(ink), t.color(f"{ink}-soft"), TEXT_RATIO)
-        for surface in ("surface", "sunken"):
+        for surface in ("surface", "surface-sunken"):
             yield ("text", f"{ink} on {surface}", t.color(ink), t.color(surface), TEXT_RATIO)
 
     # Marks only have to clear 3:1, and only against the surfaces they sit on.
-    for surface in ("surface", "sunken"):
+    for surface in ("surface", "surface-sunken"):
         background = t.color(surface)
         for mark in _MARKS_ON_SURFACE:
             yield ("mark", f"{mark} on {surface}", t.color(mark), background, MARK_RATIO)
 
-    # Every chart series against the plot surface, plus the limit and target marks.
+    # Every chart series against the plot surface, plus the limit and target
+    # marks and the two chrome inks that carry words rather than lines.
     plot = t.chart("surface")
     for name, color in zip(t.series_names, t.series):
         yield ("mark", f"series {name} on plot", color, plot, MARK_RATIO)
     for role in ("limit", "target"):
         yield ("mark", f"chart {role} on plot", t.chart(role), plot, MARK_RATIO)
+    for role in ("label", "title", "tick"):
+        yield ("text", f"chart {role} on plot", t.chart(role), plot, TEXT_RATIO)
 
-    # Button labels against their own fill. A disabled control still has to be
-    # legible, and every variant shares one disabled look: ink-muted on sunken.
+    # The three series that survive the all-pairs test, on the same ground.
+    for index, color in enumerate(t.scatter_series):
+        yield ("mark", f"scatter slot {index + 1} on plot", color, plot, MARK_RATIO)
+
+    # Button labels against their own fill. A ghost button carries a soft fill
+    # by default now, so its label is set on that rather than on the panel.
     yield ("text", "accent-ink on accent", t.color("accent-ink"), t.color("accent"), TEXT_RATIO)
-    yield ("text", "ink-inverse on inverse", t.color("ink-inverse"), t.color("inverse"), TEXT_RATIO)
-    yield ("text", "disabled label on sunken", t.color("ink-muted"), t.color("sunken"), TEXT_RATIO)
+    yield ("text", "ghost-ink on ghost-bg", t.color("ghost-ink"), t.color("ghost-bg"), TEXT_RATIO)
+    yield ("text", "ink-inverse on surface-inverse",
+           t.color("ink-inverse"), t.color("surface-inverse"), TEXT_RATIO)
+    # A disabled control still has to be legible, and every variant shares one
+    # disabled look: ink-muted on sunken.
+    yield ("text", "disabled label on sunken",
+           t.color("ink-muted"), t.color("surface-sunken"), TEXT_RATIO)
 
 
 def audit(theme=None):

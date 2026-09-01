@@ -23,6 +23,19 @@ Three things do most of the work:
 
 A widget does not restyle itself when a dynamic property changes, so every
 setter here re-polishes. Use these helpers rather than ``setProperty``.
+
+The style sheet is RollView's own rather than the system's ``tapio_qt.py``,
+because an analysis tool needs more widgets than that file covers and none of
+the four things above. What it is *not* is a different design: the placeholders
+it substitutes are the system's role names, one for one, and every component
+rule in it is the guide's. Two consequences worth knowing:
+
+* Adding a role upstream makes it available in the sheet with no code change —
+  ``build_stylesheet`` emits the whole table.
+* The disabled rule is generated from ``VARIANTS``. ``QPushButton:disabled``
+  ties with ``QPushButton[variant="primary"]`` on specificity, so whichever is
+  declared later wins, and a variant left out of that rule keeps its enabled
+  paint while disabled.
 """
 
 import os
@@ -45,6 +58,12 @@ from theme import tokens as T
 
 _QSS_PATH = paths.theme_file("rollview.qss")
 _FONT_DIR = paths.asset_dir("fonts", "plex")
+
+#: The five button variants, in the order the guide lists them. ``secondary`` is
+#: what a button is without the property, and is named here so that saying so
+#: explicitly is legal. Every one of them has to appear in the style sheet's
+#: disabled rule; ``build_stylesheet`` generates that rule from this tuple.
+VARIANTS = ("primary", "secondary", "ghost", "bare", "danger")
 
 _FONT_FILES = (
     "IBMPlexSans-Light.ttf",
@@ -306,15 +325,15 @@ def build_palette(t):
         palette.setColor(group, QPalette.ColorRole.PlaceholderText, c("ink-muted"))
         palette.setColor(group, QPalette.ColorRole.Button, c("surface"))
         palette.setColor(group, QPalette.ColorRole.ButtonText, c("ink"))
-        palette.setColor(group, QPalette.ColorRole.BrightText, c("bad-mark"))
+        palette.setColor(group, QPalette.ColorRole.BrightText, c("danger-mark"))
         palette.setColor(group, QPalette.ColorRole.Highlight, c("accent-soft"))
         palette.setColor(group, QPalette.ColorRole.HighlightedText, c("ink"))
-        palette.setColor(group, QPalette.ColorRole.ToolTipBase, c("raised"))
+        palette.setColor(group, QPalette.ColorRole.ToolTipBase, c("surface-raised"))
         palette.setColor(group, QPalette.ColorRole.ToolTipText, c("ink"))
-        palette.setColor(group, QPalette.ColorRole.Link, c("link"))
+        palette.setColor(group, QPalette.ColorRole.Link, c("ink-link"))
         palette.setColor(group, QPalette.ColorRole.LinkVisited, c("accent-active"))
         palette.setColor(group, QPalette.ColorRole.Light, c("surface"))
-        palette.setColor(group, QPalette.ColorRole.Midlight, c("sunken"))
+        palette.setColor(group, QPalette.ColorRole.Midlight, c("surface-sunken"))
         palette.setColor(group, QPalette.ColorRole.Mid, c("border"))
         palette.setColor(group, QPalette.ColorRole.Dark, c("border-strong"))
         palette.setColor(group, QPalette.ColorRole.Shadow, c("border-strong"))
@@ -324,9 +343,9 @@ def build_palette(t):
     palette.setColor(group, QPalette.ColorRole.Text, disabled_ink)
     palette.setColor(group, QPalette.ColorRole.ButtonText, disabled_ink)
     palette.setColor(group, QPalette.ColorRole.Window, c("bg"))
-    palette.setColor(group, QPalette.ColorRole.Base, c("sunken"))
+    palette.setColor(group, QPalette.ColorRole.Base, c("surface-sunken"))
     palette.setColor(group, QPalette.ColorRole.Button, c("surface"))
-    palette.setColor(group, QPalette.ColorRole.Highlight, c("sunken"))
+    palette.setColor(group, QPalette.ColorRole.Highlight, c("surface-sunken"))
     palette.setColor(group, QPalette.ColorRole.HighlightedText, disabled_ink)
     return palette
 
@@ -347,32 +366,34 @@ def build_stylesheet(t):
     # drops by the same amount so nothing shifts under the ring.
     control_inner = control - 2
     accent = t.color("accent")
+    ghost = t.color("ghost-bg")
 
     values = {
-        # surfaces and ink
-        "bg": t.color("bg"),
-        "surface": surface,
-        "sunken": t.color("sunken"),
-        "sunken_pressed": T.mix(t.color("border"), surface, 0.85),
-        "raised": t.color("raised"),
-        "border": t.color("border"),
-        "border_strong": t.color("border-strong"),
-        "ink": t.color("ink"),
-        "ink_secondary": t.color("ink-secondary"),
-        "ink_muted": t.color("ink-muted"),
+        # Every semantic role the system defines, under its own name with the
+        # hyphens Python cannot take: `${surface_sunken}`, `${danger_mark}`,
+        # `${ink_link}`. Emitted wholesale rather than listed, so a role added
+        # upstream is available in the sheet without a line of Python — and so
+        # that a rule written in the guide's vocabulary can be pasted in and
+        # work. The names are the guide's, not RollView's.
+        **{role.replace("-", "_"): t.color(role) for role in t.roles},
+
+        # Derived: a token rendered at partial strength for a state the system
+        # names but does not give its own value. None of them invents a hue.
+        "surface_sunken_pressed": T.mix(t.color("border"), surface, 0.85),
         "ink_disabled": T.mix(t.color("ink-muted"), surface, 0.55),
-        # accent
-        "accent": accent,
-        "accent_hover": t.color("accent-hover"),
-        "accent_active": t.color("accent-active"),
-        "accent_soft": t.color("accent-soft"),
         "accent_soft_pressed": T.mix(accent, t.color("accent-soft"), 0.2),
-        "accent_ink": t.color("accent-ink"),
-        "focus": t.color("focus"),
-        # status
-        "good": t.color("good"),
-        "warn": t.color("warn"), "warn_soft": t.color("warn-soft"), "warn_mark": t.color("warn-mark"),
-        "bad": t.color("bad"), "bad_soft": t.color("bad-soft"), "bad_mark": t.color("bad-mark"),
+        # "Hover darkens by one ramp step; active by two" — as a mix towards the
+        # accent rather than a ramp index, because the dark theme's soft fill is
+        # not a ramp step and darkening it there means moving the other way.
+        "ghost_hover": T.mix(accent, ghost, 0.15),
+        "ghost_pressed": T.mix(accent, ghost, 0.30),
+        # A variant selector ties with `:disabled` on specificity and wins on
+        # source order, so the disabled rule has to name every variant or the
+        # variants keep their enabled paint. Generated from the vocabulary
+        # `set_variant` accepts, so the two cannot fall out of step.
+        "disabled_variants": ",\n".join(
+            f'QPushButton[variant="{variant}"]:disabled' for variant in VARIANTS
+        ),
         # type
         "mono": mono_family(t),
         "body_lg": t.font_size("body-lg"),
@@ -475,13 +496,20 @@ class RollViewStyle(QProxyStyle):
 # entry point
 # ---------------------------------------------------------------------------
 
-def apply(app=None, theme=T.LIGHT):
+def apply(app=None, theme=T.LIGHT, density=None):
     """Apply the system to *app*. Returns the resolved ``Tokens``.
 
     Safe to call again at runtime: a night-shift toggle costs one call.
 
     *theme* may be ``system``, in which case the desktop decides; the returned
     tokens are always one of the two real tables.
+
+    *density* is ``compact``, ``comfortable`` or ``field``, and defaults to the
+    row named in ``rollview-tokens.json`` — ``compact``, a lab desktop with a
+    mouse and a keyboard. It is a parameter and not a constant because the whole
+    point of a density scale is that the same components serve a mill-floor
+    tablet: rows, control heights, hit targets and the base text size all move
+    together, and nothing else does.
     """
     global current, requested
 
@@ -493,7 +521,10 @@ def apply(app=None, theme=T.LIGHT):
         load_fonts()
 
     requested = theme
-    current = T.load(theme=resolve(theme))
+    # An omitted density means "whatever is in force", not "back to the
+    # default": a night-shift toggle re-applies the theme and must not quietly
+    # take a field build back to desktop rows.
+    current = T.load(theme=resolve(theme), density=density or current.density)
     icons.clear_cache()
     _family_cache.clear()
     _font_cache.clear()
@@ -558,11 +589,18 @@ def set_property(widget, name, value):
 
 
 def set_variant(widget, variant):
-    """``primary`` | ``secondary`` | ``ghost`` | ``danger``.
+    """One of ``VARIANTS``.
 
     One primary per view — the single most likely next action. Secondary is the
-    default and needs no call.
+    default and needs no call. ``bare`` is the only borderless one and is for
+    icon-only actions inside a grouped toolbar; a text action that wants to
+    recede takes ``ghost``, which keeps a soft fill so it still reads as a
+    control on a screen nobody is hovering.
     """
+    if variant is not None and variant not in VARIANTS:
+        raise ValueError(
+            f"'{variant}' is not a Tapio button variant. Known: {', '.join(VARIANTS)}"
+        )
     set_property(widget, "variant", variant)
 
 

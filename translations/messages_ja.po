@@ -287,12 +287,12 @@ msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
 msgstr "測定長が短すぎます"
 
 #. Used in profile chart as chart label or message and chart axis label.
-msgid "CHART_AMPLITUDE_LABEL"
-msgstr "拡大"
+msgid "CHART_RMS_AMPLITUDE_LABEL"
+msgstr "RMS振幅"
 
 #. Used in profile chart as chart label or message and chart axis label.
-msgid "CHART_FREQUENCY_LABEL"
-msgstr "頻度"
+msgid "CHART_SPATIAL_FREQUENCY_LABEL"
+msgstr "空間周波数"
 
 #. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_WAVELENGTH_LABEL"

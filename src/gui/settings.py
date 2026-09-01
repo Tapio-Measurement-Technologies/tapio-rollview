@@ -32,7 +32,7 @@ _HIGHLIGHT_SLOTS = {
     "tab:blue": ("series", 0),
     "tab:orange": ("series", 4),
     "tab:green": ("series", 1),
-    "tab:red": ("token", "bad-mark"),
+    "tab:red": ("token", "danger-mark"),
     "tab:purple": ("series", 2),
     "tab:brown": ("ramp", ("amber", 800)),
     "tab:pink": ("series", 5),

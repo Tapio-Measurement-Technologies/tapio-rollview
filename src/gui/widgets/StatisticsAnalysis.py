@@ -91,7 +91,7 @@ class StatisticsAnalysisChart(QWidget):
         self.annot = self.ax.annotate(
             "", xy=(0, 0), xytext=(0, 10), textcoords="offset points",
             fontsize=tapio_mpl.points(t.font_size("body-sm")), color=t.color("ink"),
-            bbox=dict(boxstyle="round,pad=0.4", facecolor=t.color("raised"),
+            bbox=dict(boxstyle="round,pad=0.4", facecolor=t.color("surface-raised"),
                       edgecolor=t.color("border-strong"), linewidth=1.0),
             zorder=20,
         )
@@ -196,7 +196,7 @@ class StatisticsAnalysisChart(QWidget):
             tapio_mpl.limit_wash(self.ax, value, side, tapio_mpl.band_color(t),
                                  hatch_color=limit_line)
             self.ax.axhline(y=value, color=limit_line,
-                            linewidth=tapio_mpl.LIMIT_WIDTH, zorder=1)
+                            linewidth=t.mark("limit"), zorder=1)
             self.ax.annotate(
                 f"{value:g}",
                 xy=(1.0, value), xycoords=self.ax.get_yaxis_transform(),
