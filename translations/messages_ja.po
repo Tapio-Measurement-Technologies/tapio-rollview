@@ -82,7 +82,7 @@ msgstr "データ処理フォルダを開く"
 
 #. Used in the postprocessors menu when the custom postprocessor folder is empty.
 msgid "MENU_BAR_NO_CUSTOM_POSTPROCESSORS"
-msgstr "(PATH にカスタムデータ処理モジュールがありません)"
+msgstr "カスタムデータ処理はありません"
 
 #. Used as message box title when a refresh is asked for mid-run.
 msgid "MENU_BAR_POSTPROCESSORS_BUSY_TITLE"
