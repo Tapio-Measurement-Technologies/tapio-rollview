@@ -18,13 +18,17 @@ from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QCheckBox,
     QComboBox,
     QGridLayout,
     QLabel,
+    QListWidget,
+    QMenu,
     QStyle,
     QStyleOptionComboBox,
     QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
 
 import theme
@@ -613,6 +617,58 @@ class TestComboBoxPopup(ThemeRestoringTestCase):
             combo.view().verticalScrollMode(),
             QAbstractItemView.ScrollMode.ScrollPerPixel,
         )
+
+
+class TestMenuSwitch(ThemeRestoringTestCase):
+    """A checkbox standing in for a menu row is coloured like one.
+
+    The switches in the View and Postprocessors menus are real checkboxes
+    inside a QWidgetAction, so the form's rules reached them and the menu's did
+    not: they came up in the form's ink beside menu items in the muted one,
+    which read as the only items in the menu that were not greyed out.
+    """
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    @staticmethod
+    def _menu_with_a_switch():
+        menu = QMenu()
+        holder = QWidget()
+        layout = QVBoxLayout(holder)
+        checkbox = QCheckBox("Show all COM ports")
+        layout.addWidget(checkbox)
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(holder)
+        menu.addAction(action)
+        return menu, checkbox
+
+    def test_a_switch_in_a_menu_takes_the_menu_row_colour(self):
+        menu, checkbox = self._menu_with_a_switch()
+        self.addCleanup(destroy, menu)
+        menu.show()
+
+        self.assertEqual(
+            checkbox.palette().color(QPalette.ColorRole.WindowText).name().upper(),
+            theme_qt.tokens().color("ink-secondary").upper(),
+        )
+        menu.hide()
+
+    def test_a_focused_switch_is_not_painted_in_the_accent(self):
+        # The form's focus colour is the accent, and a menu popup keeps its
+        # focus widget: the row last clicked came back blue every time the menu
+        # was opened, which reads as a selection. In a menu, focus is coloured
+        # like the row under the pointer.
+        sheet = theme_qt.build_stylesheet(theme_qt.tokens())
+        focus_rules = [
+            body for selector, body in re.findall(r"([^{}]+)\{([^}]*)\}", sheet)
+            if "QMenu QCheckBox:focus" in selector
+        ]
+        self.assertTrue(focus_rules, "nothing colours a focused switch in a menu")
+        for body in focus_rules:
+            self.assertIn(theme_qt.tokens().color("ink"), body)
+            self.assertNotIn(theme_qt.tokens().color("accent"), body)
 
 
 class TestDensity(unittest.TestCase):

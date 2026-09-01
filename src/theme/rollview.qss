@@ -665,6 +665,21 @@ QMenu::item:disabled {
     color: ${ink_disabled};
 }
 
+/* A switch in a menu is a menu row, and takes the row's colours rather than a
+   form's. In the form's ink it was the one item in the menu that did not look
+   greyed out, and the form's blue focus colour stayed on the row it was
+   clicked on long after the menu closed, reading as a selection nobody made.
+   Focus is coloured like the row under the pointer instead: the same answer
+   for a switch reached with the arrow keys as for one reached with the mouse. */
+QMenu QCheckBox {
+    color: ${ink_secondary};
+}
+
+QMenu QCheckBox:hover,
+QMenu QCheckBox:focus {
+    color: ${ink};
+}
+
 QMenu::separator {
     height: 1px;
     background-color: ${border};
