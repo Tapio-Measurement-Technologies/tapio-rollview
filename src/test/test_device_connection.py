@@ -38,6 +38,19 @@ def wait_until(condition, timeout=8.0):
     return condition()
 
 
+def stop_responder(responder):
+    """Stop a loopback device thread and wait for it to be gone.
+
+    Joined, not merely signalled. A responder runs Python for as long as it is
+    alive, so a thread that outlives its test can be the one that trips the
+    cyclic collector's threshold — and a collection there destroys whatever Qt
+    objects happen to be garbage, on a thread that does not own them. That is a
+    segfault, not an exception.
+    """
+    responder.stop()
+    responder.join(timeout=5.0)
+
+
 class BridgeRecorder:
     """Collects every bridge signal emission for assertions."""
 
@@ -106,6 +119,13 @@ class DeviceConnectionTestBase(unittest.TestCase):
     def _restore_root(self):
         store.root_directory = self._original_root
 
+    def start_responder(self):
+        """Start the fake device on the far end of the current socket pair."""
+        responder = LoopbackResponder(self.right_sock, Path(self.device_dir.name))
+        responder.start()
+        self.addCleanup(stop_responder, responder)
+        return responder
+
     def _shutdown_worker(self):
         self.worker.shutdown()
         for sock in (self.left_sock, self.right_sock):
@@ -113,6 +133,16 @@ class DeviceConnectionTestBase(unittest.TestCase):
                 sock.close()
             except OSError:
                 pass
+        # The bridge is a QObject the worker thread emits into, and the
+        # recorder's lambdas hold it in a reference cycle: dropping the names
+        # alone leaves it to the cyclic collector, on whichever thread trips
+        # the threshold first. Cut the connections here instead — on the main
+        # thread, with the worker already stopped — so the bridge dies where it
+        # was born.
+        self.bridge.disconnect(self.bridge, None, None, None)
+        self.recorder = None
+        self.bridge = None
+        self.worker = None
 
     def seed_device_tree(self):
         root = Path(self.device_dir.name)
@@ -231,8 +261,7 @@ class TestSyncFlow(DeviceConnectionTestBase):
     def setUp(self):
         super().setUp()
         self.seed_device_tree()
-        self.responder = LoopbackResponder(self.right_sock, Path(self.device_dir.name))
-        self.responder.start()
+        self.responder = self.start_responder()
 
     def test_connects_and_syncs_only_prof_files(self):
         self.worker.enable()
@@ -307,9 +336,11 @@ class TestSyncFlow(DeviceConnectionTestBase):
 
         # The worker closed the old transport; hand it a fresh link like
         # a reopened serial port.
+        stop_responder(self.responder)
+        for sock in (self.left_sock, self.right_sock):
+            sock.close()
         self.left_sock, self.right_sock = socket.socketpair()
-        responder = LoopbackResponder(self.right_sock, Path(self.device_dir.name))
-        responder.start()
+        self.responder = self.start_responder()
 
         self.worker.enable()
         self.assertTrue(
@@ -328,8 +359,7 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
 
     def _start_device(self):
         self.seed_device_tree()
-        self.responder = LoopbackResponder(self.right_sock, Path(self.device_dir.name))
-        self.responder.start()
+        self.responder = self.start_responder()
         self.worker.enable()
         self.worker.start()
         self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
@@ -591,8 +621,10 @@ class TestMultipleDevices(unittest.TestCase):
             (tree / filename).write_bytes(f"data-{port}".encode() * 50)
             responder = LoopbackResponder(right, Path(device_dir.name))
             responder.start()
+            self.addCleanup(stop_responder, responder)
             self.responders.append(responder)
             self.transports[port] = left
+            self.addCleanup(left.close)
 
         transport_patch = patch(
             "workers.device_connection.SerialTransport",
