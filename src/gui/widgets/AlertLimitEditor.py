@@ -17,7 +17,6 @@ class AlertLimitEditor(QDialog):
             f"{_('EDIT_ALERT_LIMITS')} - {profile_stats.stat_labels.get(stat_name, stat_name)}"
         )
         self.setModal(True)
-        self.resize(360, 150)
 
         layout = QVBoxLayout()
         theme_qt.pad(layout, 3)
@@ -98,8 +97,19 @@ class AlertLimitEditor(QDialog):
         button_layout.addWidget(self.cancel_button)
         button_layout.addWidget(self.save_button)
 
+        # Two fields and a button row, and nothing that grows: any height
+        # beyond what the content asks for is dead space, and a box layout
+        # spends it by pulling the labels off their fields. The stretch gives
+        # it somewhere harmless to go if the operator drags the window taller.
+        layout.addStretch(1)
+
         layout.addLayout(button_layout)
         self.setLayout(layout)
+
+        # Width is a judgement — two numeric fields side by side — and height is
+        # not: it is whatever the rows come to. Asking for a number here is how
+        # the dialog ended up with 40 px of nothing in it.
+        self.resize(360, self.sizeHint().height())
 
     def show_error(self, message):
         """Show error message in the dialog"""
@@ -113,9 +123,10 @@ class AlertLimitEditor(QDialog):
     @staticmethod
     def _field(label_text, field):
         """A labelled numeric field: label above, value in mono below."""
-        from PySide6.QtWidgets import QWidget
+        from PySide6.QtWidgets import QSizePolicy, QWidget
 
         holder = QWidget()
+        holder.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         holder_layout = QVBoxLayout(holder)
         theme_qt.pad(holder_layout, 0)
         theme_qt.gap(holder_layout, 1)

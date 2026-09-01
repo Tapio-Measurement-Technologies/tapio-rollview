@@ -426,6 +426,29 @@ class TestAlertLimitEditorStyling(ThemeRestoringTestCase):
             bad,
         )
 
+    def test_the_editor_is_no_taller_than_the_rows_in_it(self):
+        """Two fields and a button row, and a window that stops there.
+
+        A hard-coded height is a guess about type and density that goes stale
+        the moment either moves; the leftover went into the input row, which a
+        box layout spends by pushing each label away from the field it names.
+        """
+        from gui.widgets.AlertLimitEditor import AlertLimitEditor
+
+        editor = AlertLimitEditor('max_g', {'name': 'max_g', 'min': 1.0, 'max': 5.0})
+        self.addCleanup(destroy, editor)
+        editor.show()
+
+        self.assertEqual(editor.height(), editor.sizeHint().height())
+
+        # The label sits on its field, not adrift above it: one gap on the
+        # scale, whatever the window is doing.
+        holder = editor.min_edit.parentWidget()
+        label = holder.layout().itemAt(0).geometry()
+        field = holder.layout().itemAt(1).geometry()
+        self.assertEqual(field.top() - label.bottom() - 1, holder.layout().spacing())
+
+
 class TestStatTileFooter(ThemeRestoringTestCase):
     """The limit line is the first thing on a tile asked to give up width.
 
