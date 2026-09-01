@@ -27,12 +27,17 @@ sees one and concludes there is nothing to find. A status tip goes out the
 moment the pointer arrives, in a fixed place, and it never covers the thing it
 is describing.
 
-Two consequences worth knowing:
+Three consequences worth knowing:
 
 * Qt emits the status tip of the widget the pointer actually entered and does
   not look up the parent chain the way it does for tooltips. A composite whose
   children fill it — a tile with its labels — has to put the line on every part
   of itself, or the row goes quiet exactly where the pointer lands.
+* Leaving one of those parts does not enter the composite around it, because
+  the composite was never left. The part's Leave empties the row and no Enter
+  follows it, so a tile answered over its labels and nowhere else on itself.
+  The parts are made transparent to the mouse instead, which leaves the
+  composite as the one thing the pointer enters and leaves.
 * Item views read ``Qt.ItemDataRole.StatusTipRole`` from the model, so a row in
   a list or a tree answers in the same row of the window as everything else.
 
@@ -82,11 +87,20 @@ def set_guidance_everywhere(widget, title=None, detail=None, action=None):
 
     For a composite the pointer never actually lands on: a stat tile is covered
     by its own labels, and Qt asks no parent for a status tip.
+
+    The parts also hand the pointer through, so the composite is what the
+    pointer enters wherever it arrives on it and the row stays filled all the
+    way across. Parts that take the focus are left alone: those are controls
+    rather than decoration, and a control that cannot be clicked is a worse
+    fault than a row that goes quiet.
     """
+    from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QWidget
 
     text = compose(title, detail, action)
     widget.setStatusTip(text)
     for child in widget.findChildren(QWidget):
         child.setStatusTip(text)
+        if child.focusPolicy() == Qt.FocusPolicy.NoFocus:
+            child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
     return text
