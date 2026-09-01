@@ -246,7 +246,15 @@ def tree_column_width(characters, view, t=None):
     face.setPixelSize(t.base_text_size)
     text = QFontMetrics(face).horizontalAdvance("0" * characters)
     padding = t.space(2) * 2       # the item rule's horizontal padding
-    return text + padding + view.indentation() + FIELD_SLACK
+    # Every row carries its icon ahead of the text, and the tree takes the icon
+    # and the gap after it out of this same section. Reserving the indentation
+    # alone left the section a few pixels short of the name it was sized for,
+    # so a name of exactly *characters* came up one ellipsis short of fitting.
+    icon = view.iconSize().width()
+    if icon <= 0:
+        icon = view.style().pixelMetric(QStyle.PixelMetric.PM_SmallIconSize, None, view)
+    decoration = icon + t.space(1)
+    return text + padding + view.indentation() + decoration + FIELD_SLACK
 
 
 def style_header(header, t=None):
