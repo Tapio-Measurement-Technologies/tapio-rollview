@@ -185,15 +185,13 @@ QWidget#limitFooter QLabel {
 }
 
 /* The tile is the alarm; the footer says which end of the range the value
-   left. The breached bound takes a chip of the tile's own resting surface and
-   the system's one emphasis weight — the same red as everything else in a
-   failing tile, because a second red would be a second meaning. Nested under
-   the id selector on purpose: a bare QLabel[limit="breached"] loses to
-   QWidget#statTile[state="bad"] QLabel on specificity and never paints. */
+   left. The breached bound takes the system's one emphasis weight and nothing
+   else — a patch of a second background colour behind half a line reads as a
+   rendering fault rather than as emphasis, and the line is one bound, a comma
+   and another bound, not two things. Nested under the id selector on purpose:
+   a bare QLabel[limit="breached"] loses to QWidget#statTile[state="bad"]
+   QLabel on specificity and never paints. */
 QWidget#statTile[state="bad"] QLabel[limit="breached"] {
-    background-color: ${surface};
-    border-radius: ${r_sm}px;
-    padding: 0 ${s1}px;
     font-weight: 500;
 }
 

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout, QMenu, QApplication, QSizePolicy
 from PySide6.QtGui import QAction, QFontMetrics
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import Qt, QEvent, QSize, Signal
 import settings
 import theme
 from theme import qt as theme_qt
@@ -71,14 +71,51 @@ class ElidedLabel(QLabel):
         super().resizeEvent(event)
         self._apply_elide()
 
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        # A repolish changes the two things the elide was computed from — the
+        # font, and the box the style sheet puts around the text — and changes
+        # neither the widget's width nor its text, so nothing else asks for the
+        # elide to be run again. What is left is a string measured under the old
+        # rules inside a label that no longer fits it, and QLabel draws that by
+        # cutting the end off with no ellipsis to admit it. A bound losing its
+        # tail is a different number: "≤ 40.0" reads as "≤ 40".
+        if event.type() in (
+            QEvent.Type.FontChange,
+            QEvent.Type.ApplicationFontChange,
+            QEvent.Type.StyleChange,
+        ):
+            self.updateGeometry()
+            self._apply_elide()
+
+    def box_width(self):
+        """The horizontal space the style sheet's padding and border take.
+
+        Qt reports a style sheet's padding and border on a QLabel as contents
+        margins, and QLabel's own sizeHint adds them. Anything that measures the
+        text has to account for them too, or it hands the label a width the text
+        does not actually get.
+        """
+        margins = self.contentsMargins()
+        return margins.left() + margins.right()
+
     def _apply_elide(self):
         metrics = QFontMetrics(self.font())
-        available = max(self.width(), 0)
-        elided = (
-            metrics.elidedText(self._full_text, Qt.TextElideMode.ElideRight, available)
-            if available else self._full_text
+        # The content rect, not the widget rect: the text is painted inside the
+        # box, so measuring against the whole widget quietly overruns a padded
+        # label by exactly the padding and lets QLabel clip it.
+        available = max(self.contentsRect().width(), 0)
+        if not available or metrics.horizontalAdvance(self._full_text) <= available:
+            # Say it in full whenever it fits. elidedText() measures through the
+            # text engine and horizontalAdvance() sums glyph advances, and the
+            # two disagree by a pixel on a bold string — enough for a bound
+            # given exactly the width it asked for to come back as "≤ 40…",
+            # which is a limit the operator cannot read.
+            QLabel.setText(self, self._full_text)
+            return
+        QLabel.setText(
+            self, metrics.elidedText(self._full_text, Qt.TextElideMode.ElideRight, available)
         )
-        QLabel.setText(self, elided)
 
 
 class ElidedChunk(ElidedLabel):
@@ -102,10 +139,19 @@ class ElidedChunk(ElidedLabel):
         # squeeze shortens the text, the shorter text asks for less, and the
         # chunk never grows back when the tile does.
         metrics = QFontMetrics(self.font())
-        return QSize(metrics.horizontalAdvance(self.text()), super().sizeHint().height())
+        # One pixel of slack, for the same disagreement between the two ways of
+        # measuring a string: asking for exactly the advance is asking to be
+        # elided by a rounding error. The style box is asked for on top of the
+        # text, the way QLabel's own hint counts it.
+        return QSize(
+            metrics.horizontalAdvance(self.text()) + 1 + self.box_width(),
+            super().sizeHint().height(),
+        )
 
     def minimumSizeHint(self):
-        return QSize(0, super().minimumSizeHint().height())
+        # Down to the box and nothing else: the padding is not text and cannot
+        # be elided away.
+        return QSize(self.box_width(), super().minimumSizeHint().height())
 
 
 class LimitFooter(QWidget):
@@ -284,6 +330,22 @@ class StatsWidget(QWidget):
     def resizeEvent(self, event):
         self._relayout_widgets()
         super().resizeEvent(event)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        # The column width is measured from a label and a number, so it is only
+        # true for the font they were measured in. A theme switch repolishes the
+        # tree and can hand every tile a different face without resizing
+        # anything, which leaves the row laid out to the old measurement — tiles
+        # too narrow for their own numbers, and no event that would ever put it
+        # right again.
+        if event.type() in (
+            QEvent.Type.FontChange,
+            QEvent.Type.ApplicationFontChange,
+            QEvent.Type.StyleChange,
+        ):
+            if self._measure_cells():
+                self._relayout_widgets()
 
     def show_context_menu(self, position):
         """Show context menu with option to copy stats to clipboard."""

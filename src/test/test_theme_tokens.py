@@ -426,7 +426,6 @@ class TestAlertLimitEditorStyling(ThemeRestoringTestCase):
             bad,
         )
 
-
 class TestStatTileFooter(ThemeRestoringTestCase):
     """The limit line is the first thing on a tile asked to give up width.
 
@@ -473,6 +472,84 @@ class TestStatTileFooter(ThemeRestoringTestCase):
         for chunk in (tile.foot_label.min_chunk, tile.foot_label.max_chunk):
             # ElidedLabel keeps the full string; QLabel holds what is painted.
             self.assertEqual(QLabel.text(chunk), chunk.text())
+
+    def test_the_breached_bound_is_not_elided_by_a_rounding_error(self):
+        """A bold bound given the width it asked for still says all of itself.
+
+        The chunk sizes itself with ``horizontalAdvance()`` and Qt elides with
+        the text engine's own measure; on a 500-weight string the two differ by
+        a pixel, which was enough to turn "≤ 40.0" into "≤ 40…" — a limit that
+        reads as a different number.
+        """
+        from PySide6.QtWidgets import QLabel as _QLabel
+        from gui.widgets.stats import MaxWidget
+
+        tile = MaxWidget([1.0, 99.0], limit={'name': 'max_g', 'min': 10.0, 'max': 40.0})
+        self.addCleanup(destroy, tile)
+        tile.resize(150, tile.sizeHint().height())
+        tile.show()
+
+        chunk = tile.foot_label.max_chunk
+        self.assertEqual(chunk.property("limit"), "breached")
+        self.assertEqual(_QLabel.text(chunk), chunk.text())
+
+    def test_a_font_change_re_elides_instead_of_clipping(self):
+        """The elide is stale the moment the font moves under it.
+
+        A theme switch sets the application font after the style sheet, and a
+        tile repolished into its alarm state gives the breached bound a heavier
+        weight. Neither changes the label's width, so no resize arrives to
+        re-run the elide — and QLabel paints the too-long string by cutting the
+        end off, with no ellipsis to say it did.
+        """
+        from PySide6.QtGui import QFont, QFontMetrics
+        from PySide6.QtWidgets import QLabel as _QLabel
+        from gui.widgets.stats import MaxWidget
+
+        tile = MaxWidget([1.0, 99.0], limit={'name': 'max_g', 'min': 10.0, 'max': 40.0})
+        self.addCleanup(destroy, tile)
+        tile.resize(150, tile.sizeHint().height())
+        tile.show()
+
+        chunk = tile.foot_label.max_chunk
+        chunk.setFixedWidth(chunk.width())  # the tile does not get any wider
+        bigger = QFont(chunk.font())
+        bigger.setPixelSize(bigger.pixelSize() + 4)
+        chunk.setFont(bigger)
+
+        painted = _QLabel.text(chunk)
+        self.assertLessEqual(
+            QFontMetrics(chunk.font()).horizontalAdvance(painted), chunk.width()
+        )
+
+    def test_a_padded_bound_is_measured_inside_its_own_box(self):
+        """Padding from the sheet is width the text does not get.
+
+        Qt reports a style sheet's padding as contents margins and QLabel paints
+        the text inside them. A chunk that sizes and elides against its whole
+        width therefore overruns a padded label by exactly the padding, and
+        QLabel clips the overrun without an ellipsis — which is how a limit came
+        to be drawn as "≤ 40" when it says "≤ 40.0".
+        """
+        from PySide6.QtGui import QFontMetrics
+        from PySide6.QtWidgets import QLabel as _QLabel
+        from gui.widgets.stats import MaxWidget
+
+        tile = MaxWidget([1.0, 99.0], limit={'name': 'max_g', 'min': 10.0, 'max': 40.0})
+        self.addCleanup(destroy, tile)
+        chunk = tile.foot_label.max_chunk
+        chunk.setStyleSheet("QLabel { padding: 0 4px; }")
+        tile.resize(150, tile.sizeHint().height())
+        tile.show()
+        tile.foot_label.adjustSize()
+
+        self.assertEqual(chunk.box_width(), 8)
+        self.assertGreaterEqual(chunk.sizeHint().width(), chunk.box_width())
+        self.assertEqual(_QLabel.text(chunk), chunk.text())
+        self.assertLessEqual(
+            QFontMetrics(chunk.font()).horizontalAdvance(chunk.text()),
+            chunk.contentsRect().width(),
+        )
 
 
 class TestComboBoxPopup(ThemeRestoringTestCase):
