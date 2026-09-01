@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QLabel
 
 from gui.qr_config_dialog import QR_CODE_SIZE_PX, QRConfigDialog
 from utils import preferences
+from test.qtcleanup import destroy
 
 
 class TestQRConfigDialog(unittest.TestCase):
@@ -29,12 +30,10 @@ class TestQRConfigDialog(unittest.TestCase):
 
     def tearDown(self):
         preferences.alert_limits = self.original_alert_limits
-        for widget in QApplication.topLevelWidgets():
-            widget.close()
 
     def test_generate_qr_code_converts_pillow_image_to_scaled_pixmap(self):
         dialog = QRConfigDialog()
-        self.addCleanup(dialog.close)
+        self.addCleanup(destroy, dialog)
 
         pixmap = dialog.qr_label.pixmap()
 
@@ -54,7 +53,7 @@ class TestQRConfigDialog(unittest.TestCase):
 
         with patch("gui.qr_config_dialog.qrcode.QRCode", return_value=qr):
             dialog = QRConfigDialog()
-        self.addCleanup(dialog.close)
+        self.addCleanup(destroy, dialog)
 
         error_texts = [
             label.text()

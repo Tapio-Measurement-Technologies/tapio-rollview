@@ -10,6 +10,7 @@ from gui.widgets.DirectoryView import DirectoryView
 from gui.widgets.EmptyStateView import view_is_empty
 from gui.widgets.FileView import FileView
 from gui.widgets.serialports import SerialPortView
+from test.qtcleanup import destroy
 
 
 class TestEmptyStateView(unittest.TestCase):
@@ -28,7 +29,7 @@ class TestEmptyStateView(unittest.TestCase):
 
             self.assertFalse(view_is_empty(view))
         finally:
-            view.close()
+            destroy(view)
 
     def test_target_views_have_empty_messages(self):
         serial_view = SerialPortView()
@@ -39,16 +40,16 @@ class TestEmptyStateView(unittest.TestCase):
             self.assertEqual(directory_view.treeView.empty_message(), "No folders in selected directory")
             self.assertEqual(file_view.view.empty_message(), "No profiles in selected folder")
         finally:
-            serial_view.close()
-            directory_view.close()
-            file_view.close()
+            destroy(serial_view)
+            destroy(directory_view)
+            destroy(file_view)
 
     def test_helper_handles_views_with_model_attribute(self):
         view = SerialPortView()
         try:
             self.assertTrue(view_is_empty(view))
         finally:
-            view.close()
+            destroy(view)
 
 
 if __name__ == "__main__":

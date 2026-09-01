@@ -16,6 +16,7 @@ from gui.widgets.DirectoryView import (
 )
 from gui.widgets.RegexFilterLineEdit import RegexFilterLineEdit
 from utils.translation import _
+from test.qtcleanup import destroy
 
 
 class FakeDirectoryModel(QAbstractListModel):
@@ -86,7 +87,7 @@ class TestDirectoryView(unittest.TestCase):
             selection_model.setCurrentIndex.assert_called_once_with(first_child, selection_flags)
             view.treeView.scrollTo.assert_called_once_with(first_child)
         finally:
-            view.close()
+            destroy(view)
 
     def test_select_first_directory_can_leave_current_focus_unchanged(self):
         view = DirectoryView()
@@ -114,7 +115,7 @@ class TestDirectoryView(unittest.TestCase):
             selection_model.setCurrentIndex.assert_called_once_with(first_child, selection_flags)
             view.treeView.scrollTo.assert_called_once_with(first_child)
         finally:
-            view.close()
+            destroy(view)
 
     def test_select_first_directory_skips_when_no_rows(self):
         view = DirectoryView()
@@ -142,7 +143,7 @@ class TestDirectoryView(unittest.TestCase):
             selection_model.setCurrentIndex.assert_not_called()
             view.treeView.scrollTo.assert_not_called()
         finally:
-            view.close()
+            destroy(view)
 
     def test_restore_focus_reselects_previous_directory_after_model_change(self):
         view = DirectoryView()
@@ -158,7 +159,7 @@ class TestDirectoryView(unittest.TestCase):
             self.assertEqual(selected_paths, ["/tmp/selected"])
             self.assertIsNone(view._pending_focus_path)
         finally:
-            view.close()
+            destroy(view)
 
     def test_restore_focus_skips_reselect_when_focus_already_correct(self):
         view = DirectoryView()
@@ -174,7 +175,7 @@ class TestDirectoryView(unittest.TestCase):
             self.assertEqual(selected_paths, [])
             self.assertIsNone(view._pending_focus_path)
         finally:
-            view.close()
+            destroy(view)
 
     def test_restore_focus_selects_first_directory_without_stealing_input_focus(self):
         view = DirectoryView()
@@ -193,7 +194,7 @@ class TestDirectoryView(unittest.TestCase):
             view.select_first_directory.assert_called_once_with(set_focus=False)
             view.treeView.setFocus.assert_not_called()
         finally:
-            view.close()
+            destroy(view)
 
     def test_refresh_inserted_rows_invalidates_date_cache_and_resorts(self):
         view = DirectoryView()
@@ -223,7 +224,7 @@ class TestDirectoryView(unittest.TestCase):
             )
             proxy_model.sort.assert_called_once_with(3, 0)
         finally:
-            view.close()
+            destroy(view)
 
     def test_restore_focus_reapplies_widget_focus_when_tree_had_focus(self):
         view = DirectoryView()
@@ -241,7 +242,7 @@ class TestDirectoryView(unittest.TestCase):
             view.treeView.setFocus.assert_called_once()
             self.assertFalse(view._pending_focus_active)
         finally:
-            view.close()
+            destroy(view)
 
     def test_restore_selection_after_delete_sets_current_index(self):
         view = DirectoryView()
@@ -265,7 +266,7 @@ class TestDirectoryView(unittest.TestCase):
             view.treeView.scrollTo.assert_called_once_with(target_index)
             self.assertIsNone(view._pending_delete_row)
         finally:
-            view.close()
+            destroy(view)
 
     def test_on_directory_selected_emits_current_directory_path(self):
         view = DirectoryView()
@@ -284,7 +285,7 @@ class TestDirectoryView(unittest.TestCase):
 
             self.assertEqual(emitted_paths, ["/tmp/selected"])
         finally:
-            view.close()
+            destroy(view)
 
     def test_on_directory_selected_ignores_invalid_current_index(self):
         view = DirectoryView()
@@ -298,7 +299,7 @@ class TestDirectoryView(unittest.TestCase):
 
             self.assertEqual(emitted_paths, [])
         finally:
-            view.close()
+            destroy(view)
 
     def test_selection_cleared_emits_root_directory(self):
         view = DirectoryView()
@@ -312,7 +313,7 @@ class TestDirectoryView(unittest.TestCase):
 
                 self.assertEqual(emitted_paths, [tmpdir])
         finally:
-            view.close()
+            destroy(view)
 
     def test_on_directory_renamed_emits_new_selected_path(self):
         view = DirectoryView()
@@ -332,7 +333,7 @@ class TestDirectoryView(unittest.TestCase):
             view.watch_directory_and_subdirs.assert_called_once_with("/tmp/root")
             self.assertEqual(emitted_paths, ["/tmp/root/new"])
         finally:
-            view.close()
+            destroy(view)
 
     def test_change_root_directory_logs_instead_of_dialog_when_model_index_not_ready(self):
         view = DirectoryView()
@@ -355,7 +356,7 @@ class TestDirectoryView(unittest.TestCase):
                 view.watch_directory_and_subdirs.assert_called_once_with(tmpdir)
                 view.select_first_directory.assert_not_called()
         finally:
-            view.close()
+            destroy(view)
 
     def test_root_change_discards_stale_selection_before_async_initial_selection(self):
         view = DirectoryView()
@@ -385,7 +386,7 @@ class TestDirectoryView(unittest.TestCase):
                 self.assertTrue(self.wait_until(lambda: view.get_selected_directory_path() == new_roll))
                 self.assertEqual(emitted_paths, [new_roll])
         finally:
-            view.close()
+            destroy(view)
 
     def test_directory_date_refresh_paths_include_synced_folder_ancestors(self):
         view = DirectoryView()
@@ -407,7 +408,7 @@ class TestDirectoryView(unittest.TestCase):
                     ],
                 )
         finally:
-            view.close()
+            destroy(view)
 
     def test_refresh_directory_dates_invalidates_emits_sorts_and_rewatches(self):
         view = DirectoryView()
@@ -435,7 +436,7 @@ class TestDirectoryView(unittest.TestCase):
                 view.proxy_model.sort.assert_called_once_with(3, Qt.SortOrder.DescendingOrder)
                 view.schedule_focus_restore.assert_called_once()
         finally:
-            view.close()
+            destroy(view)
 
     def test_directory_changed_uses_directory_date_refresh(self):
         view = DirectoryView()
@@ -449,7 +450,7 @@ class TestDirectoryView(unittest.TestCase):
             view.refresh_directory_dates.assert_called_once_with(["/tmp/roll-1"])
             self.assertEqual(emitted, [True])
         finally:
-            view.close()
+            destroy(view)
 
     def test_latest_modified_date_uses_only_real_profile_files(self):
         model = CustomFileSystemModel()
@@ -536,7 +537,7 @@ class TestDirectoryView(unittest.TestCase):
 
             view._apply_root_index.assert_called_once()
         finally:
-            view.close()
+            destroy(view)
 
     def test_set_roll_filter_does_not_emit_directory_contents_changed_for_proxy_rows(self):
         view = DirectoryView()
@@ -561,7 +562,7 @@ class TestDirectoryView(unittest.TestCase):
             self.assertEqual(proxy.rowCount(), 1)
             self.assertEqual(emitted, [])
         finally:
-            view.close()
+            destroy(view)
 
     def test_set_roll_filter_does_not_select_matching_folder_when_current_hidden(self):
         view = DirectoryView()
@@ -593,7 +594,7 @@ class TestDirectoryView(unittest.TestCase):
                 self.assertEqual(view._get_visible_selected_directory_path(), selected_dir)
                 self.assertEqual(emitted, [])
         finally:
-            view.close()
+            destroy(view)
 
     def test_regex_filter_line_edit_keeps_previous_valid_filter_on_invalid_regex(self):
         widget = RegexFilterLineEdit(_("FOLDER_FILTER_PLACEHOLDER"))
@@ -610,7 +611,7 @@ class TestDirectoryView(unittest.TestCase):
             self.assertEqual(widget.active_pattern, "roll")
             self.assertTrue(widget.statusTip())
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_regex_filter_line_edit_debounces_rapid_typing(self):
         from PySide6.QtTest import QTest
@@ -626,7 +627,7 @@ class TestDirectoryView(unittest.TestCase):
 
             self.assertEqual(emitted, ["roll"])
         finally:
-            widget.close()
+            destroy(widget)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from models.Profile import Profile, ProfileData, ProfileHeader
 from gui.widgets.ProfileWidget import ProfileWidget
+from test.qtcleanup import destroy
 from gui.widgets.stats import MISSING
 from utils.highlighted_regions import (
     AbsoluteMeanOffsetHardnessHighlightRegion,
@@ -76,7 +77,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertNotEqual(original_active_pos.bounds, synced_active_pos.bounds)
             self.assertEqual(synced_active_pos.bounds, current_active_pos.bounds)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_absolute_excluded_region_plot_ranges_follow_selected_distance_unit(self):
         preferences.excluded_regions_mode = settings.EXCLUDED_REGIONS_MODE_ABSOLUTE
@@ -92,7 +93,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertAlmostEqual(plot_ranges[0][0], 1.0)
             self.assertAlmostEqual(plot_ranges[0][1], 2.0)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_spectrum_plot_data_uses_frequency_limits_in_1m(self):
         widget = ProfileWidget()
@@ -106,7 +107,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertLessEqual(frequencies[-1], settings.SPECTRUM_UPPER_LIMIT_1M)
             self.assertAlmostEqual(frequencies[-1], settings.SPECTRUM_UPPER_LIMIT_1M)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_absolute_distance_highlight_region_plot_ranges_follow_selected_distance_unit(self):
         preferences.distance_highlight_regions = [
@@ -121,7 +122,7 @@ class TestProfileWidget(unittest.TestCase):
 
             self.assertEqual(plot_ranges, [(1.0, 2.0, "tab:orange")])
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_hardness_highlight_region_plot_ranges_use_mean_profile_mean(self):
         preferences.hardness_highlight_regions = [
@@ -141,7 +142,7 @@ class TestProfileWidget(unittest.TestCase):
 
             self.assertEqual(plot_ranges, [(9.0, 12.0, "tab:orange", True, 10.0)])
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_distance_highlight_visualization_draws_edge_vlines(self):
         preferences.distance_highlight_regions = [
@@ -155,7 +156,7 @@ class TestProfileWidget(unittest.TestCase):
 
             self.assertEqual(axvline_mock.call_count, 2)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_hardness_highlight_visualization_draws_edges_and_mean_line(self):
         preferences.hardness_highlight_regions = [
@@ -173,7 +174,7 @@ class TestProfileWidget(unittest.TestCase):
 
             self.assertEqual(axhline_mock.call_count, 3)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_hardness_highlight_visualization_does_not_expand_short_profile_x_range(self):
         profile = Profile(
@@ -205,7 +206,7 @@ class TestProfileWidget(unittest.TestCase):
 
             self.assertEqual(x_limits_with_highlight, x_limits_without_highlight)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_distance_highlight_visualization_does_not_expand_short_profile_x_range(self):
         profile = Profile(
@@ -238,7 +239,7 @@ class TestProfileWidget(unittest.TestCase):
 
             self.assertEqual(x_limits_with_highlight, x_limits_without_highlight)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_stats_widget_refreshes_alert_limits_after_preferences_change(self):
         widget = ProfileWidget()
@@ -260,7 +261,7 @@ class TestProfileWidget(unittest.TestCase):
             widget.stats_widget.update_data(([0.0, 1.0], [1.0, 2.0]))
             self.assertEqual(widget.stats_widget.widgets[0].limit["max"], 2.5)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_clear_plot_display_hides_graph_until_next_update(self):
         profile = Profile(
@@ -291,7 +292,7 @@ class TestProfileWidget(unittest.TestCase):
             self.assertTrue(widget.empty_state_label.isHidden())
             self.assertGreater(len(widget.figure.axes), 0)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_update_plot_without_profiles_shows_message_outside_plot_and_resets_stats(self):
         profile = Profile(
@@ -318,7 +319,7 @@ class TestProfileWidget(unittest.TestCase):
                 self.assertIsNone(stat_widget.value)
                 self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_update_plot_with_empty_profile_data_shows_message_and_resets_stats(self):
         profile = Profile(
@@ -348,7 +349,7 @@ class TestProfileWidget(unittest.TestCase):
                 self.assertIsNone(stat_widget.value)
                 self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
-            widget.close()
+            destroy(widget)
 
     def test_update_plot_with_no_profiles_shows_message_and_placeholder_stats(self):
         widget = ProfileWidget()
@@ -365,7 +366,7 @@ class TestProfileWidget(unittest.TestCase):
                 self.assertIsNone(stat_widget.value)
                 self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
-            widget.close()
+            destroy(widget)
 
 
 if __name__ == "__main__":

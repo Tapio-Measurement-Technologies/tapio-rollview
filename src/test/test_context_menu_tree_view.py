@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 
 from gui.widgets.ContextMenuTreeView import ContextMenuTreeView
 from utils.translation import _
+from test.qtcleanup import destroy
 
 
 class TestContextMenuTreeView(unittest.TestCase):
@@ -39,7 +40,7 @@ class TestContextMenuTreeView(unittest.TestCase):
             index.siblingAtColumn.assert_called_once_with(0)
             view._model.setData.assert_called_once_with(name_index, "new.prof", Qt.ItemDataRole.EditRole)
         finally:
-            view.close()
+            destroy(view)
 
     def test_the_postprocess_item_is_off_unless_a_view_asks_for_it(self):
         """The file list's rows are profiles, not roll folders."""
@@ -57,7 +58,7 @@ class TestContextMenuTreeView(unittest.TestCase):
             texts = [action.text() for action in view.findChildren(QAction)]
             self.assertNotIn(_("CONTEXT_MENU_RUN_POSTPROCESSORS"), texts)
         finally:
-            view.close()
+            destroy(view)
 
     def test_a_view_that_opts_in_offers_the_row_to_the_postprocessors(self):
         from PySide6.QtWidgets import QMenu
@@ -82,7 +83,7 @@ class TestContextMenuTreeView(unittest.TestCase):
             action.trigger()
             self.assertEqual([i.row() for i in requested], [0])
         finally:
-            view.close()
+            destroy(view)
 
     def test_filesystem_model_is_writable_for_rename(self):
         model = QFileSystemModel()
@@ -90,7 +91,7 @@ class TestContextMenuTreeView(unittest.TestCase):
         try:
             self.assertFalse(model.isReadOnly())
         finally:
-            view.close()
+            destroy(view)
 
 
 if __name__ == "__main__":

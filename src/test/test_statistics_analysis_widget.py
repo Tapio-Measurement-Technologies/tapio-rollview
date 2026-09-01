@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 from unittest.mock import MagicMock
 
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
+from test.qtcleanup import destroy
 
 
 class TestStatisticsAnalysisWidget(unittest.TestCase):
@@ -26,7 +27,10 @@ class TestStatisticsAnalysisWidget(unittest.TestCase):
             widget.chart.highlight_point.assert_called_once_with("roll-a")
             self.assertEqual(emitted_paths, ["/tmp/roll-a"])
         finally:
-            widget.close()
+            # close() only hides it. Left for the cyclic collector, this tree
+            # is torn down with Python and Qt both believing they own the
+            # canvas inside it, and the second free takes the process with it.
+            destroy(widget)
 
 
 if __name__ == "__main__":
