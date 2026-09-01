@@ -21,6 +21,13 @@ held back, and the last completed frame is stretched over the new size in the
 meantime — Matplotlib's own paint path draws nothing at all once the buffer and
 the widget disagree, which reads as the plot vanishing for the length of a drag.
 A stretched plot is obviously provisional; an empty panel just looks broken.
+
+The other half of the same problem is the very first render. Matplotlib
+declares the canvas opaque, which tells Qt not to paint anything underneath
+it, and then paints nothing itself until a render exists - so a canvas on
+screen before then shows whatever the window arrived with, which on Windows
+is black. Until there is a frame the widget is an ordinary one that Qt fills
+with its own background, and it says it is loading if the wait runs on.
 """
 
 import weakref
@@ -55,13 +62,25 @@ class PlotCanvas(FigureCanvasQTAgg):
     #: drag, short enough that letting go feels like an immediate redraw.
     SETTLE_MS = 60
 
+    #: How long a canvas with nothing rendered waits before saying so. Long
+    #: enough that a chart which arrives promptly never flashes a message at
+    #: anyone, short enough that a real wait is never unexplained.
+    UNREADY_MS = 400
+
     def __init__(self, figure, on_resize_settled=None):
         super().__init__(figure)
         self._on_resize_settled = None
         self.on_resize_settled = on_resize_settled
         self._suppress_idle_draw = False
         self._last_frame = None
-        self._settle_timer = self._make_settle_timer()
+        self._settle_timer = self._make_timer(self._notify_resize_settled)
+        #: Set once the wait for a first frame has run long enough to say so.
+        self._say_unready = False
+        self._unready_timer = self._make_timer(self._start_saying_unready)
+        # Nothing has been rendered, so the canvas cannot claim to paint every
+        # pixel of itself yet: Qt would leave the ones underneath as it found
+        # them. Opacity comes back with the first frame.
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
         self.sync_background()
 
     def sync_background(self):
@@ -101,13 +120,13 @@ class PlotCanvas(FigureCanvasQTAgg):
         else:
             self._on_resize_settled = weakref.ref(callback)
 
-    def _make_settle_timer(self):
-        """A timer owned by this canvas, or None when there is no GUI thread.
+    def _make_timer(self, slot):
+        """A single-shot timer owned by this canvas, or None off the GUI thread.
 
         The plot_export postprocessor builds a figure on a worker thread to
         render it once and save it. A QTimer may only be stopped on the thread
         that created it, and that path has no event loop to defer into anyway,
-        so there it renders on the spot.
+        so there everything happens on the spot.
         """
         application = QApplication.instance()
         if application is None or QThread.currentThread() is not application.thread():
@@ -119,7 +138,7 @@ class PlotCanvas(FigureCanvasQTAgg):
         # outright: it lives exactly as long as the canvas and is torn down once.
         timer = QTimer()
         timer.setSingleShot(True)
-        timer.timeout.connect(self._notify_resize_settled)
+        timer.timeout.connect(slot)
         return timer
 
     def _notify_resize_settled(self):
@@ -163,7 +182,45 @@ class PlotCanvas(FigureCanvasQTAgg):
             painter.end()
             return
 
+        # Matplotlib renders here if a draw is pending, so ask afterwards
+        # whether anything has been rendered at all.
         super().paintEvent(event)
+        if self._last_frame is None:
+            self._paint_unready()
+
+    def _paint_unready(self):
+        """An empty panel while the first render is on its way, and then a word.
+
+        Qt has already filled the widget with the figure's own colour, which is
+        the whole fix for the black - the message is for the wait being long
+        enough that a blank panel starts to look like a broken one. It is drawn
+        rather than laid out because there is nothing to lay it out in: the
+        canvas fills the plot area on its own.
+        """
+        if not self._say_unready:
+            if self._unready_timer is None:
+                return
+            if not self._unready_timer.isActive():
+                self._unready_timer.start(self.UNREADY_MS)
+            return
+
+        # Imported here rather than at the top of the module: settings loads a
+        # local settings module named on the command line, so a module that
+        # reaches settings on import cannot also be one a test names.
+        from utils.translation import _
+
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(QPalette.ColorGroup.Disabled,
+                                            QPalette.ColorRole.Text))
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, _("LOADING"))
+        painter.end()
+
+    def _start_saying_unready(self):
+        """The wait has run long enough to be worth a line in the panel."""
+        if self._last_frame is not None:
+            return
+        self._say_unready = True
+        self.update()
 
     def draw(self):
         # Remember the frame here rather than in paintEvent: a render is what
@@ -190,3 +247,9 @@ class PlotCanvas(FigureCanvasQTAgg):
         self._last_frame = QImage(
             buffer.data, width, height, QImage.Format.Format_RGBA8888
         ).copy()
+        # There is something to paint now, so the canvas covers itself again
+        # and Qt can stop filling the background under every frame.
+        self._say_unready = False
+        if self._unready_timer is not None:
+            self._unready_timer.stop()
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
