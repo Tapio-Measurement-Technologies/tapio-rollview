@@ -671,6 +671,26 @@ class TestMenuSwitch(ThemeRestoringTestCase):
             self.assertNotIn(theme_qt.tokens().color("accent"), body)
 
 
+class TestRepolish(ThemeRestoringTestCase):
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    def test_a_subtree_with_a_list_in_it_can_be_repolished(self):
+        # An item view's update() is Qt's update(index), and PySide hides the
+        # no-argument one behind it, so repolishing a panel that happened to
+        # contain a list raised a TypeError instead of repainting it.
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.addWidget(QListWidget())
+        self.addCleanup(destroy, panel)
+
+        theme_qt.set_panel(panel, "row")
+
+        self.assertEqual(panel.property("panel"), "row")
+
+
 class TestItemViewRowLayout(ThemeRestoringTestCase):
     """Rows are as tall as the sheet says, whenever the sheet arrives.
 
