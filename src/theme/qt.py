@@ -543,7 +543,11 @@ def _repolish(widget):
         style = target.style()
         style.unpolish(target)
         style.polish(target)
-        target.update()
+        # Through QWidget, because an item view's own update() is Qt's
+        # update(index) and PySide hides the no-argument one behind it: a
+        # subtree with a list or a tree anywhere in it would raise instead of
+        # repainting.
+        QWidget.update(target)
 
 
 def set_property(widget, name, value):
