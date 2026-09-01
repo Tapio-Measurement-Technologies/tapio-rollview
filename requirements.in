@@ -5,6 +5,10 @@ matplotlib==3.9.0
 numpy==2.2.2
 pandas==2.2.2
 pillow==12.3.0
+# matplotlib 3.9 parses font patterns with pyparsing's pre-3.3 camelCase names,
+# which pyparsing 3.3 deprecates and warns about on every parse. Held back
+# until matplotlib is new enough to call the current ones.
+pyparsing==3.1.2
 pyserial==3.5
 PySide6==6.8.1.1
 qrcode==8.2
