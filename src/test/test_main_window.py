@@ -424,6 +424,43 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
                 QApplication.sendEvent(part, QEvent(QEvent.Type.Leave))
                 self.assertEqual(self.window.guidance(), "")
 
+    def test_a_tile_answers_a_hover_anywhere_on_it_and_not_only_on_its_text(self):
+        """The whole tile is one hover, padding and empty space included.
+
+        The pointer moving off a label onto the tile around it is a Leave on
+        the label and no Enter on the tile — the tile was never left — and a
+        Leave empties the row. So the line appeared over the eyebrow and the
+        number, and went out again in the space beside them, which is most of a
+        tile. The labels hand the pointer through to the tile instead.
+
+        Driven with real pointer motion rather than a sent Enter, because it is
+        the enter and leave Qt works out for itself that used to go wrong.
+        """
+        from PySide6.QtCore import QPoint
+        from PySide6.QtTest import QTest
+
+        self.window.show()
+        QApplication.processEvents()
+
+        tile = self.window.profile_widget.stats_widget.widgets[0]
+        line = tile.statusTip()
+        self.assertTrue(line)
+
+        # Along the tile: its own padding, its labels, and the space beside the
+        # number that no label covers.
+        crossing = [
+            ("top-left padding", QPoint(1, 1)),
+            ("eyebrow", tile.label.geometry().center()),
+            ("beside the number", QPoint(tile.width() - 2, tile.height() // 2)),
+            ("limit footer", tile.foot_label.geometry().center()),
+            ("bottom-right corner", QPoint(tile.width() - 2, tile.height() - 2)),
+        ]
+        for where, point in crossing:
+            with self.subTest(where=where):
+                QTest.mouseMove(tile, point)
+                QApplication.processEvents()
+                self.assertEqual(self.window.guidance(), line)
+
     def test_nothing_in_the_window_raises_a_hover_popup(self):
         """Guidance goes in the row at the foot; nothing hovers over the work.
 

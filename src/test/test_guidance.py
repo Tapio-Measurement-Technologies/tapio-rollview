@@ -10,7 +10,9 @@ import unittest
 
 from theme.guidance import SEPARATOR, compose, set_guidance, set_guidance_everywhere
 
-from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QApplication, QLabel, QLineEdit, QVBoxLayout,
+                               QWidget)
 
 from test.qtcleanup import destroy
 
@@ -80,6 +82,29 @@ class TestSetGuidance(unittest.TestCase):
             self.assertEqual(holder.statusTip(), text)
             for child in children:
                 self.assertEqual(child.statusTip(), text)
+        finally:
+            destroy(holder)
+
+    def test_the_parts_hand_the_pointer_through_to_the_composite(self):
+        # Leaving a part does not enter the composite around it, which was
+        # never left, and the part's Leave empties the row — so the line came
+        # and went as the pointer crossed a tile. Transparent parts leave the
+        # composite as the one thing entered and left.
+        holder = QWidget()
+        try:
+            layout = QVBoxLayout(holder)
+            decoration = QLabel("2.4 g")
+            control = QLineEdit()
+            layout.addWidget(decoration)
+            layout.addWidget(control)
+
+            set_guidance_everywhere(holder, "Mean", "2.4 g", "Click to edit")
+
+            through = Qt.WidgetAttribute.WA_TransparentForMouseEvents
+            self.assertTrue(decoration.testAttribute(through))
+            # Anything that takes the focus is a control, not decoration, and a
+            # control nobody can click is the worse fault of the two.
+            self.assertFalse(control.testAttribute(through))
         finally:
             destroy(holder)
 
