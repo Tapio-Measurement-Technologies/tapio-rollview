@@ -27,7 +27,19 @@ from PySide6.QtCore import QByteArray, Qt
 from PySide6.QtGui import QIcon, QPixmap, QPainter
 from PySide6.QtSvg import QSvgRenderer
 
-STROKE = 1.5
+from theme import tokens as T
+
+_icon_tokens = T.load()
+
+#: The icon spec, from the token file rather than re-typed here: a 24 px grid,
+#: a 1.5 stroke, round caps and joins. The paths below are drawn on that grid.
+#: The system's rendered sizes are 16/20/24/32 — the smaller glyphs baked into
+#: the style sheet (a 12 px combo chevron, a 10 px sort arrow) are chrome inside
+#: a control rather than icons in the set, and are sized to the control.
+GRID = _icon_tokens.icon("grid")
+STROKE = _icon_tokens.icon("stroke")
+CAP = _icon_tokens.icon("cap")
+JOIN = _icon_tokens.icon("join")
 
 # Path data on a 24x24 viewBox. Verbs the measurement work actually uses, plus
 # the four status marks and the small chrome glyphs the style sheet needs.
@@ -74,17 +86,17 @@ FILLED = {"stop"}
 def _svg(name, color, stroke=None):
     if name in FILLED:
         return (
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
-            'width="24" height="24">'
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {GRID} {GRID}" '
+            f'width="{GRID}" height="{GRID}">'
             f'<path d="{PATHS[name]}" fill="{color}"/></svg>'
         ).encode("utf-8")
 
     width = stroke if stroke is not None else _WEIGHTS.get(name, STROKE)
     return (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
-        'width="24" height="24" fill="none">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {GRID} {GRID}" '
+        f'width="{GRID}" height="{GRID}" fill="none">'
         f'<path d="{PATHS[name]}" stroke="{color}" stroke-width="{width}" '
-        'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        f'stroke-linecap="{CAP}" stroke-linejoin="{JOIN}"/></svg>'
     ).encode("utf-8")
 
 

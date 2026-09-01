@@ -70,7 +70,7 @@ class LogManager(QObject):
         tokens = theme_qt.tokens()
         color_map = {
             "INFO": tokens.color("ink-secondary"),
-            "ERROR": tokens.color("bad"),
+            "ERROR": tokens.color("danger"),
         }
         timestamp_color = tokens.color("ink-muted")
 

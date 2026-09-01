@@ -39,12 +39,19 @@ STYLE_AXVLINE = {
     'zorder': 0
 }
 
-STYLE_HIGHLIGHT_MEAN_LINE = {
-    'linestyle': (0, (5, 4)),
-    'linewidth': tapio_mpl.TARGET_WIDTH,
-    'alpha': 0.8,
-    'zorder': -1,
-}
+
+def _highlight_mean_line_style(t):
+    """The mean line inside a highlighted band: the system's target mark.
+
+    Built per call rather than at import, because the weight and the dash both
+    come from the mark table and that changes with the export preset.
+    """
+    return {
+        'linestyle': (0, t.dash("target")),
+        'linewidth': t.mark("target"),
+        'alpha': 0.8,
+        'zorder': -1,
+    }
 
 
 def _highlight_edge_style(color):
@@ -419,7 +426,7 @@ class ProfileWidget(QWidget):
         self.profile_ax.axhline(
             mean_value,
             color=self.tokens.chart("target"),
-            **STYLE_HIGHLIGHT_MEAN_LINE,
+            **_highlight_mean_line_style(self.tokens),
         )
 
     def _draw_distance_highlight_regions_visualization(self, mean_profile_distances, conversion_factor):
@@ -605,8 +612,8 @@ class ProfileWidget(QWidget):
 
             box = dict(
                 boxstyle='round,pad=0.34,rounding_size=0.25',
-                facecolor=t.color("bad-soft") if over_limit else t.color("surface"),
-                edgecolor=t.color("bad-mark") if over_limit else t.color("border"),
+                facecolor=t.color("danger-soft") if over_limit else t.color("surface"),
+                edgecolor=t.color("danger-mark") if over_limit else t.color("border"),
                 linewidth=0.8,
             )
             eyebrow = self.figure.text(
@@ -625,7 +632,7 @@ class ProfileWidget(QWidget):
                 format_stat_value(value),
                 ha='right', va='top',
                 fontsize=9, family='monospace', weight='medium',
-                color=t.color("bad") if over_limit else t.color("ink"),
+                color=t.color("danger") if over_limit else t.color("ink"),
                 transform=self.figure.transFigure,
             )
             added_texts.append(value_text)
@@ -842,25 +849,36 @@ class ProfileWidget(QWidget):
 
         if preferences.show_spectrum:
             spectrum_frequencies, spectrum_amplitudes = self._get_spectrum_plot_data(mean_profile_values)
-            spectrum_color = tapio_mpl.series_color(0, self.tokens)
-            # The line alone. An area fill under a spectrum reads as magnitude
-            # over a band, which is not what a peak at one wavelength means.
-            self.spectrum_ax.plot(spectrum_frequencies, spectrum_amplitudes,
-                                  color=spectrum_color)
-
-            tapio_mpl.finish(
+            # The ordinate is named, with its unit: this is an RMS amplitude
+            # spectrum, and what a peak height means depends on saying so.
+            # `spectrum()` refuses to draw without both.
+            quantity = _('CHART_RMS_AMPLITUDE_LABEL')
+            tapio_mpl.spectrum(
                 self.spectrum_ax,
-                xlabel=f"{_('CHART_FREQUENCY_LABEL')} [1/m]",
-                ylabel=f"{_('CHART_AMPLITUDE_LABEL')} [{self.stats.mean.unit}]",
+                spectrum_frequencies, spectrum_amplitudes,
+                quantity=quantity, unit=self.stats.mean.unit,
+                color=tapio_mpl.series_color(0, self.tokens),
                 t=self.tokens,
             )
 
-        if settings.SPECTRUM_WAVELENGTH_TICKS and preferences.show_spectrum:
-            self.update_ticks_wavelength()
-            self.spectrum_ax.callbacks.connect(
-                'xlim_changed', self.update_ticks_wavelength)
-            self.spectrum_ax.figure.canvas.mpl_connect(
-                'resize_event', self.update_ticks_wavelength)
+            tapio_mpl.finish(
+                self.spectrum_ax,
+                xlabel=f"{_('CHART_SPATIAL_FREQUENCY_LABEL')} [1/m]",
+                ylabel=f"{quantity} [{self.stats.mean.unit}]",
+                t=self.tokens,
+            )
+
+            if settings.SPECTRUM_WAVELENGTH_SCALE:
+                # Wavelength is what names a machine element, so the chart
+                # carries it — as its own scale along the top edge, with its own
+                # ticks. It is never the frequency axis wearing different
+                # labels: relabelling ticks by λ = 1/f leaves the ordinate
+                # describing a quantity those ticks are not for.
+                tapio_mpl.wavelength_axis(
+                    self.spectrum_ax,
+                    label=f"{_('CHART_WAVELENGTH_LABEL')} [mm]",
+                    t=self.tokens,
+                )
 
         # The chart is titled with the object it shows, left-aligned like every
         # other title in the system.
@@ -934,14 +952,6 @@ class ProfileWidget(QWidget):
         self._reset_toolbar_history()
 
         self.stats_widget.update_data((self.mean_profile_distances, self.mean_profile))
-
-    def update_ticks_wavelength(self, *args):
-        primary_ticks = self.spectrum_ax.get_xticks()
-        wavelenght_ticks = [100 * (1 / i) if i != 0 else 0 for i in primary_ticks]
-        self.spectrum_ax.set_xticks(primary_ticks) # Fixes matplotlib warning about fixed ticks
-        self.spectrum_ax.set_xticklabels(
-            [f"{tick:.2f}" for tick in wavelenght_ticks], family="monospace")
-        self.spectrum_ax.set_xlabel(f"{_("CHART_WAVELENGTH_LABEL")} [cm]")
 
     def clear_canvas(self):
         self.ax.clear()

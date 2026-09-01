@@ -1,0 +1,74 @@
+{
+  "$comment": [
+    "What RollView adds on top of the Tapio Design System, and nothing else.",
+    "",
+    "`tapio-tokens.json` beside this file is the design system's own token file,",
+    "byte for byte. It is never edited here: `scripts/sync_design_system.py`",
+    "copies it in and records its hash below, so a value that has moved upstream",
+    "shows up as a failing test rather than as a colour that quietly disagrees",
+    "with Tapio Analysis.",
+    "",
+    "Every entry here is an *addition*. Nothing in this file may restate or",
+    "override a value the system already authors — `test_theme_tokens.py` fails",
+    "if it does. Anything derivable from the system's own tokens is derived in",
+    "`theme/tokens.py` instead of being copied: the status palette, the",
+    "scatter-safe trio, the recency ramp and the dark sequential ramp are all",
+    "computed there."
+  ],
+
+  "$upstream": {
+    "system": "Tapio Design System",
+    "file": "tapio-tokens.json",
+    "source": "design-system/tokens/tokens.json",
+    "version": "1.1.0",
+    "sha256": "d995a6cd4861f433791353db89000b77f8a2b3e85f6456134b5936a2ba1bdd69"
+  },
+
+  "density": {
+    "$comment": [
+      "The system's density scale, which RollView now carries whole rather than",
+      "flattening to the one row it runs at. `size.density` upstream authors the",
+      "row height and the cell padding; the control height and the base text",
+      "size are in the guide's density table and in the CSS and Qt exports but",
+      "not yet in the token file, so they are carried here until it grows them.",
+      "",
+      "`default` is the row RollView starts in: a lab desktop with a mouse and a",
+      "keyboard. A mill-floor build changes this one word."
+    ],
+    "default": "compact",
+    "control": {"compact": 28, "comfortable": 36, "field": 48},
+    "text":    {"compact": 13, "comfortable": 15, "field": 17},
+    "target":  {"compact": "pointer", "comfortable": "pointer", "field": "touch"}
+  },
+
+  "type": {
+    "$comment": [
+      "The system names one family per role. A desktop build also needs what to",
+      "fall back to on a machine where the bundled Plex faces failed to register",
+      "— an X session without fontconfig write access, a locked-down Windows",
+      "image. The Plex names come from the system and are prepended in code."
+    ],
+    "fallback": {
+      "sans": ["Segoe UI", "DejaVu Sans", "Noto Sans", "sans-serif"],
+      "mono": ["DejaVu Sans Mono", "Consolas", "Menlo", "monospace"]
+    }
+  },
+
+  "chart": {
+    "$comment": [
+      "`preset` picks which column of the system's mark table is in force.",
+      "`screen` on a canvas in a window; `export` for anything written to a file",
+      "or the clipboard, so a figure is not thinner in print than on screen.",
+      "",
+      "`supportingMark` is a weight the system does not author, for a chart it",
+      "does not specify: the individual profiles a mean is drawn from. They are",
+      "context rather than the subject, so they run below the series weight",
+      "(1.5 pt) without reaching the limit line's (1.2) or the dashed target's",
+      "(0.8) — neither of which is a data line. Same screen-to-export ratio as",
+      "the marks around it. Named separately rather than added to the system's",
+      "`chart.mark`, because that block is the system's to author."
+    ],
+    "preset": "screen",
+    "supportingMark": {"screen": 1.0, "export": 0.7}
+  }
+}

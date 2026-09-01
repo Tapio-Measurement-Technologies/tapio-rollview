@@ -9,7 +9,7 @@
 
 """Where the system's data files live, running from source or from a bundle.
 
-``tokens.json``, ``rollview.qss`` and the Plex faces are data, not code, so
+The token files, ``rollview.qss`` and the Plex faces are data, not code, so
 PyInstaller does not pick them up by following imports — they are listed as
 ``--add-data`` in the build workflow and land under the extraction root. Asking
 for them through here rather than off ``__file__`` is what makes a frozen build
@@ -36,7 +36,7 @@ def root():
 
 
 def theme_file(name):
-    """A data file inside the theme package, e.g. ``tokens.json``."""
+    """A data file inside the theme package, e.g. ``tapio-tokens.json``."""
     return os.path.join(root(), "theme", name)
 
 

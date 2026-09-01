@@ -7,11 +7,21 @@ person noticing months later on a mill floor. It runs in well under a second.
 The rest guard the rules that are easy to break by accident — red leaking into
 the categorical palette, a hand-written hex appearing in the tree, the style
 sheet losing a placeholder.
+
+Three of them guard something else: that RollView is still *consuming* the
+system rather than carrying a copy of it that has quietly moved. The vendored
+token file has to match the hash recorded beside it, RollView's own token file
+may only ever add to it, and the role names have to be the system's own. Those
+are cheap, they need no design-system checkout, and they are what the previous
+arrangement had no way to check at all.
 """
 
+import hashlib
 import pathlib
 import re
 import unittest
+
+import numpy as np
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette
@@ -60,7 +70,7 @@ class TestPalette(unittest.TestCase):
     """Red is a status colour, and only a status colour."""
 
     def test_red_is_absent_from_the_categorical_slots(self):
-        red_ramp = {value.upper() for value in T.load().ramps["red"]}
+        red_ramp = {value.upper() for value in T.load().ramp_steps("red")}
         for name in T.THEMES:
             tokens = T.load(theme=name)
             overlap = red_ramp & {value.upper() for value in tokens.series}
@@ -69,7 +79,7 @@ class TestPalette(unittest.TestCase):
     def test_the_diverging_scale_runs_blue_to_gold(self):
         # Never blue-to-red: a negative correlation is not an alarm, and
         # borrowing red would weaken the one signal that matters.
-        red_ramp = {value.upper() for value in T.load().ramps["red"]}
+        red_ramp = {value.upper() for value in T.load().ramp_steps("red")}
         for name in T.THEMES:
             scale = {value.upper() for value in T.load(theme=name).diverging}
             self.assertEqual(scale & red_ramp, set(), f"{name}: red in the diverging scale")
@@ -113,30 +123,168 @@ class TestPalette(unittest.TestCase):
         )
 
 
+class TestVendoredTokens(unittest.TestCase):
+    """The token file is the design system's, not a restructured copy of it.
+
+    RollView used to carry its own arrangement of the same values: a different
+    schema, a different set of role names, a version string of its own. Nothing
+    compared the two, so a value that moved upstream never arrived and nothing
+    anywhere reported that. What replaced it is a verbatim copy plus an
+    additions-only overlay, which makes the comparison a diff and the drift a
+    test failure.
+    """
+
+    def _vendored_digest(self):
+        return hashlib.sha256(
+            pathlib.Path(paths.theme_file("tapio-tokens.json")).read_bytes()
+        ).hexdigest()
+
+    def test_the_copy_is_the_hash_the_overlay_records(self):
+        """Nobody edits the vendored file in place.
+
+        This is the half of the check that needs no design-system checkout, so
+        it runs everywhere: on any machine, in CI, in a packaged build's source
+        tree. The other half — comparing against the system itself — is
+        `scripts/sync_design_system.py --check`, run deliberately by whoever
+        has the system to hand.
+        """
+        self.assertEqual(T.upstream()["sha256"], self._vendored_digest())
+
+    def test_the_version_is_read_and_not_restated(self):
+        self.assertEqual(theme.VERSION, T.upstream()["version"])
+        self.assertEqual(T.load().version, T.upstream()["version"])
+
+    def test_the_overlay_only_ever_adds(self):
+        """RollView's file may add to the system's. It may not disagree with it.
+
+        A key that appears in both is the beginning of a fork: two files that
+        both claim to say what a value is, and nothing to say which of them is
+        right. The overlay's job is the things the system genuinely does not
+        author — a font fallback chain, which density row this application runs
+        — and this is what holds it to that.
+        """
+        system = set(T.system_document())
+        overlay = {
+            key for key in T.rollview_document() if not key.startswith("$")
+        }
+        for key in sorted(overlay & system):
+            with self.subTest(key):
+                system_block = T.system_document()[key]
+                overlay_block = T.rollview_document()[key]
+                if not isinstance(system_block, dict):
+                    self.fail(f"the overlay restates {key}, which the system authors")
+                clash = {
+                    name for name in overlay_block
+                    if not name.startswith("$") and name in system_block
+                }
+                self.assertEqual(
+                    clash, set(),
+                    f"the overlay restates {key}.{'/'.join(sorted(clash))}, "
+                    f"which the system already authors",
+                )
+
+
 class TestTokenTable(unittest.TestCase):
     def test_both_themes_define_the_same_roles(self):
         light = T.load(theme=T.LIGHT)._semantic
         dark = T.load(theme=T.DARK)._semantic
         self.assertEqual(set(light), set(dark))
 
+    def test_the_roles_are_the_systems_roles(self):
+        """One role, one name — the name the system and the guide use.
+
+        RollView used to rename them on the way in: `danger` became `bad`,
+        `surface-sunken` became `sunken`, `ink-link` became `link`. The values
+        agreed, so nothing looked wrong, but a rule written in the guide's
+        vocabulary had to be translated before it could be applied, and the
+        system's own tooling could not be pointed at RollView's file at all.
+        """
+        authored = set(T.system_document()["semantic"][T.LIGHT])
+        self.assertEqual(set(T.load().roles), authored)
+        # The names that were renamed in the fork, spelled the system's way.
+        for role in (
+            "surface-sunken", "surface-raised", "surface-inverse", "ink-link",
+            "border-focus", "warning", "warning-mark", "danger", "danger-mark",
+            "ghost-bg", "ghost-ink",
+        ):
+            with self.subTest(role):
+                self.assertTrue(T.load().color(role).startswith("#"))
+
+    def test_a_state_is_painted_out_of_roles(self):
+        """The four component states are not a fifth vocabulary of colour.
+
+        `good`/`warn`/`bad`/`idle` are what a widget *is* — the guide's own QSS
+        spells them that way — and each one resolves to roles the system
+        authors. `good` has no separate mark token: in spec is one colour, which
+        is what the guide's status row and the CSS export both say.
+        """
+        t = T.load()
+        self.assertEqual(t.status_ink(T.STATUS_BAD), t.color("danger"))
+        self.assertEqual(t.status_mark(T.STATUS_BAD), t.color("danger-mark"))
+        self.assertEqual(t.status_ink(T.STATUS_WARN), t.color("warning"))
+        self.assertEqual(t.status_mark(T.STATUS_WARN), t.color("warning-mark"))
+        self.assertEqual(t.status_mark(T.STATUS_GOOD), t.color("good"))
+        self.assertEqual(t.status_ink(T.STATUS_IDLE), t.color("ink-muted"))
+
     def test_an_unknown_role_is_an_error_not_a_default(self):
         with self.assertRaises(KeyError):
             T.load().color("brand-ish-blue")
 
-    def test_there_is_one_layout(self):
-        """RollView ships a single set of metrics, not a density scale.
+    def test_the_density_scale_is_carried_whole(self):
+        """"Same system, different density" is one of the six principles.
 
-        The system defines four densities so one token set can serve a desktop,
-        a tablet and a handheld. RollView is the desktop and only the desktop,
-        so it carries that one row — see the note in tokens.json for what a
-        touch build would raise them to.
+        The scale exists so that one token set serves a lab desktop, a
+        mill-floor tablet and a handheld: only the row height, the control
+        height, the hit target and the base text size change between them.
+        RollView used to flatten it to the one row it runs at, which meant a
+        touch build was a re-measurement rather than a parameter, and a second
+        application copying RollView's tokens would have inherited a system with
+        the principle taken out of it.
         """
-        metrics = T.load().metrics
-        self.assertEqual(
-            set(metrics), {"row", "control", "min_target", "text"}
-        )
-        self.assertEqual(metrics["row"], 28)
-        self.assertEqual(metrics["text"], 13)
+        rows = T.load().densities
+        self.assertEqual(set(rows), set(T.DENSITIES))
+        for name, expected in {
+            # The guide's density table, which is also the CSS and Qt exports'.
+            T.COMPACT: (28, 28, 32, 13),
+            T.COMFORTABLE: (36, 36, 32, 15),
+            T.FIELD: (56, 48, 48, 17),
+        }.items():
+            with self.subTest(name):
+                row = rows[name]
+                self.assertEqual(
+                    (row["row"], row["control"], row["min_target"], row["text"]),
+                    expected,
+                )
+
+    def test_rollview_runs_the_desktop_row(self):
+        t = T.load()
+        self.assertEqual(t.density, T.COMPACT)
+        self.assertEqual((t.row_height, t.control_height), (28, 28))
+        self.assertEqual((t.min_target, t.base_text_size), (32, 13))
+
+    def test_a_density_survives_a_theme_change(self):
+        """A night-shift toggle re-applies the theme, not the whole preference.
+
+        Without this a field build would drop back to desktop rows the first
+        time the operator switched to dark.
+        """
+        app = QApplication.instance() or QApplication([])
+        was = theme_qt.tokens()
+        try:
+            field = theme.apply(app, theme=T.LIGHT, density=T.FIELD)
+            self.assertEqual(field.density, T.FIELD)
+            self.assertEqual(theme.apply(app, theme=T.DARK).density, T.FIELD)
+        finally:
+            theme.apply(app, theme=was.theme, density=was.density)
+
+    def test_a_density_is_one_argument(self):
+        """The point of the scale is that changing it is a parameter."""
+        field = T.load(density=T.FIELD)
+        self.assertEqual(field.row_height, 56)
+        self.assertEqual(field.min_target, field.target("touch"))
+        # ...and an unknown one falls back rather than raising in front of an
+        # operator: a bad preference should not take the window down.
+        self.assertEqual(T.load(density="enormous").density, T.COMPACT)
 
 
 class ThemeRestoringTestCase(unittest.TestCase):
@@ -176,6 +324,22 @@ class TestStylesheet(ThemeRestoringTestCase):
             self.assertNotIn("${", sheet)
             self.assertGreater(len(sheet), 1000)
 
+    def test_every_variant_is_named_in_the_disabled_rule(self):
+        """`:disabled` and `[variant="..."]` tie, so the later rule wins.
+
+        `QPushButton:disabled` on its own therefore loses to
+        `QPushButton[variant="primary"]` declared below it, and a disabled
+        primary keeps its blue fill, its white label and its accent border —
+        pixel for pixel an enabled button that does not respond. Naming the
+        variant breaks the tie. The sheet generates the list from
+        `theme.qt.VARIANTS` so a variant added there cannot be left out of it.
+        """
+        theme_qt.apply(self.app, theme=T.LIGHT)
+        sheet = self.app.styleSheet()
+        for variant in theme_qt.VARIANTS:
+            with self.subTest(variant):
+                self.assertIn(f'QPushButton[variant="{variant}"]:disabled', sheet)
+
     def test_the_stylesheet_never_kills_an_outline(self):  # noqa: D401
         # "No `outline: none` anywhere, in any toolkit, ever" applies to focus
         # indicators. Item views set it to drop Qt's dotted current-item marker,
@@ -184,6 +348,140 @@ class TestStylesheet(ThemeRestoringTestCase):
         theme_qt.apply(self.app, theme=T.LIGHT)
         sheet = self.app.styleSheet()
         self.assertIn("border: 2px solid", sheet)
+
+
+class TestChartChrome(unittest.TestCase):
+    """The chart chrome is the system's, whole.
+
+    RollView used to carry a shortened version of it: the axis-label and title
+    inks dropped, and the limit band re-expressed as a separate colour and an
+    alpha. Nothing looked wrong — the interface's own `ink-muted` is close to
+    the chrome's `label` — but the two files could not be compared even for the
+    values they shared, which is the whole point of having one of them.
+    """
+
+    def test_the_chrome_roles_are_the_systems(self):
+        authored = set(
+            T.system_document()["chart"]["chrome"][T.LIGHT]
+        )
+        t = T.load()
+        for role in authored:
+            with self.subTest(role):
+                self.assertTrue(t.chart(role))
+        # The two that were dropped, and are the reason axis labels were being
+        # drawn in an interface ink rather than a chart one.
+        for role in ("label", "title"):
+            self.assertIn(role, authored)
+            self.assertNotEqual(t.chart(role), t.color("ink-muted"))
+
+    def test_the_limit_band_is_one_token(self):
+        """One CSS colour with its alpha in it, as the system authors it."""
+        for name in T.THEMES:
+            with self.subTest(name):
+                t = T.load(theme=name)
+                authored = T.system_document()["chart"]["chrome"][name]["limit-band"]
+                color, alpha = t.limit_band
+                self.assertEqual(
+                    (color, alpha), T.parse_rgba(authored)
+                )
+                # ...and it is the limit's own hue, not a second red.
+                self.assertEqual(color.upper(), t.chart("limit").upper())
+
+    def test_marks_are_the_systems_points_and_export_is_thinner(self):
+        """Mark sizes are in points, not pixels.
+
+        The same "2 px" line is a different physical thickness on a HiDPI
+        laptop, in a screenshot, in a 300 dpi print and in a PDF. The system
+        authors two columns — screen and export — and RollView used to carry
+        neither, only a set of constants of its own.
+        """
+        screen = T.load(preset=T.SCREEN)
+        export = T.load(preset=T.EXPORT)
+        authored = T.system_document()["chart"]["mark"]
+        self.assertEqual(authored["unit"], "pt")
+        for name in ("series", "outOfSpec", "limit", "target", "axis", "grid"):
+            with self.subTest(name):
+                self.assertEqual(screen.mark(name), authored["screen"][name])
+                self.assertLess(export.mark(name), screen.mark(name))
+        # A profile behind the mean is thinner than the mean and never as heavy
+        # as a limit line, which is not a data line at all.
+        self.assertLess(screen.supporting_mark, screen.mark("series"))
+        self.assertLess(screen.supporting_mark, screen.mark("limit"))
+
+    def test_a_raster_export_is_never_below_300_dpi(self):
+        self.assertGreaterEqual(T.load().raster_min_dpi, 300)
+        self.assertEqual(T.load().vector_formats, ["pdf", "svg"])
+
+
+class TestSpectrumRules(unittest.TestCase):
+    """A spectrum is a quantitative estimate with units, not a picture."""
+
+    def _axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib.figure import Figure
+
+        return Figure().add_subplot(111)
+
+    def test_it_refuses_to_draw_without_a_named_ordinate(self):
+        """"Intensity" is not a quantity, and neither is a blank axis.
+
+        What a peak height means depends entirely on what the ordinate is, so
+        the ordinate is not optional.
+        """
+        from theme import mpl as tapio_mpl
+
+        for quantity, unit in (("", "µm"), ("RMS amplitude", "")):
+            with self.subTest(quantity=quantity, unit=unit):
+                with self.assertRaises(ValueError):
+                    tapio_mpl.spectrum(
+                        self._axes(), [1, 2, 3], [1, 2, 3],
+                        quantity=quantity, unit=unit,
+                    )
+
+    def test_frequency_is_the_coordinate_and_the_axis_is_logarithmic(self):
+        from theme import mpl as tapio_mpl
+
+        ax = self._axes()
+        tapio_mpl.spectrum(ax, [0, 1, 10, 100], [0, 1, 2, 1],
+                           quantity="RMS amplitude", unit="g")
+        self.assertEqual(ax.get_xscale(), "log")
+        # The zero-frequency bin carries the mean level, which is not a spatial
+        # frequency and has nowhere to sit on a log axis.
+        self.assertNotIn(0.0, ax.lines[0].get_xdata())
+
+    def test_wavelength_is_a_second_scale_and_not_a_relabelling(self):
+        """The one thing the system says never to do.
+
+        Rewriting the frequency axis's ticks as λ = 1/f leaves the ordinate
+        describing a quantity those ticks are not for: a density has to be
+        transformed with the Jacobian, S_λ(λ) = S_f(1/λ)/λ². RollView used to
+        offer exactly that as a setting.
+        """
+        from theme import mpl as tapio_mpl
+
+        ax = self._axes()
+        tapio_mpl.spectrum(ax, [1, 10, 100], [1, 2, 1],
+                           quantity="RMS amplitude", unit="g")
+        ax.set_xlabel("Spatial frequency [1/m]")
+        top = tapio_mpl.wavelength_axis(ax)
+
+        self.assertIsNot(top, ax)
+        self.assertIn("frequency", ax.get_xlabel().lower())
+        self.assertIn("wavelength", top.get_xlabel().lower())
+        # 1/m in, mm out: 2 1/m is a 500 mm wavelength.
+        forward = top._functions[0]
+        self.assertAlmostEqual(float(forward(np.asarray(2.0))), 500.0)
+
+    def test_the_line_is_not_filled(self):
+        """Area under a spectrum has a meaning, and it is not being shown."""
+        from theme import mpl as tapio_mpl
+
+        ax = self._axes()
+        tapio_mpl.spectrum(ax, [1, 10, 100], [1, 2, 1],
+                           quantity="RMS amplitude", unit="g")
+        self.assertEqual(list(ax.collections), [])
+        self.assertEqual(len(ax.lines), 1)
 
 
 class TestApply(ThemeRestoringTestCase):
@@ -325,6 +623,89 @@ class TestApply(ThemeRestoringTestCase):
         self.assertEqual(theme_qt.mono_family(), "IBM Plex Mono")
 
 
+class TestButtonVariants(ThemeRestoringTestCase):
+    """Five variants, and every one of them can be told it is disabled.
+
+    Rendered rather than read off the sheet: what matters is the pixels a
+    disabled control puts on the screen, and the failure this guards against
+    produced a perfectly valid style sheet that painted a disabled primary
+    exactly like an enabled one.
+    """
+
+    def _render(self, variant, enabled):
+        from PySide6.QtGui import QPixmap
+        from PySide6.QtWidgets import QPushButton
+
+        button = QPushButton("Start measurement")
+        theme_qt.set_variant(button, variant)
+        button.setEnabled(enabled)
+        button.resize(180, 32)
+        pixmap = QPixmap(button.size())
+        button.render(pixmap)
+        image = pixmap.toImage()
+        destroy(button)
+        return image
+
+    def test_a_disabled_button_never_looks_enabled(self):
+        for name in T.THEMES:
+            theme.apply(self.app, theme=name)
+            for variant in theme_qt.VARIANTS:
+                with self.subTest(theme=name, variant=variant):
+                    self.assertNotEqual(
+                        self._render(variant, enabled=True),
+                        self._render(variant, enabled=False),
+                        f"a disabled {variant} button is pixel for pixel an "
+                        f"enabled one — nothing on it says it will not respond",
+                    )
+
+    def test_the_disabled_look_is_the_same_whatever_the_variant(self):
+        """One disabled look, not five.
+
+        A greyed-out control is not five different kinds of greyed out, and the
+        contrast audit only checks the one pairing — `ink-muted` on the sunken
+        ground — so five would leave four unchecked.
+        """
+        theme.apply(self.app, theme=T.LIGHT)
+        rendered = [self._render(variant, enabled=False)
+                    for variant in theme_qt.VARIANTS]
+        for image in rendered[1:]:
+            self.assertEqual(image, rendered[0])
+
+    def test_a_variant_the_system_does_not_have_is_refused(self):
+        from PySide6.QtWidgets import QPushButton
+
+        button = QPushButton()
+        with self.assertRaises(ValueError):
+            theme_qt.set_variant(button, "subtle")
+        destroy(button)
+
+    def test_ghost_carries_a_fill_and_bare_does_not(self):
+        """A control must look like a control without being hovered.
+
+        v1.1 of the system split the old borderless ghost in two: ghost keeps a
+        soft tinted fill so it still reads as a control on a screen nobody is
+        hovering — a mill-floor tablet has no pointer at all — and `bare` is the
+        truly borderless one, for icon actions inside a grouped toolbar.
+        """
+        from PySide6.QtGui import QColor
+
+        for name in T.THEMES:
+            theme.apply(self.app, theme=name)
+            t = theme_qt.tokens()
+            with self.subTest(name):
+                ghost = self._render("ghost", enabled=True)
+                # The top-left corner is inside the button's own box.
+                self.assertEqual(
+                    QColor(ghost.pixel(4, 4)).name().upper(),
+                    t.color("ghost-bg").upper(),
+                )
+                bare = self._render("bare", enabled=True)
+                self.assertNotEqual(
+                    QColor(bare.pixel(4, 4)).name().upper(),
+                    t.color("ghost-bg").upper(),
+                )
+
+
 class TestStateReachesTheChildren(ThemeRestoringTestCase):
     """A state set on a container has to restyle what is inside it.
 
@@ -358,7 +739,7 @@ class TestStateReachesTheChildren(ThemeRestoringTestCase):
         theme_qt.set_state(tile, theme.STATUS_BAD)
         self.assertEqual(
             label.palette().color(QPalette.ColorRole.WindowText).name().upper(),
-            theme_qt.tokens().color("bad").upper(),
+            theme_qt.tokens().color("danger").upper(),
         )
 
         theme_qt.set_state(tile, None)
@@ -409,7 +790,7 @@ class TestAlertLimitEditorStyling(ThemeRestoringTestCase):
         self.addCleanup(destroy, editor)
         editor.show()
 
-        bad = theme_qt.tokens().color("bad").upper()
+        bad = theme_qt.tokens().color("danger").upper()
         field_labels = [
             label for label in editor.findChildren(QLabel)
             if label.text() and label is not editor.error_label
@@ -817,7 +1198,7 @@ class TestPackaging(unittest.TestCase):
         return set(re.findall(r'--add-data "([^:"]+):', text))
 
     def test_every_theme_data_file_resolves(self):
-        for name in ("tokens.json", "rollview.qss"):
+        for name in ("tapio-tokens.json", "rollview-tokens.json", "rollview.qss"):
             with self.subTest(name):
                 self.assertTrue(pathlib.Path(paths.theme_file(name)).is_file())
 

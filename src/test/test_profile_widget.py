@@ -468,7 +468,7 @@ class TestLocalSettingsOverrides(unittest.TestCase):
 
         # None means the system's own weight, as the colour beside it does.
         line = tapio_mpl.profile(ax, [0, 1, 2], [1, 2, 3], width=None)[-1]
-        self.assertEqual(line.get_linewidth(), tapio_mpl.PROFILE_WIDTH)
+        self.assertEqual(line.get_linewidth(), tapio_mpl.mark("series"))
 
     def test_unticking_every_profile_is_not_an_error(self):
         """The chart is empty because that is what was asked for.
@@ -577,7 +577,7 @@ class TestLocalSettingsOverrides(unittest.TestCase):
 
             supporting = [
                 line for line in widget.profile_ax.lines
-                if line.get_linewidth() == tapio_mpl.SUPPORTING_WIDTH
+                if line.get_linewidth() == tapio_mpl.supporting_width()
             ]
             self.assertEqual(len(supporting), 5)
             self.assertEqual(
@@ -608,7 +608,7 @@ class TestLocalSettingsOverrides(unittest.TestCase):
         other = tapio_mpl.supporting(
             ax, [0, 1], [1, 2], color="#1E73BE", selected=False, selected_width=6.0
         )
-        self.assertEqual(other.get_linewidth(), tapio_mpl.SUPPORTING_WIDTH)
+        self.assertEqual(other.get_linewidth(), tapio_mpl.supporting_width())
 
 
 class TestPlotToolbar(unittest.TestCase):

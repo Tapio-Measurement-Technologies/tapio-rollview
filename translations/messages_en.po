@@ -286,13 +286,16 @@ msgstr "No profiles selected"
 msgid "CHART_WARNING_TEXT_TOO_SHORT_PROFILES"
 msgstr "Profiles are too short to calculate mean profile"
 
-#. Used in profile chart as chart label or message and chart axis label.
-msgid "CHART_AMPLITUDE_LABEL"
-msgstr "Amplitude"
+#. Used in profile chart as chart label or message and chart axis label. Names
+#. the ordinate of the spectrum: the amplitude convention is part of the
+#. quantity, because it decides what a peak height means.
+msgid "CHART_RMS_AMPLITUDE_LABEL"
+msgstr "RMS amplitude"
 
-#. Used in profile chart as chart label or message and chart axis label.
-msgid "CHART_FREQUENCY_LABEL"
-msgstr "Frequency"
+#. Used in profile chart as chart label or message and chart axis label. The
+#. spectral coordinate, in 1/m — not a frequency in time.
+msgid "CHART_SPATIAL_FREQUENCY_LABEL"
+msgstr "Spatial frequency"
 
 #. Used in profile chart as chart label or message and chart axis label.
 msgid "CHART_WAVELENGTH_LABEL"

@@ -1,0 +1,503 @@
+{
+  "$meta": {
+    "name": "Tapio Design System",
+    "version": "1.1.0",
+    "source": "Derived from tapiotechnologies.com — logo red #EF472C, logo blue #1B408C, site navy #0E254A, IBM Plex Sans.",
+    "note": "Ramps generated in OKLCH with brand colours pinned as named steps. Chart palette validated for CVD separation and contrast in both modes (see build/validate_palette.mjs for the exact definitions)."
+  },
+  "ramp": {
+    "slate": {
+      "50": "#F8FAFD",
+      "100": "#EFF3F7",
+      "200": "#DCE3EB",
+      "300": "#C9D2DC",
+      "400": "#A8B2BF",
+      "500": "#8792A0",
+      "600": "#636D7B",
+      "700": "#515C6B",
+      "800": "#394353",
+      "900": "#222C3A",
+      "950": "#0F1724"
+    },
+    "blue": {
+      "50": "#F4F9FF",
+      "100": "#E2F0FF",
+      "200": "#C5E1FF",
+      "300": "#9FCEFF",
+      "400": "#74B4F5",
+      "500": "#4895DF",
+      "600": "#1E73BE",
+      "700": "#1959A7",
+      "800": "#1B408C",
+      "900": "#0E254A",
+      "950": "#091831"
+    },
+    "red": {
+      "50": "#FFF6F4",
+      "100": "#FFE9E4",
+      "200": "#FFD2C8",
+      "300": "#FFB3A3",
+      "400": "#FF866F",
+      "500": "#FE674C",
+      "600": "#EF472C",
+      "700": "#C63118",
+      "800": "#9E1F09",
+      "900": "#6F0F07",
+      "950": "#460605"
+    },
+    "amber": {
+      "50": "#FEF8EE",
+      "100": "#FCECD5",
+      "200": "#F8D9AA",
+      "300": "#F5C578",
+      "400": "#F0B13F",
+      "500": "#E5A100",
+      "600": "#D48E00",
+      "700": "#AF7100",
+      "800": "#8A5600",
+      "900": "#633B00",
+      "950": "#3D2100"
+    },
+    "green": {
+      "50": "#F3FBF4",
+      "100": "#E3F5E5",
+      "200": "#C7EBCD",
+      "300": "#A2DDAD",
+      "400": "#7BCB8D",
+      "500": "#54B66E",
+      "600": "#349E54",
+      "700": "#137D41",
+      "800": "#006033",
+      "900": "#004324",
+      "950": "#002714"
+    }
+  },
+  "semantic": {
+    "light": {
+      "bg": "#F8FAFD",
+      "surface": "#FFFFFF",
+      "surface-sunken": "#EFF3F7",
+      "surface-raised": "#FFFFFF",
+      "surface-inverse": "#0E254A",
+      "border": "#DCE3EB",
+      "border-strong": "#C9D2DC",
+      "border-focus": "#1E73BE",
+      "ink": "#0F1724",
+      "ink-secondary": "#515C6B",
+      "ink-muted": "#636D7B",
+      "ink-inverse": "#FFFFFF",
+      "ink-link": "#1959A7",
+      "accent": "#1E73BE",
+      "accent-hover": "#1959A7",
+      "accent-active": "#1B408C",
+      "accent-soft": "#E2F0FF",
+      "accent-ink": "#FFFFFF",
+      "good": "#137D41",
+      "good-soft": "#E3F5E5",
+      "warning": "#8A5600",
+      "warning-mark": "#AF7100",
+      "warning-soft": "#FCECD5",
+      "danger": "#C63118",
+      "danger-mark": "#EF472C",
+      "danger-soft": "#FFE9E4",
+      "ghost-bg": "#E2F0FF",
+      "ghost-ink": "#1959A7"
+    },
+    "dark": {
+      "bg": "#071426",
+      "surface": "#0B1A2E",
+      "surface-sunken": "#060F1C",
+      "surface-raised": "#12253C",
+      "surface-inverse": "#EFF3F7",
+      "border": "#1D3350",
+      "border-strong": "#2A4463",
+      "border-focus": "#4895DF",
+      "ink": "#EAF1F8",
+      "ink-secondary": "#A8B2BF",
+      "ink-muted": "#8792A0",
+      "ink-inverse": "#0F1724",
+      "ink-link": "#74B4F5",
+      "accent": "#4895DF",
+      "accent-hover": "#74B4F5",
+      "accent-active": "#9FCEFF",
+      "accent-soft": "#12304F",
+      "accent-ink": "#071426",
+      "good": "#47A85B",
+      "good-soft": "#0E2E1A",
+      "warning": "#E5A100",
+      "warning-mark": "#E5A100",
+      "warning-soft": "#332200",
+      "danger": "#FF866F",
+      "danger-mark": "#FE674C",
+      "danger-soft": "#3A120A",
+      "ghost-bg": "#12304F",
+      "ghost-ink": "#74B4F5"
+    }
+  },
+  "chart": {
+    "categorical": {
+      "order": [
+        "blue",
+        "green",
+        "violet",
+        "teal",
+        "amber",
+        "magenta",
+        "moss",
+        "sky"
+      ],
+      "light": [
+        "#1E73BE",
+        "#3B9D51",
+        "#846AD6",
+        "#00999C",
+        "#B88000",
+        "#C6559B",
+        "#8C8922",
+        "#0096BC"
+      ],
+      "dark": [
+        "#3B8BD8",
+        "#47A85B",
+        "#9178E6",
+        "#00A5A8",
+        "#C08600",
+        "#D461A7",
+        "#979430",
+        "#00A1CA"
+      ],
+      "validated": "adjacent pairs: CVD ΔE 11.5 light / 11.1 dark (target ≥8); normal-vision ΔE 19.9 light / 20.3 dark (floor ≥15); all eight ≥3:1 on their own surface.",
+      "allPairsTrio": {
+        "slots": [
+          "violet",
+          "teal",
+          "amber"
+        ],
+        "light": [
+          "#846AD6",
+          "#00999C",
+          "#B88000"
+        ],
+        "dark": [
+          "#9178E6",
+          "#00A5A8",
+          "#C08600"
+        ],
+        "validated": "all-pairs CVD ΔE 11.1, normal-vision ΔE 19.9 in both modes"
+      }
+    },
+    "sequential": {
+      "hue": "blue",
+      "light": [
+        "#E2F0FF",
+        "#C5E1FF",
+        "#9FCEFF",
+        "#74B4F5",
+        "#4895DF",
+        "#1E73BE",
+        "#1959A7",
+        "#1B408C",
+        "#0E254A"
+      ],
+      "ordinalLightEnd": "#9FCEFF",
+      "ordinalDarkEnd": "#1B408C"
+    },
+    "diverging": {
+      "light": [
+        "#004D8F",
+        "#1A6DBC",
+        "#5896D9",
+        "#9BC1ED",
+        "#EFF3F7",
+        "#DDB689",
+        "#C18434",
+        "#955E00",
+        "#6C4300"
+      ],
+      "dark": [
+        "#1364B0",
+        "#3483D3",
+        "#64A2E7",
+        "#A1C8F4",
+        "#394353",
+        "#E4BC8F",
+        "#CE9042",
+        "#B17000",
+        "#8A5600"
+      ],
+      "note": "Blue ↔ gold, not blue ↔ red: red is reserved for out-of-spec."
+    },
+    "chrome": {
+      "light": {
+        "surface": "#FFFFFF",
+        "grid": "#EFF3F7",
+        "axis": "#C9D2DC",
+        "tick": "#636D7B",
+        "label": "#515C6B",
+        "title": "#0F1724",
+        "limit": "#EF472C",
+        "limit-band": "rgba(239,71,44,0.08)",
+        "target": "#6B7584"
+      },
+      "dark": {
+        "surface": "#0B1A2E",
+        "grid": "#152741",
+        "axis": "#2A4463",
+        "tick": "#8792A0",
+        "label": "#A8B2BF",
+        "title": "#EAF1F8",
+        "limit": "#FE674C",
+        "limit-band": "rgba(254,103,76,0.12)",
+        "target": "#8792A0"
+      }
+    },
+    "mark": {
+      "unit": "pt",
+      "screen": {
+        "series": 1.5,
+        "outOfSpec": 2.0,
+        "limit": 1.2,
+        "target": 0.8,
+        "axis": 0.8,
+        "grid": 0.6,
+        "gridMinor": 0.4,
+        "marker": 6.0
+      },
+      "export": {
+        "series": 1.0,
+        "outOfSpec": 1.5,
+        "limit": 0.9,
+        "target": 0.6,
+        "axis": 0.6,
+        "grid": 0.5,
+        "gridMinor": 0.3,
+        "marker": 5.0
+      },
+      "dash": {
+        "target": [
+          5,
+          4
+        ],
+        "threshold": [
+          4,
+          4
+        ],
+        "leader": [
+          2,
+          3
+        ]
+      },
+      "note": "Pixels are not portable. Every plotting library accepts points."
+    },
+    "spectral": {
+      "xQuantity": "spatial frequency",
+      "xUnit": "1/m",
+      "xScale": "log",
+      "reciprocalAxis": {
+        "quantity": "wavelength",
+        "unit": "mm",
+        "position": "top"
+      },
+      "amplitudeDefault": "rms",
+      "amplitudeConventions": [
+        "rms",
+        "pp_equivalent_sinusoid",
+        "power",
+        "psd",
+        "psd_normalised",
+        "db"
+      ],
+      "ppConversion": "A_pp = 2*sqrt(2)*A_rms — single sinusoidal component only",
+      "ppForbiddenFor": "broadband content",
+      "fillArea": false,
+      "requiredMetadata": [
+        "dx",
+        "n",
+        "df",
+        "window",
+        "detrend",
+        "welchSegment",
+        "welchOverlap",
+        "averages",
+        "scaling"
+      ]
+    },
+    "export": {
+      "vectorFormats": [
+        "pdf",
+        "svg"
+      ],
+      "rasterMinDpi": 300,
+      "default": "vector",
+      "note": "Line-based figures export as vector by default; raster is opt-in and never below 300 dpi."
+    }
+  },
+  "type": {
+    "family": {
+      "sans": "IBM Plex Sans",
+      "mono": "IBM Plex Mono",
+      "condensed": "IBM Plex Sans Condensed"
+    },
+    "scale": {
+      "display": {
+        "size": 48,
+        "line": 48,
+        "weight": 600,
+        "tracking": -0.5
+      },
+      "title-1": {
+        "size": 32,
+        "line": 36,
+        "weight": 600,
+        "tracking": -0.3
+      },
+      "title-2": {
+        "size": 24,
+        "line": 30,
+        "weight": 600,
+        "tracking": -0.2
+      },
+      "title-3": {
+        "size": 19,
+        "line": 26,
+        "weight": 600,
+        "tracking": 0
+      },
+      "body-lg": {
+        "size": 17,
+        "line": 26,
+        "weight": 400,
+        "tracking": 0
+      },
+      "body": {
+        "size": 15,
+        "line": 22,
+        "weight": 400,
+        "tracking": 0
+      },
+      "body-sm": {
+        "size": 13,
+        "line": 19,
+        "weight": 400,
+        "tracking": 0
+      },
+      "label": {
+        "size": 13,
+        "line": 16,
+        "weight": 500,
+        "tracking": 0
+      },
+      "caption": {
+        "size": 12,
+        "line": 16,
+        "weight": 400,
+        "tracking": 0.1
+      },
+      "eyebrow": {
+        "size": 11,
+        "line": 14,
+        "weight": 500,
+        "tracking": 1.2,
+        "transform": "uppercase",
+        "family": "mono"
+      },
+      "data": {
+        "size": 15,
+        "line": 20,
+        "weight": 400,
+        "family": "mono",
+        "numeric": "tabular-nums"
+      },
+      "data-lg": {
+        "size": 28,
+        "line": 32,
+        "weight": 500,
+        "family": "mono",
+        "numeric": "tabular-nums"
+      }
+    }
+  },
+  "space": {
+    "base": 4,
+    "scale": {
+      "0": 0,
+      "1": 4,
+      "2": 8,
+      "3": 12,
+      "4": 16,
+      "5": 20,
+      "6": 24,
+      "8": 32,
+      "10": 40,
+      "12": 48,
+      "16": 64,
+      "20": 80,
+      "24": 96
+    }
+  },
+  "radius": {
+    "none": 0,
+    "sm": 2,
+    "md": 4,
+    "lg": 8,
+    "xl": 12,
+    "pill": 999
+  },
+  "border": {
+    "hairline": 1,
+    "emphasis": 2,
+    "focus": 2,
+    "focus-offset": 2
+  },
+  "elevation": {
+    "flat": "none",
+    "raised": "0 1px 2px rgba(15,23,36,0.06), 0 1px 3px rgba(15,23,36,0.10)",
+    "overlay": "0 4px 8px rgba(15,23,36,0.08), 0 12px 24px rgba(15,23,36,0.12)",
+    "modal": "0 8px 16px rgba(15,23,36,0.10), 0 24px 48px rgba(15,23,36,0.18)",
+    "dark-note": "In dark mode, elevation is carried by surface lightness + border, not shadow."
+  },
+  "size": {
+    "control-sm": 28,
+    "control-md": 36,
+    "control-lg": 44,
+    "target-pointer": 32,
+    "target-touch": 48,
+    "target-gloved": 64,
+    "density": {
+      "compact": {
+        "row": 28,
+        "pad": 8
+      },
+      "comfortable": {
+        "row": 36,
+        "pad": 12
+      },
+      "field": {
+        "row": 56,
+        "pad": 16
+      }
+    }
+  },
+  "motion": {
+    "instant": "0ms",
+    "fast": "120ms",
+    "base": "180ms",
+    "slow": "260ms",
+    "ease-out": "cubic-bezier(0.2, 0, 0, 1)",
+    "ease-standard": "cubic-bezier(0.4, 0, 0.2, 1)",
+    "rule": "Never animate a measurement value. Reduced motion disables all non-essential transitions."
+  },
+  "icon": {
+    "grid": 24,
+    "sizes": [
+      16,
+      20,
+      24,
+      32
+    ],
+    "stroke": 1.5,
+    "cap": "round",
+    "join": "round",
+    "style": "outline, geometric, no fills"
+  }
+}

@@ -31,9 +31,22 @@ The [Tapio RQP Live](https://www.tapiotechnologies.com/tapio-rqp-live/) is an in
 More detailed instructions are available in the [Tapio RollView Manual](docs/rollview-manual.md).
 
 The interface follows the Tapio Design System. Everything it needs lives in
-`src/theme`: `tokens.json` is the source of truth, and the Qt palette, the style
-sheet and the Matplotlib settings are all generated from it, so a colour written
-anywhere else is a bug.
+`src/theme`: `tapio-tokens.json` is the design system's own token file, carried
+here unmodified, and `rollview-tokens.json` beside it holds what RollView adds
+to it. The Qt palette, the style sheet and the Matplotlib settings are all
+generated from the pair, so a colour written anywhere else is a bug.
+
+Nothing in the application, the tests or the build reads the design system
+itself — the copy is what RollView ships and what it is checked against. To take
+a new version of it, point the sync script at a checkout:
+
+```
+python scripts/sync_design_system.py --design-system /path/to/design-system
+```
+
+It re-copies the token file, records its hash and lists what moved. Run the
+tests afterwards — the contrast audit and the token checks are what say whether
+a changed token broke something.
 
 For support, training, instruments and customizations please contact us at:
 - Email: [info@tapiotechnologies.com](mailto:info@tapiotechnologies.com)
