@@ -452,10 +452,15 @@ class ProfileWidget(QWidget):
                     mean_line_drawn = True
 
     def _get_spectrum_plot_data(self, mean_profile_values):
+        # A profile shorter than the analysis window is a short scan, not a
+        # fault: scipy shortens the window to the data and says so on stderr.
+        # Shorten it here instead — same spectrum, without the warning about a
+        # measurement the operator took on purpose.
+        nperseg = min(settings.NPERSEG, len(mean_profile_values))
         f, Pxx = welch(mean_profile_values,
                        fs=(1/settings.SAMPLE_INTERVAL_M),
                        window='hann',
-                       nperseg=settings.NPERSEG,
+                       nperseg=nperseg,
                        noverlap=settings.NOVERLAP,
                        scaling='spectrum')
         mask = (
@@ -899,15 +904,24 @@ class ProfileWidget(QWidget):
                 high = settings.Y_LIM_HIGH(max_plotted_value) if hasattr(
                     settings, 'Y_LIM_HIGH') and settings.Y_LIM_HIGH is not None else None
 
-        if low is not None and np.isfinite(low):
-            self.profile_ax.set_ylim(bottom=low)
-        elif low is not None and not np.isfinite(low):
+        if low is not None and not np.isfinite(low):
             self.warning_label.set_text("Y_LIM_LOW is not a finite value.")
-
-        if high is not None and np.isfinite(high):
-            self.profile_ax.set_ylim(top=high)
-        elif high is not None and not np.isfinite(high):
+            low = None
+        if high is not None and not np.isfinite(high):
             self.warning_label.set_text("Y_LIM_HIGH is not a finite value.")
+            high = None
+
+        # An empty chart derives its top from a maximum of zero, which lands on
+        # the bottom. A flat axis is not something matplotlib can draw, so drop
+        # the pair and let it scale itself rather than hand it a limit it has to
+        # widen back out.
+        if low is not None and high is not None and high <= low:
+            low = high = None
+
+        if low is not None:
+            self.profile_ax.set_ylim(bottom=low)
+        if high is not None:
+            self.profile_ax.set_ylim(top=high)
 
         tapio_mpl.fit(self.figure)
         self.request_draw()

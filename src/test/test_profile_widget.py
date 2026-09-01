@@ -1,5 +1,6 @@
 import unittest
 import copy
+import warnings
 from unittest.mock import patch
 
 import numpy as np
@@ -366,6 +367,51 @@ class TestProfileWidget(unittest.TestCase):
                 self.assertIsNone(stat_widget.value)
                 self.assertEqual(stat_widget.value_label.text(), MISSING)
         finally:
+            destroy(widget)
+
+    def test_a_scan_shorter_than_the_analysis_window_draws_quietly(self):
+        """A short roll is a short roll, not a fault.
+
+        scipy shortens the spectrum window to the data it was given and warns
+        while doing it, which reads as though the measurement were wrong.
+        """
+        original_show_spectrum = preferences.show_spectrum
+        preferences.show_spectrum = True
+        widget = ProfileWidget()
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                widget.update_plot(_synthetic_profiles(1), "roll")
+
+            self.assertEqual([str(warning.message) for warning in caught], [])
+        finally:
+            preferences.show_spectrum = original_show_spectrum
+            destroy(widget)
+
+    def test_an_empty_chart_draws_quietly(self):
+        """With nothing ticked the y limits come out flat, which is not a limit.
+
+        The pair was handed to matplotlib anyway, which warned about a singular
+        transformation over a chart that is empty because that is what was asked
+        for.
+        """
+        original_recalculate = preferences.recalculate_mean
+        preferences.recalculate_mean = True
+        widget = ProfileWidget()
+        try:
+            profiles = _synthetic_profiles(3)
+            for profile in profiles:
+                profile.hidden = True
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                widget.update_plot(profiles, "roll")
+
+            self.assertEqual([str(warning.message) for warning in caught], [])
+            low, high = widget.profile_ax.get_ylim()
+            self.assertLess(low, high)
+        finally:
+            preferences.recalculate_mean = original_recalculate
             destroy(widget)
 
 
