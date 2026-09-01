@@ -13,6 +13,7 @@ import store
 from rqft.client import BlockingSessionDriver, LocalDirFs, PumpResult
 from rqft.demo import LoopbackResponder, SocketTransport
 from rqft.events import Ended, Established, Passthrough
+from rqft.fs import FsEntry
 from rqft.link import AbortReason
 from rqft.messages import NOTIFY_SYNC_INCREMENTAL, Role
 from rqft.session import Session
@@ -36,6 +37,35 @@ def wait_until(condition, timeout=8.0):
         time.sleep(0.01)
     QCoreApplication.processEvents()
     return condition()
+
+
+class FolderListingFs(LocalDirFs):
+    """A device that lists its folders as well as its files.
+
+    The firmware names a folder before it walks it, so a folder with nothing
+    in it is still listed - which is the only way rollview can hear about an
+    empty one. Older firmware lists files alone; that is what plain
+    LocalDirFs already does.
+    """
+
+    _ETYPE_DIR = 1
+
+    def list_entries(self, root: str):
+        base = self.root if not root else self.root.joinpath(*root.split("/"))
+        if not base.exists():
+            return None
+        entries = []
+        for path in sorted(base.rglob("*")):
+            if path.name.endswith(".rqft-part"):
+                continue
+            rel = path.relative_to(self.root).as_posix()
+            if path.is_dir():
+                entries.append(FsEntry(rel, 0, int(path.stat().st_mtime),
+                                       self._ETYPE_DIR))
+            elif path.is_file():
+                stat = path.stat()
+                entries.append(FsEntry(rel, stat.st_size, int(stat.st_mtime), 0))
+        return iter(entries)
 
 
 def stop_responder(responder):
@@ -119,8 +149,16 @@ class DeviceConnectionTestBase(unittest.TestCase):
     def _restore_root(self):
         store.root_directory = self._original_root
 
-    def start_responder(self):
-        """Start the fake device on the far end of the current socket pair."""
+    def start_responder(self, lists_folders=False):
+        """Start the fake device on the far end of the current socket pair.
+
+        lists_folders picks the firmware generation: one that reports its
+        folders as well as its files, or one that only ever reports files.
+        """
+        if lists_folders:
+            fs_patch = patch("rqft.demo.LocalDirFs", FolderListingFs)
+            fs_patch.start()
+            self.addCleanup(fs_patch.stop)
         responder = LoopbackResponder(self.right_sock, Path(self.device_dir.name))
         responder.start()
         self.addCleanup(stop_responder, responder)
@@ -438,6 +476,107 @@ class TestDeleteAfterSync(DeviceConnectionTestBase):
         self.assertEqual(self.recorder.sync_finished[0][0], ["roll/a.prof"])
         self.assertEqual(self.recorder.deleted_counts[0], 0)
         self.assertTrue(remote.exists())
+
+
+class TestEmptyFolderSync(DeviceConnectionTestBase):
+    """A folder holding no measurement is still the operator's folder: its
+    name is the whole of what there is to sync, and once rollview has it the
+    device copy goes the same way a measured folder does."""
+
+    def _start_device(self, lists_folders=True):
+        self.responder = self.start_responder(lists_folders=lists_folders)
+        self.worker.enable()
+        self.worker.start()
+        self.assertTrue(wait_until(lambda: len(self.recorder.established) > 0))
+
+    def _sync(self, count=1):
+        self.worker.request_sync(auto=False)
+        self.assertTrue(
+            wait_until(lambda: len(self.recorder.sync_finished) >= count),
+            f"sync did not finish (failures: {self.recorder.sync_failed})",
+        )
+
+    def test_an_empty_folder_is_mirrored_and_then_removed(self):
+        remote = Path(self.device_dir.name) / "250520-134139"
+        remote.mkdir()
+        self._start_device()
+
+        self._sync()
+
+        fetched, _skipped = self.recorder.sync_finished[0]
+        self.assertEqual(fetched, [])
+        self.assertTrue((Path(self.local_dir.name) / "250520-134139").is_dir())
+        self.assertEqual(self.recorder.deleted_counts[0], 1)
+        self.assertFalse(remote.exists())
+
+    def test_a_folder_holding_no_measurement_counts_as_empty(self):
+        """Rollview reads .prof; a folder with none of them has nothing it
+        could mirror file by file, so the name is all that is carried."""
+        remote = Path(self.device_dir.name) / "250520-134139"
+        remote.mkdir()
+        (remote / "raw.pro").write_bytes(b"raw-samples")
+        (remote / "mean.prof").write_bytes(b"device-mean")
+        self._start_device()
+
+        self._sync()
+
+        self.assertEqual(self.recorder.sync_finished[0][0], [])
+        self.assertTrue((Path(self.local_dir.name) / "250520-134139").is_dir())
+        self.assertFalse(remote.exists())
+
+    def test_a_measured_folder_is_still_synced_before_it_goes(self):
+        """The empty-folder rule does not reach a folder with measurements
+        in it: those are fetched first and the folder goes once, not twice."""
+        self.seed_device_tree()
+        self._start_device()
+
+        self._sync()
+
+        fetched, _skipped = self.recorder.sync_finished[0]
+        self.assertEqual(fetched, ["roll/a.prof"])
+        self.assertEqual(self.recorder.deleted_counts[0], 1)
+        self.assertTrue((Path(self.local_dir.name) / "roll" / "a.prof").is_file())
+        self.assertFalse((Path(self.device_dir.name) / "roll").exists())
+
+    def test_a_hidden_device_folder_is_neither_mirrored_nor_removed(self):
+        """A leading dot is where the device and the desktop OSes keep their
+        own bookkeeping. None of it is a roll."""
+        remote = Path(self.device_dir.name) / ".sync_state"
+        remote.mkdir()
+        self._start_device()
+
+        self._sync()
+
+        self.assertEqual(self.recorder.deleted_counts[0], 0)
+        self.assertTrue(remote.is_dir())
+        self.assertFalse((Path(self.local_dir.name) / ".sync_state").exists())
+
+    def test_a_nested_folder_goes_with_the_one_above_it(self):
+        """Only root folders are mirrored by name; what is inside one is the
+        folder's own business and is removed with it."""
+        remote = Path(self.device_dir.name) / "250520-134139"
+        (remote / "raw").mkdir(parents=True)
+        self._start_device()
+
+        self._sync()
+
+        self.assertEqual(self.recorder.deleted_counts[0], 1)
+        self.assertFalse(remote.exists())
+        self.assertTrue((Path(self.local_dir.name) / "250520-134139").is_dir())
+        self.assertFalse((Path(self.local_dir.name) / "250520-134139" / "raw").exists())
+
+    def test_older_firmware_that_lists_no_folders_syncs_as_before(self):
+        """Nothing to mirror and nothing to delete: a device that never
+        mentions its folders still gets its measurements pulled."""
+        (Path(self.device_dir.name) / "250520-134139").mkdir()
+        self.seed_device_tree()
+        self._start_device(lists_folders=False)
+
+        self._sync()
+
+        self.assertEqual(self.recorder.sync_finished[0][0], ["roll/a.prof"])
+        self.assertTrue((Path(self.device_dir.name) / "250520-134139").is_dir())
+        self.assertFalse((Path(self.local_dir.name) / "250520-134139").exists())
 
 
 class TestDoorbellAndBusy(DeviceConnectionTestBase):
