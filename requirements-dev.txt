@@ -544,6 +544,9 @@ qrcode==8.2 \
     --hash=sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f \
     --hash=sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c
     # via -r requirements.in
+rqft @ https://github.com/Tapio-Measurement-Technologies/rqft/releases/download/v1.0.0/rqft-1.0.0-py3-none-any.whl \
+    --hash=sha256:6a2dd92dbf11f8bd9aebf8d11ac1950e53c7aa962d7e69f492e93ea23400e138
+    # via -r requirements.in
 scipy==1.13.1 \
     --hash=sha256:017367484ce5498445aade74b1d5ab377acdc65e27095155e448c88497755a5d \
     --hash=sha256:095a87a0312b08dfd6a6155cbbd310a8c51800fc931b8c0b84003014b874ed3c \
