@@ -30,6 +30,7 @@ from utils.highlighted_regions import (
 )
 from utils import preferences
 from utils.translation import _
+from test.qtcleanup import destroy
 
 
 class TestAdvancedSettingsPage(unittest.TestCase):
@@ -49,7 +50,7 @@ class TestAdvancedSettingsPage(unittest.TestCase):
         self.page = AdvancedSettingsPage()
 
     def tearDown(self):
-        self.page.close()
+        destroy(self.page)
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
         preferences.excluded_regions = self.original_excluded_regions
         preferences.distance_unit = self.original_distance_unit
@@ -104,7 +105,7 @@ class TestAdvancedSettingsPage(unittest.TestCase):
             # Round, not an ellipse: the handle is as tall as it is wide.
             self.assertEqual(handle.width(), handle.height())
         finally:
-            page.close()
+            destroy(page)
 
     def test_band_pass_input_can_show_its_longest_value(self):
         """The one that clipped in the field: "100.0" in a 55 px box."""
@@ -113,7 +114,7 @@ class TestAdvancedSettingsPage(unittest.TestCase):
             field = page.band_pass_high_input
             self.assertGreaterEqual(usable_width(field), text_width(field, "100.0"))
         finally:
-            page.close()
+            destroy(page)
 
     def test_switching_relative_to_absolute_keeps_text_unchanged(self):
         self.page.excluded_regions_input.setText("20-80")
@@ -205,7 +206,7 @@ class TestAlertLimitSettingsPage(unittest.TestCase):
         self.page = AlertLimitSettingsPage()
 
     def tearDown(self):
-        self.page.close()
+        destroy(self.page)
         preferences.alert_limits = self.original_alert_limits
 
     def test_alert_limit_row_uses_card_layout_and_fixed_inputs(self):
@@ -302,7 +303,7 @@ class TestGeneralSettingsPage(unittest.TestCase):
         self.page = GeneralSettingsPage()
 
     def tearDown(self):
-        self.page.close()
+        destroy(self.page)
         preferences.distance_unit = self.original_distance_unit
         preferences.excluded_regions_mode = self.original_excluded_regions_mode
         preferences.excluded_regions = self.original_excluded_regions
@@ -383,7 +384,7 @@ class TestDistanceHighlightsSettingsPage(unittest.TestCase):
         self.page = DistanceHighlightsSettingsPage()
 
     def tearDown(self):
-        self.page.close()
+        destroy(self.page)
         preferences.distance_highlight_regions = self.original_distance_highlight_regions
 
     def test_add_distance_highlight_creates_row(self):
@@ -472,7 +473,7 @@ class TestHardnessHighlightsSettingsPage(unittest.TestCase):
         self.page = HardnessHighlightsSettingsPage()
 
     def tearDown(self):
-        self.page.close()
+        destroy(self.page)
         preferences.hardness_highlight_regions = self.original_hardness_highlight_regions
 
     def test_hardness_region_row_updates_labels_for_mode(self):
@@ -510,7 +511,7 @@ class TestSettingsWindow(unittest.TestCase):
             self.assertIn("Distance highlights", page_names)
             self.assertIn("Hardness highlights", page_names)
         finally:
-            window.close()
+            destroy(window)
 
     def test_there_is_no_appearance_page(self):
         """The theme sits in General settings; it was never a page's worth."""
@@ -521,7 +522,7 @@ class TestSettingsWindow(unittest.TestCase):
             self.assertIn("General settings", page_names)
             self.assertTrue(hasattr(window.general_settings_page, "theme_selector"))
         finally:
-            window.close()
+            destroy(window)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import store
 from gui.widgets.FileView import CustomFilterProxyModel, FileView
+from test.qtcleanup import destroy
 
 
 class TestFileView(unittest.TestCase):
@@ -43,14 +44,14 @@ class TestFileView(unittest.TestCase):
 
             self.assertEqual(emitted_paths, ["/tmp/roll/new.prof"])
         finally:
-            view.close()
+            destroy(view)
 
     def test_initial_root_index_is_valid(self):
         view = FileView()
         try:
             self.assertTrue(view.view.rootIndex().isValid())
         finally:
-            view.close()
+            destroy(view)
 
     def test_filter_rejects_non_files(self):
         proxy_model = CustomFilterProxyModel()
@@ -116,7 +117,7 @@ class TestFileView(unittest.TestCase):
                 show_error_mock.assert_not_called()
                 self.assertEqual(view._pending_directory, tmpdir)
         finally:
-            view.close()
+            destroy(view)
 
 
 if __name__ == "__main__":

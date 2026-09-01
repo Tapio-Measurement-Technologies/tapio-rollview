@@ -14,6 +14,7 @@ import store
 from utils import preferences
 from utils.postprocess import BUILTIN, CUSTOM, get_postprocessors
 from utils.translation import _
+from test.qtcleanup import destroy
 
 
 class TestMainWindowSettingsFileLoading(unittest.TestCase):
@@ -42,10 +43,10 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.serial_widget.view.model.applyFilter = MagicMock()
 
     def tearDown(self):
-        self.window.close()
+        destroy(self.window)
         for widget in QApplication.topLevelWidgets():
             if widget is not self.window and isinstance(widget, QWidget):
-                widget.close()
+                destroy(widget)
 
         for key, value in self.preferences_snapshot.items():
             preferences.__dict__[key] = value
@@ -332,10 +333,12 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         finally:
             # Closing a QMainWindow is not destroying it, and a window left
             # alive here is ~180 widgets the leak check will find in whichever
-            # module happens to run next.
-            window.close()
-            window.deleteLater()
+            # module happens to run next — and 180 widgets the collector may
+            # take apart on whatever thread it happens to run on.
+            destroy(window)
             del window
+            # Destroying a parent posts DeferredDelete for its children, so
+            # drain until the queue stops producing new deletions.
             for _ in range(5):
                 QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
                 QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 20)
