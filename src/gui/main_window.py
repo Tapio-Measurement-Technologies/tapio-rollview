@@ -41,11 +41,9 @@ from gui.qr_config_dialog import QRConfigDialog
 from gui.widgets.messagebox import show_info_msgbox, show_error_msgbox
 from utils.translation import _
 
-#: The stop square in the status bar: a control-height target for the button,
-#: with the glyph drawn small inside it so it reads as a mark, not a button
-#: with an icon in it.
-ACTIVITY_STOP_SIZE = 22
-ACTIVITY_STOP_GLYPH = 16
+#: The status bar's own height. The row carries one line of text and one
+#: control, and the control is sized from it rather than the other way round.
+STATUS_BAR_HEIGHT = 30
 
 
 class MainWindow(QMainWindow):
@@ -160,55 +158,62 @@ class MainWindow(QMainWindow):
         # it a second leaves the first parented and unused, which is a widget
         # nobody can see and every audit has to explain.
         self.status_bar = self.statusBar()
-        self.status_bar.setFixedHeight(30)
+        self.status_bar.setFixedHeight(STATUS_BAR_HEIGHT)
 
         # One place in the window says what background work is going on: the
         # port scan, a sync, the postprocessors afterwards. They used to be
         # three different answers — two of them modal windows in front of the
         # measurement the operator was reading — and none of them said what had
         # happened once it was over.
-        # A square, next to the bar, wherever the bar is: one gesture stops a
-        # scan, a sync or the postprocessors, and it is in the same place every
-        # time rather than in whichever window happened to be open.
-        self.activity_stop_button = QPushButton()
+        #
+        # One gesture stops any of them, and it is in the same place every time
+        # rather than in whichever window happened to be open. It carries the
+        # word rather than a glyph: an icon on its own is permitted in a dense
+        # toolbar with a tooltip, but this is the only button in the row and
+        # "Stop" needs no decoding — a square is a shape an operator has to
+        # learn, and the one thing it must be unambiguous about is what it will
+        # interrupt.
+        self.activity_stop_button = QPushButton(_("BUTTON_TEXT_STOP"))
         self.activity_stop_button.setObjectName("activityStop")
-        self.activity_stop_button.setFixedSize(
-            ACTIVITY_STOP_SIZE, ACTIVITY_STOP_SIZE)
         set_guidance(self.activity_stop_button, _("BUTTON_TEXT_STOP"),
                      _("GUIDANCE_STOP_ACTIVITY"))
         self.activity_stop_button.setVisible(False)
         self.activity_stop_button.clicked.connect(self.on_activity_cancelled)
-        self._refresh_stop_icon()
 
         # The row is built out of labels rather than QStatusBar's own message,
         # which is painted across the non-permanent area and hides any widget
-        # sharing it — the bar could then only ever sit to one side. Two
-        # stretchy labels with the work between them is what centres it.
+        # sharing it.
         self.activity_label = QLabel()
-        self.status_bar.addWidget(self.activity_label, 1)
 
         self.activity_progress_bar = QProgressBar()
         self.activity_progress_bar.setTextVisible(False)
         self.activity_progress_bar.setFixedWidth(240)
+        self.activity_progress_bar.setVisible(False)
 
-        # The square belongs to the bar, so they travel as one item, closer to
-        # each other than to anything else in the row.
-        activity_group = QWidget()
-        activity_layout = QHBoxLayout(activity_group)
+        # The sentence, the bar and the way to stop it are one thing and travel
+        # as one: the bar is what the sentence is about, and the button stops
+        # what both of them describe. They used to sit at opposite ends of the
+        # row with the whole window between them, which left the operator
+        # reading "Receiving 3/12" on the left and watching an unlabelled bar
+        # move on the right.
+        self.activity_group = QWidget()
+        activity_layout = QHBoxLayout(self.activity_group)
         theme_qt.pad(activity_layout, 0)
-        theme_qt.gap(activity_layout, 1)
+        theme_qt.gap(activity_layout, 2)
+        activity_layout.addWidget(self.activity_label)
         activity_layout.addWidget(self.activity_progress_bar)
         activity_layout.addWidget(self.activity_stop_button)
-        self.activity_progress_bar.setVisible(False)
-        self.status_bar.addPermanentWidget(activity_group)
+        # No stretch: the group is as wide as the work it is describing, and
+        # what is left over goes to the guidance at the far end.
+        self.status_bar.addWidget(self.activity_group)
 
         # Hover guidance goes here rather than into the message area. Qt sends a
         # widget's status tip to the window, whose default handler shows it as a
         # status bar message — so moving the mouse over the chart wiped out
         # whatever the sync or the postprocessors were saying. It gets its own
-        # label at the far end, and the stretch on that label is what leaves the
-        # bar in the middle: a stretchy message area on one side, a stretchy
-        # guide on the other, the work between them.
+        # label at the far end, and the stretch is on this one rather than on
+        # the work: guidance is what should give up room when a sync has a long
+        # sentence to say, not the other way round.
         self.guide_label = QLabel()
         theme_qt.set_role(self.guide_label, "hint")
         self.guide_label.setAlignment(
@@ -277,28 +282,60 @@ class MainWindow(QMainWindow):
         return self.activity_label.text()
 
 
-    def start_activity(self, message, cancel=None):
+    def start_activity(self, message, cancel=None, counted=True):
         """Say that background work has started, and how to stop it.
 
         *cancel* is called if the operator presses the button beside the bar;
         without one the button stays hidden, because a button that cannot be
         pressed is worse than no button.
+
+        *counted* is False for work whose progress nothing can report yet — the
+        stretch of a sync before the device has said how many files it holds.
+        Such a wait can also fail silently: a device that is switched off, or
+        whose cable is out, answers exactly as fast as one that is thinking. It
+        gets the indeterminate indicator, which is the only thing on the screen
+        that separates working from hung. The first real number switches it back
+        to a determinate bar, so the indicator lasts precisely as long as the
+        uncertainty does.
         """
         self._activity_cancel = cancel
         self.activity_stop_button.setEnabled(cancel is not None)
         self.activity_stop_button.setVisible(cancel is not None)
-        self.activity_progress_bar.setValue(0)
-        self.activity_progress_bar.setVisible(True)
+        self._set_activity_counted(counted)
         self.set_status_message(message)
+
+    def _set_activity_counted(self, counted):
+        """A bar that shows a number, or one that shows a sign of life."""
+        if counted:
+            self.activity_progress_bar.setRange(0, 100)
+            self.activity_progress_bar.setValue(0)
+        else:
+            # A zero-width range is Qt's indeterminate bar. There is one of
+            # these in the window and it lives in the row where progress is
+            # reported, never in a content area: two indeterminate indicators
+            # on one screen have said nothing twice, and a panel that spins in
+            # its own content area is simulating what has not arrived.
+            self.activity_progress_bar.setRange(0, 0)
+        self.activity_progress_bar.setVisible(True)
 
     def update_activity(self, value, message=None):
         # Deliberately does not raise the bar: start_activity is the only thing
         # that does, and it is the only thing that takes a way to stop the work.
         # That keeps "a bar is moving" and "there is a square to press" from
         # ever coming apart.
+        #
+        # A number arriving is what ends an uncounted wait: the work has
+        # reported where it is, so the indicator has nothing left to say that
+        # the bar does not say better.
+        if self.activity_progress_bar.maximum() == 0:
+            self._set_activity_counted(True)
         self.activity_progress_bar.setValue(max(0, min(100, int(value))))
         if message:
             self.set_status_message(message)
+
+    def activity_is_counted(self):
+        """Whether the bar is showing a number or a sign of life."""
+        return self.activity_progress_bar.maximum() != 0
 
     def finish_activity(self, message=""):
         """Put the bar away and leave the outcome in words.
@@ -310,6 +347,9 @@ class MainWindow(QMainWindow):
         self._activity_cancel = None
         self.activity_stop_button.setVisible(False)
         self.activity_progress_bar.setVisible(False)
+        # Back to a counted bar, so the next piece of work starts from the
+        # ordinary case rather than inheriting the last one's uncertainty.
+        self.activity_progress_bar.setRange(0, 100)
         if message:
             self.set_status_message(message)
         else:
@@ -331,13 +371,6 @@ class MainWindow(QMainWindow):
 
     def on_scan_finished(self):
         self.finish_activity()
-
-    def _refresh_stop_icon(self):
-        """The glyph is baked with a colour, so it is redrawn per theme."""
-        self.activity_stop_button.setIcon(
-            theme.icons.icon("stop", ACTIVITY_STOP_GLYPH,
-                             theme_qt.tokens().color("ink-secondary"))
-        )
 
     def event(self, event):
         """Route status tips to the guide label instead of the message area.
@@ -941,9 +974,6 @@ class MainWindow(QMainWindow):
         inside the banners, and the two Matplotlib canvases.
         """
         theme.apply(QApplication.instance(), theme=ui_theme)
-        # The stop mark is a pixmap baked in one theme's ink, so it is redrawn
-        # rather than repolished.
-        self._refresh_stop_icon()
         self.refresh_plot()
         self.statistics_analysis_widget.update_chart()
         for widget in self.findChildren(QWidget):
@@ -1071,9 +1101,14 @@ class MainWindow(QMainWindow):
             )
 
     def on_file_transfer_started(self):
+        # Nothing can be counted until the device answers with how many files it
+        # is holding, and a device that is switched off answers exactly as fast
+        # as one that is thinking about it. This is the wait the indeterminate
+        # indicator exists for; on_sync_batch_started ends it with a number.
         self.start_activity(
             _("SYNC_CHECKING_TEXT"),
             cancel=self.file_transfer_manager.cancel_transfer,
+            counted=False,
         )
 
     def on_sync_batch_started(self, port, file_count, byte_count):

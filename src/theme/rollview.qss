@@ -308,12 +308,19 @@ QPushButton[variant="danger"]:pressed { background-color: ${danger_soft}; border
 /* The status bar's stop square: the row's one pressable thing, so it carries
    the same ground and edge every other button in the window does, at the size
    the row has room for. */
+/* The status row's one pressable thing, carrying the word rather than a glyph.
+   Short and tight rather than a full-height control: the row is 30 px and the
+   button sits inside it beside a line of text, so it takes the eyebrow's size
+   and the smaller radius while keeping the secondary button's ground and edge.
+   Everything else about it — hover, pressed, focus, disabled — is the ordinary
+   secondary treatment, because that is what it is. */
 QPushButton#activityStop {
     background-color: ${surface};
     border: 1px solid ${border_strong};
     border-radius: ${r_sm}px;
-    padding: 0;
-    min-height: 0;
+    padding: 0 ${s2}px;
+    min-height: ${status_control}px;
+    font-size: ${eyebrow}px;
 }
 
 QPushButton#activityStop:hover {
