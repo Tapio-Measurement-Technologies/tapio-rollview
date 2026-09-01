@@ -82,7 +82,7 @@ msgstr "Open postprocessor folder"
 
 #. Used in the postprocessors menu when the custom postprocessor folder is empty.
 msgid "MENU_BAR_NO_CUSTOM_POSTPROCESSORS"
-msgstr "(No custom postprocessor modules in PATH)"
+msgstr "No custom postprocessors available"
 
 #. Used as message box title when a refresh is asked for mid-run.
 msgid "MENU_BAR_POSTPROCESSORS_BUSY_TITLE"
