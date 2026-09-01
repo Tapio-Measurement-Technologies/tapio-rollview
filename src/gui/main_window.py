@@ -596,6 +596,12 @@ class MainWindow(QMainWindow):
         checkbox.setChecked(checked)
         # Connect checkbox state change to callback
         checkbox.stateChanged.connect(callback)
+        # Clicking a switch focuses it, and a menu popup is a window of its own
+        # that keeps its focus widget for as long as it exists — so the row
+        # that was last clicked came back highlighted every time the menu was
+        # opened again, marking a state nobody had chosen. The menu closing is
+        # the end of the interaction with the switch.
+        parent_menu.aboutToHide.connect(checkbox.clearFocus)
         # Both, because the row is wider than its checkbox and the pointer
         # lands wherever it lands; Qt asks no parent for a status tip.
         set_guidance(checkbox, label, hint)

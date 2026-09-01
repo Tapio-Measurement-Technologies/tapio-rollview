@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop
-from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QWidget
 
 import store
 from utils import preferences
@@ -135,6 +135,27 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             refresh_plot.assert_called_once()
         finally:
             preferences.update_preferences({"flip_profiles": original})
+
+    def test_closing_the_menu_takes_the_focus_off_its_switches(self):
+        """A switch clicked in a menu does not stay marked afterwards.
+
+        The switches are real checkboxes inside the menu, and a menu popup is a
+        window of its own that keeps its focus widget for as long as it exists:
+        the row last clicked came back highlighted every time the menu was
+        opened again, marking a state nobody had chosen.
+        """
+        view_menu = next(menu for menu in self.window.menuBar().findChildren(QMenu)
+                         if menu.title() == _('MENU_BAR_VIEW'))
+        checkbox = self.window.view_menu_checkboxes['show_all_com_ports']
+
+        view_menu.show()
+        checkbox.setFocus()
+        # The popup's own focus widget rather than hasFocus(), which also asks
+        # whether the window is active — offscreen, none of them are.
+        self.assertIs(checkbox.window().focusWidget(), checkbox)
+
+        view_menu.hide()
+        self.assertIsNone(checkbox.window().focusWidget())
 
     def test_the_view_menu_switches_say_what_they_do(self):
         # The labels are names; the sentence explaining each one goes to the
