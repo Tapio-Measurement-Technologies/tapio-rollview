@@ -55,8 +55,8 @@ cd tapio-rollview
 - Measurement profiles are copied from the device over the RQFT protocol on a serial connection. Devices with firmware older than v1.2.0 fall back to ZMODEM.
 - A sync copies whatever the working directory is missing, then removes what it has verified from the device. The device keeps as many of its newest folders as its own **Folders to keep** setting says, and refuses those deletions.
 - A folder with no measurements in it is synced as well: the folder appears in the working directory under its name and is then removed from the device like any other. Whatever else the device had in it -- raw measurements, its own mean profile -- goes with it.
-- The device decides when an automatic sync happens, from its **Sync options** settings, **Auto sync** and **Auto sync delay**. An automatic sync waits for as long as a folder is active on the device, so the one being measured into is never taken mid-run.
-- Pressing **Sync data** here syncs immediately, whatever those settings are, and takes the active folder too. The device returns to its main screen once that folder is gone.
+- The device decides when an automatic sync happens, from its **Sync options** settings, **Auto sync** and **Auto sync delay**. It holds off while a measurement is running and while the operator is on a measurement's own page, so a folder is never taken out from under them.
+- Pressing **Sync data** here syncs immediately, whatever those settings are. A device showing a folder that the sync removes returns to its main screen.
 
 ## Statistics
 The displayed statistics are based on the mean profile (calculated as the mean of multiple measured profiles in the same folder).
