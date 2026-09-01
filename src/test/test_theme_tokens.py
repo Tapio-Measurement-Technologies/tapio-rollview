@@ -671,6 +671,37 @@ class TestMenuSwitch(ThemeRestoringTestCase):
             self.assertNotIn(theme_qt.tokens().color("accent"), body)
 
 
+class TestItemViewRowLayout(ThemeRestoringTestCase):
+    """Rows are as tall as the sheet says, whenever the sheet arrives.
+
+    A view asked for a row rectangle before the sheet has reached it lays its
+    rows out at the plain style's height and does not ask again, so every row
+    afterwards painted at the sheet's height on top of the one above it. The
+    settings sidebar came up as five overlapping lines on Windows, and looked
+    fixed after a theme change because that repolishes the whole tree.
+    """
+
+    def setUp(self):
+        super().setUp()
+        theme.apply(self.app, theme=T.LIGHT)
+
+    def test_rows_laid_out_before_the_sheet_are_laid_out_again(self):
+        nav = QListWidget()
+        nav.setObjectName("settingsNav")
+        for name in ("General", "Alert limits", "Advanced"):
+            nav.addItem(name)
+        self.addCleanup(destroy, nav)
+
+        # Anything that asks for geometry before the widget is polished; a
+        # Windows build does this on its own on the way to the screen.
+        nav.visualItemRect(nav.item(0))
+
+        nav.show()
+        rects = [nav.visualItemRect(nav.item(row)) for row in range(nav.count())]
+        for above, below in zip(rects, rects[1:]):
+            self.assertGreaterEqual(below.y(), above.bottom())
+
+
 class TestDensity(unittest.TestCase):
     """Spacing is the one part of the system a new screen can silently miss.
 
