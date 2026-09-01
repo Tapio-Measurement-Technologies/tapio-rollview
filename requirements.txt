@@ -133,7 +133,9 @@ pillow==12.3.0 \
     #   matplotlib
 pyparsing==3.1.2 \
     --hash=sha256:f9db75911801ed778fe61bb643079ff86601aca99fcae6345aa67292038fb742
-    # via matplotlib
+    # via
+    #   -r requirements.in
+    #   matplotlib
 pyserial==3.5 \
     --hash=sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0
     # via -r requirements.in
