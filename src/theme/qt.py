@@ -455,6 +455,19 @@ class RollViewStyle(QProxyStyle):
             target.view().setVerticalScrollMode(
                 QAbstractItemView.ScrollMode.ScrollPerPixel
             )
+        if isinstance(target, QAbstractItemView):
+            # Every row in this system is as tall as the style sheet says, and
+            # a view that was asked for a row rectangle before the sheet
+            # reached it has already laid its rows out at the plain style's
+            # height and will not ask again. The rows then paint at the
+            # sheet's height on top of one another — the settings sidebar came
+            # up as five overlapping lines — until something repolishes the
+            # tree, which is why changing the theme appeared to fix it.
+            #
+            # Scheduled rather than done here: the sheet's own polish runs
+            # after this one, so the measurement is only right on the way back
+            # out to the event loop.
+            target.scheduleDelayedItemsLayout()
         return polished
 
 
