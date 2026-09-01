@@ -3,6 +3,7 @@ import unittest
 import settings
 from utils.rqft_support import (
     firmware_supports_rqft,
+    is_syncable_folder,
     is_syncable_prof,
     parse_firmware_version,
     plan_device_deletes,
@@ -99,6 +100,23 @@ class TestIsSyncableProf(unittest.TestCase):
         self.assertFalse(is_syncable_prof("250520-134139/export.profx"))
 
 
+class TestIsSyncableFolder(unittest.TestCase):
+    def test_a_root_folder_is_syncable(self):
+        self.assertTrue(is_syncable_folder("250520-134139"))
+
+    def test_a_nested_folder_goes_with_the_one_above_it(self):
+        self.assertFalse(is_syncable_folder("250520-134139/raw"))
+
+    def test_hidden_folders_are_left_alone(self):
+        """The device hides its own bookkeeping behind a leading dot, and so
+        do the desktop OSes that have had the card in them."""
+        self.assertFalse(is_syncable_folder(".Trashes"))
+
+    def test_ignored_folder_names_are_left_alone(self):
+        self.assertFalse(is_syncable_folder("System Volume Information"))
+        self.assertFalse(is_syncable_folder("postprocessors"))
+
+
 class TestPlanDeviceDeletes(unittest.TestCase):
     def test_a_fully_verified_folder_goes_as_a_unit(self):
         folders, files = plan_device_deletes(
@@ -137,6 +155,29 @@ class TestPlanDeviceDeletes(unittest.TestCase):
 
     def test_nothing_verified_deletes_nothing(self):
         self.assertEqual(plan_device_deletes([], ["roll/a.prof"]), ([], []))
+
+    def test_a_mirrored_empty_folder_is_removed(self):
+        """The operator named it on the device and nothing was measured into
+        it. Once the name is mirrored there is nothing left to carry."""
+        folders, files = plan_device_deletes([], [], empty_folders=["250520-134139"])
+        self.assertEqual(folders, ["250520-134139"])
+        self.assertEqual(files, [])
+
+    def test_empty_folders_are_removed_alongside_measured_ones(self):
+        folders, files = plan_device_deletes(
+            ["roll/a.prof"], [], empty_folders=["empty"]
+        )
+        self.assertEqual(folders, ["roll", "empty"])
+        self.assertEqual(files, [])
+
+    def test_an_incomplete_listing_keeps_an_empty_folder_too(self):
+        """A folder that only looked empty may hold an entry the device
+        could not read."""
+        folders, files = plan_device_deletes(
+            [], [], list_complete=False, empty_folders=["250520-134139"]
+        )
+        self.assertEqual(folders, [])
+        self.assertEqual(files, [])
 
     def test_an_incomplete_listing_never_removes_a_folder(self):
         """An entry the device could not read never reached the mirror and

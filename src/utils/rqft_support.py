@@ -64,7 +64,21 @@ def is_syncable_prof(path: str) -> bool:
     return name.endswith(".prof") and name != "mean.prof"
 
 
-def plan_device_deletes(verified, unverified, list_complete=True):
+def is_syncable_folder(path: str) -> bool:
+    """
+    Sync policy over the device's folder entries: the measurement folders in
+    the card root. Anything nested belongs to the folder above it and goes
+    with it; hidden and system names are left alone, the way the device's own
+    listing and every desktop OS leave them.
+    """
+    if "/" in path:
+        return False
+    if path.startswith("."):
+        return False
+    return path not in settings.IGNORE_FOLDERS
+
+
+def plan_device_deletes(verified, unverified, list_complete=True, empty_folders=()):
     """Split verified device paths into whole folders and single files.
 
     Rollview only syncs .prof, so deleting file by file would leave every
@@ -76,10 +90,17 @@ def plan_device_deletes(verified, unverified, list_complete=True):
     file by file instead, so nothing unmirrored is lost. Root level files
     have no folder to fold into and are always listed singly.
 
+    empty_folders are device folders holding no measurement whose mirror
+    folder now exists. A folder the operator named is worth keeping even
+    before anything is measured into it, so the name is the whole of what
+    there is to sync: once it is mirrored the device copy goes as a unit
+    like any other synced folder.
+
     list_complete=False means the device could not read part of its own
     listing, so there is no telling which folder the unreadable entries were
     in. Nothing is removed as a unit in that case: an entry that never
-    reached the mirror must not be deleted along with the folder holding it.
+    reached the mirror must not be deleted along with the folder holding it,
+    and a folder that only looked empty may not be.
 
     Returns (folders, files), each in first-seen order.
     """
@@ -98,5 +119,8 @@ def plan_device_deletes(verified, unverified, list_complete=True):
         if folder is None or folder in incomplete:
             files.append(path)
         elif folder not in folders:
+            folders.append(folder)
+    for folder in empty_folders:
+        if folder not in folders:
             folders.append(folder)
     return folders, files

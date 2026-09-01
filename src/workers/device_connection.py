@@ -53,6 +53,7 @@ from utils import preferences
 from utils.rqft_support import (
     BusyPortStatus,
     DeviceIdentity,
+    is_syncable_folder,
     is_syncable_prof,
     plan_device_deletes,
 )
@@ -63,6 +64,10 @@ log = logging.getLogger(__name__)
 
 # Transport read chunk used by the worker loop.
 _READ_SIZE = 65536
+
+# LIST_ENTRY type byte (SPEC.md section 5.3): 0 is a file, and the device
+# reports its folders with a type of their own.
+_ETYPE_FILE = 0
 
 # Idle watchdog for one operation: no event, byte, or progress movement
 # for this long fails the operation. The session's own T_DEAD (10 s)
@@ -598,11 +603,12 @@ class DeviceConnectionWorker(threading.Thread):
         """Fetch planned .prof files, reporting each committed path.
 
         Everything this sync leaves CRC-verified in the mirror is then
-        removed from the device. What survives is the device's own
+        removed from the device, folders the operator named but never
+        measured into included. What survives is the device's own
         folders-to-keep setting: it refuses those deletes, and a refusal
         is not a failure.
         """
-        missing, total_bytes, mirrored, list_complete = self._build_sync_plan()
+        missing, total_bytes, mirrored, list_complete, empty = self._build_sync_plan()
         skipped = len(mirrored)
         self._session.send_plan(len(missing), total_bytes, self._driver.now_ms())
         self._driver.flush()
@@ -622,6 +628,9 @@ class DeviceConnectionWorker(threading.Thread):
         # A file already in the mirror was left on the device by an earlier
         # sync that could not delete it, so it is deletable too.
         verified = [entry.path for entry in mirrored]
+        # Done before the fetch: an empty folder is one mkdir, and a sync that
+        # dies halfway has still carried the one thing that folder was.
+        mirrored_empty = self._mirror_empty_folders(empty)
 
         failed_files = 0
         for index, entry in enumerate(missing):
@@ -663,7 +672,10 @@ class DeviceConnectionWorker(threading.Thread):
                 entry.path for entry in missing if entry.path not in fetched_paths
             ]
             folders, files = plan_device_deletes(
-                verified, unverified, list_complete=list_complete
+                verified,
+                unverified,
+                list_complete=list_complete,
+                empty_folders=mirrored_empty,
             )
             deleted = self._delete_from_device(folders, files)
         self._bridge.syncFinished.emit(self.port, list(fetched), skipped, deleted)
@@ -730,14 +742,20 @@ class DeviceConnectionWorker(threading.Thread):
         """List remote profiles and plan the fetch batch.
 
         Returns (missing entries, total bytes, already-mirrored entries,
-        listing complete). A file whose local copy already matches by size
-        and CRC counts as mirrored and is not fetched again; everything else
-        is missing. An incomplete listing means the device could not read
-        some of its own entries, which is what stops a later delete taking a
-        folder as a unit.
+        listing complete, empty folders). A file whose local copy already
+        matches by size and CRC counts as mirrored and is not fetched again;
+        everything else is missing. An incomplete listing means the device
+        could not read some of its own entries, which is what stops a later
+        delete taking a folder as a unit.
+
+        A folder entry with no measurement under it is an empty folder: the
+        operator named it on the device and nothing was measured into it yet,
+        or nothing that survived. It has no files to fetch, so mirroring it
+        is all there is to do.
         """
         assert self._fs is not None
         entries: list[EntryListed] = []
+        folder_entries: list[EntryListed] = []
         skipped_entries = 0
 
         self._session.request_list("", want_crc=True, now_ms=self._driver.now_ms())
@@ -745,8 +763,10 @@ class DeviceConnectionWorker(threading.Thread):
         def accept_list(event):
             nonlocal skipped_entries
             if isinstance(event, EntryListed):
-                if event.etype == 0:
+                if event.etype == _ETYPE_FILE:
                     entries.append(event)
+                else:
+                    folder_entries.append(event)
                 return None
             if isinstance(event, EntrySkipped):
                 skipped_entries += 1
@@ -761,6 +781,12 @@ class DeviceConnectionWorker(threading.Thread):
             self._bridge.listWarnings.emit(self.port, skipped_entries)
 
         candidates = [entry for entry in entries if is_syncable_prof(entry.path)]
+        occupied = {entry.path.partition("/")[0] for entry in candidates}
+        empty = [
+            entry
+            for entry in folder_entries
+            if is_syncable_folder(entry.path) and entry.path not in occupied
+        ]
 
         missing: list[EntryListed] = []
         mirrored: list[EntryListed] = []
@@ -779,16 +805,41 @@ class DeviceConnectionWorker(threading.Thread):
 
         missing.sort(key=lambda entry: entry.path)
         total_bytes = sum(entry.size for entry in missing)
-        return missing, total_bytes, mirrored, skipped_entries == 0
+        return missing, total_bytes, mirrored, skipped_entries == 0, empty
 
-    def _apply_mtime(self, entry: EntryListed):
-        """Preserve the device modification time on the downloaded file.
-        Files from devices that report no mtime keep their download time."""
+    def _mirror_empty_folders(self, entries: list) -> list:
+        """Create the mirror folder for every device folder holding no
+        measurement, and return the paths that are now mirrored.
+
+        A folder that cannot be created locally is left out of what is
+        returned, so the device keeps it and the next sync tries again.
+        """
+        mirrored = []
+        for entry in entries:
+            target = Path(self._fs.root).joinpath(*entry.path.split("/"))
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                log.warning(f"Could not create folder {entry.path}: {e}")
+                continue
+            self._apply_mtime(entry, target)
+            mirrored.append(entry.path)
+        if mirrored:
+            log.info(
+                f"Sync {self.port}: mirrored {len(mirrored)} folders with no "
+                f"measurements in them"
+            )
+        return mirrored
+
+    def _apply_mtime(self, entry: EntryListed, target: Optional[Path] = None):
+        """Preserve the device modification time on what was mirrored.
+        Entries from devices that report no mtime keep their local time."""
         if entry.mtime <= 0:
             return
         # Device timestamps are local wall clock, not epoch. See time_sync.
         mtime = device_wall_clock_to_epoch(entry.mtime)
-        target = Path(self._fs.root).joinpath(*entry.path.split("/"))
+        if target is None:
+            target = Path(self._fs.root).joinpath(*entry.path.split("/"))
         try:
             os.utime(target, (mtime, mtime))
         except OSError as e:

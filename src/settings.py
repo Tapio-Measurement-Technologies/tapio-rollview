@@ -221,7 +221,11 @@ DISTANCE_UNIT_DEFAULT = "m"
 logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     level=logging.ERROR)
-IGNORE_FOLDERS = ['postprocessors', '.sync_history']
+# Folder names that are never a roll: rollview's own, and what an OS leaves
+# on a card behind the operator's back. A sync mirrors the device's folders,
+# empty ones included, so a name listed here is one it will neither copy nor
+# delete.
+IGNORE_FOLDERS = ['postprocessors', '.sync_history', 'System Volume Information']
 
 
 def load_local_settings(local_settings_path):
