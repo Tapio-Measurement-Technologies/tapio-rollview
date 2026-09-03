@@ -380,9 +380,10 @@ msgstr "固定"
 msgid "SERIAL_UNPIN_PORT"
 msgstr "固定解除"
 
-#. Used in main window as message text and status bar message.
+#. Status bar: how many units answer. Said when a scan pass ends and
+#. whenever discovery changes the count in the background.
 msgid "SERIAL_SYNC_STATUS_BAR_TEXT"
-msgstr "スキャンが完了しました。検出されたデバイス数: {count} 台。"
+msgstr "検出されたデバイス数: {count} 台。"
 
 #. Used in stats widget.
 msgid "ALERT_LIMITS_NOT_SET"
@@ -1116,7 +1117,8 @@ msgstr "データ処理モジュールを読み込み直します"
 msgid "GUIDANCE_OPEN_POSTPROCESSOR_FOLDER"
 msgstr "カスタムデータ処理のフォルダを開きます"
 
-#. Device panel: the scan button.
+#. Device panel: the scan button. Discovery runs by itself; the button is
+#. one pass over everything, most likely unit first.
 msgid "GUIDANCE_SCAN_DEVICES"
 msgstr "シリアルポートをスキャンしてデバイスを探します"
 
