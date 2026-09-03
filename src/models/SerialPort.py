@@ -1,6 +1,7 @@
 from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from serial.tools import list_ports_common
+import settings
 from theme.guidance import compose
 from utils import preferences
 from utils.rqft_support import firmware_supports_rqft
@@ -17,12 +18,23 @@ class SerialPortItem:
         port: list_ports_common.ListPortInfo,
         device_responded=False,
         known_device=False,
+        reachable=None,
+        paired_name="",
+        transport="other",
+        bluetooth_address=None,
     ):
         self.device = port.device
         self.description = port.description
         self.serial_number = port.serial_number
         self.device_responded = device_responded
         self.firmware_version = getattr(port, "firmware_version", "") or ""
+        # None until the port has been probed; then whether it answered.
+        self.reachable = reachable
+        # The name the operating system pairs the port with, for a
+        # Bluetooth unit listed before anything has reached it.
+        self.paired_name = paired_name or ""
+        self.transport = transport
+        self.bluetooth_address = bluetooth_address
         # A worker-held port may be a known RQFT device without having a
         # live session during this scan.
         self.supports_rqft = (
@@ -31,6 +43,18 @@ class SerialPortItem:
 
     def is_pinned(self):
         return self.device in preferences.pinned_serial_ports
+
+    def is_paired_unit(self):
+        """A paired Bluetooth unit of ours, known by name before any probe."""
+        prefixes = getattr(settings, "SERIAL_PAIRED_DEVICE_NAME_PREFIXES", ())
+        return bool(self.paired_name) and any(
+            self.paired_name.startswith(prefix) for prefix in prefixes
+        )
+
+    def is_listed_without_answer(self):
+        """Shown in the list, but nothing has answered on it: a paired unit
+        that is off, or a pinned port with nothing behind it."""
+        return not self.device_responded and (self.is_paired_unit() or self.is_pinned())
 
 
 # Connection indicator colors: (fill, outline); None fill = hollow.
@@ -104,11 +128,34 @@ class SerialPortModel(QAbstractListModel):
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
         elif role == Qt.ItemDataRole.DecorationRole:
-            if not item.supports_rqft:
-                return None
-            return _state_icon(self.getConnectionState(item.device))
+            if item.supports_rqft:
+                return _state_icon(self.getConnectionState(item.device))
+            if item.is_paired_unit():
+                # Known by name, not reached: the hollow ball says "could
+                # connect, nothing there yet", the same shape a disabled
+                # connection has.
+                return _state_icon(None)
+            return None
 
         return None
+
+    def flags(self, index):
+        flags = super().flags(index)
+        item = self.getPortItem(index.row()) if index.isValid() else None
+        if (
+            item is not None
+            and item.is_paired_unit()
+            and not item.device_responded
+            and not item.is_pinned()
+        ):
+            # A paired unit that is off stays in the list but cannot be the
+            # selection: nothing can be synced from a unit that is not
+            # there. The style sheet paints a disabled row in the disabled
+            # ink, which is the greying; the model cannot colour a row
+            # itself, since the row rule's colour wins over any foreground
+            # role. Right-click still reaches it, for Connect and pinning.
+            return Qt.ItemFlag.NoItemFlags
+        return flags
 
     @staticmethod
     def tooltip_for(item):
@@ -127,6 +174,10 @@ class SerialPortModel(QAbstractListModel):
             detail.append(_("GUIDANCE_FIRMWARE_VERSION").format(version=item.firmware_version))
         if item.is_pinned():
             detail.append(_("GUIDANCE_PORT_PINNED"))
+        if item.is_listed_without_answer():
+            # Why the row is grey: the unit is known and nothing answers.
+            detail.append(_("GUIDANCE_PORT_NOT_CHECKED") if item.reachable is None
+                          else _("GUIDANCE_PORT_NOT_REACHABLE"))
         action = (_("GUIDANCE_PORT_ACTIONS_RQFT") if item.supports_rqft
                   else _("GUIDANCE_PORT_ACTIONS"))
         return compose(item.device, detail, action)
@@ -156,6 +207,10 @@ class SerialPortModel(QAbstractListModel):
 
     def upsertItem(self, new_item):
         """Update an item if it exists, otherwise add it."""
+        if self.selected_port is not None and self.selected_port.device == new_item.device:
+            # The selection follows the port, not the object: a sync reads
+            # what the port last reported, not what it said when clicked.
+            self.selected_port = new_item
         for i, item in enumerate(self.ports):
             if item.device == new_item.device:
                 self.ports[i] = new_item
@@ -165,12 +220,31 @@ class SerialPortModel(QAbstractListModel):
         self.addItem(new_item)
         self.applyFilter()
 
+    def findItem(self, device):
+        for item in self.ports:
+            if item.device == device:
+                return item
+        return None
+
     def removeItem(self, row):
         actual_index = self.ports.index(self.filtered_ports[row])  # Get actual index in main list
         self.beginRemoveRows(QModelIndex(), row, row)
         del self.ports[actual_index]
         self.endRemoveRows()
         self.applyFilter()  # Reapply filter after removing item
+
+    def removeDevice(self, device):
+        """Drop a port that is no longer there, shown or not. A selection
+        on it is cleared, so nothing can sync to a port that has gone."""
+        remaining = [item for item in self.ports if item.device != device]
+        if len(remaining) == len(self.ports):
+            return
+        if self.selected_port is not None and self.selected_port.device == device:
+            self.selected_port = None
+        self.beginResetModel()
+        self.ports = remaining
+        self.endResetModel()
+        self.applyFilter()
 
     def removeItems(self):
         self.beginRemoveRows(QModelIndex(), 0, self.rowCount())
@@ -201,13 +275,20 @@ class SerialPortModel(QAbstractListModel):
     def applyFilter(self):
         """ Apply the filter and update the filtered_ports list. """
         if not preferences.show_all_com_ports:
-            # Filter to only show ports with device_responded = True, but always include pinned ports
+            # Pinned ports always, then the units that answered, then the
+            # paired units that did not: an operator sees the unit they are
+            # about to switch on, greyed out, rather than an empty list.
             pinned_ports = [item for item in self.ports if item.is_pinned()]
             responded_ports = [item for item in self.ports if item.device_responded and not item.is_pinned()]
-            # Sort both lists by serial port name
+            paired_ports = [
+                item for item in self.ports
+                if item.is_paired_unit() and not item.device_responded and not item.is_pinned()
+            ]
+            # Sort each list by serial port name
             pinned_ports.sort(key=lambda x: natural_sort_key(x.device))
             responded_ports.sort(key=lambda x: natural_sort_key(x.device))
-            self.filtered_ports = pinned_ports + responded_ports
+            paired_ports.sort(key=lambda x: natural_sort_key(x.device))
+            self.filtered_ports = pinned_ports + responded_ports + paired_ports
         else:
             # Show all ports, but pinned ports first
             pinned_ports = [item for item in self.ports if item.is_pinned()]

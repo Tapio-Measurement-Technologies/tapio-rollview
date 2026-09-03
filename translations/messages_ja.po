@@ -1120,6 +1120,15 @@ msgstr "カスタムデータ処理のフォルダを開きます"
 msgid "GUIDANCE_SCAN_DEVICES"
 msgstr "シリアルポートをスキャンしてデバイスを探します"
 
+#. Device list tooltip: a paired unit, or a pinned port, that nothing has
+#. answered on yet.
+msgid "GUIDANCE_PORT_NOT_CHECKED"
+msgstr "未確認"
+
+#. Device list tooltip: why a paired unit is greyed out.
+msgid "GUIDANCE_PORT_NOT_REACHABLE"
+msgstr "ペアリング済みですが応答がありません。デバイスの電源を入れると検出されます。"
+
 #. Device panel: the sync button, when it can be pressed.
 msgid "GUIDANCE_SYNC_DEVICE"
 msgstr "選択したデバイスの測定データをコピーします"

@@ -549,6 +549,15 @@ QTreeWidget::item, QListWidget::item {
     color: ${ink_secondary};
 }
 
+/* A row its model has disabled: the device list does this for a paired
+   unit that is off. It stays listed, in the disabled ink, and keeps its
+   context menu; it cannot be the selection. The row rule above sets the
+   colour for every row, so this is the one way a model can grey one out. */
+QTreeView::item:disabled, QTableView::item:disabled, QListView::item:disabled,
+QTreeWidget::item:disabled, QListWidget::item:disabled {
+    color: ${ink_disabled};
+}
+
 QTreeView::item:hover, QListView::item:hover,
 QTreeWidget::item:hover, QListWidget::item:hover {
     background-color: ${surface_sunken};

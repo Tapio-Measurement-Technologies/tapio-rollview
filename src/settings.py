@@ -165,6 +165,10 @@ SPECTRUM_WAVELENGTH_SCALE = True
 PINNED_SERIAL_PORTS_DEFAULT = set()
 ALLOWED_SERIAL_USB_IDS = {(0x16C0, 0x0483)}
 SERIAL_BLUETOOTH_PORT_MARKERS = ("bluetooth", "bthenum", "bthmodem", "rfcomm")
+# A paired Bluetooth unit whose name starts with one of these is listed,
+# greyed out, before anything has probed it: "Tapio RQP Live (1428495563)"
+# is a unit worth showing while it is off, a paired GPS receiver is not.
+SERIAL_PAIRED_DEVICE_NAME_PREFIXES = ("Tapio RQP",)
 
 # RQFT persistent connections
 # Firmware reports git-describe versions; semver at or above this supports

@@ -1123,6 +1123,15 @@ msgstr "Open the custom postprocessor folder"
 msgid "GUIDANCE_SCAN_DEVICES"
 msgstr "Scan the serial ports for connected devices"
 
+#. Device list tooltip: a paired unit, or a pinned port, that nothing has
+#. answered on yet.
+msgid "GUIDANCE_PORT_NOT_CHECKED"
+msgstr "Not checked"
+
+#. Device list tooltip: why a paired unit is greyed out.
+msgid "GUIDANCE_PORT_NOT_REACHABLE"
+msgstr "Paired but not answering. Switch the unit on and it will be found."
+
 #. Device panel: the sync button, when it can be pressed.
 msgid "GUIDANCE_SYNC_DEVICE"
 msgstr "Copy measurements from the selected device"
