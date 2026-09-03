@@ -179,10 +179,18 @@ class DeviceConnectionWorker(threading.Thread):
     """Owns the serial transport and Session for one device; sole thread
     touching either. Non-blocking public API for the GUI thread."""
 
-    def __init__(self, port: str, bridge: ConnectionBridge):
+    def __init__(self, port: str, bridge: ConnectionBridge, bluetooth: bool = False):
         super().__init__(name=f"rqft-conn-{port}", daemon=True)
         self.port = port
         self._bridge = bridge
+        # A Bluetooth port is never re-opened on a timer: opening one whose
+        # unit is off pages it for five seconds and the radio pages one
+        # unit at a time, so the discovery lane does the paging for every
+        # Bluetooth port and enables the worker when the unit answers.
+        # Meanwhile the worker sits in OPEN_BACKOFF with this flag set and
+        # the port is not reported busy, so the lane may probe it.
+        self.bluetooth = bluetooth
+        self.awaiting_reachable = False
         self._queue: "queue.Queue[_Op]" = queue.Queue()
         self._stop_event = threading.Event()
         self._cancel = threading.Event()
@@ -208,6 +216,15 @@ class DeviceConnectionWorker(threading.Thread):
         self._backoff_index = 0
         self._retry_at = 0.0
         self._hello_retry_at = 0.0
+        self.awaiting_reachable = False
+
+    def retry_now(self):
+        """Drop every backoff and try the port again at once: the operator
+        pressed the scan button, or discovery just found the unit."""
+        self._backoff_index = 0
+        self._retry_at = 0.0
+        self._hello_retry_at = 0.0
+        self.awaiting_reachable = False
 
     def request_sync(self, auto: bool):
         """Queue a sync; connects first when needed. Results arrive as
@@ -267,7 +284,11 @@ class DeviceConnectionWorker(threading.Thread):
                     self._set_state(ConnectionState.DISABLED)
                 elif self._transport is None:
                     self._set_state(ConnectionState.OPEN_BACKOFF)
-                    if time.monotonic() >= self._retry_at:
+                    if self.awaiting_reachable:
+                        # The discovery lane pages Bluetooth ports; it
+                        # re-enables this worker when the unit answers.
+                        pass
+                    elif time.monotonic() >= self._retry_at:
                         self._try_open()
                 else:
                     self._idle_tick()
@@ -294,6 +315,10 @@ class DeviceConnectionWorker(threading.Thread):
         except Exception as e:
             log.debug(f"Could not open {self.port}: {e}")
             self._transport = None
+            if self.bluetooth:
+                log.info(f"{self.port} not reachable; waiting for discovery")
+                self.awaiting_reachable = True
+                return
             backoffs = settings.RQFT_OPEN_BACKOFF_S
             delay = backoffs[min(self._backoff_index, len(backoffs) - 1)]
             self._backoff_index += 1
@@ -332,6 +357,10 @@ class DeviceConnectionWorker(threading.Thread):
         self._close_transport()
         self._backoff_index = 0
         self._retry_at = time.monotonic() + settings.RQFT_OPEN_BACKOFF_S[0]
+        if self.bluetooth:
+            # The unit went off or out of range. Paging it from here
+            # would burn the radio; the lane pages on its own cadence.
+            self.awaiting_reachable = True
         if was_open:
             self._bridge.connectionLost.emit(self.port, "unplugged")
         self._set_state(
@@ -860,6 +889,9 @@ class DeviceConnectionManager(QObject):
         self._states: dict[str, ConnectionState] = {}
         self.identities: dict[str, DeviceIdentity] = {}
         self._manually_disconnected: set[str] = set()
+        # Ports the scan classified as Bluetooth: their workers leave the
+        # paging to the discovery lane.
+        self._bluetooth_ports: set[str] = set()
         self._transfer_manager = None
 
     def set_transfer_manager(self, transfer_manager):
@@ -872,6 +904,10 @@ class DeviceConnectionManager(QObject):
         for item in port_items:
             if not getattr(item, "device_responded", False):
                 continue
+            if getattr(item, "transport", None) == "bluetooth":
+                self._bluetooth_ports.add(item.device)
+            else:
+                self._bluetooth_ports.discard(item.device)
             if not getattr(item, "supports_rqft", False):
                 continue
             self.identities[item.device] = DeviceIdentity(
@@ -893,7 +929,9 @@ class DeviceConnectionManager(QObject):
         bridge.notify.connect(self._on_notify)
         bridge.connectionLost.connect(self._on_connection_lost)
         bridge.listWarnings.connect(self.listWarnings)
-        worker = DeviceConnectionWorker(port, bridge)
+        worker = DeviceConnectionWorker(
+            port, bridge, bluetooth=port in self._bluetooth_ports
+        )
         self._workers[port] = worker
         self._bridges[port] = bridge
         worker.enable()
@@ -904,6 +942,26 @@ class DeviceConnectionManager(QObject):
     def manual_connect(self, port: str):
         self._manually_disconnected.discard(port)
         self._ensure_worker(port)
+
+    def allow_auto_connect(self, port: str):
+        """Forget a manual disconnect, so the next scan result for the
+        port connects it again. For the Connect action on a unit that has
+        not answered yet: the connect happens when it does."""
+        self._manually_disconnected.discard(port)
+
+    def retry_all_now(self):
+        """The scan button: every worker sitting in a backoff tries again.
+
+        Bluetooth workers waiting on discovery are left waiting: the scan
+        the button starts probes their ports, and a worker paging the same
+        port at the same time would only fight it for the radio.
+        """
+        for worker in list(self._workers.values()):
+            if not worker.is_alive() or not worker.enabled:
+                continue
+            if worker.bluetooth and worker.awaiting_reachable:
+                continue
+            worker.retry_now()
 
     def manual_disconnect(self, port: str):
         self._manually_disconnected.add(port)
@@ -934,8 +992,10 @@ class DeviceConnectionManager(QObject):
         identity counts as a scan response only while its RQFT session
         is currently connected."""
         busy = {}
-        for port, worker in self._workers.items():
-            if worker.is_alive() and worker.enabled:
+        # Copied first: the discovery lane calls this from its own thread
+        # while this thread may be adding a worker.
+        for port, worker in list(self._workers.items()):
+            if worker.is_alive() and worker.enabled and not worker.awaiting_reachable:
                 busy[port] = BusyPortStatus(
                     identity=self.identities.get(
                         port, DeviceIdentity("", "", "")
