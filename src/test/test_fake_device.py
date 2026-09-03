@@ -27,11 +27,10 @@ def device():
 
 
 def test_scanner_finds_and_identifies_the_device(device, app_modules):
-    from workers.port_scanner import PortScannerWorker
+    from workers.port_scanner import probe_port
 
-    worker = PortScannerWorker()
     with device.patch_comports():
-        port_info, responded, error = worker._scan_single_port(device.port_info())
+        port_info, responded, error = probe_port(device.port_info())
 
     assert responded, f"device did not respond (error={error})"
     device.wait_for(lambda: device.commands)
@@ -41,22 +40,20 @@ def test_scanner_finds_and_identifies_the_device(device, app_modules):
 
 
 def test_scan_sets_the_device_clock(device, app_modules):
-    from workers.port_scanner import PortScannerWorker
+    from workers.port_scanner import probe_port
 
-    worker = PortScannerWorker()
     with device.patch_comports():
-        worker._scan_single_port(device.port_info())
+        probe_port(device.port_info())
 
     assert device.wait_for(lambda: device.timestamps), "device never received RQP+SETTIME"
     assert device.timestamps[0] > 1_600_000_000
 
 
 def test_silent_port_is_not_reported_as_a_device(app_modules):
-    from workers.port_scanner import PortScannerWorker
+    from workers.port_scanner import probe_port
 
     with FakeRqftDevice(respond_to_deviceinfo=False) as silent:
-        worker = PortScannerWorker()
-        _, responded, _ = worker._scan_single_port(silent.port_info())
+        _, responded, _ = probe_port(silent.port_info())
 
     assert not responded
 

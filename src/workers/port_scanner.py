@@ -1,378 +1,878 @@
 """
-This module contains the worker and related classes for scanning serial ports.
+Device discovery: finding RQP Live units on the serial ports, by itself.
+
+There used to be one scan: open every candidate port in a thread pool, wait
+for all of them, then show the list. On Windows that wait is the Bluetooth
+page timeout, 5.12 s, for every paired unit that happens to be off, and the
+radio pages one unit at a time, so the thread pool bought nothing and the
+list stayed empty until the slowest port had given up.
+
+What runs now is a lane: one background thread that keeps a table of the
+ports, re-reads the port list every second or two (cheap), and probes one
+port at a time in priority order. A USB port is probed the moment it
+appears. A Bluetooth port is probed on a cadence that depends on how recently
+the paired unit was used, back to back while an operator is likely to be
+switching one on, and rarely for pairings nobody has touched in weeks. Every
+probe publishes its own result, so a unit that answers is listed a second
+after it is asked, whatever else is still being paged.
+
+Pressing the scan button does not change what the lane can do, only the
+order and the urgency: it marks every candidate for one pass, most likely
+unit first, drops every backoff, and keeps the lane eager for a while. The
+status bar shows that pass and can stop it; the lane goes on quietly after.
+
+Three things the measurements settled, and the code leans on:
+- A page cannot be cancelled. A blocked open returns when Windows lets it,
+  so stopping means "after this probe", never mid-probe.
+- The radio serialises pages. Probing two absent units in parallel takes
+  twice as long, so there is exactly one prober, and the RQFT connection
+  workers do not page Bluetooth ports themselves: they wait for the lane
+  to report the unit reachable (see workers.device_connection).
+- Paging while another unit's link is open costs that link about a third of
+  its throughput. The lane pauses for the duration of a sync.
 """
 
 import json
 import logging
+import threading
+import time
+from dataclasses import dataclass
+from typing import Callable, Optional
+
 import serial
 import serial.tools.list_ports
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from PySide6.QtCore import QObject, Signal, QThread
+from PySide6.QtCore import QObject, Signal
+from serial.tools import list_ports_common
+
 import settings
 from models.SerialPort import SerialPortItem, natural_sort_key
-from serial.tools import list_ports_common
+from utils import preferences
+from utils.bluetooth_ports import (
+    KIND_BLUETOOTH,
+    KIND_BLUETOOTH_INCOMING,
+    KIND_OTHER,
+    KIND_USB,
+    classify_port,
+    matches_bluetooth_marker,
+    paired_devices,
+    split_paired_name,
+)
 from utils.time_sync import send_timestamp
 from utils.translation import _
-from utils import preferences
-from utils.rqft_support import BusyPortStatus
-import os
 
 log = logging.getLogger(__name__)
 
+PROBE_TIMEOUT_S = 0.2
 
-class PortScannerWorker(QObject):
+
+# -- one probe ---------------------------------------------------------------
+
+def probe_port(port_info, running=lambda: True):
+    """Ask one port whether an RQP Live is behind it.
+
+    Opens the port, sends RQP+DEVICEINFO?, and reads one line. A unit that
+    answers gets its clock set on the way out. Returns
+    ``(port_info, device_responded, error_message)``; the port_info carries
+    the description, serial number and firmware version the unit reported.
+
+    ``running`` is consulted after the open: an open on a Bluetooth port can
+    block for seconds, and a shutdown that arrived meanwhile should not send
+    anything.
     """
-    A worker that scans serial ports in a separate thread using a thread pool.
+    if not running():
+        return port_info, False, "Scan cancelled"
 
-    It uses a thread pool to scan all available COM ports simultaneously,
-    attempts to communicate with a device on each port, and emits signals
-    indicating its progress and the discovered ports.
+    device_responded = False
+    port = None
+    error_message = None
 
-    Signals:
-        progress(int, str): Emitted to report scanning progress. The first
-            argument is the percentage (0-100), and the second is a
-            status message.
-        finished(list): Emitted when the scan is complete. The argument
-            is a list of `SerialPortItem` objects for all discovered ports.
-        error(str): Emitted when a significant error occurs that stops
-            the scan.
-    """
-    progress = Signal(int, str)
-    finished = Signal(list)
-    error = Signal(str)
-
-    def __init__(self, max_workers=None, busy_ports=None):
-        super().__init__()
-        self._running = True
-        self._max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
-        # Ports held open by persistent RQFT connections: never probed
-        # (probing would fail to open the port, or worse, inject the
-        # DEVICEINFO command into a live session). Maps device name to
-        # cached identity and live-session status.
-        self._busy_ports = busy_ports or {}
-
-    def _allowed_usb_ids(self):
-        return {
-            (self._coerce_id(vid), self._coerce_id(pid))
-            for vid, pid in getattr(settings, "ALLOWED_SERIAL_USB_IDS", set())
-        }
-
-    def _coerce_id(self, value):
-        if isinstance(value, str):
-            return int(value, 0)
-        return int(value)
-
-    def _bluetooth_serial_markers(self):
-        return tuple(
-            marker.casefold()
-            for marker in getattr(settings, "SERIAL_BLUETOOTH_PORT_MARKERS", ())
-            if marker
+    try:
+        port = serial.Serial(
+            port=port_info.device,
+            baudrate=115200,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=PROBE_TIMEOUT_S,
+            write_timeout=PROBE_TIMEOUT_S,
+            xonxoff=False,
+            rtscts=False,
+            dsrdtr=False,
         )
 
-    def _port_text_fields(self, port_info):
-        return (
-            getattr(port_info, "device", None),
-            getattr(port_info, "description", None),
-            getattr(port_info, "name", None),
-            getattr(port_info, "product", None),
-            getattr(port_info, "manufacturer", None),
-            getattr(port_info, "hwid", None),
-        )
-
-    def _matches_allowed_usb_id(self, port_info):
-        vid = getattr(port_info, "vid", None)
-        pid = getattr(port_info, "pid", None)
-        if vid is None or pid is None:
-            return False
-        return (int(vid), int(pid)) in self._allowed_usb_ids()
-
-    def _matches_bluetooth_serial_port(self, port_info):
-        markers = self._bluetooth_serial_markers()
-        if not markers:
-            return False
-
-        for value in self._port_text_fields(port_info):
-            if not value:
-                continue
-            normalized = str(value).casefold()
-            if any(marker in normalized for marker in markers):
-                return True
-        return False
-
-    def _should_probe_port(self, port_info):
-        if port_info.device in preferences.pinned_serial_ports:
-            return True
-        return (
-            self._matches_allowed_usb_id(port_info)
-            or self._matches_bluetooth_serial_port(port_info)
-        )
-
-    def _scan_single_port(self, port_info):
-        """
-        Scans a single port for device communication.
-
-        Args:
-            port_info: The port information object from serial.tools.list_ports
-
-        Returns:
-            tuple: (port_info, device_responded, error_message)
-        """
-        if not self._running:
+        if not running():
             return port_info, False, "Scan cancelled"
 
-        device_responded = False
-        port = None
-        error_message = None
+        port.write(b"RQP+DEVICEINFO?\n")
+        response = port.readline().decode("utf-8").strip()
 
-        try:
-            port = serial.Serial(
-                port=port_info.device,
-                baudrate=115200,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=0.2,
-                write_timeout=0.2,
-                xonxoff=False,
-                rtscts=False,
-                dsrdtr=False,
-            )
-
-            if not self._running:
-                return port_info, False, "Scan cancelled"
-
-            port.write(b"RQP+DEVICEINFO?\n")
-            response = port.readline().decode("utf-8").strip()
-
-            if self._running and response:
-                log.debug(f"Port {port_info.device} response: {response}")
-                try:
-                    response_data = json.loads(response)
-                    if (
-                        "deviceName" in response_data
-                        and "serialNumber" in response_data
-                    ):
-                        port_info.description = response_data["deviceName"]
-                        port_info.serial_number = response_data["serialNumber"]
-                        port_info.firmware_version = response_data.get(
-                            "firmwareVersion", ""
-                        )
-                        device_responded = True
-                        send_timestamp(port)
-                except json.JSONDecodeError:
-                    log.warning(
-                        f"Could not decode JSON from port {port_info.device}: {response}"
+        if running() and response:
+            log.debug(f"Port {port_info.device} response: {response}")
+            try:
+                response_data = json.loads(response)
+                if (
+                    "deviceName" in response_data
+                    and "serialNumber" in response_data
+                ):
+                    port_info.description = response_data["deviceName"]
+                    port_info.serial_number = response_data["serialNumber"]
+                    port_info.firmware_version = response_data.get(
+                        "firmwareVersion", ""
                     )
-
-        except (serial.SerialException, OSError) as e:
-            error_message = str(e)
-            log.debug(f"Error opening or reading from port {port_info.device}: {e}")
-        finally:
-            if port and port.is_open:
-                port.close()
-
-        return port_info, device_responded, error_message
-
-    def run(self):
-        """
-        Starts the port scanning process using a thread pool.
-
-        This method should be run in a separate thread. It uses a thread pool
-        to scan all available serial ports simultaneously, checks for a specific
-        device response, and builds a list of `SerialPortItem`s.
-        """
-        self._running = True
-        ports = list(serial.tools.list_ports.comports())
-        scanned_ports = []
-        discovered_devices = {port.device for port in ports}
-
-        for device in sorted(preferences.pinned_serial_ports, key=natural_sort_key):
-            if device in discovered_devices:
-                continue
-            port_info = list_ports_common.ListPortInfo(device)
-            port_info.description = ""
-            port_info.serial_number = ""
-            ports.append(port_info)
-
-        if not ports:
-            log.info("No COM ports found.")
-            self.progress.emit(100, _("PORTSCAN_NO_PORTS_FOUND_TEXT"))
-            self.finished.emit([])
-            return
-
-        # Ports held by live RQFT connections are reported from cached
-        # identity, never probed. This must come before the pinned check:
-        # pinned ports are otherwise always probed.
-        busy_infos = [port for port in ports if port.device in self._busy_ports]
-        ports = [port for port in ports if port.device not in self._busy_ports]
-        for port_info in busy_infos:
-            status: BusyPortStatus = self._busy_ports[port_info.device]
-            identity = status.identity
-            if identity.device_name:
-                port_info.description = identity.device_name
-            if identity.serial_number:
-                port_info.serial_number = identity.serial_number
-            port_info.firmware_version = identity.firmware_version
-            scanned_ports.append(
-                SerialPortItem(
-                    port_info,
-                    device_responded=status.connected,
-                    known_device=True,
+                    device_responded = True
+                    send_timestamp(port)
+            except json.JSONDecodeError:
+                log.warning(
+                    f"Could not decode JSON from port {port_info.device}: {response}"
                 )
+
+    except (serial.SerialException, OSError) as e:
+        error_message = str(e)
+        log.debug(f"Error opening or reading from port {port_info.device}: {e}")
+    finally:
+        if port and port.is_open:
+            port.close()
+
+    return port_info, device_responded, error_message
+
+
+# -- which ports are worth asking --------------------------------------------
+
+def _coerce_id(value):
+    if isinstance(value, str):
+        return int(value, 0)
+    return int(value)
+
+
+def _allowed_usb_ids():
+    return {
+        (_coerce_id(vid), _coerce_id(pid))
+        for vid, pid in getattr(settings, "ALLOWED_SERIAL_USB_IDS", set())
+    }
+
+
+def matches_allowed_usb_id(port_info):
+    vid = getattr(port_info, "vid", None)
+    pid = getattr(port_info, "pid", None)
+    if vid is None or pid is None:
+        return False
+    return (int(vid), int(pid)) in _allowed_usb_ids()
+
+
+def should_probe_port(port_info, port_class):
+    """Whether a port is a candidate at all.
+
+    Pinned ports always are: pinning is the operator saying "this one".
+    Otherwise a port has to look like the unit's USB interface or like a
+    Bluetooth port. An incoming Bluetooth port never has a unit behind it,
+    RollView is the side that calls, so it is left alone.
+    """
+    if port_info.device in preferences.pinned_serial_ports:
+        return True
+    if port_class.kind == KIND_BLUETOOTH_INCOMING:
+        return False
+    return (
+        matches_allowed_usb_id(port_info)
+        or port_class.kind == KIND_BLUETOOTH
+        or matches_bluetooth_marker(
+            port_info, getattr(settings, "SERIAL_BLUETOOTH_PORT_MARKERS", ())
+        )
+    )
+
+
+def _port_info(device):
+    """A bare ListPortInfo for a device name.
+
+    Without skip_link_detection pyserial asks os.path.islink() about the
+    name, and Windows answers that by opening the device: a second of link
+    set-up for a unit that is on, a page for one that is off. pyserial's
+    own enumerator skips the check for the same reason.
+    """
+    return list_ports_common.ListPortInfo(device, skip_link_detection=True)
+
+
+# -- the table -----------------------------------------------------------------
+
+@dataclass
+class Candidate:
+    """One port the lane knows about. Mutated only under the lane's lock."""
+    device: str
+    info: list_ports_common.ListPortInfo
+    kind: str
+    address: Optional[str] = None
+    probeable: bool = False
+    pinned: bool = False
+    paired_name: str = ""
+    last_used: Optional[float] = None      # wall clock, from the paired list
+    # None until probed; then whether the last probe was answered.
+    reachable: Optional[bool] = None
+    # Monotonic clock throughout.
+    last_probe: float = 0.0
+    responded_at: float = 0.0
+    next_due: float = 0.0
+    requested_at: Optional[float] = None    # an explicit "this one next"
+    in_pass: bool = False
+    # (description, serial number, firmware version) the unit last reported.
+    identity: Optional[tuple] = None
+
+
+class DiscoveryLane:
+    """The background thread that keeps the port table and probes it.
+
+    Results go out through ``publisher``, an object with the methods
+    ``port_appeared(item)``, ``port_gone(device)``, ``port_result(item)``,
+    ``progress(percent, text)`` and ``pass_finished(items)``. They are called
+    from the lane thread, except that ``stop_pass`` reports from its caller.
+
+    Everything time-related takes an injected clock so the ordering rules
+    can be tested without waiting; ``step()`` is one unit of work and can be
+    driven by hand.
+    """
+
+    def __init__(
+        self,
+        publisher,
+        busy_ports: Optional[Callable[[], dict]] = None,
+        clock=time.monotonic,
+        wall_clock=time.time,
+        comports=None,
+        paired=None,
+        probe=None,
+    ):
+        self._publisher = publisher
+        self._busy_ports = busy_ports or (lambda: {})
+        self._clock = clock
+        self._wall_clock = wall_clock
+        self._comports = comports or serial.tools.list_ports.comports
+        self._paired = paired or paired_devices
+        self._probe = probe or probe_port
+
+        self._cond = threading.Condition(threading.RLock())
+        self._cands: dict[str, Candidate] = {}
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._paused = False
+        self._current: Optional[str] = None
+        self._preferred: Optional[str] = None
+        self._next_enum = 0.0
+        self._radio_free_at = 0.0
+        self._eager_until = 0.0
+        self._pass_requested = False
+        self._pass_active = False
+        self._pass_total = 0
+        self._pass_done = 0
+
+    # -- publishing ----------------------------------------------------
+
+    def _publish(self, event, *args):
+        """Hand an event to the publisher.
+
+        A shutdown that times out on a Bluetooth page leaves this thread
+        alive after the widget is gone; emitting on a deleted QObject then
+        raises here, in the wrong thread to do anything about it. The
+        event is dropped, since nobody is left to hear it.
+        """
+        try:
+            getattr(self._publisher, event)(*args)
+        except RuntimeError as error:
+            log.debug(f"Discovery event {event} dropped: {error}")
+
+    # -- lifecycle (any thread) ----------------------------------------
+
+    def start(self):
+        """Start the thread; a no-op while it runs. A lane stopped earlier
+        can be started again."""
+        with self._cond:
+            if self._thread is not None and self._thread.is_alive():
+                return
+            self._stop.clear()
+            self._thread = threading.Thread(
+                target=self._run, name="device-discovery", daemon=True
             )
+            self._thread.start()
 
-        ports_to_probe = [port for port in ports if self._should_probe_port(port)]
-        skipped_ports = [port for port in ports if port not in ports_to_probe]
+    def is_alive(self):
+        thread = self._thread
+        return thread is not None and thread.is_alive()
 
-        scanned_ports.extend(SerialPortItem(port_info, False) for port_info in skipped_ports)
+    def request_stop(self):
+        """Ask the thread to exit after the probe it is in, if any."""
+        self._stop.set()
+        with self._cond:
+            self._cond.notify_all()
 
-        if not ports_to_probe:
-            log.info("No matching COM ports found.")
-            self.progress.emit(100, _("PORTSCAN_COMPLETE_TEXT"))
-            self.finished.emit(scanned_ports)
+    def join(self, timeout=None):
+        thread = self._thread
+        if thread is None or thread is threading.current_thread():
             return
+        thread.join(timeout)
 
-        log.info(f"Starting parallel scan of {len(ports_to_probe)} candidate ports using {self._max_workers} workers")
+    # -- requests (GUI thread) -----------------------------------------
 
-        # Use ThreadPoolExecutor to scan ports in parallel
-        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
-            # Submit all port scanning tasks
-            future_to_port = {
-                executor.submit(self._scan_single_port, port_info): port_info
-                for port_info in ports_to_probe
-            }
+    def scan_now(self):
+        """One pass over every candidate, most likely first, and eager
+        probing for a while after. The lane enumerates first, so a pass
+        asked for before the first enumeration still covers every port."""
+        with self._cond:
+            self._pass_requested = True
+            self._eager_until = self._clock() + settings.DISCOVERY_EAGER_S
+            self._cond.notify_all()
 
-            completed_count = 0
-            total_ports = len(ports_to_probe)
+    def stop_pass(self):
+        """End the pass, and the eager window with it: the operator asked
+        for the radio to be left alone. Recently used units are still
+        probed on their own cadence. Reports pass_finished from the
+        caller's thread, and only once, whichever side gets there first."""
+        with self._cond:
+            self._pass_requested = False
+            self._eager_until = 0.0
+            now = self._clock()
+            for candidate in self._cands.values():
+                # A stale pairing already asked once goes back to its slow
+                # cadence at once, not after the re-probe the eager window
+                # had scheduled. One never asked is still asked once.
+                if (
+                    candidate.kind == KIND_BLUETOOTH
+                    and candidate.reachable is False
+                    and not self._is_recent_locked(candidate)
+                ):
+                    candidate.next_due = max(
+                        candidate.next_due, now + settings.DISCOVERY_STALE_INTERVAL_S
+                    )
+            ended = self._end_pass_locked()
+            items = self._items_locked() if ended else None
+        if ended:
+            self._publish("pass_finished", items)
 
-            # Process completed tasks as they finish
-            for future in as_completed(future_to_port):
-                if not self._running:
-                    # Cancel remaining tasks
-                    for f in future_to_port:
-                        f.cancel()
-                    break
+    def probe_now(self, device):
+        """Probe this port before anything else that is waiting."""
+        with self._cond:
+            candidate = self._cands.get(device)
+            if candidate is None:
+                log.info(f"No such port to probe: {device}")
+                return False
+            candidate.requested_at = self._clock()
+            candidate.next_due = 0.0
+            self._cond.notify_all()
+        return True
 
-                try:
-                    port_info, device_responded, error_message = future.result()
-                    completed_count += 1
+    def set_paused(self, paused):
+        """Hold off probing, for the duration of a sync. The probe in
+        flight completes; nothing new starts until unpaused."""
+        with self._cond:
+            self._paused = bool(paused)
+            self._cond.notify_all()
 
-                    # Update progress
-                    progress_percent = int((completed_count / total_ports) * 100)
-                    status_msg = f"{_('PORTSCAN_SCANNING_PORT_TEXT')} '{port_info.device}'... ({completed_count}/{total_ports})"
-                    self.progress.emit(progress_percent, status_msg)
+    def set_preferred(self, device):
+        """The port the operator has selected goes first in every order."""
+        with self._cond:
+            self._preferred = device
 
-                    # Add result to scanned ports
-                    scanned_ports.append(SerialPortItem(port_info, device_responded))
+    def current_probe(self):
+        with self._cond:
+            return self._current
 
-                    if error_message and error_message != "Scan cancelled":
-                        log.debug(f"Port {port_info.device} scan error: {error_message}")
+    def wait_until_port_free(self, device, timeout):
+        """Block until the lane is not inside a probe of this port.
 
-                except Exception as e:
-                    completed_count += 1
-                    log.error(f"Unexpected error scanning port: {e}")
-                    # Add the port with error status
-                    port_info = future_to_port[future]
-                    scanned_ports.append(SerialPortItem(port_info, False))
-
-        log.info(f"Port scan finished. Found {len(scanned_ports)} ports.")
-        self.finished.emit(scanned_ports)
-
-    def stop(self):
+        For a sync about to open the port itself. Bounded: a unit that is
+        on answers in about a second, and one that is not would fail the
+        sync's own open anyway.
         """
-        Stops the scanning process.
-        """
-        self._running = False
-        log.info("Stopping port scanner.")
+        deadline = self._clock() + timeout
+        with self._cond:
+            while self._current == device:
+                remaining = deadline - self._clock()
+                if remaining <= 0:
+                    return False
+                self._cond.wait(min(remaining, 0.1))
+        return True
+
+    def snapshot(self):
+        """Every known port as an item, for a pass summary."""
+        with self._cond:
+            return self._items_locked()
+
+    # -- the thread ----------------------------------------------------
+
+    def _run(self):
+        log.info("Device discovery started")
+        while not self._stop.is_set():
+            try:
+                worked = self.step()
+            except Exception:
+                # The lane is the only thing that finds devices; one bad
+                # port or one odd enumeration must not end it.
+                log.exception("Device discovery step failed")
+                worked = False
+                time.sleep(0.5)
+            if worked or self._stop.is_set():
+                continue
+            with self._cond:
+                if not self._stop.is_set():
+                    self._cond.wait(self._idle_wait_locked())
+        log.info("Device discovery stopped")
+
+    def step(self):
+        """One unit of work: enumerate if due, then run the next probe.
+        Returns True when a probe ran."""
+        if self._stop.is_set():
+            return False
+        with self._cond:
+            pass_requested = self._pass_requested
+            enumerate_due = self._clock() >= self._next_enum
+        if pass_requested or enumerate_due:
+            self._refresh()
+        if pass_requested:
+            self._begin_pass()
+        busy = self._busy_snapshot()
+        with self._cond:
+            if self._paused or self._stop.is_set():
+                return False
+            candidate = self._pick_next_locked(busy)
+            if candidate is None:
+                self._finish_pass_if_done_locked(busy)
+                return False
+            self._current = candidate.device
+            info = candidate.info
+            device = candidate.device
+            kind = candidate.kind
+        self._run_probe(device, info, kind)
+        return True
+
+    def _idle_wait_locked(self):
+        """How long to sleep with nothing to do: until the next enumeration
+        or the next due probe, whichever is sooner, and never a busy loop."""
+        now = self._clock()
+        wake = self._next_enum
+        if not self._paused:
+            for candidate in self._cands.values():
+                if not candidate.probeable:
+                    continue
+                due = candidate.next_due
+                if candidate.kind == KIND_BLUETOOTH:
+                    due = max(due, self._radio_free_at)
+                wake = min(wake, due)
+        return min(max(wake - now, 0.05), settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+
+    def _busy_snapshot(self):
+        try:
+            return dict(self._busy_ports() or {})
+        except Exception:
+            log.exception("Busy port lookup failed; probing nothing this step")
+            # Safer to probe nothing than to inject into a live session.
+            return {device: None for device in list(self._cands)}
+
+    # -- enumeration ---------------------------------------------------
+
+    def _refresh(self):
+        """Re-read the port list and reconcile the table with it."""
+        try:
+            ports = list(self._comports())
+        except Exception:
+            log.exception("Listing the serial ports failed")
+            with self._cond:
+                self._next_enum = self._clock() + settings.DISCOVERY_ENUMERATE_INTERVAL_S
+            return
+        pinned = set(preferences.pinned_serial_ports)
+        seen = {port.device for port in ports}
+        for device in sorted(pinned - seen, key=natural_sort_key):
+            info = _port_info(device)
+            info.description = ""
+            info.serial_number = ""
+            ports.append(info)
+        try:
+            paired = self._paired() or {}
+        except Exception:
+            log.exception("Paired device lookup failed")
+            paired = {}
+
+        appeared = []
+        gone = []
+        with self._cond:
+            now = self._clock()
+            present = {port.device for port in ports}
+            for device in list(self._cands):
+                if device not in present:
+                    # A probe in flight on it fails on its own and finds
+                    # no candidate to record against.
+                    gone.append(device)
+                    del self._cands[device]
+            for port in ports:
+                candidate = self._cands.get(port.device)
+                if candidate is None:
+                    candidate = self._new_candidate_locked(port, pinned, paired, now)
+                    self._cands[port.device] = candidate
+                    appeared.append(self._item_locked(candidate))
+                elif self._update_candidate_locked(candidate, port, pinned, paired):
+                    # Pinned, or newly named from the paired list: the row
+                    # reads differently, so it goes out again.
+                    appeared.append(self._item_locked(candidate))
+            self._next_enum = now + settings.DISCOVERY_ENUMERATE_INTERVAL_S
+        for item in appeared:
+            self._publish("port_appeared", item)
+        for device in gone:
+            self._publish("port_gone", device)
+
+    def _new_candidate_locked(self, port, pinned, paired, now):
+        markers = getattr(settings, "SERIAL_BLUETOOTH_PORT_MARKERS", ())
+        port_class = classify_port(port, markers)
+        candidate = Candidate(
+            device=port.device,
+            info=port,
+            kind=port_class.kind,
+            address=port_class.address,
+        )
+        self._update_candidate_locked(candidate, port, pinned, paired)
+        # New ports are asked straight away: a USB unit was just plugged in,
+        # and a Bluetooth port seen for the first time is the start-up pass.
+        candidate.next_due = now
+        return candidate
+
+    def _update_candidate_locked(self, candidate, port, pinned, paired):
+        """Bring a candidate up to date with this enumeration. Returns
+        whether anything the list shows about it changed."""
+        before = (candidate.pinned, candidate.paired_name, candidate.probeable)
+        candidate.info = port
+        candidate.pinned = port.device in pinned
+        markers = getattr(settings, "SERIAL_BLUETOOTH_PORT_MARKERS", ())
+        port_class = classify_port(port, markers)
+        candidate.kind = port_class.kind
+        candidate.address = port_class.address
+        candidate.probeable = should_probe_port(port, port_class)
+        device = paired.get(candidate.address) if candidate.address else None
+        if device is not None:
+            candidate.paired_name = device.name or ""
+            candidate.last_used = device.last_used
+        return (candidate.pinned, candidate.paired_name, candidate.probeable) != before
+
+    # -- ordering ------------------------------------------------------
+
+    def _is_recent_locked(self, candidate):
+        if candidate.responded_at > 0:
+            return True
+        if candidate.last_used is None:
+            return False
+        age_days = (self._wall_clock() - candidate.last_used) / 86400.0
+        return age_days <= settings.DISCOVERY_RECENT_DAYS
+
+    def _priority_locked(self, candidate):
+        """Lower sorts first. The port the operator is looking at; then
+        instant opens before pages; then pinned ports, units that answered
+        this session, recently used pairings, the rest."""
+        preferred = 0 if candidate.device == self._preferred else 1
+        instant = 0 if candidate.kind in (KIND_USB, KIND_OTHER) else 1
+        if candidate.pinned:
+            tier = 0
+        elif candidate.responded_at > 0:
+            tier = 1
+        elif self._is_recent_locked(candidate):
+            tier = 2
+        else:
+            tier = 3
+        recency = max(candidate.responded_at, candidate.last_used or 0.0)
+        return (preferred, instant, tier, -recency, natural_sort_key(candidate.device))
+
+    def _eligible_locked(self, busy, now):
+        radio_free = now >= self._radio_free_at
+        for candidate in self._cands.values():
+            if not candidate.probeable:
+                continue
+            if candidate.device in busy:
+                # Held by a connection worker, which knows better than a
+                # probe would. Look again later rather than every tick.
+                if candidate.next_due <= now:
+                    candidate.next_due = now + settings.DISCOVERY_LIVE_RECHECK_INTERVAL_S
+                continue
+            if candidate.kind == KIND_BLUETOOTH and not radio_free:
+                continue
+            yield candidate
+
+    def _pick_next_locked(self, busy):
+        now = self._clock()
+        eligible = list(self._eligible_locked(busy, now))
+        requested = [c for c in eligible if c.requested_at is not None]
+        if requested:
+            return min(requested, key=lambda c: c.requested_at)
+        in_pass = [c for c in eligible if c.in_pass]
+        if in_pass:
+            return min(in_pass, key=self._priority_locked)
+        due = [c for c in eligible if c.next_due <= now]
+        if due:
+            # Background probing is first come, first served, with priority
+            # only splitting ties. Priority alone would let a recently used
+            # unit that is off, probed back to back, keep a stale one from
+            # ever getting the turn it was due.
+            return min(due, key=lambda c: (c.next_due, self._priority_locked(c)))
+        return None
+
+    def _next_due_locked(self, candidate, now):
+        if candidate.reachable:
+            return now + settings.DISCOVERY_LIVE_RECHECK_INTERVAL_S
+        if candidate.kind == KIND_BLUETOOTH:
+            if now < self._eager_until or self._is_recent_locked(candidate):
+                return now + settings.DISCOVERY_BLUETOOTH_GAP_S
+            return now + settings.DISCOVERY_STALE_INTERVAL_S
+        return now + settings.DISCOVERY_RETRY_INTERVAL_S
+
+    # -- probing -------------------------------------------------------
+
+    def _run_probe(self, device, info, kind):
+        running = lambda: not self._stop.is_set()  # noqa: E731
+        try:
+            port_info, responded, error = self._probe(info, running)
+        except Exception as e:
+            log.exception(f"Probe of {device} failed")
+            port_info, responded, error = info, False, str(e)
+        cancelled = error == "Scan cancelled"
+        if error and not cancelled:
+            log.debug(f"Port {device} probe: {error}")
+
+        with self._cond:
+            now = self._clock()
+            if kind == KIND_BLUETOOTH:
+                self._radio_free_at = now + settings.DISCOVERY_BLUETOOTH_GAP_S
+            candidate = self._cands.get(device)
+            item = None
+            progress = None
+            if candidate is not None and not cancelled:
+                candidate.reachable = bool(responded)
+                candidate.last_probe = now
+                candidate.requested_at = None
+                if responded:
+                    candidate.responded_at = now
+                    candidate.identity = (
+                        port_info.description,
+                        port_info.serial_number,
+                        getattr(port_info, "firmware_version", "") or "",
+                    )
+                candidate.next_due = self._next_due_locked(candidate, now)
+                item = self._item_locked(candidate)
+                if candidate.in_pass:
+                    candidate.in_pass = False
+                    if self._pass_active:
+                        self._pass_done += 1
+                        percent = int(self._pass_done * 100 / max(self._pass_total, 1))
+                        text = (
+                            f"{_('PORTSCAN_SCANNING_PORT_TEXT')} '{device}'... "
+                            f"({self._pass_done}/{self._pass_total})"
+                        )
+                        progress = (percent, text)
+            self._current = None
+            self._cond.notify_all()
+
+        if progress is not None:
+            self._publish("progress", *progress)
+        if item is not None:
+            self._publish("port_result", item)
+        busy = self._busy_snapshot()
+        with self._cond:
+            self._finish_pass_if_done_locked(busy)
+
+    # -- passes --------------------------------------------------------
+
+    def _begin_pass(self):
+        busy = self._busy_snapshot()
+        cached = []
+        with self._cond:
+            if not self._pass_requested:
+                return
+            self._pass_requested = False
+            total = 0
+            for candidate in self._cands.values():
+                status = busy.get(candidate.device)
+                if candidate.device in busy:
+                    # Held by a connection worker: reported from what it
+                    # knows, never probed. Probing would inject bytes into
+                    # a live session.
+                    candidate.in_pass = False
+                    if status is not None:
+                        identity = status.identity
+                        candidate.identity = (
+                            identity.device_name or (candidate.identity or ("",))[0],
+                            identity.serial_number or (candidate.identity or ("", ""))[1],
+                            identity.firmware_version,
+                        )
+                        candidate.reachable = bool(status.connected)
+                        cached.append(self._item_locked(candidate, known_device=True))
+                    continue
+                if not candidate.probeable:
+                    continue
+                candidate.in_pass = True
+                candidate.next_due = 0.0
+                total += 1
+            self._pass_active = True
+            self._pass_total = total
+            self._pass_done = 0
+            log.info(f"Device scan: {total} ports to probe")
+        for item in cached:
+            self._publish("port_result", item)
+        if total == 0:
+            self._publish("progress", 100, _("PORTSCAN_COMPLETE_TEXT"))
+            with self._cond:
+                self._finish_pass_if_done_locked(busy)
+
+    def _finish_pass_if_done_locked(self, busy):
+        """End the pass once nothing marked for it can still be probed.
+        A candidate that became busy mid-pass (a worker took it) counts as
+        done; one that vanished is gone from the table already."""
+        if not self._pass_active:
+            return
+        for candidate in self._cands.values():
+            if candidate.in_pass and candidate.device in busy:
+                candidate.in_pass = False
+            if candidate.in_pass and candidate.probeable:
+                return
+        if self._end_pass_locked():
+            items = self._items_locked()
+            self._publish("pass_finished", items)
+
+    def _end_pass_locked(self):
+        if not self._pass_active:
+            return False
+        self._pass_active = False
+        for candidate in self._cands.values():
+            candidate.in_pass = False
+        return True
+
+    # -- items ---------------------------------------------------------
+
+    def _item_locked(self, candidate, known_device=False):
+        info = _port_info(candidate.device)
+        source = candidate.info
+        for attr in ("hwid", "vid", "pid", "manufacturer", "product", "name"):
+            setattr(info, attr, getattr(source, attr, None))
+        firmware = ""
+        if candidate.identity is not None:
+            info.description, info.serial_number, firmware = candidate.identity
+        elif candidate.paired_name:
+            info.description, info.serial_number = split_paired_name(candidate.paired_name)
+        else:
+            info.description = source.description
+            info.serial_number = source.serial_number
+        info.firmware_version = firmware
+        item = SerialPortItem(
+            info,
+            device_responded=bool(candidate.reachable),
+            known_device=known_device,
+            reachable=candidate.reachable,
+            paired_name=candidate.paired_name,
+            transport=candidate.kind,
+            bluetooth_address=candidate.address,
+        )
+        return item
+
+    def _items_locked(self):
+        return [
+            self._item_locked(candidate)
+            for candidate in sorted(
+                self._cands.values(), key=lambda c: natural_sort_key(c.device)
+            )
+        ]
+
+
+# -- the Qt face ---------------------------------------------------------------
+
+class _SignalPublisher:
+    """The lane's publisher, turning each event into one of the scanner's
+    signals. A separate object rather than the scanner itself: a Qt signal
+    attribute is not callable, so the scanner cannot double as the
+    publisher under the same names."""
+
+    def __init__(self, scanner):
+        self._scanner = scanner
+
+    def port_appeared(self, item):
+        self._scanner.port_appeared.emit(item)
+
+    def port_gone(self, device):
+        self._scanner.port_gone.emit(device)
+
+    def port_result(self, item):
+        self._scanner.port_result.emit(item)
+
+    def progress(self, percent, text):
+        self._scanner.progress.emit(percent, text)
+
+    def pass_finished(self, items):
+        self._scanner.finished.emit(list(items))
 
 
 class PortScanner(QObject):
-    """
-    Manages the port scanning process in a separate thread.
+    """The discovery lane as the GUI sees it: signals in, requests out.
+
+    Signals are emitted from the lane thread and delivered queued to the
+    widget; ``finished`` is also emitted from the GUI thread when the
+    operator stops a pass.
     """
 
     progress = Signal(int, str)
-    finished = Signal(list)
+    finished = Signal(list)          # a pass ended: every known port
+    port_appeared = Signal(object)   # SerialPortItem, before any probe
+    port_gone = Signal(str)          # device name
+    port_result = Signal(object)     # SerialPortItem, after a probe
 
-    def __init__(self, parent=None, max_workers=None):
+    def __init__(self, parent=None, busy_ports=None):
         super().__init__(parent)
-        self._thread = None
-        self._worker = None
-        self._max_workers = max_workers
-
-    def start(self, busy_ports=None):
-        """
-        Starts the port scan. Ports in busy_ports (held by persistent
-        RQFT connections) are reported from cached identity, not probed.
-        """
-        self._thread = QThread()
-        self._worker = PortScannerWorker(
-            max_workers=self._max_workers, busy_ports=busy_ports
+        self._lane = DiscoveryLane(
+            publisher=_SignalPublisher(self), busy_ports=busy_ports
         )
 
-        self._worker.moveToThread(self._thread)
+    # -- requests ------------------------------------------------------
 
-        # Connect signals
-        self._worker.progress.connect(self.progress)
-        self._worker.finished.connect(self.finished)
-        self._worker.finished.connect(self._thread.quit)
-        self._worker.finished.connect(self._worker.deleteLater)
-        self._thread.finished.connect(self._on_thread_finished)
-        self._thread.finished.connect(self._thread.deleteLater)
-        self._thread.started.connect(self._worker.run)
+    def set_busy_ports_provider(self, provider):
+        """A callable returning {device: BusyPortStatus} for the ports a
+        connection worker holds. Called from the lane thread, so it must
+        only read."""
+        self._lane._busy_ports = provider or (lambda: {})
 
-        log.info("Starting port scanner thread.")
-        self._thread.start()
+    def start(self):
+        self._lane.start()
+
+    def scan_now(self):
+        """The scan button and start-up: one eager pass, most likely first.
+
+        The request is recorded before the thread starts, so its first
+        step is the pass rather than a first-sight probe of the same
+        ports followed by the pass asking them again."""
+        self._lane.scan_now()
+        self._lane.start()
+
+    def probe_port(self, device):
+        """The Connect action on one unit: that port next."""
+        self._lane.start()
+        return self._lane.probe_now(device)
 
     def request_stop(self):
-        """Ask a running scan to stop, without waiting for its thread.
+        """The status bar's Stop: end the pass. The lane keeps going
+        quietly; a probe in flight completes, since nothing can cut a
+        Bluetooth page short."""
+        self._lane.stop_pass()
 
-        For the stop button: the worker checks the flag between ports, so the
-        scan winds down on its own while the window stays responsive. Shutdown
-        wants stop(), which waits.
-        """
-        if self._worker:
-            self._worker.stop()
+    def set_paused(self, paused):
+        self._lane.set_paused(paused)
 
-    def stop(self, timeout_ms=5000):
-        """
-        Stops the port scan if it's running, and waits for the thread to exit.
+    def set_preferred(self, device):
+        self._lane.set_preferred(device)
 
-        Returns True if no scan was running or the thread exited within the
-        timeout. The wait matters on shutdown: destroying a QThread whose OS
-        thread is still running aborts the process.
-        """
-        if self._worker:
-            self._worker.stop()
-        if not self.is_running():
-            return True
-        log.info("Stopping port scanner thread.")
-        try:
-            self._thread.quit()
-            return self._thread.wait(timeout_ms)
-        except RuntimeError:
-            return True
+    def wait_until_port_free(self, device, timeout_s=2.0):
+        return self._lane.wait_until_port_free(device, timeout_s)
 
     def is_running(self):
-        if not self._thread:
-            return False
+        return self._lane.is_alive()
 
-        try:
-            return self._thread.isRunning()
-        except RuntimeError:
-            self._clear_thread_refs()
-            return False
+    def stop(self, timeout_ms=6000):
+        """Shutdown: stop the thread and wait for it.
 
-    def _on_thread_finished(self):
-        # Wait before dropping the reference, so that by the time anything
-        # observes the scanner as idle the OS thread has genuinely exited.
-        if self._thread is not None:
-            try:
-                self._thread.wait()
-            except RuntimeError:
-                pass
-        self._clear_thread_refs()
-
-    def _clear_thread_refs(self):
-        self._thread = None
-        self._worker = None
+        Returns True if it was not running or exited within the timeout.
+        The wait can be a whole Bluetooth page, 5.12 s, when one has just
+        started, so the default allows for one; the thread is a daemon, so
+        a page that outlives the timeout ends with the process.
+        """
+        self._lane.stop_pass()
+        self._lane.request_stop()
+        if not self._lane.is_alive():
+            return True
+        log.info("Stopping device discovery")
+        self._lane.join(timeout_ms / 1000.0)
+        return not self._lane.is_alive()

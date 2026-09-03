@@ -170,6 +170,34 @@ SERIAL_BLUETOOTH_PORT_MARKERS = ("bluetooth", "bthenum", "bthmodem", "rfcomm")
 # is a unit worth showing while it is off, a paired GPS receiver is not.
 SERIAL_PAIRED_DEVICE_NAME_PREFIXES = ("Tapio RQP",)
 
+# Automatic device discovery.
+#
+# Enumerating the ports is cheap (about 13 ms on Windows). What costs is
+# opening the outgoing Bluetooth port of a paired unit that is switched off:
+# Windows pages the unit for the Bluetooth page timeout, 5.12 s, the radio
+# pages one unit at a time, and nothing cancels a page once it has started.
+# So one background lane probes Bluetooth ports one after another, and how
+# often an absent unit is paged depends on how recently it was used.
+DISCOVERY_ENUMERATE_INTERVAL_S = 1.5
+# After start-up and after a press of the scan button every absent unit is
+# probed back to back for this long: that is when an operator is most likely
+# to be switching one on.
+DISCOVERY_EAGER_S = 60
+# A paired unit used within this many days is probed back to back while it
+# is absent. One not used for longer is only asked every
+# DISCOVERY_STALE_INTERVAL_S, which keeps the radio quiet for old pairings.
+DISCOVERY_RECENT_DAYS = 7
+DISCOVERY_STALE_INTERVAL_S = 60
+# Breathing room between two pages, so a connection worker or a manual sync
+# gets the radio in between.
+DISCOVERY_BLUETOOTH_GAP_S = 0.3
+# A USB or pinned port that did not answer is asked again this often. Those
+# opens are instant, so this is about not talking to it constantly.
+DISCOVERY_RETRY_INTERVAL_S = 15
+# A unit that answered but is not held by a connection is checked this often,
+# so the list notices when it goes away.
+DISCOVERY_LIVE_RECHECK_INTERVAL_S = 60
+
 # RQFT persistent connections
 # Firmware reports git-describe versions; semver at or above this supports
 # RQFT. Firmware dev builds report bare commit hashes and need the

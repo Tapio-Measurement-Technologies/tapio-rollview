@@ -56,7 +56,9 @@ class SerialPortView(QListView):
 
         context_menu.addAction(pin_action)
 
-        if port_item.supports_rqft:
+        # Connect is offered on a unit that has answered and on a paired
+        # unit that has not: for the latter it means "ask this one next".
+        if port_item.supports_rqft or port_item.is_paired_unit():
             state = self.model.getConnectionState(port_item.device)
             if state is not None and state is not ConnectionState.DISABLED:
                 connect_action = QAction(_("SERIAL_DISCONNECT_DEVICE"), self)
@@ -106,6 +108,14 @@ class SerialPortView(QListView):
         self.select_item(index)
 
 class SerialWidget(QWidget):
+    """The device panel: the list, the scan button and the sync button.
+
+    Discovery runs by itself once started: the list fills and empties as
+    ports appear, answer, fall silent and go away, one row at a time. The
+    scan button is one eager pass over everything, most likely unit first,
+    with the status bar showing it; see workers.port_scanner for why that
+    is the shape of it.
+    """
     device_count_changed = Signal(int)
     scan_started = Signal()
     scan_progress = Signal(int, str)
@@ -134,6 +144,8 @@ class SerialWidget(QWidget):
 
         self.transferManager = transfer_manager
         self.connectionManager = connection_manager
+        self._announced_device_count = None
+        self._pass_running = False
 
         self.scanner = PortScanner(self)
 
@@ -148,13 +160,18 @@ class SerialWidget(QWidget):
 
         self.view.selectionModel().currentChanged.connect(self.on_port_selected)
         self.scanner.progress.connect(self.scan_progress)
+        self.scanner.port_appeared.connect(self.on_port_update)
+        self.scanner.port_result.connect(self.on_port_update)
+        self.scanner.port_gone.connect(self.on_port_gone)
         self.scanner.finished.connect(self.on_scan_finished)
         self.transferManager.transferStarted.connect(self._on_transfer_started)
         self.transferManager.transferFinished.connect(self._on_transfer_finished)
 
         if self.connectionManager is not None:
+            # The lane reads this from its own thread; it only reads.
+            self.scanner.set_busy_ports_provider(self.connectionManager.busy_ports)
             self.view.model.connection_state_provider = self.connectionManager.connection_state
-            self.view.connect_requested.connect(self.connectionManager.manual_connect)
+            self.view.connect_requested.connect(self.connect_device)
             self.view.disconnect_requested.connect(self.connectionManager.manual_disconnect)
             self.connectionManager.connectionStateChanged.connect(self.view.model.refreshStates)
 
@@ -182,54 +199,95 @@ class SerialWidget(QWidget):
         if not current.isValid():
             self._set_sync_enabled(False)
             self.view.model.selectPort(None)
+            self.scanner.set_preferred(None)
             return
 
         selected_port_device = current.data(Qt.ItemDataRole.UserRole)
         self.view.model.selectPort(selected_port_device)
+        # The port the operator is looking at is the one to ask first.
+        self.scanner.set_preferred(selected_port_device)
         self._set_sync_enabled(current.isValid() and not self.transferManager.is_transfer_in_progress())
 
     def stop_scan(self):
-        """Stop a scan in progress. Non-blocking; the worker winds down."""
+        """Stop the pass in progress. Non-blocking; a probe already inside a
+        Bluetooth page completes, since nothing can cut one short."""
         self.scanner.request_stop()
 
     def scan_devices(self):
+        """The scan button, and start-up: one eager pass, most likely unit
+        first, and every connection in a backoff tries again."""
         self.scanButton.setDisabled(True)
+        self._pass_running = True
         self.scan_started.emit()
-        self.view.model.removeItems()
+        if self.connectionManager is not None:
+            self.connectionManager.retry_all_now()
+        self.scanner.scan_now()
 
-        # Add pinned ports first, so they are visible during scan
-        for device in preferences.pinned_serial_ports:
-            port_info = list_ports_common.ListPortInfo(device)
-            port_info.description = ""
-            port_info.serial_number = ""
-            self.view.model.addItem(SerialPortItem(port_info))
-        self.view.model.applyFilter()
+    def on_port_update(self, item):
+        """A port appeared or was probed: one row changes, nothing else."""
+        self.view.model.upsertItem(item)
+        self.view.restore_selection()
+        if item.device_responded and self.connectionManager is not None:
+            # Open a persistent connection to an RQFT-capable unit as soon
+            # as it answers, not at the end of a pass.
+            self.connectionManager.on_scan_results([item])
+        self._announce_device_count()
 
-        busy_ports = (
-            self.connectionManager.busy_ports()
-            if self.connectionManager is not None
-            else None
-        )
-        self.scanner.start(busy_ports=busy_ports)
+    def on_port_gone(self, device):
+        """A port is no longer there: unplugged, or the pairing removed."""
+        self.view.model.removeDevice(device)
+        self.view.restore_selection()
+        if not self.view.selectionModel().hasSelection():
+            self._set_sync_enabled(False)
+        self._announce_device_count()
 
     def on_scan_finished(self, ports):
-        for port in ports:
-            self.view.model.upsertItem(port)
-
-        valid_devices = [p for p in self.view.model.ports if p.device_responded]
-        self.device_count_changed.emit(len(valid_devices))
         self.scanButton.setDisabled(False)
+        self._pass_running = False
         self.view.model.applyFilter()
-        if self.connectionManager is not None:
-            # Open persistent connections to RQFT-capable devices
-            self.connectionManager.on_scan_results(self.view.model.ports)
+        self.view.restore_selection()
         self.scan_finished.emit()
+        # After scan_finished, not before: the window clears the scan's
+        # activity from the status bar on that signal, and the count is
+        # what should be left standing there.
+        self._announce_device_count(force=True)
+
+    def _announce_device_count(self, force=False):
+        """Tell the window how many units answer.
+
+        The count goes to the status bar, so it is announced when a pass
+        ends and otherwise only when it changes: every probe result
+        repeating "1 device found" would wipe out whatever a sync had just
+        said. During a pass the bar is showing the pass itself, so a change
+        waits for the end.
+        """
+        count = len([p for p in self.view.model.ports if p.device_responded])
+        if self._pass_running and not force:
+            return
+        if force or count != self._announced_device_count:
+            self._announced_device_count = count
+            self.device_count_changed.emit(count)
+
+    def connect_device(self, device):
+        """The Connect action: reconnect a unit that has answered, or ask a
+        paired unit next and connect when it does."""
+        item = self.view.model.findItem(device)
+        if self.connectionManager is not None:
+            if item is not None and item.device_responded:
+                self.connectionManager.manual_connect(device)
+                return
+            self.connectionManager.allow_auto_connect(device)
+        self.scanner.probe_port(device)
 
     def sync_data(self):
         sync_folder = store.root_directory
         port_item = self.view.model.getSelectedPort()
         if not port_item:
             return
+        # The lane may be inside a probe of this very port; the sync's own
+        # open would fail against it. A unit that is on answers in about a
+        # second, so the wait is short and bounded.
+        self.scanner.wait_until_port_free(port_item.device)
         # No completion callback: a sync reports itself through the window's
         # status bar now, and there is no dialog left to close.
         self.transferManager.start_transfer(
@@ -241,8 +299,12 @@ class SerialWidget(QWidget):
 
     def _on_transfer_started(self):
         self._set_sync_enabled(False)
+        # Paging an absent unit costs a live link about a third of its
+        # throughput; the lane sits out the sync.
+        self.scanner.set_paused(True)
 
     def _on_transfer_finished(self, *_):
+        self.scanner.set_paused(False)
         # Re-enable sync button only if a valid port is still selected
         if self.view.selectionModel().hasSelection():
             self._set_sync_enabled(True)
