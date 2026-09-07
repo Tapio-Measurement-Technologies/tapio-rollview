@@ -324,6 +324,9 @@ class LaneHarness(SettingsSandbox):
         self.busy = {}
         self.responses = {}
         self.probed = []
+        #: Called with the port as its probe starts, for tests about what
+        #: the lane has said by the time it is inside one.
+        self.on_probe = None
         self.publisher = RecordingPublisher()
         self.lane = DiscoveryLane(
             self.publisher,
@@ -337,6 +340,8 @@ class LaneHarness(SettingsSandbox):
 
     def _probe(self, info, running):
         self.probed.append(info.device)
+        if self.on_probe is not None:
+            self.on_probe(info.device)
         response = self.responses.get(info.device)
         if response is None:
             return info, False, "could not open port"
@@ -452,9 +457,11 @@ class TestPassOrdering(LaneHarness):
         # Instant opens first, then the recent pairing, then the stale one.
         self.assertEqual(self.probed, ["COM1", "COM6", "COM13"])
         self.assertEqual(len(self.publisher.finished), 1)
+        # Reported as each port is opened, so the bar counts what is behind
+        # it while the words name the port being worked on.
         self.assertEqual(
             [(p, t.split("(")[1]) for p, t in self.publisher.progress_calls],
-            [(33, "1/3)"), (66, "2/3)"), (100, "3/3)")],
+            [(0, "1/3)"), (33, "2/3)"), (66, "3/3)")],
         )
         by_device = {item.device: item for item in self.publisher.finished[0]}
         self.assertEqual(sorted(by_device), ["COM1", "COM11", "COM13", "COM2", "COM6"])
@@ -462,6 +469,27 @@ class TestPassOrdering(LaneHarness):
         self.assertFalse(by_device["COM13"].device_responded)
         self.assertIs(by_device["COM13"].reachable, False)
         self.assertIsNone(by_device["COM11"].reachable)
+
+    def test_a_port_is_named_while_it_is_being_probed_and_not_after(self):
+        """The row has to say which port the pass is on while it is on it.
+
+        Progress was reported as a probe finished, so the port it named was
+        the one already behind it: a Bluetooth page takes about five seconds,
+        and the whole of the first one went by with nothing in the row but a
+        bar at zero. The first port to be named was then replaced the moment
+        the second finished, which on quick ports is before anyone has read
+        it — the first port an operator saw named was the second one.
+        """
+        self.ports = [usb_port("COM1"), usb_port("COM2")]
+        said = {}
+        self.on_probe = lambda device: said.__setitem__(
+            device, self.publisher.progress_calls[-1])
+
+        self.run_pass()
+
+        self.assertEqual(self.probed, ["COM1", "COM2"])
+        self.assertEqual(said["COM1"], (0, "Scanning port 'COM1'... (1/2)"))
+        self.assertEqual(said["COM2"], (50, "Scanning port 'COM2'... (2/2)"))
 
     def test_the_selected_port_goes_first(self):
         self.ports = [usb_port("COM1"), bluetooth_port("COM6", "004B12C02EFE")]
@@ -788,7 +816,7 @@ class TestLaneThread(unittest.TestCase):
 
         self.assertEqual(events, [
             ("appeared", "COM1"),
-            ("progress", 100),
+            ("progress", 0),
             ("result", "COM1", True),
             ("finished", 1),
         ])

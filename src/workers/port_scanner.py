@@ -455,6 +455,10 @@ class DiscoveryLane:
             info = candidate.info
             device = candidate.device
             kind = candidate.kind
+            starting = (self._pass_progress_locked(device)
+                        if self._pass_active and candidate.in_pass else None)
+        if starting is not None:
+            self._publish("progress", *starting)
         self._run_probe(device, info, kind)
         return True
 
@@ -657,7 +661,6 @@ class DiscoveryLane:
                 self._radio_free_at = now + settings.DISCOVERY_BLUETOOTH_GAP_S
             candidate = self._cands.get(device)
             item = None
-            progress = None
             if candidate is not None and not cancelled:
                 candidate.reachable = bool(responded)
                 candidate.last_probe = now
@@ -675,18 +678,12 @@ class DiscoveryLane:
                 if candidate.in_pass:
                     candidate.in_pass = False
                     if self._pass_active:
+                        # Counted here, reported as the next probe opens: see
+                        # _pass_progress_locked.
                         self._pass_done += 1
-                        percent = int(self._pass_done * 100 / max(self._pass_total, 1))
-                        text = (
-                            f"{_('PORTSCAN_SCANNING_PORT_TEXT')} '{device}'... "
-                            f"({self._pass_done}/{self._pass_total})"
-                        )
-                        progress = (percent, text)
             self._current = None
             self._cond.notify_all()
 
-        if progress is not None:
-            self._publish("progress", *progress)
         if item is not None:
             self._publish("port_result", item)
         busy = self._busy_snapshot()
@@ -735,6 +732,26 @@ class DiscoveryLane:
             self._publish("progress", 100, _("PORTSCAN_COMPLETE_TEXT"))
             with self._cond:
                 self._finish_pass_if_done_locked(busy)
+
+    def _pass_progress_locked(self, device):
+        """How far the pass has got, and which port it is on.
+
+        Said as a probe opens rather than as one closes. A Bluetooth page
+        takes about five seconds, so a row that names the port it has just
+        finished with has nothing to say for the whole of the one it is
+        working on: the scan starts, and the status row holds "scanning for
+        devices" and a bar at zero until the first port is already behind it.
+        Worse, that first port's line is replaced the moment the second one
+        finishes, which on a machine whose ports answer quickly is before
+        anybody has read it — the first port an operator sees named is the
+        second one.
+
+        The bar counts what is done; the words name what is being done now.
+        """
+        percent = int(self._pass_done * 100 / max(self._pass_total, 1))
+        text = (f"{_('PORTSCAN_SCANNING_PORT_TEXT')} '{device}'... "
+                f"({self._pass_done + 1}/{self._pass_total})")
+        return percent, text
 
     def _finish_pass_if_done_locked(self, busy):
         """End the pass once nothing marked for it can still be probed.
