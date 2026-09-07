@@ -63,7 +63,12 @@ from utils.translation import _
 
 log = logging.getLogger(__name__)
 
-PROBE_TIMEOUT_S = 0.2
+# How long a probed unit gets to answer DEVICEINFO once the port is open.
+# A unit that is on answers within a few tens of milliseconds, but a
+# Bluetooth round trip right after the link comes up was measured at up to
+# 0.2 s, and a probe that gives up then reports a live unit as silent.
+PROBE_READ_TIMEOUT_S = 1.0
+PROBE_WRITE_TIMEOUT_S = 0.2
 
 
 # -- one probe ---------------------------------------------------------------
@@ -94,8 +99,8 @@ def probe_port(port_info, running=lambda: True):
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
-            timeout=PROBE_TIMEOUT_S,
-            write_timeout=PROBE_TIMEOUT_S,
+            timeout=PROBE_READ_TIMEOUT_S,
+            write_timeout=PROBE_WRITE_TIMEOUT_S,
             xonxoff=False,
             rtscts=False,
             dsrdtr=False,

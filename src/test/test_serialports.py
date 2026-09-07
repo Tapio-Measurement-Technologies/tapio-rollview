@@ -252,6 +252,17 @@ class TestProbePort(SettingsSandbox):
         self.assertEqual(port_info.serial_number, "ABC123")
         mock_send_timestamp.assert_called_once()
 
+    @patch("workers.port_scanner.send_timestamp")
+    @patch("workers.port_scanner.serial.Serial")
+    def test_a_unit_gets_a_full_second_to_answer(self, mock_serial, _mock_send_timestamp):
+        """A Bluetooth round trip right after the link comes up was measured
+        at up to 0.2 s; a probe that gives up then calls a live unit silent."""
+        mock_serial.return_value = FakeSerial(b'{"deviceName": "x", "serialNumber": "1"}\n')
+
+        probe_port(usb_port("COM1"))
+
+        self.assertGreaterEqual(mock_serial.call_args.kwargs["timeout"], 1.0)
+
     @patch("workers.port_scanner.serial.Serial")
     def test_open_failure_is_reported_not_raised(self, mock_serial):
         mock_serial.side_effect = OSError("could not open port")
