@@ -2,6 +2,8 @@ from PySide6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from serial.tools import list_ports_common
 import settings
+from theme import qt as theme_qt
+from theme import tokens as T
 from theme.guidance import compose
 from utils import preferences
 from utils.rqft_support import firmware_supports_rqft
@@ -71,26 +73,44 @@ class SerialPortItem:
         return not self.device_responded and (self.is_paired_unit() or self.is_pinned())
 
 
-# Connection indicator colors: (fill, outline); None fill = hollow.
-_STATE_BALL_COLORS = {
-    ConnectionState.CONNECTED: ("#2eb85c", "#1e7e34"),
-    ConnectionState.CONNECTING: ("#f0ad4e", "#c98a1e"),
-    ConnectionState.LISTENING: ("#f0ad4e", "#c98a1e"),
-    ConnectionState.OPEN_BACKOFF: ("#f0ad4e", "#c98a1e"),
-    ConnectionState.DISABLED: (None, "#9a9a9a"),
-    None: (None, "#9a9a9a"),
+# The ball beside a device answers one question, and the same question for
+# every device in the list: can I sync from this right now? Whether it is
+# filled says the device is there; the colour says how ready it is. A row
+# that is not a device at all — an unrelated port, listed because the
+# operator asked to see them all — gets no ball, because the question does
+# not apply to it.
+BALL_ABSENT = "absent"      # listed and known, but nothing answers
+BALL_READY = "ready"        # answers; sync it with the button
+BALL_WORKING = "working"    # answers; a persistent connection is coming up
+BALL_LIVE = "live"          # answers; connected, and measurements arrive on their own
+
+# One token per state: the fill. Absent is hollow.
+_BALL_FILL_ROLE = {
+    BALL_ABSENT: None,
+    BALL_READY: "accent",
+    BALL_WORKING: "warning-mark",
+    BALL_LIVE: "good",
 }
 
-_state_icon_cache = {}
+_ball_icon_cache = {}
 
 
-def _state_icon(state):
-    """Small ball icon for one connection state (built lazily; requires
-    a QGuiApplication, so only views should trigger this)."""
-    icon = _state_icon_cache.get(state)
+def _ball_icon(kind):
+    """The ball for one state (built lazily; requires a QGuiApplication,
+    so only views should trigger this).
+
+    Colours come from the token table rather than from hex written here,
+    and the outline is the fill taken towards the ink, so one token per
+    state settles both and the pair stays right in light and in dark.
+    """
+    t = theme_qt.tokens()
+    key = (kind, t.theme)
+    icon = _ball_icon_cache.get(key)
     if icon is not None:
         return icon
-    fill, outline = _STATE_BALL_COLORS.get(state, _STATE_BALL_COLORS[None])
+    role = _BALL_FILL_ROLE.get(kind)
+    fill = t.color(role) if role else None
+    outline = T.mix(fill, t.color("ink"), 0.62) if fill else t.color("ink-muted")
     pixmap = QPixmap(12, 12)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
@@ -101,7 +121,7 @@ def _state_icon(state):
     painter.drawEllipse(1, 1, 9, 9)
     painter.end()
     icon = QIcon(pixmap)
-    _state_icon_cache[state] = icon
+    _ball_icon_cache[key] = icon
     return icon
 
 def natural_sort_key(text):
@@ -144,15 +164,8 @@ class SerialPortModel(QAbstractListModel):
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
         elif role == Qt.ItemDataRole.DecorationRole:
-            if item.supports_rqft:
-                return _state_icon(self.getConnectionState(item.device))
-            if item.is_paired_unit() and not item.device_responded:
-                # Known by name, not reached: the hollow ball says "could
-                # connect, nothing there yet", the same shape a disabled
-                # connection has. A unit that answered without RQFT has no
-                # connection to show, so it gets no ball at all.
-                return _state_icon(None)
-            return None
+            kind = self.ballKind(item)
+            return _ball_icon(kind) if kind else None
 
         return None
 
@@ -174,8 +187,46 @@ class SerialPortModel(QAbstractListModel):
             return Qt.ItemFlag.NoItemFlags
         return flags
 
-    @staticmethod
-    def guidance_for(item):
+    def ballKind(self, item):
+        """Which ball a row shows, or None for a port that is not a device.
+
+        A device that answers can be synced from, whether it speaks RQFT
+        or not, so it is filled; only a device that speaks RQFT has a
+        connection to be live or coming up.
+        """
+        if not (item.device_responded or item.is_paired_unit() or item.is_pinned()):
+            return None
+        if not item.device_responded:
+            return BALL_ABSENT
+        if not item.supports_rqft:
+            return BALL_READY
+        state = self.getConnectionState(item.device)
+        if state is ConnectionState.CONNECTED:
+            return BALL_LIVE
+        if state in (
+            ConnectionState.CONNECTING,
+            ConnectionState.LISTENING,
+            ConnectionState.OPEN_BACKOFF,
+        ):
+            return BALL_WORKING
+        # Reachable with no session: nothing is coming by itself, but the
+        # sync button works.
+        return BALL_READY
+
+    def ball_words(self, item):
+        """What the ball beside a row means, in two or three words.
+
+        Short enough for the status row, which is where a row's guidance
+        goes. What the state buys the operator is a separate line, and the
+        tooltip is where that fits.
+        """
+        return {
+            BALL_READY: _("GUIDANCE_PORT_READY"),
+            BALL_WORKING: _("GUIDANCE_PORT_CONNECTING"),
+            BALL_LIVE: _("GUIDANCE_PORT_CONNECTED"),
+        }.get(self.ballKind(item), "")
+
+    def guidance_for(self, item):
         """The one line the status bar can hold about this row.
 
         The row is one line high and sits beside whatever the window is
@@ -184,6 +235,9 @@ class SerialPortModel(QAbstractListModel):
         about it is in the tooltip, which has room for a sentence.
         """
         detail = []
+        words = self.ball_words(item)
+        if words:
+            detail.append(words)
         if item.is_listed_without_answer():
             # Named, not explained: "Device not answering", not the sentence
             # that says which device, on which port, and what to try.

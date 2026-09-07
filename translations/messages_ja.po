@@ -1180,12 +1180,27 @@ msgstr "カスタムデータ処理のフォルダを開きます"
 #. Device panel: the scan button. Discovery runs by itself; the button is
 #. one pass over everything, most likely unit first.
 msgid "GUIDANCE_SCAN_DEVICES"
-msgstr "シリアルポートをスキャンしてデバイスを探します"
+msgstr "可能性の高いデバイスから順に確認し、その後もバックグラウンドで探し続けます"
 
 #. Device list tooltip: a paired unit, or a pinned port, that nothing has
 #. answered on yet.
 msgid "GUIDANCE_PORT_NOT_CHECKED"
 msgstr "未確認"
+
+#. Device list tooltip: what the filled ball means on a device that
+#. answers but holds no connection.
+msgid "GUIDANCE_PORT_READY"
+msgstr "同期できます"
+
+#. Device list tooltip: what the amber ball means.
+msgid "GUIDANCE_PORT_CONNECTING"
+msgstr "接続中"
+
+#. Device list: what the green ball means. Short, because the status row
+#. shows it too.
+msgid "GUIDANCE_PORT_CONNECTED"
+msgstr "接続済み"
+
 
 #. Device panel: the sync button, when it can be pressed.
 msgid "GUIDANCE_SYNC_DEVICE"

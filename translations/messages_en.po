@@ -1190,6 +1190,21 @@ msgstr "Scan the serial ports for devices"
 msgid "GUIDANCE_PORT_NOT_CHECKED"
 msgstr "Not checked"
 
+#. Device list tooltip: what the filled ball means on a device that
+#. answers but holds no connection.
+msgid "GUIDANCE_PORT_READY"
+msgstr "Ready to sync"
+
+#. Device list tooltip: what the amber ball means.
+msgid "GUIDANCE_PORT_CONNECTING"
+msgstr "Connecting"
+
+#. Device list: what the green ball means. Short, because the status row
+#. shows it too.
+msgid "GUIDANCE_PORT_CONNECTED"
+msgstr "Connected"
+
+
 #. Device panel: the sync button, when it can be pressed.
 msgid "GUIDANCE_SYNC_DEVICE"
 msgstr "Copy measurements from the selected device"
