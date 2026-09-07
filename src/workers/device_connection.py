@@ -137,6 +137,19 @@ def describe_sync_error(error: SyncError, port: str = "", unit_name: str = "") -
     return error.message
 
 
+def describe_sync_error_brief(error: SyncError, port: str = "", unit_name: str = "") -> str:
+    """The same failure in one line, for the status bar.
+
+    A port failure drops its remedy, which is the half that does not fit
+    in a row shared with the guidance; the box keeps both.
+    """
+    if error.kind == "transport":
+        return describe_port_error(
+            error.message, port, unit_name, opened=error.opened
+        ).sentence
+    return describe_sync_error(error, port, unit_name)
+
+
 def sync_error_title(error: SyncError) -> str:
     """The message box title for a failed sync: the cause, for a port
     failure, and otherwise that the sync failed."""

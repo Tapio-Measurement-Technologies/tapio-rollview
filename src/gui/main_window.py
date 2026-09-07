@@ -16,7 +16,7 @@ import theme
 from theme import qt as theme_qt
 from theme.guidance import set_guidance
 
-from utils.file_utils import list_prof_files, open_in_file_explorer, format_bytes
+from utils.file_utils import list_prof_files, open_in_file_explorer
 from utils.postprocess import (toggle_postprocessor, PostprocessManager, get_postprocessors,
                                PostprocessResult, reload_postprocessors, user_postprocessors_path,
                                BUILTIN, CUSTOM)
@@ -37,6 +37,7 @@ from gui.widgets.serialports import SerialWidget
 from gui.widgets.DirectoryView import DirectoryView
 from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 from gui.settings import SettingsWindow
+from gui.file_transfer_dialog import FileTransferDialog
 from gui.qr_config_dialog import QRConfigDialog
 from gui.widgets.messagebox import show_info_msgbox, show_error_msgbox
 from utils.translation import _
@@ -69,6 +70,11 @@ class MainWindow(QMainWindow):
         theme_qt.gap(self.layout(), 0)
 
         self.file_transfer_manager = FileTransferManager()
+        # A sync reports in a window of its own: which file of how many,
+        # its name, and two bars. Those numbers change length as they
+        # change value, and on one status bar line that jumps about and
+        # loses its tail. The status bar keeps the summary afterwards.
+        self.file_transfer_dialog = FileTransferDialog(self.file_transfer_manager, self)
         self.device_connection_manager = DeviceConnectionManager()
         self.file_transfer_manager.set_connection_manager(self.device_connection_manager)
         self.device_connection_manager.set_transfer_manager(self.file_transfer_manager)
@@ -1101,15 +1107,16 @@ class MainWindow(QMainWindow):
             )
 
     def on_file_transfer_started(self):
-        # Nothing can be counted until the device answers with how many files it
-        # is holding, and a device that is switched off answers exactly as fast
-        # as one that is thinking about it. This is the wait the indeterminate
-        # indicator exists for; on_sync_batch_started ends it with a number.
-        self.start_activity(
-            _("SYNC_CHECKING_TEXT"),
-            cancel=self.file_transfer_manager.cancel_transfer,
-            counted=False,
-        )
+        """A sync has started; the dialog is where it reports.
+
+        An automatic sync stays invisible until there is something to
+        fetch: a doorbell that finds the mirror up to date should not put
+        a window in front of the measurement being read.
+        """
+        manager = self.file_transfer_manager
+        if manager.last_transfer_was_auto:
+            return
+        self.file_transfer_dialog.begin(manager.active_unit_name)
 
     def on_sync_batch_started(self, port, file_count, byte_count):
         """The device has said what it is about to send.
@@ -1120,12 +1127,9 @@ class MainWindow(QMainWindow):
         """
         if file_count <= 0:
             return
-        self._transfer_total_files = file_count
-        self._transfer_file_number = 0
-        self.update_activity(
-            0,
-            _("SYNC_BATCH_STATUS").format(count=file_count, size=format_bytes(byte_count)),
-        )
+        if not self.file_transfer_dialog.isVisible():
+            self.file_transfer_dialog.begin(self.file_transfer_manager.active_unit_name)
+        self.file_transfer_dialog.set_batch(file_count, byte_count)
 
     def on_transfer_file_started(self, *_args):
         """A new file started arriving; the model row is what says so."""
@@ -1134,41 +1138,15 @@ class MainWindow(QMainWindow):
         if not latest:
             return
         total = model.getTotalFileCount()
-        self._transfer_file_number = total - latest.files_remaining + 1
-        self._transfer_total_files = total
-        self._transfer_file_name = latest.filename
-        self.update_activity(
-            self._transfer_percent(0.0),
-            _("SYNC_RECEIVING_STATUS").format(
-                number=self._transfer_file_number, total=total, filename=latest.filename),
-        )
+        self.file_transfer_dialog.set_current_file(
+            total - latest.files_remaining + 1, total, latest.filename)
 
     def on_transfer_byte_progress(self, transferred, total_bytes):
-        if not getattr(self, "_transfer_total_files", 0):
-            return
-        fraction = (transferred / total_bytes) if total_bytes else 0.0
-        self.update_activity(
-            self._transfer_percent(fraction),
-            _("SYNC_RECEIVING_BYTES_STATUS").format(
-                number=self._transfer_file_number,
-                total=self._transfer_total_files,
-                filename=self._transfer_file_name,
-                done=format_bytes(transferred),
-                size=format_bytes(total_bytes),
-            ),
-        )
-
-    def _transfer_percent(self, fraction_of_current):
-        """Whole-transfer percent, counting the file in flight as a fraction."""
-        total = getattr(self, "_transfer_total_files", 0)
-        if not total:
-            return 0
-        completed = self._transfer_file_number - 1 + fraction_of_current
-        return int((completed / total) * 100)
+        self.file_transfer_dialog.set_byte_progress(transferred, total_bytes)
 
     def on_file_transfer_finished(self, folder_paths: list[str]):
+        self.file_transfer_dialog.finish()
         received_count = self.file_transfer_manager.model.rowCount()
-        self._transfer_total_files = 0
         removed_count = self.file_transfer_manager.last_deleted_count
         removed_text = (
             _("DEVICE_FILES_REMOVED").format(count=removed_count)
@@ -1187,21 +1165,18 @@ class MainWindow(QMainWindow):
             # It is held and read out again with theirs, once the whole
             # sequence the operator pressed one button for is actually done.
             self._sync_summary = summary
-            self.finish_activity(summary)
+            self.set_status_message(summary)
         elif self.file_transfer_manager.last_transfer_outcome == "ok":
-            self.finish_activity(removed_text)
+            self.set_status_message(removed_text)
             if not self.file_transfer_manager.last_transfer_was_auto:
                 QMessageBox.information(
                     self,
                     _("SYNC_UP_TO_DATE_TITLE"),
                     f"{_('SYNC_UP_TO_DATE_TEXT')} {removed_text}".strip(),
                 )
-        elif self.status_message() == _("SYNC_CHECKING_TEXT"):
-            # Cancel/error before anything moved: the error handlers own
-            # the message, just drop the stale "checking" text.
-            self.finish_activity()
-        else:
-            self.finish_activity(self.status_message())
+        # A cancelled or failed sync leaves standing whatever its error
+        # handler put in the row. The bar itself is never touched here: a
+        # sync does not raise one, and a scan may have one up.
         if not folder_paths:
             return
         self.directory_view.refresh_directory_dates(folder_paths)
@@ -1209,7 +1184,11 @@ class MainWindow(QMainWindow):
         self.on_directory_contents_changed()
 
     def on_transfer_error(self, message):
-        self.finish_activity(message)
+        # One line, and a short one: the row has a fixed height and shares
+        # its width with the guidance. What the operator should do about it
+        # is in the message box the transfer manager raises, which has room
+        # for a sentence and a remedy.
+        self.set_status_message(message)
         # transferError also carries an is_auto flag, which the status
         # bar does not need: both cases want the message here, and a
         # manual failure additionally gets a popup from the transfer

@@ -182,8 +182,11 @@ class TestManagerWording(unittest.TestCase):
         body, title = popup.call_args.args
         self.assertEqual(title, "Port in use")
         self.assertIn("COM6 is in use by another program.", body)
+        self.assertIn("Close the program", body)
         self.assertNotIn("PermissionError", body)
-        self.assertEqual(statuses, [(body, False)])
+        # The row gets the fault alone: the remedy is the half that would
+        # not fit beside the guidance.
+        self.assertEqual(statuses, [("COM6 is in use by another program.", False)])
         self.assertEqual(manager.last_transfer_outcome, "error")
 
     def test_the_unit_name_comes_from_the_sync_request(self):

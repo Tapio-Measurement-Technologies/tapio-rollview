@@ -450,17 +450,23 @@ msgstr "Stop"
 msgid "SCAN_STARTED_STATUS"
 msgstr "Scanning for devices"
 
-#. Status bar: the device has said how much it is about to send.
+#. Title of the window a sync reports in.
+msgid "FILE_TRANSFER_DIALOG_TITLE"
+msgstr "File transfer"
+
+#. Sync dialog: which file of how many is arriving.
+msgid "FILE_TRANSFER_DIALOG_RECEIVING"
+msgstr "Receiving {number} / {total}"
+
+#. Sync dialog: the bar for the whole batch, under the one for the file.
+msgid "FILE_TRANSFER_DIALOG_TOTAL"
+msgstr "Total progress"
+
+#. Sync dialog: the device has said how much it is about to send.
 msgid "SYNC_BATCH_STATUS"
-msgstr "Receiving {count} files ({size})"
+msgstr "{count} files ({size})"
 
-#. Status bar: a file is arriving, before its byte count is known.
-msgid "SYNC_RECEIVING_STATUS"
-msgstr "Receiving {number} / {total} · {filename}"
 
-#. Status bar: a file is arriving, with how much of it has landed.
-msgid "SYNC_RECEIVING_BYTES_STATUS"
-msgstr "Receiving {number} / {total} · {filename} · {done} / {size}"
 
 #. Status bar: what a finished sync brought in.
 msgid "SYNC_FINISHED_STATUS"

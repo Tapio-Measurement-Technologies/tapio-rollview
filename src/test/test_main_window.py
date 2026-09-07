@@ -381,13 +381,18 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             QSizePolicy.Policy.Ignored,
         )
 
-    def test_only_one_thing_in_the_window_can_move_indeterminately(self):
-        """One indeterminate indicator, and it lives in the progress row.
+    def test_only_a_place_that_reports_work_can_move_indeterminately(self):
+        """An indeterminate indicator belongs where work is reported.
 
-        A screen with two of them has said nothing twice, and a panel that spins
-        in its own content area is simulating content rather than reporting on
-        it. Checked in the source because the rule is about what may exist, not
-        about what happens to be on screen during one test.
+        A panel that spins in its own content area is simulating content
+        rather than reporting on it, and a screen with several of them has
+        said nothing several times. Two places report work and may have
+        one: the status bar's progress row, and the window a sync reports
+        in — which is where the sync's own uncounted wait went when it
+        left the row. Neither can be on screen for the same piece of work.
+
+        Checked in the source because the rule is about what may exist,
+        not about what happens to be on screen during one test.
         """
         import pathlib
         import re
@@ -400,17 +405,36 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
             if not path.name.startswith("test_") and pattern.search(
                 path.read_text(encoding="utf-8"))
         )
-        self.assertEqual(found, ["gui/main_window.py"])
+        self.assertEqual(
+            found, ["gui/file_transfer_dialog.py", "gui/main_window.py"])
 
-    def test_a_sync_is_the_wait_that_cannot_be_counted(self):
-        self.window.on_file_transfer_started()
+    def test_a_sync_reports_in_its_own_window_not_in_the_row(self):
+        """The row has one line of fixed width to give; a sync has a file
+        name, two counts and two bars to show."""
+        dialog = self.window.file_transfer_dialog
+        self.window.file_transfer_manager.last_transfer_was_auto = False
         try:
-            self.assertFalse(self.window.activity_is_counted())
-            # ...until the device answers with a file count.
-            self.window.on_sync_batch_started("COM3", 12, 4096)
-            self.assertTrue(self.window.activity_is_counted())
+            self.window.on_file_transfer_started()
+
+            self.assertTrue(dialog.isVisible())
+            self.assertEqual(self.window.status_message(), "")
+            self.assertFalse(self.window.activity_progress_bar.isVisibleTo(self.window))
         finally:
-            self.window.finish_activity()
+            dialog.finish()
+
+    def test_an_automatic_sync_opens_nothing_until_files_are_coming(self):
+        """A doorbell that finds the mirror up to date should not put a
+        window in front of the measurement being read."""
+        dialog = self.window.file_transfer_dialog
+        self.window.file_transfer_manager.last_transfer_was_auto = True
+        try:
+            self.window.on_file_transfer_started()
+            self.assertFalse(dialog.isVisible())
+
+            self.window.on_sync_batch_started("COM3", 12, 4096)
+            self.assertTrue(dialog.isVisible())
+        finally:
+            dialog.finish()
 
     def test_the_scan_that_runs_at_startup_can_be_stopped_too(self):
         """The window used to scan before it had wired the scan up.
@@ -601,13 +625,29 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
                 self.assertTrue(action.statusTip())
                 self.assertNotIn("\n", action.statusTip())
 
-    def test_transfer_progress_counts_the_file_in_flight(self):
-        self.window._transfer_total_files = 4
-        self.window._transfer_file_number = 1
-        self.assertEqual(self.window._transfer_percent(0.0), 0)
-        self.assertEqual(self.window._transfer_percent(0.5), 12)
-        self.window._transfer_file_number = 4
-        self.assertEqual(self.window._transfer_percent(1.0), 100)
+    def test_the_dialog_is_driven_by_the_windows_own_handlers(self):
+        """One owner for the wording and the ordering: the window listens
+        to the manager, the dialog is told what to show."""
+        from models.FileTransfer import FileTransferItem
+
+        dialog = self.window.file_transfer_dialog
+        manager = self.window.file_transfer_manager
+        manager.model.removeItems()
+        try:
+            self.window.on_sync_batch_started("COM3", 2, 2048)
+            # files_remaining counts the file in flight, so the first of
+            # two reports two.
+            manager.model.addItem(FileTransferItem("250520-134139/a.prof", 2))
+            self.window.on_transfer_file_started()
+            self.window.on_transfer_byte_progress(512, 1024)
+
+            self.assertEqual(dialog.current_file_label.text(), "250520-134139/a.prof")
+            self.assertEqual(dialog.current_file_progress_bar.value(), 50)
+            # File one of two, half done: a quarter of the batch.
+            self.assertEqual(dialog.total_progress_bar.value(), 25)
+        finally:
+            dialog.finish()
+            manager.model.removeItems()
 
     def test_a_finished_sync_says_what_it_brought_in(self):
         from models.FileTransfer import FileTransferItem
