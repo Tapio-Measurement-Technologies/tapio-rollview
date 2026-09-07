@@ -1195,6 +1195,10 @@ class MainWindow(QMainWindow):
         if not folder_paths:
             return
         self.directory_view.refresh_directory_dates(folder_paths)
+        # The dates first, then the folder they make newest: what the operator
+        # pressed Sync for is the roll that has just come off the device, and
+        # it is on screen before the postprocessors start their run.
+        self.directory_view.select_newest_directory(folder_paths)
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
 

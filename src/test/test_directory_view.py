@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import time
 import unittest
 
 from PySide6.QtCore import QAbstractListModel, QModelIndex, QPersistentModelIndex, Qt
@@ -34,6 +35,19 @@ class FakeDirectoryModel(QAbstractListModel):
 
     def filePath(self, index):
         return self.paths[index.row()]
+
+
+def write_roll(root, name, hours_ago):
+    """A roll folder holding one profile, measured *hours_ago* hours ago."""
+    folder = os.path.join(root, name)
+    os.mkdir(folder)
+    profile = os.path.join(folder, "a.prof")
+    with open(profile, "wb") as handle:
+        handle.write(b"profile")
+    when = time.time() - hours_ago * 3600
+    os.utime(profile, (when, when))
+    os.utime(folder, (when, when))
+    return folder
 
 
 class TestDirectoryView(unittest.TestCase):
@@ -438,6 +452,86 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             destroy(view)
 
+    def test_the_newest_folder_is_the_one_with_the_newest_profile(self):
+        """The date the column shows is the date the choice is made on."""
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                older = write_roll(tmpdir, "250520-090000", hours_ago=2)
+                newer = write_roll(tmpdir, "250521-081510", hours_ago=1)
+
+                # Given in the order a set happens to come out in, which is
+                # how a sync hands them over.
+                self.assertEqual(view._newest_directory([newer, older]), newer)
+                self.assertEqual(view._newest_directory([older, newer]), newer)
+        finally:
+            destroy(view)
+
+    def test_a_folder_with_no_profiles_yet_is_dated_by_itself(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                measured = write_roll(tmpdir, "250520-090000", hours_ago=2)
+                empty = os.path.join(tmpdir, "250521-081510")
+                os.mkdir(empty)
+
+                self.assertEqual(view._newest_directory([measured, empty]), empty)
+        finally:
+            destroy(view)
+
+    def test_nothing_that_exists_means_no_newest_folder(self):
+        view = DirectoryView()
+        try:
+            self.assertIsNone(view._newest_directory([]))
+            self.assertIsNone(view._newest_directory(None))
+            self.assertIsNone(view._newest_directory(["", "/nowhere/roll-1"]))
+        finally:
+            destroy(view)
+
+    def test_selecting_the_newest_folder_retargets_a_pending_restore(self):
+        """Refreshing the dates puts the selection back once the model has
+        settled, and the folder just selected is where it goes back to."""
+        view = DirectoryView()
+        try:
+            view._pending_focus_path = "/rolls/250520-090000"
+            view._newest_directory = MagicMock(return_value="/rolls/250521-081510")
+            view.select_directory_by_path = MagicMock(return_value=True)
+
+            self.assertTrue(view.select_newest_directory(["/rolls/250521-081510"]))
+
+            view.select_directory_by_path.assert_called_once_with(
+                "/rolls/250521-081510", warn=False)
+            self.assertEqual(view._pending_focus_path, "/rolls/250521-081510")
+        finally:
+            destroy(view)
+
+    def test_a_newest_folder_a_filter_hides_is_not_selected(self):
+        """The filter is a question the operator asked; a sync does not
+        change the answer to it."""
+        view = DirectoryView()
+        try:
+            view._pending_focus_path = "/rolls/250520-090000"
+            view._newest_directory = MagicMock(return_value="/rolls/250521-081510")
+            view.select_directory_by_path = MagicMock(return_value=False)
+
+            self.assertFalse(view.select_newest_directory(["/rolls/250521-081510"]))
+
+            self.assertEqual(view._pending_focus_path, "/rolls/250520-090000")
+        finally:
+            destroy(view)
+
+    def test_selecting_the_newest_folder_starts_no_restore_of_its_own(self):
+        view = DirectoryView()
+        try:
+            view._newest_directory = MagicMock(return_value="/rolls/250521-081510")
+            view.select_directory_by_path = MagicMock(return_value=True)
+
+            view.select_newest_directory(["/rolls/250521-081510"])
+
+            self.assertIsNone(view._pending_focus_path)
+        finally:
+            destroy(view)
+
     def test_directory_changed_uses_directory_date_refresh(self):
         view = DirectoryView()
         try:
@@ -628,6 +722,37 @@ class TestDirectoryView(unittest.TestCase):
             self.assertEqual(emitted, ["roll"])
         finally:
             destroy(widget)
+
+
+def test_the_newest_folder_outlives_the_restore_a_refresh_schedules(qtbot, tmp_path):
+    """The two halves of a finished sync, in the order the window runs them.
+
+    Refreshing the dates puts the selection back once the model has settled,
+    so the roll that just arrived has to be what it puts back — a turn of the
+    event loop later, not only at the moment it was set.
+
+    A real QFileSystemModel needs a real directory, and pytest's is one the
+    file watcher can live with; the short form Windows gives tempfile is not.
+    """
+    root = str(tmp_path)
+    older = write_roll(root, "250520-090000", hours_ago=2)
+    newer = write_roll(root, "250521-081510", hours_ago=1)
+
+    view = DirectoryView()
+    try:
+        view.change_root_directory(root)
+        qtbot.waitUntil(lambda: view.treeView.rootIndex().isValid(), timeout=2000)
+        assert view.select_directory_by_path(older)
+
+        view.refresh_directory_dates([older, newer])
+        assert view.select_newest_directory([older, newer])
+
+        qtbot.waitUntil(lambda: view._pending_focus_path is None, timeout=2000)
+        selected = view.get_selected_directory_path()
+        assert DirectoryView._same_path(selected, newer), (
+            f"left on {selected} rather than {newer}")
+    finally:
+        destroy(view)
 
 
 if __name__ == "__main__":

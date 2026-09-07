@@ -294,6 +294,56 @@ class DirectoryView(QWidget):
             print(f"Invalid index provided to select_directory_by_path: '{path}'")
         return False
 
+    def _newest_directory(self, directory_paths):
+        """The most recently measured of these folders, or None.
+
+        By the date in the column, so newest means to the code what it means
+        to the eye reading the list. A folder the model cannot date — no
+        profiles in it yet, or more files than it will walk — falls back to
+        its own timestamp rather than dropping out of the running.
+        """
+        newest_path = None
+        newest_date = None
+
+        for path in directory_paths or []:
+            if not path or not os.path.isdir(path):
+                continue
+
+            date = self.model.get_latest_modified_date(path)
+            if date is None:
+                try:
+                    date = datetime.fromtimestamp(os.path.getmtime(path))
+                except OSError:
+                    continue
+
+            if newest_date is None or date > newest_date:
+                newest_path = path
+                newest_date = date
+
+        return newest_path
+
+    def select_newest_directory(self, directory_paths):
+        """Move the selection to the most recent of these folders.
+
+        A sync exists to bring in the measurement that was just taken, so the
+        view goes to it rather than leaving the operator on whatever they were
+        reading before the device was plugged in.
+
+        A folder a roll filter is hiding is not selected: the filter is a
+        question the operator asked, and the answer to it does not change
+        because a sync happened. Returns whether the selection moved.
+        """
+        newest_path = self._newest_directory(directory_paths)
+        if not newest_path or not self.select_directory_by_path(newest_path, warn=False):
+            return False
+
+        # Refreshing the dates arranges to put the selection back where it was
+        # once the model has settled, and that is now here. Only a restore
+        # already on its way is retargeted; this never starts one.
+        if self._pending_focus_path:
+            self._pending_focus_path = newest_path
+        return True
+
     def on_postprocess_requested(self, index):
         """Ask for one folder to be postprocessed, by path."""
         source_index = self.proxy_model.mapToSource(index)

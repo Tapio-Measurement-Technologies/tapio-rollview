@@ -862,6 +862,30 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.on_directory_contents_changed.assert_called_once()
         self.assertEqual(call_order, ["refresh", "postprocess", "reload"])
 
+    def test_a_finished_sync_shows_the_roll_that_just_arrived(self):
+        """A sync brings in the measurement that was just taken, so the view
+        goes to it rather than staying on whatever was being read before."""
+        folder_paths = ["/rolls/250520-090000", "/rolls/250521-081510"]
+        call_order = []
+        self.window.directory_view.refresh_directory_dates = MagicMock(
+            side_effect=lambda paths: call_order.append("refresh")
+        )
+        self.window.directory_view.select_newest_directory = MagicMock(
+            side_effect=lambda paths: call_order.append("select")
+        )
+        self.window.postprocess_manager.run_postprocessors = MagicMock(
+            side_effect=lambda paths: call_order.append("postprocess")
+        )
+        self.window.on_directory_contents_changed = MagicMock()
+
+        self.window.on_file_transfer_finished(folder_paths)
+
+        self.window.directory_view.select_newest_directory.assert_called_once_with(
+            folder_paths)
+        # The dates are what make one of them the newest, and the roll is on
+        # screen before the postprocessors take the row over.
+        self.assertEqual(call_order, ["refresh", "select", "postprocess"])
+
     def test_empty_successful_manual_sync_says_so_in_the_row(self):
         """A sync the operator asked for reports back even when there was
         nothing to fetch — in the row, not in a window to be dismissed."""
