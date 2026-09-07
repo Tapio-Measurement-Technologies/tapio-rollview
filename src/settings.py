@@ -214,6 +214,10 @@ FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
 # copies; the device never deletes on its own. How much of the card survives is
 # the device's own "folders to keep" setting, which it enforces by refusing
 # the deletes that would break it.
+# How long one write to the device may take. Without this pyserial waits
+# on a write forever, and a port whose device has been switched off never
+# completes one, so the session hangs rather than reporting a lost link.
+RQFT_WRITE_TIMEOUT_S = 5.0
 # Transport reopen backoff after an open failure or unplug (seconds).
 RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)
 # HELLO retry while listening: device busy/measuring gets a slow retry so

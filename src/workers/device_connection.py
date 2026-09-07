@@ -344,7 +344,15 @@ class DeviceConnectionWorker(threading.Thread):
     def _try_open(self):
         kwargs = {"exclusive": True} if os.name == "posix" else {}
         try:
-            self._transport = SerialTransport(self.port, baudrate=115200, **kwargs)
+            # write_timeout, or a port whose device has gone takes the
+            # session's writes and never returns from one: pyserial waits
+            # on a write forever unless it is given a deadline.
+            self._transport = SerialTransport(
+                self.port,
+                baudrate=115200,
+                write_timeout=settings.RQFT_WRITE_TIMEOUT_S,
+                **kwargs,
+            )
         except Exception as e:
             log.debug(f"Could not open {self.port}: {e}")
             self._transport = None

@@ -140,6 +140,47 @@ class TestZmodemWorker(unittest.TestCase):
 
         self.assertIsNone(worker.error_cause)
 
+    def test_the_port_is_opened_with_a_deadline_on_its_writes(self):
+        """Without one, pyserial waits on a write forever, and a port whose
+        device has been switched off never completes one: that is what left
+        a sync running with a bar that never moved."""
+        opened = {}
+
+        def record(**kwargs):
+            opened.update(kwargs)
+            return FakeSerial([])
+
+        self.run_worker(record)
+
+        self.assertGreater(opened.get("write_timeout", 0), 0)
+
+    def test_a_write_that_times_out_is_a_lost_link(self):
+        class StalledSerial(FakeSerial):
+            def write(self, data):
+                raise serial.SerialTimeoutException("Write timeout")
+
+        worker, errors = self.run_worker(lambda **kwargs: StalledSerial([b"x"]))
+
+        self.assertEqual(worker.error_cause, CAUSE_LINK_LOST)
+        self.assertEqual(len(errors), 1)
+
+    def test_stopping_does_not_close_the_port_from_the_callers_thread(self):
+        """Cancel runs on the thread that draws the window. Closing the
+        port there hands the driver a handle it still has I/O in flight
+        on, and a Cancel that blocks is a window that stops redrawing."""
+        port = FakeSerial([])
+        worker = ZmodemTransferWorker("COM6", "C:/rolls")
+        worker.serial = port
+        worker._running = True
+
+        worker.stop()
+
+        self.assertTrue(port.is_open)
+        self.assertFalse(worker._running)
+        # The worker closes it, on its way out.
+        worker._close_port()
+        self.assertFalse(port.is_open)
+
     def test_a_stop_from_the_operator_is_not_an_error(self):
         worker_ref = {}
 

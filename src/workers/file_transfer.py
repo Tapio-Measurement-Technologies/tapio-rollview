@@ -29,6 +29,15 @@ import store
 
 log = logging.getLogger(__name__)
 
+# How long one write may take before the transfer gives up on the port.
+# Without a write timeout pyserial waits on the write forever, and a port
+# whose device has gone never completes one: measured on a Bluetooth port
+# with nothing on the far end, a write had not returned after eight
+# minutes. That is what left a sync running with a bar that never moved.
+# The link writes small headers in milliseconds, so five seconds is a
+# stall no working device produces.
+PORT_WRITE_TIMEOUT_S = 5.0
+
 # Silence for this long ends the transfer. The ZMODEM receiver has no
 # overall deadline of its own: its outer loop re-sends its header and waits
 # again, for as long as the device says nothing it understands. A unit
@@ -88,6 +97,7 @@ class ZmodemTransferWorker(QObject):
                 bytesize=serial.EIGHTBITS,
                 stopbits=serial.STOPBITS_ONE,
                 timeout=0.5,
+                write_timeout=PORT_WRITE_TIMEOUT_S,
                 xonxoff=0,
                 rtscts=0,
                 dsrdtr=0,
@@ -159,23 +169,38 @@ class ZmodemTransferWorker(QObject):
                 log.error(f"No response from the device on {self.port_name}")
                 self.error_cause = CAUSE_SILENT if self._bytes_in == 0 else CAUSE_LINK_LOST
                 self.error.emit("no response from the device")
-            self.stop()
+            self._running = False
+            self._close_port()
             self.finished.emit()
             log.info("File transfer finished.")
 
     def stop(self):
-        """
-        Stops the file transfer and cleans up resources. Idempotent.
+        """Ask the transfer to stop. Idempotent, and never blocks.
+
+        This is the Cancel button, so it runs on the thread that draws the
+        window and must return at once. It sets the flag and nothing more:
+        the worker notices within one read timeout, or one write timeout
+        if it is inside a write, and closes the port itself.
+
+        Closing the port here instead would hand the driver a handle it
+        still has I/O in flight on, from the one thread that must never
+        wait on it — and a Cancel that blocks is a window that stops
+        redrawing, which looks exactly like the hang it was pressed to
+        end.
         """
         if not self._running:
             return
         log.info("Stopping file transfer worker.")
         self._running = False
+
+    def _close_port(self):
+        """Close the port. The worker thread only: it is the thread that
+        owns the port, and the only one that knows it is not using it."""
         if self.serial and self.serial.is_open:
             try:
                 self.serial.close()
                 log.info("Serial port closed.")
-            except (serial.SerialException, TypeError) as e:
+            except (serial.SerialException, OSError, TypeError) as e:
                 log.error(f"Error while closing serial port: {e}")
 
 
