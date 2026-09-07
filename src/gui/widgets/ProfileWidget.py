@@ -639,6 +639,26 @@ class ProfileWidget(QWidget):
 
         return added_texts
 
+    def _mark_flipped(self):
+        """Say so on the chart when the profiles are drawn end for end.
+
+        A flipped profile looks exactly like an unflipped one, so nothing in the
+        plot itself reveals which way round the data is — and a chart handed to
+        someone else carries no menu to check. The note sits in the title row
+        opposite the folder name, in the axis-label ink and a step down from the
+        title: it names a setting the chart was drawn under, not a reading taken
+        off it.
+        """
+        if not preferences.flip_profiles:
+            return
+        t = self.tokens
+        self.profile_ax.set_title(
+            _("CHART_NOTE_FLIPPED"), loc="right",
+            fontsize=tapio_mpl.points(t.font_size("body-sm")),
+            fontweight="normal",
+            color=t.chart("label"),
+        )
+
     def _reserve_export_band(self):
         """Make room above the axes for the export heading and tiles.
 
@@ -883,6 +903,7 @@ class ProfileWidget(QWidget):
         # The chart is titled with the object it shows, left-aligned like every
         # other title in the system.
         self.profile_ax.set_title(directory_name)
+        self._mark_flipped()
         tapio_mpl.finish(
             self.profile_ax,
             xlabel=f"{_('CHART_DISTANCE_LABEL')} [{unit_info.unit}]",

@@ -278,6 +278,11 @@ msgstr "距離"
 msgid "CHART_MEAN_PROFILE_LABEL"
 msgstr "平均プロファイル"
 
+#. Used in the profile chart, opposite the folder name, when profiles are
+#. drawn end for end. Kept short: it shares the title row.
+msgid "CHART_NOTE_FLIPPED"
+msgstr "反転"
+
 #. Used in the profile chart when every profile has been unticked.
 msgid "CHART_NOTE_NO_PROFILES_SELECTED"
 msgstr "プロファイルが選択されていません"

@@ -434,6 +434,34 @@ class TestProfileWidget(unittest.TestCase):
             preferences.recalculate_mean = original_recalculate
             destroy(widget)
 
+    def test_flipped_profiles_are_named_as_such_beside_the_folder_name(self):
+        """Nothing in a flipped chart looks flipped, so the chart says it is.
+
+        It shares the title row with the folder name — right-aligned, so the two
+        cannot collide — and it is only there while the preference is on.
+        """
+        import matplotlib
+
+        from utils.translation import _
+
+        # Where the folder name lands is the system's business, not this test's.
+        folder_name_at = matplotlib.rcParams["axes.titlelocation"]
+        original = preferences.flip_profiles
+        widget = ProfileWidget()
+        try:
+            preferences.flip_profiles = True
+            widget.update_plot(_synthetic_profiles(1), "roll")
+            self.assertEqual(
+                widget.profile_ax.get_title(loc="right"), _("CHART_NOTE_FLIPPED"))
+            self.assertEqual(widget.profile_ax.get_title(loc=folder_name_at), "roll")
+
+            preferences.flip_profiles = False
+            widget.update_plot(_synthetic_profiles(1), "roll")
+            self.assertEqual(widget.profile_ax.get_title(loc="right"), "")
+        finally:
+            preferences.flip_profiles = original
+            destroy(widget)
+
 
 if __name__ == "__main__":
     unittest.main()
