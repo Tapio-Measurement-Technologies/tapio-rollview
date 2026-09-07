@@ -150,6 +150,7 @@ class SerialWidget(QWidget):
         self.connectionManager = connection_manager
         self._announced_device_count = None
         self._pass_running = False
+        self._focus_returns_to_scan = False
 
         self.scanner = PortScanner(self)
 
@@ -220,6 +221,15 @@ class SerialWidget(QWidget):
     def scan_devices(self):
         """The scan button, and start-up: one eager pass, most likely unit
         first, and every connection in a backoff tries again."""
+        # Qt hands the focus of a widget it is disabling to the next one in
+        # the tab order, and the next one after this button is the folder
+        # filter in the panel below: press Scan and the caret is left blinking
+        # in a text box the press had nothing to do with, where the next thing
+        # typed becomes a filter. The list is what the press was about, so the
+        # focus is put there first and offered back when the pass ends.
+        self._focus_returns_to_scan = self.scanButton.hasFocus()
+        if self._focus_returns_to_scan:
+            self.view.setFocus(Qt.FocusReason.OtherFocusReason)
         self.scanButton.setDisabled(True)
         self._pass_running = True
         self.scan_started.emit()
@@ -247,6 +257,13 @@ class SerialWidget(QWidget):
 
     def on_scan_finished(self, ports):
         self.scanButton.setDisabled(False)
+        # The button can hold the focus again. It is only taken back from the
+        # list it was parked on: a pass runs for seconds, and an operator who
+        # has moved on in the meantime keeps where they moved to.
+        if self._focus_returns_to_scan:
+            self._focus_returns_to_scan = False
+            if self.view.hasFocus():
+                self.scanButton.setFocus(Qt.FocusReason.OtherFocusReason)
         self._pass_running = False
         self.view.model.applyFilter()
         self.view.restore_selection()
