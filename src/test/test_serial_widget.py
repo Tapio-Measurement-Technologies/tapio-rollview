@@ -23,6 +23,7 @@ from models.SerialPort import (
     SerialPortItem,
     SerialPortModel,
 )
+from test.qtcleanup import destroy
 from utils import preferences
 from workers.device_connection import ConnectionState
 from workers.file_transfer import FileTransferManager
@@ -84,10 +85,11 @@ class WidgetCase(unittest.TestCase):
 
     def tearDown(self):
         self.widget.scanner.stop()
-        self.widget.deleteLater()
         self.transfers.deleteLater()
         self.connections.deleteLater()
-        QApplication.processEvents()
+        # deleteLater alone leaves the widget alive until something drains
+        # the queue, and --leakcheck counts what is still standing.
+        destroy(self.widget)
         settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = self._prefixes
         preferences.pinned_serial_ports = self._pinned
 

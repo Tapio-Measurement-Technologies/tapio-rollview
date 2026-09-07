@@ -812,6 +812,19 @@ class TestLaneThread(unittest.TestCase):
         probe.release.set()
         self.assertTrue(scanner.stop(3000))
 
+    def test_the_port_list_is_read_when_it_is_needed(self):
+        """The lane is built with the window, and a test patches the port
+        list afterwards to put a fake device in front of it. A lane that
+        bound the function at construction went on enumerating the real
+        ports and never saw the device."""
+        scanner = PortScanner()
+        self.addCleanup(scanner.stop)
+
+        with patch("serial.tools.list_ports.comports", return_value=[usb_port("COM99")]):
+            scanner._lane._refresh()
+
+        self.assertIn("COM99", scanner._lane._cands)
+
     def test_stop_is_safe_before_start_and_twice_after(self):
         scanner = PortScanner()
         self.assertTrue(scanner.stop())

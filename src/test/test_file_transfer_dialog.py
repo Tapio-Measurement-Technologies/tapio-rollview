@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 from PySide6.QtWidgets import QApplication
 
 from gui.file_transfer_dialog import FileTransferDialog
+from test.qtcleanup import destroy
 
 
 class DialogCase(unittest.TestCase):
@@ -21,8 +22,9 @@ class DialogCase(unittest.TestCase):
     def setUp(self):
         self.manager = MagicMock()
         self.dialog = FileTransferDialog(self.manager)
-        self.addCleanup(self.dialog.deleteLater)
-        self.addCleanup(self.dialog.hide)
+        # deleteLater alone leaves the window alive until something drains
+        # the queue, and --leakcheck counts what is still standing.
+        self.addCleanup(destroy, self.dialog)
 
 
 class TestProgress(DialogCase):

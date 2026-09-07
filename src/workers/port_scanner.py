@@ -257,9 +257,13 @@ class DiscoveryLane:
         self._busy_ports = busy_ports or (lambda: {})
         self._clock = clock
         self._wall_clock = wall_clock
-        self._comports = comports or serial.tools.list_ports.comports
-        self._paired = paired or paired_devices
-        self._probe = probe or probe_port
+        # Looked up when they are called, not bound here: the lane outlives
+        # the window's construction, and a test that patches the port list
+        # afterwards — which is how the fake device is put in front of it —
+        # would otherwise be talking to a name this object stopped reading.
+        self._comports = comports or (lambda: serial.tools.list_ports.comports())
+        self._paired = paired or (lambda: paired_devices())
+        self._probe = probe or (lambda *args: probe_port(*args))
 
         self._cond = threading.Condition(threading.RLock())
         self._cands: dict[str, Candidate] = {}
