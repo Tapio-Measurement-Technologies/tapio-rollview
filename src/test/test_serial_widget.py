@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 from serial.tools import list_ports_common
 
@@ -22,6 +23,7 @@ from models.SerialPort import (
     BALL_WORKING,
     SerialPortItem,
     SerialPortModel,
+    _ball_icon,
 )
 from test.qtcleanup import destroy
 from utils import preferences
@@ -222,6 +224,20 @@ class TestBall(unittest.TestCase):
         item = make_item("COM3", responded=False, paired="")
 
         self.assertEqual(self.kind_for(item), BALL_ABSENT)
+
+    def test_selecting_a_row_does_not_wash_out_its_ball(self):
+        """A selected row has its decoration tinted towards the highlight by
+        the style, and this ball is not decoration: the colour is the whole
+        of what it says. The row an operator has selected is the one they
+        are about to sync from, which makes it the worst one to fade."""
+        for kind in (BALL_ABSENT, BALL_READY, BALL_WORKING, BALL_LIVE):
+            with self.subTest(kind=kind):
+                icon = _ball_icon(kind)
+                size = icon.availableSizes()[0]
+                self.assertEqual(
+                    icon.pixmap(size, QIcon.Mode.Normal).toImage(),
+                    icon.pixmap(size, QIcon.Mode.Selected).toImage(),
+                )
 
     def test_the_ball_colours_come_from_the_token_table(self):
         """The design system's rule: a colour written anywhere else is a

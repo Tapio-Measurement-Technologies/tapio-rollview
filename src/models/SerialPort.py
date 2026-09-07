@@ -121,6 +121,15 @@ def _ball_icon(kind):
     painter.drawEllipse(1, 1, 9, 9)
     painter.end()
     icon = QIcon(pixmap)
+    # The style tints a selected row's decoration towards the highlight, and
+    # this ball is not decoration: its colour is the whole of what it says.
+    # Selecting a unit is what an operator does just before syncing it, so
+    # the tint washed out the one row whose state was being read. Giving the
+    # mode a pixmap of its own is what stops the style generating one.
+    #
+    # Disabled is left to the style. A paired unit that is off is greyed on
+    # purpose, ball and all.
+    icon.addPixmap(pixmap, QIcon.Mode.Selected)
     _ball_icon_cache[key] = icon
     return icon
 
