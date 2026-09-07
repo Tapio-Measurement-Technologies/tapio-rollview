@@ -56,9 +56,13 @@ class SerialPortView(QListView):
 
         context_menu.addAction(pin_action)
 
-        # Connect is offered on a unit that has answered and on a paired
-        # unit that has not: for the latter it means "ask this one next".
-        if port_item.supports_rqft or port_item.is_paired_unit():
+        # Connect is offered on a unit that speaks RQFT, and on a paired
+        # unit that has not answered, where it means "ask this one next".
+        # A unit that answered without RQFT syncs over ZMODEM, which opens
+        # the port itself: a connection held on it would only deny that.
+        if port_item.supports_rqft or (
+            port_item.is_paired_unit() and not port_item.device_responded
+        ):
             state = self.model.getConnectionState(port_item.device)
             if state is not None and state is not ConnectionState.DISABLED:
                 connect_action = QAction(_("SERIAL_DISCONNECT_DEVICE"), self)
@@ -272,10 +276,14 @@ class SerialWidget(QWidget):
         """The Connect action: reconnect a unit that has answered, or ask a
         paired unit next and connect when it does."""
         item = self.view.model.findItem(device)
-        if self.connectionManager is not None:
-            if item is not None and item.device_responded:
+        if item is not None and item.device_responded:
+            # Only a unit that speaks RQFT has anything to connect to. One
+            # that answered without it must be left alone: a worker on its
+            # port would hold the port against the ZMODEM sync.
+            if item.supports_rqft and self.connectionManager is not None:
                 self.connectionManager.manual_connect(device)
-                return
+            return
+        if self.connectionManager is not None:
             self.connectionManager.allow_auto_connect(device)
         self.scanner.probe_port(device)
 
@@ -284,9 +292,11 @@ class SerialWidget(QWidget):
         port_item = self.view.model.getSelectedPort()
         if not port_item:
             return
-        # The lane may be inside a probe of this very port; the sync's own
-        # open would fail against it. A unit that is on answers in about a
-        # second, so the wait is short and bounded.
+        # The lane sits out the sync from here. Paused first, so no probe of
+        # this port can start between the wait and the sync's own open;
+        # then waited for, since a probe already inside the port holds it
+        # for about a second. If no transfer starts, the lane goes on.
+        self.scanner.set_paused(True)
         self.scanner.wait_until_port_free(port_item.device)
         # No completion callback: a sync reports itself through the window's
         # status bar now, and there is no dialog left to close.
@@ -296,6 +306,8 @@ class SerialWidget(QWidget):
             None,
             supports_rqft=port_item.supports_rqft,
         )
+        if not self.transferManager.is_transfer_in_progress():
+            self.scanner.set_paused(False)
 
     def _on_transfer_started(self):
         self._set_sync_enabled(False)

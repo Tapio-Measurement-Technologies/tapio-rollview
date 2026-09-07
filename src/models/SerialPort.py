@@ -100,10 +100,12 @@ def natural_sort_key(text):
     return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 class SerialPortModel(QAbstractListModel):
-    def __init__(self, ports: list = [], parent=None):
+    def __init__(self, ports=None, parent=None):
         super().__init__(parent)
-        self.ports = ports
-        self.filtered_ports = ports
+        # A fresh list per model: a mutable default here was shared by
+        # every model, so ports added to one turned up in the next.
+        self.ports = list(ports or [])
+        self.filtered_ports = list(self.ports)
         self.selected_port: SerialPortItem = None
         # Callable(device) -> Optional[ConnectionState]; live state is
         # queried, never stored on items (scans rebuild the items).
@@ -130,10 +132,11 @@ class SerialPortModel(QAbstractListModel):
         elif role == Qt.ItemDataRole.DecorationRole:
             if item.supports_rqft:
                 return _state_icon(self.getConnectionState(item.device))
-            if item.is_paired_unit():
+            if item.is_paired_unit() and not item.device_responded:
                 # Known by name, not reached: the hollow ball says "could
                 # connect, nothing there yet", the same shape a disabled
-                # connection has.
+                # connection has. A unit that answered without RQFT has no
+                # connection to show, so it gets no ball at all.
                 return _state_icon(None)
             return None
 
