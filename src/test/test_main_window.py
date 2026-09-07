@@ -853,10 +853,12 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
         self.window.on_connection_lost("COM4", "unplugged")
 
-        self.assertEqual(
-            self.window.status_message(),
-            _("DEVICE_DISCONNECTED_STATUS").format(device="Tapio RQP Live (SN1)"),
-        )
+        # A port that failed underneath the session is described by cause,
+        # and the sentence still names the unit rather than only the port.
+        message = self.window.status_message()
+        self.assertIn("Tapio RQP Live (SN1)", message)
+        self.assertIn("COM4", message)
+        self.assertIn("dropped", message)
 
     def test_connection_lost_falls_back_to_the_port_name(self):
         self.window.on_connection_lost("COM9", "dead")

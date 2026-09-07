@@ -57,6 +57,7 @@ from utils.rqft_support import (
     is_syncable_prof,
     plan_device_deletes,
 )
+from utils.serial_errors import CAUSE_LINK_LOST, classify_port_error, describe_port_error
 from utils.time_sync import device_wall_clock_to_epoch
 from utils.translation import _
 
@@ -112,14 +113,19 @@ class SyncError:
     err_code: Optional[ErrCode] = None
     path: Optional[str] = None
     fetched: list = field(default_factory=list)
+    # transport only: the port had opened before it failed, so the cause
+    # is a lost link rather than a port that could not be opened.
+    opened: bool = False
 
 
-def describe_sync_error(error: SyncError) -> str:
+def describe_sync_error(error: SyncError, port: str = "", unit_name: str = "") -> str:
     """Build a translated user-facing message for a failed sync."""
     if error.kind == "busy":
         return _("DEVICE_BUSY_STATUS")
     if error.kind == "transport":
-        return f"{_('SYNC_ERROR_TRANSPORT')} {error.message}".strip()
+        return describe_port_error(
+            error.message, port, unit_name, opened=error.opened
+        ).body
     if error.kind == "timeout":
         return _("SYNC_ERROR_TIMEOUT")
     if error.kind == "ended":
@@ -129,6 +135,14 @@ def describe_sync_error(error: SyncError) -> str:
         where = f" '{error.path}'" if error.path else ""
         return f"{_('SYNC_ERROR_OPERATION')}{where}: {hint or error.message}"
     return error.message
+
+
+def sync_error_title(error: SyncError) -> str:
+    """The message box title for a failed sync: the cause, for a port
+    failure, and otherwise that the sync failed."""
+    if error.kind == "transport":
+        return describe_port_error(error.message, "", opened=error.opened).title
+    return _("SYNC_FAILED_TITLE")
 
 
 class ConnectionBridge(QObject):
@@ -191,6 +205,12 @@ class DeviceConnectionWorker(threading.Thread):
         # the port is not reported busy, so the lane may probe it.
         self.bluetooth = bluetooth
         self.awaiting_reachable = False
+        # The last open failure, kept so a sync that needed the open can
+        # say what went wrong rather than only that it did.
+        self._last_open_error: Optional[Exception] = None
+        # Why the last transport failure happened, as a utils.serial_errors
+        # cause; read by the manager to word a lost connection.
+        self.last_error_cause: Optional[str] = None
         self._queue: "queue.Queue[_Op]" = queue.Queue()
         self._stop_event = threading.Event()
         self._cancel = threading.Event()
@@ -315,6 +335,7 @@ class DeviceConnectionWorker(threading.Thread):
         except Exception as e:
             log.debug(f"Could not open {self.port}: {e}")
             self._transport = None
+            self._last_open_error = e
             if self.bluetooth:
                 log.info(f"{self.port} not reachable; waiting for discovery")
                 self.awaiting_reachable = True
@@ -354,6 +375,7 @@ class DeviceConnectionWorker(threading.Thread):
     def _on_transport_error(self, error: Exception):
         log.info(f"Transport error on {self.port}: {error}")
         was_open = self._transport is not None
+        self.last_error_cause = classify_port_error(error, opened=was_open)
         self._close_transport()
         self._backoff_index = 0
         self._retry_at = time.monotonic() + settings.RQFT_OPEN_BACKOFF_S[0]
@@ -583,7 +605,12 @@ class DeviceConnectionWorker(threading.Thread):
             if self._transport is None:
                 self._try_open()
                 if self._transport is None:
-                    raise OSError("serial port could not be opened")
+                    # The original failure, so the sync can say whether
+                    # the port is held, gone, or a unit that is off.
+                    cause = self._last_open_error
+                    if isinstance(cause, OSError):
+                        raise cause
+                    raise OSError(str(cause) if cause else "serial port could not be opened")
             newly_connected = self._established is None
             self._do_connect()
             if newly_connected:
@@ -624,7 +651,13 @@ class DeviceConnectionWorker(threading.Thread):
             )
         except OSError as e:
             self._bridge.syncFailed.emit(
-                self.port, SyncError("transport", message=str(e), fetched=fetched)
+                self.port,
+                SyncError(
+                    "transport",
+                    message=str(e),
+                    fetched=fetched,
+                    opened=self._transport is not None,
+                ),
             )
             self._on_transport_error(e)
 
@@ -1014,6 +1047,14 @@ class DeviceConnectionManager(QObject):
         if identity.serial_number:
             label += f" ({identity.serial_number})"
         return label
+
+    def describe_lost_connection(self, port: str) -> str:
+        """Words for a connection the worker on ``port`` lost: which way
+        the port failed, and what to do about it."""
+        worker = self._workers.get(port)
+        cause = getattr(worker, "last_error_cause", None) or CAUSE_LINK_LOST
+        label = self.device_label(port)
+        return describe_port_error(cause, port, "" if label == port else label).body
 
     # -- bridge slots (GUI thread) -------------------------------------
 

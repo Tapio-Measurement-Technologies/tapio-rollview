@@ -1218,7 +1218,13 @@ class MainWindow(QMainWindow):
     def on_connection_lost(self, port, reason):
         if reason == "busy":
             self.set_status_message(_("DEVICE_BUSY_STATUS"))
-        elif reason in ("unplugged", "dead"):
+        elif reason == "unplugged":
+            # The port failed underneath the session: say which way, and
+            # what to do, rather than only that the device is gone.
+            self.set_status_message(
+                self.device_connection_manager.describe_lost_connection(port)
+            )
+        elif reason == "dead":
             self.set_status_message(
                 _("DEVICE_DISCONNECTED_STATUS").format(
                     device=self.device_connection_manager.device_label(port)

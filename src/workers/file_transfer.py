@@ -14,10 +14,22 @@ from modem import ZMODEM
 from models.FileTransfer import FileTransferModel, FileTransferItem
 from PySide6.QtCore import QObject, QTimer, Signal, QThread
 from gui.widgets.messagebox import show_error_msgbox
-from workers.device_connection import describe_sync_error
+from utils.serial_errors import CAUSE_SILENT, classify_port_error, describe_port_error
+from workers.device_connection import describe_sync_error, sync_error_title
 import store
 
 log = logging.getLogger(__name__)
+
+# Complete silence for this long after the port opens ends the transfer: a
+# unit that is on answers the receiver's first header within a second or
+# two, and the ZMODEM receiver would otherwise re-send that header forever.
+SILENT_DEVICE_TIMEOUT_S = 15.0
+
+
+class _Aborted(BaseException):
+    """Unwinds the ZMODEM receiver from inside getc/putc: the port failed,
+    the device sent nothing, or the operator stopped the transfer. Not an
+    Exception, so nothing in the receiver can catch it on the way out."""
 
 
 class ZmodemTransferWorker(QObject):
@@ -44,6 +56,13 @@ class ZmodemTransferWorker(QObject):
         self.folder_path = folder_path
         self.serial = None
         self._running = True
+        # Why the transfer failed, as a utils.serial_errors cause; set
+        # before ``error`` is emitted so the manager can word it.
+        self.error_cause = None
+        self._io_error = None
+        self._silent = False
+        self._bytes_in = 0
+        self._opened_at = 0.0
 
     def run(self):
         """
@@ -62,27 +81,42 @@ class ZmodemTransferWorker(QObject):
                 dsrdtr=0,
                 baudrate=115200,
             )
-        except serial.SerialException as e:
+        except (serial.SerialException, OSError) as e:
             log.error(f"Failed to open serial port {self.port_name}: {e}")
+            self.error_cause = classify_port_error(e, opened=False)
             self.error.emit(str(e))
             self.finished.emit()
             return
+        self._opened_at = time.monotonic()
 
         def getc(size, timeout=5):
-            if not self._running: return None
+            if not self._running:
+                raise _Aborted()
             try:
-                return self.serial.read(size).decode("ISO-8859-1")
-            except (serial.SerialException, TypeError):
-                # This will happen if port is closed during read
-                return None
+                data = self.serial.read(size)
+            except (serial.SerialException, OSError, TypeError) as e:
+                # The port failed underneath the receiver, or was closed
+                # by stop() during the read.
+                self._io_error = e
+                raise _Aborted()
+            if data:
+                self._bytes_in += len(data)
+            elif (
+                self._bytes_in == 0
+                and time.monotonic() - self._opened_at > SILENT_DEVICE_TIMEOUT_S
+            ):
+                self._silent = True
+                raise _Aborted()
+            return data.decode("ISO-8859-1")
 
         def putc(data, timeout=8):
-            if not self._running: return None
+            if not self._running:
+                raise _Aborted()
             try:
                 return self.serial.write(data.encode("ISO-8859-1"))
-            except (serial.SerialException, TypeError):
-                # This will happen if port is closed during write
-                return None
+            except (serial.SerialException, OSError, TypeError) as e:
+                self._io_error = e
+                raise _Aborted()
 
         try:
             self.serial.read_all()
@@ -90,11 +124,24 @@ class ZmodemTransferWorker(QObject):
             zmodem = ZMODEM(getc, putc, self)
             if self._running:
                 zmodem.recv(self.folder_path)
+        except _Aborted:
+            pass
         except Exception as e:
             log.error(f"Error during ZMODEM transfer: {e}")
             if self._running:
+                self.error_cause = classify_port_error(e, opened=True)
                 self.error.emit(str(e))
         finally:
+            # A stop from the operator is not an error, whatever the read
+            # it interrupted raised.
+            if self._running and self._io_error is not None:
+                log.error(f"Serial port failed during ZMODEM transfer: {self._io_error}")
+                self.error_cause = classify_port_error(self._io_error, opened=True)
+                self.error.emit(str(self._io_error))
+            elif self._running and self._silent:
+                log.error(f"No response from the device on {self.port_name}")
+                self.error_cause = CAUSE_SILENT
+                self.error.emit("no response from the device")
             self.stop()
             self.finished.emit()
             log.info("File transfer finished.")
@@ -147,6 +194,9 @@ class FileTransferManager(QObject):
         self._active_port = None
         self._active_bridge = None
         self._active_is_auto = False
+        # The unit's name for error messages: what the operator sees in
+        # the device list, not the port.
+        self._active_unit_name = ""
         # Ports with an automatic sync queued, at most one entry each.
         self._auto_queue: list[str] = []
         # "ok" | "cancelled" | "error" — how the last transfer ended;
@@ -170,7 +220,7 @@ class FileTransferManager(QObject):
 
     # -- entry points --------------------------------------------------
 
-    def start_transfer(self, port, folder_path, on_complete, supports_rqft=False):
+    def start_transfer(self, port, folder_path, on_complete, supports_rqft=False, unit_name=""):
         """
         Starts a new (manual) file transfer.
         """
@@ -178,6 +228,7 @@ class FileTransferManager(QObject):
             log.warning("File transfer already in progress.")
             return
 
+        self._active_unit_name = unit_name or self._unit_label(port)
         conn = None
         if self._connection_manager is not None and supports_rqft:
             # (Re)establish the connection when the user syncs a capable
@@ -213,7 +264,15 @@ class FileTransferManager(QObject):
         if conn is None:
             log.info(f"Skipping auto sync for {port}: no active connection")
             return
+        self._active_unit_name = self._unit_label(port)
         self._begin_rqft(port, conn, store.root_directory, None, auto=True)
+
+    def _unit_label(self, port):
+        """The connection manager's name for the unit, or nothing."""
+        if self._connection_manager is None:
+            return ""
+        label = self._connection_manager.device_label(port)
+        return label if isinstance(label, str) and label != port else ""
 
     def _drain_auto_queue(self):
         # Loop rather than pop once: a queued port whose connection went
@@ -273,7 +332,7 @@ class FileTransferManager(QObject):
         self._finish_rqft(fetched)
 
     def _on_rqft_failed(self, port, error):
-        message = describe_sync_error(error)
+        message = describe_sync_error(error, port, self._active_unit_name)
         is_auto = self._active_is_auto
         self.last_transfer_outcome = (
             "cancelled" if error.kind == "cancelled" else "error"
@@ -284,7 +343,7 @@ class FileTransferManager(QObject):
             log.error(f"RQFT sync failed on {port} ({error.kind}): {message}")
             self.transferError.emit(message, is_auto)
             if not is_auto and error.kind not in ("busy",):
-                show_error_msgbox(f"Error occurred during file transfer:\n\n{message}")
+                show_error_msgbox(message, sync_error_title(error))
         # Files fetched before the failure are committed and usable.
         self._finish_rqft(error.fetched)
 
@@ -411,9 +470,19 @@ class FileTransferManager(QObject):
         QTimer.singleShot(0, self._drain_auto_queue)
 
     def on_transfer_error(self, error_message):
+        """A ZMODEM transfer failed: word the cause for the operator.
+
+        The worker has already sorted the failure into a cause; the raw
+        text stays in the log for support. The status bar gets the same
+        sentence as the message box, so it is still there after the box
+        is dismissed.
+        """
         log.error(f"File transfer error received: {error_message}")
         self.last_transfer_outcome = "error"
-        show_error_msgbox(f"Error occurred during file transfer:\n\n{error_message}")
+        cause = getattr(self.worker, "error_cause", None) or error_message
+        text = describe_port_error(cause, self._active_port or "", self._active_unit_name)
+        self.transferError.emit(text.body, False)
+        show_error_msgbox(text.body, text.title)
 
     def on_transfer_finished(self):
         """

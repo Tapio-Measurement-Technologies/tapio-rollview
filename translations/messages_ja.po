@@ -1001,6 +1001,63 @@ msgstr "デバイスのファイル一覧で読み取れないファイルを {c
 msgid "SYNC_ERROR_TRANSPORT"
 msgstr "デバイスとの接続に失敗しました:"
 
+#. Message box title for a sync that failed for a reason other than the
+#. serial port itself.
+msgid "SYNC_FAILED_TITLE"
+msgstr "同期に失敗しました"
+
+#. Port errors: what the unit is called when its name is not known.
+msgid "PORT_ERROR_DEVICE"
+msgstr "デバイス"
+
+#. Port error: another program has the port open. {port} is the port name.
+msgid "PORT_ERROR_HELD"
+msgstr "{port} は別のプログラムが使用中です。"
+msgid "PORT_ERROR_HELD_HINT"
+msgstr "他のプログラムを閉じてから、もう一度お試しください。"
+msgid "PORT_ERROR_HELD_TITLE"
+msgstr "ポートが使用中です"
+
+#. Port error: a paired unit that is switched off or out of range.
+msgid "PORT_ERROR_UNREACHABLE"
+msgstr "{unit} ({port}) は接続されていません。"
+msgid "PORT_ERROR_UNREACHABLE_HINT"
+msgstr "デバイスの電源を入れ、通信範囲内にあることを確認してください。"
+msgid "PORT_ERROR_UNREACHABLE_TITLE"
+msgstr "未接続"
+
+#. Port error: the port itself is no longer there.
+msgid "PORT_ERROR_GONE"
+msgstr "{port} が見つかりません。"
+msgid "PORT_ERROR_GONE_HINT"
+msgstr "デバイスを再接続してください。"
+msgid "PORT_ERROR_GONE_TITLE"
+msgstr "ポートが見つかりません"
+
+#. Port error: reading or writing failed after the port had opened.
+msgid "PORT_ERROR_LINK_LOST"
+msgstr "{unit} ({port}) との接続が切断されました。"
+msgid "PORT_ERROR_LINK_LOST_HINT"
+msgstr "受信済みのファイルは保存されています。デバイスを再接続して同期してください。"
+msgid "PORT_ERROR_LINK_LOST_TITLE"
+msgstr "接続が切断されました"
+
+#. Port error: the port opened and the unit sent nothing back.
+msgid "PORT_ERROR_SILENT"
+msgstr "{unit} ({port}) は開けましたが、何も送信しませんでした。"
+msgid "PORT_ERROR_SILENT_HINT"
+msgstr "デバイスの電源が入っていて準備ができているか確認してください。"
+msgid "PORT_ERROR_SILENT_TITLE"
+msgstr "応答なし"
+
+#. Port error: none of the above; the raw text is in the log window.
+msgid "PORT_ERROR_UNKNOWN"
+msgstr "{port} で RollView が認識できないエラーが発生しました。"
+msgid "PORT_ERROR_UNKNOWN_HINT"
+msgstr "詳細はログウィンドウにあります。"
+msgid "PORT_ERROR_UNKNOWN_TITLE"
+msgstr "デバイスエラー"
+
 #. Sync error: no progress within the watchdog time.
 msgid "SYNC_ERROR_TIMEOUT"
 msgstr "同期中にデバイスが応答しなくなりました"
@@ -1126,10 +1183,6 @@ msgstr "シリアルポートをスキャンしてデバイスを探します"
 #. answered on yet.
 msgid "GUIDANCE_PORT_NOT_CHECKED"
 msgstr "未確認"
-
-#. Device list tooltip: why a paired unit is greyed out.
-msgid "GUIDANCE_PORT_NOT_REACHABLE"
-msgstr "ペアリング済みですが応答がありません。デバイスの電源を入れると検出されます。"
 
 #. Device panel: the sync button, when it can be pressed.
 msgid "GUIDANCE_SYNC_DEVICE"

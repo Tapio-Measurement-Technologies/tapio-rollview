@@ -305,6 +305,7 @@ class SerialWidget(QWidget):
             sync_folder,
             None,
             supports_rqft=port_item.supports_rqft,
+            unit_name=port_item.label(),
         )
         if not self.transferManager.is_transfer_in_progress():
             self.scanner.set_paused(False)

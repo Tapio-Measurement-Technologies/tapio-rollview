@@ -1004,6 +1004,63 @@ msgstr "Device listing skipped {count} unreadable file(s)"
 msgid "SYNC_ERROR_TRANSPORT"
 msgstr "Connection to the device failed:"
 
+#. Message box title for a sync that failed for a reason other than the
+#. serial port itself.
+msgid "SYNC_FAILED_TITLE"
+msgstr "Sync failed"
+
+#. Port errors: what the unit is called when its name is not known.
+msgid "PORT_ERROR_DEVICE"
+msgstr "The device"
+
+#. Port error: another program has the port open. {port} is the port name.
+msgid "PORT_ERROR_HELD"
+msgstr "{port} is in use by another program."
+msgid "PORT_ERROR_HELD_HINT"
+msgstr "Close the other program and try again."
+msgid "PORT_ERROR_HELD_TITLE"
+msgstr "Port in use"
+
+#. Port error: a paired unit that is switched off or out of range.
+msgid "PORT_ERROR_UNREACHABLE"
+msgstr "{unit} on {port} is not connected."
+msgid "PORT_ERROR_UNREACHABLE_HINT"
+msgstr "Switch the device on and check that it is in range."
+msgid "PORT_ERROR_UNREACHABLE_TITLE"
+msgstr "Not connected"
+
+#. Port error: the port itself is no longer there.
+msgid "PORT_ERROR_GONE"
+msgstr "{port} is no longer there."
+msgid "PORT_ERROR_GONE_HINT"
+msgstr "Reconnect the device."
+msgid "PORT_ERROR_GONE_TITLE"
+msgstr "Port not found"
+
+#. Port error: reading or writing failed after the port had opened.
+msgid "PORT_ERROR_LINK_LOST"
+msgstr "The connection to {unit} on {port} dropped."
+msgid "PORT_ERROR_LINK_LOST_HINT"
+msgstr "Files received so far are kept. Reconnect the device and sync again."
+msgid "PORT_ERROR_LINK_LOST_TITLE"
+msgstr "Connection lost"
+
+#. Port error: the port opened and the unit sent nothing back.
+msgid "PORT_ERROR_SILENT"
+msgstr "{unit} on {port} opened but sent nothing."
+msgid "PORT_ERROR_SILENT_HINT"
+msgstr "Check that the device is switched on and ready."
+msgid "PORT_ERROR_SILENT_TITLE"
+msgstr "No response"
+
+#. Port error: none of the above; the raw text is in the log window.
+msgid "PORT_ERROR_UNKNOWN"
+msgstr "{port} failed in a way RollView does not recognise."
+msgid "PORT_ERROR_UNKNOWN_HINT"
+msgstr "The details are in the log window."
+msgid "PORT_ERROR_UNKNOWN_TITLE"
+msgstr "Device error"
+
 #. Sync error: no progress within the watchdog time.
 msgid "SYNC_ERROR_TIMEOUT"
 msgstr "The device stopped responding during sync"
@@ -1129,10 +1186,6 @@ msgstr "Scan the serial ports for devices"
 #. answered on yet.
 msgid "GUIDANCE_PORT_NOT_CHECKED"
 msgstr "Not checked"
-
-#. Device list tooltip: why a paired unit is greyed out.
-msgid "GUIDANCE_PORT_NOT_REACHABLE"
-msgstr "Paired but not answering. Switch the unit on and it will be found."
 
 #. Device panel: the sync button, when it can be pressed.
 msgid "GUIDANCE_SYNC_DEVICE"

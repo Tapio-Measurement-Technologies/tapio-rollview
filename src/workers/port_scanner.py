@@ -57,6 +57,7 @@ from utils.bluetooth_ports import (
     paired_devices,
     split_paired_name,
 )
+from utils.serial_errors import CAUSE_HELD, classify_port_error
 from utils.time_sync import send_timestamp
 from utils.translation import _
 
@@ -206,6 +207,8 @@ class Candidate:
     last_used: Optional[float] = None      # wall clock, from the paired list
     # None until probed; then whether the last probe was answered.
     reachable: Optional[bool] = None
+    # Why the last probe was not answered: a utils.serial_errors cause.
+    error_cause: Optional[str] = None
     # Monotonic clock throughout.
     last_probe: float = 0.0
     responded_at: float = 0.0
@@ -609,6 +612,11 @@ class DiscoveryLane:
     def _next_due_locked(self, candidate, now):
         if candidate.reachable:
             return now + settings.DISCOVERY_LIVE_RECHECK_INTERVAL_S
+        if candidate.error_cause == CAUSE_HELD:
+            # Another program has the port. The open fails at once, no
+            # paging, so asking again soon costs nothing and notices the
+            # port being let go.
+            return now + settings.DISCOVERY_RETRY_INTERVAL_S
         if candidate.kind == KIND_BLUETOOTH:
             if now < self._eager_until or self._is_recent_locked(candidate):
                 return now + settings.DISCOVERY_BLUETOOTH_GAP_S
@@ -639,6 +647,7 @@ class DiscoveryLane:
                 candidate.reachable = bool(responded)
                 candidate.last_probe = now
                 candidate.requested_at = None
+                candidate.error_cause = None if responded else classify_port_error(error)
                 if responded:
                     candidate.responded_at = now
                     candidate.identity = (
@@ -759,6 +768,7 @@ class DiscoveryLane:
             paired_name=candidate.paired_name,
             transport=candidate.kind,
             bluetooth_address=candidate.address,
+            error_cause=candidate.error_cause,
         )
         return item
 

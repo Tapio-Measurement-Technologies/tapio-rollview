@@ -5,6 +5,7 @@ import settings
 from theme.guidance import compose
 from utils import preferences
 from utils.rqft_support import firmware_supports_rqft
+from utils.serial_errors import CAUSE_UNREACHABLE, describe_port_error
 from utils.translation import _
 from workers.device_connection import ConnectionState
 import re
@@ -22,6 +23,7 @@ class SerialPortItem:
         paired_name="",
         transport="other",
         bluetooth_address=None,
+        error_cause=None,
     ):
         self.device = port.device
         self.description = port.description
@@ -35,6 +37,9 @@ class SerialPortItem:
         self.paired_name = paired_name or ""
         self.transport = transport
         self.bluetooth_address = bluetooth_address
+        # Why the last probe went unanswered: a utils.serial_errors cause,
+        # None when it was answered or nothing has asked yet.
+        self.error_cause = error_cause
         # A worker-held port may be a known RQFT device without having a
         # live session during this scan.
         self.supports_rqft = (
@@ -43,6 +48,15 @@ class SerialPortItem:
 
     def is_pinned(self):
         return self.device in preferences.pinned_serial_ports
+
+    def label(self):
+        """The unit as an operator names it: "Tapio RQP Live (1428495563)",
+        or the port when nothing more is known."""
+        if not self.description:
+            return self.device
+        if self.serial_number:
+            return f"{self.description} ({self.serial_number})"
+        return self.description
 
     def is_paired_unit(self):
         """A paired Bluetooth unit of ours, known by name before any probe."""
@@ -178,9 +192,14 @@ class SerialPortModel(QAbstractListModel):
         if item.is_pinned():
             detail.append(_("GUIDANCE_PORT_PINNED"))
         if item.is_listed_without_answer():
-            # Why the row is grey: the unit is known and nothing answers.
-            detail.append(_("GUIDANCE_PORT_NOT_CHECKED") if item.reachable is None
-                          else _("GUIDANCE_PORT_NOT_REACHABLE"))
+            # Why the row is grey: nothing has asked yet, or the unit did
+            # not answer, and then the cause and what to do about it.
+            if item.reachable is None:
+                detail.append(_("GUIDANCE_PORT_NOT_CHECKED"))
+            else:
+                detail.append(describe_port_error(
+                    item.error_cause or CAUSE_UNREACHABLE, item.device, item.label()
+                ).body)
         action = (_("GUIDANCE_PORT_ACTIONS_RQFT") if item.supports_rqft
                   else _("GUIDANCE_PORT_ACTIONS"))
         return compose(item.device, detail, action)
