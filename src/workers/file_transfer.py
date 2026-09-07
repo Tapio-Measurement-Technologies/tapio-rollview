@@ -14,16 +14,24 @@ from modem import ZMODEM
 from models.FileTransfer import FileTransferModel, FileTransferItem
 from PySide6.QtCore import QObject, QTimer, Signal, QThread
 from gui.widgets.messagebox import show_error_msgbox
-from utils.serial_errors import CAUSE_SILENT, classify_port_error, describe_port_error
+from utils.serial_errors import (
+    CAUSE_LINK_LOST,
+    CAUSE_SILENT,
+    classify_port_error,
+    describe_port_error,
+)
 from workers.device_connection import describe_sync_error, sync_error_title
 import store
 
 log = logging.getLogger(__name__)
 
-# Complete silence for this long after the port opens ends the transfer: a
-# unit that is on answers the receiver's first header within a second or
-# two, and the ZMODEM receiver would otherwise re-send that header forever.
-SILENT_DEVICE_TIMEOUT_S = 15.0
+# Silence for this long ends the transfer. The ZMODEM receiver has no
+# overall deadline of its own: its outer loop re-sends its header and waits
+# again, for as long as the device says nothing it understands. A unit
+# switched off mid-sync therefore left the operator watching a bar that
+# would never move, which is what this is here to end. Bytes reset it, so
+# a transfer in flight is never cut short.
+DEVICE_SILENCE_TIMEOUT_S = 15.0
 
 
 class _Aborted(BaseException):
@@ -62,7 +70,7 @@ class ZmodemTransferWorker(QObject):
         self._io_error = None
         self._silent = False
         self._bytes_in = 0
-        self._opened_at = 0.0
+        self._last_byte_at = 0.0
 
     def run(self):
         """
@@ -87,7 +95,7 @@ class ZmodemTransferWorker(QObject):
             self.error.emit(str(e))
             self.finished.emit()
             return
-        self._opened_at = time.monotonic()
+        self._last_byte_at = time.monotonic()
 
         def getc(size, timeout=5):
             if not self._running:
@@ -101,10 +109,12 @@ class ZmodemTransferWorker(QObject):
                 raise _Aborted()
             if data:
                 self._bytes_in += len(data)
-            elif (
-                self._bytes_in == 0
-                and time.monotonic() - self._opened_at > SILENT_DEVICE_TIMEOUT_S
-            ):
+                self._last_byte_at = time.monotonic()
+            elif time.monotonic() - self._last_byte_at > DEVICE_SILENCE_TIMEOUT_S:
+                # Gated on the last byte rather than on the first: a device
+                # that answered once and then went quiet is the switched-off
+                # case too, and gating on "nothing ever arrived" let a single
+                # byte of console noise disable this for good.
                 self._silent = True
                 raise _Aborted()
             return data.decode("ISO-8859-1")
@@ -139,8 +149,11 @@ class ZmodemTransferWorker(QObject):
                 self.error_cause = classify_port_error(self._io_error, opened=True)
                 self.error.emit(str(self._io_error))
             elif self._running and self._silent:
+                # Nothing at all is a device that never woke up; going quiet
+                # after answering is one that went away mid-sync, and what
+                # arrived before it did is kept either way.
                 log.error(f"No response from the device on {self.port_name}")
-                self.error_cause = CAUSE_SILENT
+                self.error_cause = CAUSE_SILENT if self._bytes_in == 0 else CAUSE_LINK_LOST
                 self.error.emit("no response from the device")
             self.stop()
             self.finished.emit()

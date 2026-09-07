@@ -77,7 +77,7 @@ class TestZmodemWorker(unittest.TestCase):
         with patch("workers.file_transfer.serial.Serial", side_effect=port_factory), \
              patch("workers.file_transfer.ZMODEM", FakeReceiver), \
              patch("workers.file_transfer.time.sleep"), \
-             patch("workers.file_transfer.SILENT_DEVICE_TIMEOUT_S", 0.0):
+             patch("workers.file_transfer.DEVICE_SILENCE_TIMEOUT_S", 0.0):
             worker.run()
         self.assertEqual(finished, [True])
         return worker, errors
@@ -107,6 +107,38 @@ class TestZmodemWorker(unittest.TestCase):
 
         self.assertEqual(worker.error_cause, CAUSE_SILENT)
         self.assertEqual(len(errors), 1)
+
+    def test_a_device_that_goes_quiet_after_answering_ends_the_transfer(self):
+        """The receiver re-sends its header for as long as the device says
+        nothing it understands, so a unit switched off part way through
+        used to leave a bar that would never move. One byte of console
+        noise must not disable the watchdog for the rest of the sync."""
+        port = FakeSerial([b"RQP+OK\r\n"])
+
+        worker, errors = self.run_worker(lambda **kwargs: port)
+
+        self.assertEqual(worker.error_cause, CAUSE_LINK_LOST)
+        self.assertEqual(len(errors), 1)
+
+    def test_bytes_keep_a_transfer_in_flight_alive(self):
+        """The watchdog counts from the last byte, so a sync that is
+        moving is never cut short."""
+        port = FakeSerial([b"a", b"", b"b", b"", b"c"])
+        worker = ZmodemTransferWorker("COM6", "C:/rolls")
+        with patch("workers.file_transfer.serial.Serial", return_value=port), \
+             patch("workers.file_transfer.ZMODEM", FakeReceiver), \
+             patch("workers.file_transfer.time.sleep"), \
+             patch("workers.file_transfer.DEVICE_SILENCE_TIMEOUT_S", 30.0):
+            worker.stop_after = None
+            import threading
+            done = threading.Event()
+            thread = threading.Thread(target=lambda: (worker.run(), done.set()), daemon=True)
+            thread.start()
+            self.assertFalse(done.wait(0.5), "a moving transfer was cut short")
+            worker.stop()
+            self.assertTrue(done.wait(3.0))
+
+        self.assertIsNone(worker.error_cause)
 
     def test_a_stop_from_the_operator_is_not_an_error(self):
         worker_ref = {}
