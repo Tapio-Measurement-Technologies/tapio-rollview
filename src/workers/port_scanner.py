@@ -110,7 +110,13 @@ def probe_port(port_info, running=lambda: True):
             return port_info, False, "Scan cancelled"
 
         port.write(b"RQP+DEVICEINFO?\n")
-        response = port.readline().decode("utf-8").strip()
+        # errors="replace": a byte the device did not mean to send is a
+        # line that will not parse, not a probe that raises. A freshly
+        # opened Bluetooth link delivers one now and then, and a strict
+        # decode threw UnicodeDecodeError past the handler below — which
+        # catches OSError and not that — so a live unit was greyed out
+        # over a single corrupted byte.
+        response = port.readline().decode("utf-8", errors="replace").strip()
 
         if running() and response:
             log.debug(f"Port {port_info.device} response: {response}")

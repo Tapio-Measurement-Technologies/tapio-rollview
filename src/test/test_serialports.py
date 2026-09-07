@@ -263,6 +263,23 @@ class TestProbePort(SettingsSandbox):
 
         self.assertGreaterEqual(mock_serial.call_args.kwargs["timeout"], 1.0)
 
+    @patch("workers.port_scanner.send_timestamp")
+    @patch("workers.port_scanner.serial.Serial")
+    def test_a_corrupted_byte_does_not_raise_out_of_the_probe(self, mock_serial, _mock_send_timestamp):
+        """A freshly opened Bluetooth link delivers a byte the device did
+        not mean to send. A strict decode raised UnicodeDecodeError past
+        the probe's own handler, which catches OSError and not that, so a
+        live unit was greyed out over one bad byte."""
+        mock_serial.return_value = FakeSerial(
+            b'{"deviceName":\x86"Tapio RQP Live","serialNumber":"ABC123"}\n'
+        )
+
+        port_info, device_responded, error = probe_port(usb_port("COM1"))
+
+        self.assertFalse(device_responded)
+        self.assertIsNone(error)
+        self.assertEqual(port_info.device, "COM1")
+
     @patch("workers.port_scanner.serial.Serial")
     def test_open_failure_is_reported_not_raised(self, mock_serial):
         mock_serial.side_effect = OSError("could not open port")
