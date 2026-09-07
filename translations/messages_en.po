@@ -1116,10 +1116,7 @@ msgstr "the device does not support the request"
 msgid "SYNC_CHECKING_TEXT"
 msgstr "Checking device for new files..."
 
-#. Information dialog when a manual sync found nothing new to fetch.
-msgid "SYNC_UP_TO_DATE_TITLE"
-msgstr "Sync complete"
-
+#. Status bar after a manual sync found nothing new to fetch.
 msgid "SYNC_UP_TO_DATE_TEXT"
 msgstr "All files are already up to date and synced to Rollview."
 

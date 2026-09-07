@@ -1171,13 +1171,24 @@ class MainWindow(QMainWindow):
             self._sync_summary = summary
             self.set_status_message(summary)
         elif self.file_transfer_manager.last_transfer_outcome == "ok":
-            self.set_status_message(removed_text)
-            if not self.file_transfer_manager.last_transfer_was_auto:
-                QMessageBox.information(
-                    self,
-                    _("SYNC_UP_TO_DATE_TITLE"),
-                    f"{_('SYNC_UP_TO_DATE_TEXT')} {removed_text}".strip(),
-                )
+            # Nothing to fetch. A manual sync is an action the operator took
+            # and has to hear the end of, but a modal window to say there was
+            # nothing to do charges a click for no news; the row says it, and
+            # says it without having to be dismissed. An automatic sync is
+            # quieter still: a doorbell that found the mirror up to date has
+            # nothing to report at all.
+            up_to_date = (
+                "" if self.file_transfer_manager.last_transfer_was_auto
+                else _("SYNC_UP_TO_DATE_TEXT")
+            )
+            # Nothing to report is nothing said, not the row wiped. The
+            # doorbell rings during the startup scan, and writing an empty
+            # line took the scan's own line off the row while its bar and
+            # its stop square carried on — the port being scanned went
+            # unnamed until the next one opened.
+            outcome = f"{up_to_date} {removed_text}".strip()
+            if outcome:
+                self.set_status_message(outcome)
         # A cancelled or failed sync leaves standing whatever its error
         # handler put in the row. The bar itself is never touched here: a
         # sync does not raise one, and a scan may have one up.

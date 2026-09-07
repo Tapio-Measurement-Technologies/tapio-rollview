@@ -862,9 +862,12 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.on_directory_contents_changed.assert_called_once()
         self.assertEqual(call_order, ["refresh", "postprocess", "reload"])
 
-    def test_empty_successful_manual_sync_shows_up_to_date_message_box(self):
+    def test_empty_successful_manual_sync_says_so_in_the_row(self):
+        """A sync the operator asked for reports back even when there was
+        nothing to fetch — in the row, not in a window to be dismissed."""
         self.window.file_transfer_manager.last_transfer_outcome = "ok"
         self.window.file_transfer_manager.last_transfer_was_auto = False
+        self.window.file_transfer_manager.last_deleted_count = 0
         self.window.directory_view.refresh_directory_dates = MagicMock()
         self.window.postprocess_manager.run_postprocessors = MagicMock()
         self.window.on_directory_contents_changed = MagicMock()
@@ -872,12 +875,9 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         with patch("gui.main_window.QMessageBox.information") as information:
             self.window.on_file_transfer_finished([])
 
-        information.assert_called_once_with(
-            self.window,
-            _("SYNC_UP_TO_DATE_TITLE"),
-            _("SYNC_UP_TO_DATE_TEXT"),
-        )
-        self.assertEqual(self.window.status_message(), "")
+        information.assert_not_called()
+        self.assertEqual(
+            self.window.status_message(), _("SYNC_UP_TO_DATE_TEXT"))
         self.window.directory_view.refresh_directory_dates.assert_not_called()
         self.window.postprocess_manager.run_postprocessors.assert_not_called()
         self.window.on_directory_contents_changed.assert_not_called()
@@ -893,9 +893,10 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
         self.assertEqual(self.window.status_message(), "Found 2 device(s).")
 
-    def test_empty_successful_auto_sync_does_not_show_message_box(self):
+    def test_empty_successful_auto_sync_says_nothing_at_all(self):
         self.window.file_transfer_manager.last_transfer_outcome = "ok"
         self.window.file_transfer_manager.last_transfer_was_auto = True
+        self.window.file_transfer_manager.last_deleted_count = 0
         self.window.on_file_transfer_started()
 
         with patch("gui.main_window.QMessageBox.information") as information:
@@ -903,6 +904,29 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
 
         information.assert_not_called()
         self.assertEqual(self.window.status_message(), "")
+
+    def test_an_automatic_sync_with_nothing_to_say_leaves_the_row_alone(self):
+        """A doorbell that finds the mirror up to date reports nothing.
+
+        It used to report nothing by writing nothing, which is not the same
+        thing: the connections are retried as the startup scan begins, so the
+        empty line landed on top of the scan's, and the row went blank —
+        under a bar still moving and a stop square still there — until the
+        next port opened and named itself.
+        """
+        self.window.on_scan_started()
+        self.window.on_scan_progress(25, "Scanning port 'COM6'... (2/4)")
+        self.window.file_transfer_manager.last_transfer_outcome = "ok"
+        self.window.file_transfer_manager.last_transfer_was_auto = True
+        self.window.file_transfer_manager.last_deleted_count = 0
+
+        self.window.on_file_transfer_finished([])
+
+        self.assertEqual(
+            self.window.status_message(), "Scanning port 'COM6'... (2/4)")
+        # The bar the line belongs to is still up, which is what made the
+        # blank read as the scan having lost its voice rather than ended.
+        self.assertFalse(self.window.activity_progress_bar.isHidden())
 
 
 if __name__ == "__main__":
