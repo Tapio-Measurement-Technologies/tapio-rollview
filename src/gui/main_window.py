@@ -1201,34 +1201,44 @@ class MainWindow(QMainWindow):
             self.log_window = None
 
     def stop_background_workers(self, timeout_ms=5000):
-        """
-        Stops the device scan and any file transfer, and waits for both threads.
+        """Ask every background thread to stop, and wait for those that must
+        be waited for.
 
-        Qt aborts the process if a QThread is destroyed while its OS thread is
-        still running, so closing the window during a scan or a sync has to bring
-        those threads down first.
+        Qt aborts the process if a QThread is destroyed while its OS thread
+        is still running, so a transfer and a postprocessing run are waited
+        for. Device discovery is not: it is a plain daemon thread whose one
+        resource is a serial port the operating system reclaims, and a probe
+        inside a Bluetooth page cannot be cut short, so waiting for it held
+        the window on screen for a whole page after the operator had closed
+        it.
+
+        Everything is asked first and waited for afterwards, so what does
+        have to be waited for winds down at the same time rather than in
+        turn.
         """
         serial_widget = self.serial_widget
-        scanner_stopped = serial_widget.scanner.stop(timeout_ms)
+        serial_widget.scanner.request_shutdown()
 
         transfer_manager = serial_widget.transferManager
         transfer_manager.cancel_transfer()
-        transfer_stopped = transfer_manager.wait_for_transfer(timeout_ms)
+        self.postprocess_manager.request_cancellation()
 
+        transfer_stopped = transfer_manager.wait_for_transfer(timeout_ms)
         postprocess_stopped = self.postprocess_manager.stop_postprocessing(timeout_ms)
 
-        if not scanner_stopped:
-            print("Timed out waiting for the device scan to stop.")
         if not transfer_stopped:
             print("Timed out waiting for the file transfer to stop.")
         if not postprocess_stopped:
             print("Timed out waiting for postprocessing to stop.")
-        return scanner_stopped and transfer_stopped and postprocess_stopped
+        return transfer_stopped and postprocess_stopped
 
     def closeEvent(self, event):
+        # Asked before anything is waited for: the window goes when the
+        # operator says so, and the threads that have to be waited for wind
+        # down while it does.
         self.file_transfer_manager.cancel_transfer()
+        self.serial_widget.scanner.request_shutdown()
         self.device_connection_manager.shutdown_all()
-        self.serial_widget.scanner.stop()
         self.close_child_windows()
         self.stop_background_workers()
         event.accept()

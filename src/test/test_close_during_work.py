@@ -43,7 +43,11 @@ def test_close_during_scan_stops_the_scanner(wired_window, qtbot):
 
     wired_window.close()
 
-    assert not serial_widget.scanner.is_running()
+    # Closing asks discovery to stop rather than waiting for it: a probe
+    # already inside a Bluetooth page cannot be cut short, and waiting held
+    # the window on screen for the whole page. It winds down on its own,
+    # and it is a plain daemon thread, so Qt has nothing to abort over.
+    qtbot.waitUntil(lambda: not serial_widget.scanner.is_running(), timeout=10000)
 
 
 def test_close_during_transfer_stops_the_worker(wired_window, qtbot):

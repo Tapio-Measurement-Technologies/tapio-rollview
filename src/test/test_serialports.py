@@ -793,6 +793,25 @@ class TestLaneThread(unittest.TestCase):
             ("finished", 1),
         ])
 
+    def test_a_shutdown_request_does_not_wait_for_a_probe(self):
+        """Closing the window must not wait out a Bluetooth page. The lane
+        is a plain daemon thread whose one resource is a port the operating
+        system reclaims, so nothing is gained by holding the window open
+        for it."""
+        probe = BlockingProbe()
+        scanner = self.make_scanner(probe)
+        scanner.scan_now()
+        self.assertTrue(probe.entered.wait(2.0))
+
+        started = time.monotonic()
+        scanner.request_shutdown()
+        asked_in = time.monotonic() - started
+
+        self.assertLess(asked_in, 0.5)
+        self.assertTrue(scanner.is_running())   # still winding down
+        probe.release.set()
+        self.assertTrue(scanner.stop(3000))
+
     def test_stop_is_safe_before_start_and_twice_after(self):
         scanner = PortScanner()
         self.assertTrue(scanner.stop())

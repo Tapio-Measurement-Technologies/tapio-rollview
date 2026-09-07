@@ -870,6 +870,19 @@ class PortScanner(QObject):
         Bluetooth page short."""
         self._lane.stop_pass()
 
+    def request_shutdown(self):
+        """Ask the lane to stop for good, and return at once.
+
+        For closing the window. Nothing in Qt requires waiting for this
+        thread — it is a plain daemon, not a QThread — and its one
+        resource is a serial port the operating system reclaims. Since a
+        probe inside a Bluetooth page cannot be cut short, waiting for it
+        kept the window on screen for a whole page, five seconds, after
+        the operator had asked for it to go.
+        """
+        self._lane.stop_pass()
+        self._lane.request_stop()
+
     def set_paused(self, paused):
         self._lane.set_paused(paused)
 
