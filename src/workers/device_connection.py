@@ -137,19 +137,6 @@ def describe_sync_error(error: SyncError, port: str = "", unit_name: str = "") -
     return error.message
 
 
-def describe_sync_error_brief(error: SyncError, port: str = "", unit_name: str = "") -> str:
-    """The same failure in one line, for the status bar.
-
-    A port failure drops its remedy, which is the half that does not fit
-    in a row shared with the guidance; the box keeps both.
-    """
-    if error.kind == "transport":
-        return describe_port_error(
-            error.message, port, unit_name, opened=error.opened
-        ).sentence
-    return describe_sync_error(error, port, unit_name)
-
-
 def sync_error_title(error: SyncError) -> str:
     """The message box title for a failed sync: the cause, for a port
     failure, and otherwise that the sync failed."""
@@ -1098,6 +1085,10 @@ class DeviceConnectionManager(QObject):
         self._transfer_manager.request_auto_sync(port)
 
     def _on_connection_lost(self, port: str, reason: str):
+        # Said in full here rather than in the status row: a device that
+        # has gone shows in the device list, and the reason it gave
+        # belongs where someone diagnosing it will look for it.
+        log.info(f"Connection lost on {port} ({reason}): {self.describe_lost_connection(port)}")
         self.connectionLost.emit(port, reason)
 
     # -- shutdown ------------------------------------------------------

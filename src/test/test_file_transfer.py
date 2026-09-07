@@ -77,9 +77,7 @@ class TestRqftRouting(unittest.TestCase):
 
     def test_rqft_sync_failure_reports_partial_folders_without_popup_for_auto(self):
         finished = []
-        errors = []
         self.manager.transferFinished.connect(finished.append)
-        self.manager.transferError.connect(lambda msg, auto: errors.append(auto))
         self.manager.request_auto_sync("COM1")
         self.connection.request_sync.assert_called_once_with(True)
 
@@ -90,7 +88,6 @@ class TestRqftRouting(unittest.TestCase):
             QCoreApplication.processEvents()
             popup.assert_not_called()
 
-        self.assertEqual(errors, [True])
         self.assertFalse(self.manager.is_transfer_in_progress())
         self.assertEqual(len(finished), 1)
         self.assertTrue(finished[0][0].endswith("roll"))

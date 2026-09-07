@@ -994,9 +994,6 @@ msgstr "切断"
 msgid "DEVICE_BUSY_STATUS"
 msgstr "デバイスは測定中です。測定終了後に同期が再開されます"
 
-#. Status bar message when a connected device disappears.
-msgid "DEVICE_DISCONNECTED_STATUS"
-msgstr "デバイス {device} が切断されました"
 
 #. Status bar warning when the device listing skipped unreadable files.
 msgid "SYNC_LIST_SKIPPED_WARNING"

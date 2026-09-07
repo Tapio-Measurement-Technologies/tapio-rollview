@@ -209,13 +209,13 @@ class TestManagerWording(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_the_box_carries_the_cause_and_the_status_bar_the_sentence(self):
+    def test_the_box_carries_the_fault_and_the_remedy(self):
+        """The box is where a failed sync answers: it has room for both,
+        and the status row has room for neither."""
         manager = FileTransferManager()
         manager._active_port = "COM6"
         manager._active_unit_name = "Tapio RQP Live (1428495563)"
         manager.worker = SimpleNamespace(error_cause=CAUSE_HELD)
-        statuses = []
-        manager.transferError.connect(lambda message, auto: statuses.append((message, auto)))
 
         with patch("workers.file_transfer.show_error_msgbox") as popup:
             manager.on_transfer_error(WIN_HELD)
@@ -223,11 +223,8 @@ class TestManagerWording(unittest.TestCase):
         body, title = popup.call_args.args
         self.assertEqual(title, "Port in use")
         self.assertIn("COM6 is in use by another program.", body)
-        self.assertIn("Close the program", body)
+        self.assertIn("Close the other program", body)
         self.assertNotIn("PermissionError", body)
-        # The row gets the fault alone: the remedy is the half that would
-        # not fit beside the guidance.
-        self.assertEqual(statuses, [("COM6 is in use by another program.", False)])
         self.assertEqual(manager.last_transfer_outcome, "error")
 
     def test_the_unit_name_comes_from_the_sync_request(self):

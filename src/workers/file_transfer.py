@@ -20,11 +20,7 @@ from utils.serial_errors import (
     classify_port_error,
     describe_port_error,
 )
-from workers.device_connection import (
-    describe_sync_error,
-    describe_sync_error_brief,
-    sync_error_title,
-)
+from workers.device_connection import describe_sync_error, sync_error_title
 import store
 
 log = logging.getLogger(__name__)
@@ -220,8 +216,6 @@ class FileTransferManager(QObject):
     # port, nfiles, nbytes — lets the GUI show the dialog for automatic
     # syncs only when there is something to fetch.
     syncBatchStarted = Signal(str, int, int)
-    # message, is_auto — errors that should not raise a popup
-    transferError = Signal(str, bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -388,11 +382,11 @@ class FileTransferManager(QObject):
             log.info(f"RQFT sync on {port} cancelled by user")
         else:
             log.error(f"RQFT sync failed on {port} ({error.kind}): {message}")
-            # The status bar gets one short line; the box has room for the
-            # remedy as well as the fault.
-            self.transferError.emit(
-                describe_sync_error_brief(error, port, self._active_unit_name), is_auto)
-            if not is_auto and error.kind not in ("busy",):
+            # A sync the operator asked for always answers in a box, whatever
+            # went wrong: they pressed a button and are owed a reason. One
+            # the device asked for stays in the log, since nobody is waiting
+            # on it.
+            if not is_auto:
                 show_error_msgbox(message, sync_error_title(error))
         # Files fetched before the failure are committed and usable.
         self._finish_rqft(error.fetched)
@@ -531,9 +525,6 @@ class FileTransferManager(QObject):
         self.last_transfer_outcome = "error"
         cause = getattr(self.worker, "error_cause", None) or error_message
         text = describe_port_error(cause, self._active_port or "", self._active_unit_name)
-        # The status bar gets the fault in one line; the box also says what
-        # to do about it, which is the half that would not fit in the row.
-        self.transferError.emit(text.sentence, False)
         show_error_msgbox(text.body, text.title)
 
     def on_transfer_finished(self):

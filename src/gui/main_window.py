@@ -263,9 +263,13 @@ class MainWindow(QMainWindow):
         # Run postprocessors when file transfer is finished
         self.file_transfer_manager.transferStarted.connect(self.on_file_transfer_started)
         self.file_transfer_manager.transferFinished.connect(self.on_file_transfer_finished)
-        self.file_transfer_manager.transferError.connect(self.on_transfer_error)
 
-        self.device_connection_manager.connectionLost.connect(self.on_connection_lost)
+        # A device that has gone, or a sync that failed on one, is not
+        # reported in the status row: the row is one short line beside the
+        # guidance, and a fault with its remedy does not fit in it. A
+        # failed sync raises a message box, which has room for both; a
+        # device that has gone shows in the device list, which is where an
+        # operator looks for a device, and in the log.
         self.device_connection_manager.listWarnings.connect(self.on_sync_list_warnings)
 
         self.postprocess_manager.postprocess_started.connect(self.on_postprocess_started)
@@ -1182,33 +1186,6 @@ class MainWindow(QMainWindow):
         self.directory_view.refresh_directory_dates(folder_paths)
         self.postprocess_manager.run_postprocessors(folder_paths)
         self.on_directory_contents_changed()
-
-    def on_transfer_error(self, message):
-        # One line, and a short one: the row has a fixed height and shares
-        # its width with the guidance. What the operator should do about it
-        # is in the message box the transfer manager raises, which has room
-        # for a sentence and a remedy.
-        self.set_status_message(message)
-        # transferError also carries an is_auto flag, which the status
-        # bar does not need: both cases want the message here, and a
-        # manual failure additionally gets a popup from the transfer
-        # manager.
-
-    def on_connection_lost(self, port, reason):
-        if reason == "busy":
-            self.set_status_message(_("DEVICE_BUSY_STATUS"))
-        elif reason == "unplugged":
-            # The port failed underneath the session: say which way, and
-            # what to do, rather than only that the device is gone.
-            self.set_status_message(
-                self.device_connection_manager.describe_lost_connection(port)
-            )
-        elif reason == "dead":
-            self.set_status_message(
-                _("DEVICE_DISCONNECTED_STATUS").format(
-                    device=self.device_connection_manager.device_label(port)
-                )
-            )
 
     def on_sync_list_warnings(self, port, skipped_count):
         self.set_status_message(

@@ -882,38 +882,16 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.postprocess_manager.run_postprocessors.assert_not_called()
         self.window.on_directory_contents_changed.assert_not_called()
 
-    def test_connection_lost_message_names_the_device(self):
-        from utils.rqft_support import DeviceIdentity
+    def test_a_device_that_goes_away_says_nothing_in_the_row(self):
+        """The row is one short line beside the guidance, and a fault with
+        its remedy does not fit. A device that has gone shows in the device
+        list, where an operator looks for a device, and in the log."""
+        self.window.set_status_message("Found 2 device(s).")
 
-        self.window.device_connection_manager.identities["COM4"] = DeviceIdentity(
-            device_name="Tapio RQP Live",
-            serial_number="SN1",
-            firmware_version="v1.2.0",
-        )
-
-        self.window.on_connection_lost("COM4", "unplugged")
-
-        # A port that failed underneath the session is described by cause,
-        # and the sentence still names the unit rather than only the port.
-        message = self.window.status_message()
-        self.assertIn("Tapio RQP Live (SN1)", message)
-        self.assertIn("COM4", message)
-        self.assertIn("dropped", message)
-
-    def test_connection_lost_falls_back_to_the_port_name(self):
-        self.window.on_connection_lost("COM9", "dead")
-
-        self.assertEqual(
-            self.window.status_message(),
-            _("DEVICE_DISCONNECTED_STATUS").format(device="COM9"),
-        )
-
-    def test_transfer_error_signal_reaches_the_status_bar(self):
-        # The slot takes only the message; the signal also carries is_auto.
-        self.window.file_transfer_manager.transferError.emit("sync broke", True)
+        self.window.device_connection_manager.connectionLost.emit("COM4", "unplugged")
         QApplication.processEvents()
 
-        self.assertEqual(self.window.status_message(), "sync broke")
+        self.assertEqual(self.window.status_message(), "Found 2 device(s).")
 
     def test_empty_successful_auto_sync_does_not_show_message_box(self):
         self.window.file_transfer_manager.last_transfer_outcome = "ok"

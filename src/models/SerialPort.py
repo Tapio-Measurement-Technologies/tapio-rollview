@@ -140,7 +140,7 @@ class SerialPortModel(QAbstractListModel):
                 display_text += f" ({item.serial_number})"
             return display_text
         elif role == Qt.ItemDataRole.StatusTipRole:
-            return self.tooltip_for(item)
+            return self.guidance_for(item)
         elif role == Qt.ItemDataRole.UserRole:
             return item.device
         elif role == Qt.ItemDataRole.DecorationRole:
@@ -175,31 +175,24 @@ class SerialPortModel(QAbstractListModel):
         return flags
 
     @staticmethod
-    def tooltip_for(item):
-        """The whole row, which the sidebar is too narrow to show.
+    def guidance_for(item):
+        """The one line the status bar can hold about this row.
 
-        The port name is the identifier, so it is the title; the description
-        and the numbers underneath it are what the display line loses first
-        when the pane is dragged narrower. The last line is the one nothing
-        else says: the pin and the connection live in a context menu, and a
-        list gives no sign that it has one.
+        The row is one line high and sits beside whatever the window is
+        reporting, so this is the port, the state it is in, and what can be
+        done with it: a clause each. What that state means and what to do
+        about it is in the tooltip, which has room for a sentence.
         """
-        detail = [item.description]
-        if item.serial_number:
-            detail.append(_("GUIDANCE_SERIAL_NUMBER").format(number=item.serial_number))
-        if item.firmware_version:
-            detail.append(_("GUIDANCE_FIRMWARE_VERSION").format(version=item.firmware_version))
-        if item.is_pinned():
-            detail.append(_("GUIDANCE_PORT_PINNED"))
+        detail = []
         if item.is_listed_without_answer():
-            # Why the row is grey: nothing has asked yet, or the unit did
-            # not answer, and then the cause and what to do about it.
-            if item.reachable is None:
-                detail.append(_("GUIDANCE_PORT_NOT_CHECKED"))
-            else:
-                detail.append(describe_port_error(
+            # Named, not explained: "Device not answering", not the sentence
+            # that says which device, on which port, and what to try.
+            detail.append(
+                _("GUIDANCE_PORT_NOT_CHECKED") if item.reachable is None
+                else describe_port_error(
                     item.error_cause or CAUSE_UNREACHABLE, item.device, item.label()
-                ).body)
+                ).title
+            )
         action = (_("GUIDANCE_PORT_ACTIONS_RQFT") if item.supports_rqft
                   else _("GUIDANCE_PORT_ACTIONS"))
         return compose(item.device, detail, action)

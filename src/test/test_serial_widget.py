@@ -15,8 +15,16 @@ from serial.tools import list_ports_common
 
 import settings
 from gui.widgets.serialports import SerialWidget
-from models.SerialPort import SerialPortItem, SerialPortModel
+from models.SerialPort import (
+    BALL_ABSENT,
+    BALL_LIVE,
+    BALL_READY,
+    BALL_WORKING,
+    SerialPortItem,
+    SerialPortModel,
+)
 from utils import preferences
+from workers.device_connection import ConnectionState
 from workers.file_transfer import FileTransferManager
 
 
@@ -144,6 +152,98 @@ class TestSync(WidgetCase):
 
 
 class TestBall(unittest.TestCase):
+    """The ball answers one question for every device: can I sync from
+    this now? Fill says the device is there, colour says how ready."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self._prefixes = settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES
+        settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = ("Tapio RQP",)
+        self._pinned = preferences.pinned_serial_ports
+        preferences.pinned_serial_ports = set()
+
+    def tearDown(self):
+        settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = self._prefixes
+        preferences.pinned_serial_ports = self._pinned
+
+    def model_for(self, item, state=None):
+        model = SerialPortModel()
+        model.addItem(item)
+        model.applyFilter()
+        model.connection_state_provider = lambda device: state
+        return model
+
+    def kind_for(self, item, state=None):
+        return self.model_for(item, state).ballKind(item)
+
+    def test_a_device_that_answered_without_rqft_is_ready_not_blank(self):
+        """It syncs on the button like any other; it just holds no
+        connection. Showing nothing beside it left the one device that
+        works looking like the one row with nothing to say."""
+        item = make_item("COM6", responded=True, firmware="ac90a85-d")
+
+        self.assertEqual(self.kind_for(item), BALL_READY)
+        self.assertIsNotNone(
+            self.model_for(item).data(self.model_for(item).index(0, 0),
+                                      Qt.ItemDataRole.DecorationRole))
+
+    def test_a_paired_unit_that_is_off_is_absent(self):
+        self.assertEqual(self.kind_for(make_item("COM10", responded=False)), BALL_ABSENT)
+
+    def test_an_rqft_device_shows_its_connection(self):
+        item = make_item("COM6", responded=True, firmware="v1.2.0")
+
+        self.assertEqual(self.kind_for(item, ConnectionState.CONNECTED), BALL_LIVE)
+        self.assertEqual(self.kind_for(item, ConnectionState.CONNECTING), BALL_WORKING)
+        self.assertEqual(self.kind_for(item, ConnectionState.LISTENING), BALL_WORKING)
+        self.assertEqual(self.kind_for(item, ConnectionState.OPEN_BACKOFF), BALL_WORKING)
+
+    def test_an_rqft_device_the_operator_disconnected_is_still_ready(self):
+        """Sync still works on it, which is what the ball is about."""
+        item = make_item("COM6", responded=True, firmware="v1.2.0")
+
+        self.assertEqual(self.kind_for(item, ConnectionState.DISABLED), BALL_READY)
+
+    def test_a_port_that_is_not_a_device_gets_no_ball(self):
+        """With every COM port listed, a ball on each would decorate
+        modems and label printers with an answer to a question nobody
+        asked of them."""
+        item = make_item("COM3", responded=False, paired="")
+
+        self.assertIsNone(self.kind_for(item))
+
+    def test_a_pinned_port_is_a_device_row_even_before_it_answers(self):
+        preferences.pinned_serial_ports = {"COM3"}
+        item = make_item("COM3", responded=False, paired="")
+
+        self.assertEqual(self.kind_for(item), BALL_ABSENT)
+
+    def test_the_ball_colours_come_from_the_token_table(self):
+        """The design system's rule: a colour written anywhere else is a
+        bug. The icons used to carry their own hex."""
+        import inspect
+
+        import models.SerialPort as module
+
+        source = inspect.getsource(module)
+        self.assertNotRegex(source, r"#[0-9a-fA-F]{6}")
+
+    def test_every_state_says_in_the_row_what_its_ball_means(self):
+        item = make_item("COM6", responded=True, firmware="v1.2.0")
+
+        self.assertIn("Ready", self.model_for(item, ConnectionState.DISABLED).guidance_for(item))
+        self.assertIn("Connecting", self.model_for(item, ConnectionState.CONNECTING).guidance_for(item))
+        self.assertIn("Connected", self.model_for(item, ConnectionState.CONNECTED).guidance_for(item))
+
+
+class TestRowText(unittest.TestCase):
+    """A device row says one line, in the status row, and it is a label
+    rather than a sentence about the device. Pointing at a device used to
+    put the whole fault and its remedy there."""
+
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
@@ -155,20 +255,35 @@ class TestBall(unittest.TestCase):
     def tearDown(self):
         settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = self._prefixes
 
-    def ball_for(self, item):
+    def data_for(self, item, role):
         model = SerialPortModel()
         model.addItem(item)
         model.applyFilter()
-        return model.data(model.index(0, 0), Qt.ItemDataRole.DecorationRole)
+        return model.data(model.index(0, 0), role)
 
-    def test_a_paired_unit_that_is_off_shows_a_hollow_ball(self):
-        self.assertIsNotNone(self.ball_for(make_item("COM10", responded=False)))
+    def test_the_status_row_names_the_state_without_the_remedy(self):
+        tip = self.data_for(make_item("COM10", responded=False),
+                            Qt.ItemDataRole.StatusTipRole)
 
-    def test_a_unit_that_answered_without_rqft_shows_no_ball(self):
-        self.assertIsNone(self.ball_for(make_item("COM6", responded=True, firmware="ac90a85-d")))
+        self.assertIn("COM10", tip)
+        self.assertIn("Not connected", tip)
+        self.assertNotIn("in range", tip)
+        self.assertNotIn("\n", tip)
+        self.assertLess(len(tip), 90)
 
-    def test_an_rqft_unit_shows_its_connection_state(self):
-        self.assertIsNotNone(self.ball_for(make_item("COM6", responded=True, firmware="v1.2.0")))
+    def test_a_device_row_has_no_tooltip_of_its_own(self):
+        """The status row says it, and it is short enough to be all there
+        is to say. A second surface for the same row is one to keep in
+        step with it for nothing."""
+        self.assertIsNone(self.data_for(make_item("COM10", responded=False),
+                                        Qt.ItemDataRole.ToolTipRole))
+
+    def test_a_device_that_answers_says_only_what_can_be_done_with_it(self):
+        tip = self.data_for(make_item("COM6", responded=True, firmware="v1.2.0"),
+                            Qt.ItemDataRole.StatusTipRole)
+
+        self.assertIn("COM6", tip)
+        self.assertNotIn("Serial number", tip)
 
 
 if __name__ == "__main__":
