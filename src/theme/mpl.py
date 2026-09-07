@@ -32,6 +32,7 @@ import os
 import warnings
 
 import matplotlib as mpl
+import matplotlib.patheffects as patheffects
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap, to_rgba
 from matplotlib.font_manager import fontManager
@@ -51,6 +52,7 @@ from theme import tokens as T
 # Ask for these through `mark()` rather than binding them at import: the answer
 # depends on which preset is in force.
 SUPPORTING_ALPHA = 0.5     # how far back the individual profiles sit
+SELECTION_CASING = 1.5     # points of surface colour either side of a selection
 MINOR_TICK_SIZE = 2        # half a major tick, for the unlabelled subdivisions
 
 #: The diagonal used for a region that is out of bounds — excluded from the
@@ -273,6 +275,25 @@ def supporting_color(t=None):
     return t.recency[-1], SUPPORTING_ALPHA
 
 
+def selected_color(t=None):
+    """The colour of the one profile a reader has picked out of the stack.
+
+    The deep end of the same ordinal ramp the stack is drawn from — one step
+    off the accent, which is where the ramp starts. Selection stays inside the
+    family because it is a *state* of a supporting line and not a different
+    kind of line; what changes is how far forward it sits. A foreign hue would
+    say the selected profile is a different quantity, and the one hue that
+    would read as "important" is the accent, which is the mean's.
+    """
+    t = t or current
+    return t.recency[0]
+
+
+def selected_width(t=None):
+    """The weight of the selected profile, in points."""
+    return (t or current).selected_mark
+
+
 def band_color(t=None):
     """The wash beyond a limit, as an RGBA tuple.
 
@@ -370,17 +391,50 @@ def supporting(ax, x, y, color, alpha=1.0, selected=False, label=None,
     """One of the individual profiles the mean is drawn from.
 
     They are context, not the subject, so they run thin and recede. Pass the
-    colour and alpha from ``supporting_color``; a selected profile keeps that
-    colour and gains weight rather than changing hue, because selection is a
-    state and not a different kind of line.
+    colour and alpha from ``supporting_color``.
+
+    A selection is not a different kind of line, so it stays in the family the
+    stack is drawn from and changes how far forward it sits instead. Three
+    things do that together, because on a chart of eight near-identical curves
+    no one of them is enough:
+
+    * **Weight.** ``selected_mark``, which is above the series weight — the
+      mean is the only line in its own colour and never has to be picked out of
+      anything, while a selected profile has to be found among its siblings.
+    * **Colour.** The deep end of the same ordinal ramp rather than the
+      recessive end the rest of the stack sits at. Same family, one step off
+      the accent; see ``selected_color``.
+    * **A casing.** A band of the figure's own surface colour either side of
+      the line, so it is never touching a neighbour it happens to cross. This
+      is what makes it findable in a dense bundle, where weight and colour on
+      their own leave it merged into whatever is next to it.
+
+    It is also drawn in front of everything else on the panel, the mean
+    included. That is not a demotion of the mean: in continuous mode the mean
+    *is* the profiles laid end to end and filtered, so it traces the selected
+    one exactly along its own stretch of the axis and hides it completely
+    whatever weight or colour it is given. Nothing behind that line can be
+    made visible, so the selection goes in front of it. Elsewhere the two
+    cross at points rather than run together, and the mean is untouched
+    between them.
 
     ``selected_width`` overrides the weight the selected one gains; the
     unselected ones stay recessive whatever an installation asks for, since
     that is what makes the mean readable over them.
     """
     t = t or current
+    effects = None
     if selected:
-        line_width = t.mark("series") if selected_width is None else selected_width
+        line_width = t.selected_mark if selected_width is None else selected_width
+        color = selected_color(t)
+        # A stroke behind the line rather than a second plotted line: one
+        # artist, so the legend, the axes' data limits and anything counting
+        # lines see exactly what they saw before.
+        effects = [
+            patheffects.Stroke(linewidth=line_width + 2 * SELECTION_CASING,
+                               foreground=t.chart("surface")),
+            patheffects.Normal(),
+        ]
     else:
         line_width = t.supporting_mark
     return ax.plot(
@@ -389,7 +443,9 @@ def supporting(ax, x, y, color, alpha=1.0, selected=False, label=None,
         linewidth=line_width,
         alpha=1.0 if selected else alpha,
         label=label,
-        zorder=2 if selected else 1,
+        solid_capstyle="round", solid_joinstyle="round",
+        path_effects=effects,
+        zorder=5 if selected else 1,
     )[0]
 
 

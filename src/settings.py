@@ -51,9 +51,9 @@ GRID = True
 # Leave the colours as None to take them from the tokens, which is what keeps
 # the charts in step with the rest of the interface and with the other Tapio
 # products. A hex here overrides the system for this installation only.
-MEAN_PROFILE_LINE_WIDTH = None      # None = the system's mark weight, 2.0
+MEAN_PROFILE_LINE_WIDTH = None      # None = the system's series weight, 1.5 pt
 MEAN_PROFILE_LINE_COLOR = None      # None = the system's series-1 brand blue
-SELECTED_PROFILE_LINE_WIDTH = None  # None = the system's mark weight, 2.0
+SELECTED_PROFILE_LINE_WIDTH = None  # None = the system's selected weight, 1.75 pt
 STAT_DECIMAL_PLACES = 1
 
 # "system", "light" or "dark". The default follows the desktop, so an operator

@@ -66,9 +66,17 @@
       "(1.5 pt) without reaching the limit line's (1.2) or the dashed target's",
       "(0.8) — neither of which is a data line. Same screen-to-export ratio as",
       "the marks around it. Named separately rather than added to the system's",
-      "`chart.mark`, because that block is the system's to author."
+      "`chart.mark`, because that block is the system's to author.",
+      "",
+      "`selectedMark` is the weight the one *selected* profile gains. Just above",
+      "the series weight (1.5 pt) rather than at it: the selected profile has to",
+      "be found inside a stack of its own siblings, which the mean — the only",
+      "line in its own colour — never has to be. Only just above, because the",
+      "mean is still the subject and a selection that outweighs it says",
+      "otherwise. Same screen-to-export ratio as `supportingMark` beside it."
     ],
     "preset": "screen",
-    "supportingMark": {"screen": 1.0, "export": 0.7}
+    "supportingMark": {"screen": 1.0, "export": 0.7},
+    "selectedMark": {"screen": 1.75, "export": 1.25}
   }
 }
