@@ -195,6 +195,7 @@ class Tokens:
 
         self._fallback = rollview["type"]["fallback"]
         self._supporting_mark = rollview["chart"]["supportingMark"]
+        self._selected_mark = rollview["chart"]["selectedMark"]
         self._density_extra = _strip_comments(rollview["density"])
 
         self.density = density if density in DENSITIES else self._density_extra["default"]
@@ -373,6 +374,17 @@ class Tokens:
         limit line's or the target's, neither of which is a data line.
         """
         return self._supporting_mark[self.preset]
+
+    @property
+    def selected_mark(self):
+        """The weight the one selected profile gains, in points.
+
+        Above the series weight rather than at it. The mean is the only line in
+        its own colour and never has to be picked out of anything; a selected
+        profile has to be found inside a stack of its siblings drawn in the
+        same family, and weight is what does that without a second hue.
+        """
+        return self._selected_mark[self.preset]
 
     def dash(self, name):
         """A dash pattern, as the system authors it."""

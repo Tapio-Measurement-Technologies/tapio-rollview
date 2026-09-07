@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication
 
 from models.Profile import Profile, ProfileData, ProfileHeader
 from gui.widgets.ProfileWidget import ProfileWidget
+import store
 from test.qtcleanup import destroy
 from gui.widgets.stats import MISSING
 from utils.highlighted_regions import (
@@ -637,6 +638,52 @@ class TestLocalSettingsOverrides(unittest.TestCase):
             ax, [0, 1], [1, 2], color="#1E73BE", selected=False, selected_width=6.0
         )
         self.assertEqual(other.get_linewidth(), tapio_mpl.supporting_width())
+
+    def test_a_selection_is_lifted_in_front_of_the_stack_and_the_mean(self):
+        """Four changes at once, because on eight near-identical curves one is not.
+
+        Weight and colour on their own left the selected profile merged into
+        whatever it happened to be crossing, and in continuous mode the mean is
+        those same samples filtered — it traces the selection exactly and hides
+        it however it is drawn. So the selection goes in front of the mean too.
+        """
+        from theme import mpl as tapio_mpl
+
+        widget = ProfileWidget()
+        original_selection = store.selected_profile
+        try:
+            profiles = _synthetic_profiles(4)
+            store.selected_profile = profiles[2].name
+            widget.update_plot(profiles, "roll")
+
+            selected = [
+                line for line in widget.profile_ax.lines
+                if line.get_color() == tapio_mpl.selected_color(widget.tokens)
+            ]
+            self.assertEqual(len(selected), 1)
+            line = selected[0]
+
+            self.assertEqual(line.get_linewidth(), tapio_mpl.selected_width(widget.tokens))
+            self.assertGreater(line.get_linewidth(), tapio_mpl.supporting_width(widget.tokens))
+            self.assertEqual(line.get_alpha(), 1.0)
+            self.assertTrue(line.get_path_effects(), "the selection has no casing")
+
+            stack = [
+                other for other in widget.profile_ax.lines
+                if other.get_linewidth() == tapio_mpl.supporting_width(widget.tokens)
+            ]
+            self.assertEqual(len(stack), 3)
+            self.assertTrue(all(line.get_zorder() > other.get_zorder() for other in stack))
+
+            mean = [
+                other for other in widget.profile_ax.lines
+                if other.get_label() == "Mean profile"
+            ]
+            self.assertEqual(len(mean), 1)
+            self.assertGreater(line.get_zorder(), mean[0].get_zorder())
+        finally:
+            store.selected_profile = original_selection
+            widget.deleteLater()
 
 
 class TestPlotToolbar(unittest.TestCase):
