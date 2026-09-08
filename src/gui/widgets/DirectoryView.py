@@ -42,6 +42,42 @@ selection_flags = (
     QItemSelectionModel.SelectionFlag.Rows
 )
 
+
+#: Resolutions of paths already seen, since asking the filesystem costs some
+#: 200us and the column asks on every repaint.
+_resolved_path_keys = {}
+
+
+def normalized_path_key(path):
+    """One spelling of a path, for the several that name the same folder.
+
+    QFileSystemModel.filePath() answers in Qt's form, forward slashes on every
+    platform and every name in full. Every path that names the same folder
+    from anywhere else - the folders a sync reports, the paths
+    QFileSystemWatcher hands back, os.walk - comes in the platform's own form,
+    which on Windows means backslashes and, for a path built from a name with
+    a space in it, possibly the 8.3 alias instead. None of those compare equal
+    as strings, so a dictionary keyed by one is never found by the other.
+
+    The filesystem is the only thing that can rule on the aliases, so it is
+    asked once per spelling and the answer kept. A path with nothing behind it
+    yet is left as written rather than remembered: it may still appear, and
+    resolve to something else when it does.
+    """
+    key = os.path.normcase(os.path.normpath(os.path.abspath(path)))
+    resolved = _resolved_path_keys.get(key)
+    if resolved is not None:
+        return resolved
+
+    try:
+        resolved = os.path.normcase(os.path.realpath(key, strict=True))
+    except OSError:
+        return key
+
+    _resolved_path_keys[key] = resolved
+    return resolved
+
+
 class DirectoryTreeView(ContextMenuTreeView):
     selectionCleared = Signal()
 
@@ -629,7 +665,7 @@ class DirectoryView(QWidget):
 
     @staticmethod
     def _normalized_path_key(path):
-        return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+        return normalized_path_key(path)
 
     @classmethod
     def _same_path(cls, first_path, second_path):
@@ -760,21 +796,27 @@ class CustomFileSystemModel(QFileSystemModel):
 
         if role == Qt.ItemDataRole.DisplayRole and index.column() == 3:
             file_path = self.filePath(index)
+            # Whoever asks to have this folder re-dated names it in the
+            # platform's own spelling, so that is the spelling it is filed
+            # under. Keyed by Qt's, a sync's invalidation missed every entry
+            # on Windows and the column kept showing the date the folder had
+            # while it was still filling up.
+            cache_key = normalized_path_key(file_path)
             # Check if cached
-            if file_path not in self.modified_date_cache:
+            if cache_key not in self.modified_date_cache:
                 latest_modified_date = self.get_latest_modified_date(file_path)
                 if latest_modified_date:
-                    self.modified_date_cache[file_path] = QDateTime(latest_modified_date)
+                    self.modified_date_cache[cache_key] = QDateTime(latest_modified_date)
                 else:
                     # No custom date available, get the directory's own modification time
                     try:
                         dir_mtime = os.path.getmtime(file_path)
-                        self.modified_date_cache[file_path] = QDateTime(datetime.fromtimestamp(dir_mtime))
+                        self.modified_date_cache[cache_key] = QDateTime(datetime.fromtimestamp(dir_mtime))
                     except (OSError, PermissionError, ValueError):
                         # Handle problematic paths (root drives, special system paths, etc.)
                         # Return empty QDateTime for paths that cannot be accessed
-                        self.modified_date_cache[file_path] = QDateTime()
-            return self.modified_date_cache.get(file_path)
+                        self.modified_date_cache[cache_key] = QDateTime()
+            return self.modified_date_cache.get(cache_key)
         return super().data(index, role)
 
     def get_latest_modified_date(self, directory_path):
@@ -806,8 +848,7 @@ class CustomFileSystemModel(QFileSystemModel):
 
     def invalidate_cache(self, directory_path):
         """Remove the cached date for the given directory to force a recalculation."""
-        if directory_path in self.modified_date_cache:
-            del self.modified_date_cache[directory_path]
+        self.modified_date_cache.pop(normalized_path_key(directory_path), None)
 
 class DirectorySortFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, parent=None):

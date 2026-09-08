@@ -572,6 +572,60 @@ class TestDirectoryView(unittest.TestCase):
         finally:
             model.deleteLater()
 
+    def test_a_synced_folder_is_re_dated_from_the_path_the_sync_names(self):
+        """The date a sync leaves behind is the profiles', not the folder's.
+
+        A roll folder is on screen before its profiles have finished landing,
+        so the first date the column asks for is the folder's own. What the
+        sync then hands back to be re-dated is a platform path, while the
+        model filed that first answer under Qt's - all forward slashes. On
+        Windows the two never matched and the stale date stood.
+        """
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                roll_dir = os.path.join(tmpdir, "250521-081510")
+                os.mkdir(roll_dir)
+                view._root_directory = tmpdir
+                # Rewatching would hold the temporary directory open past the
+                # end of the test, and Qt warns when it is deleted underneath.
+                view.watch_directory_and_subdirs = MagicMock()
+
+                # The folder as the model names it: empty so far, so it dates
+                # itself, and that answer goes into the cache.
+                qt_path = view.model.filePath(view.model.index(roll_dir))
+                sync_time = time.time()
+                os.utime(roll_dir, (sync_time, sync_time))
+                self.assertAlmostEqual(
+                    view.model.data(
+                        view.model.index(roll_dir).siblingAtColumn(3),
+                        Qt.ItemDataRole.DisplayRole,
+                    ).toSecsSinceEpoch(),
+                    sync_time,
+                    delta=1,
+                )
+
+                # Now the profiles arrive, measured two hours before the sync.
+                profile_path = os.path.join(roll_dir, "a.prof")
+                with open(profile_path, "wb") as handle:
+                    handle.write(b"profile")
+                measured = sync_time - 2 * 3600
+                os.utime(profile_path, (measured, measured))
+
+                view.refresh_directory_dates([roll_dir])
+
+                self.assertNotIn(qt_path, view.model.modified_date_cache)
+                self.assertAlmostEqual(
+                    view.model.data(
+                        view.model.index(roll_dir).siblingAtColumn(3),
+                        Qt.ItemDataRole.DisplayRole,
+                    ).toSecsSinceEpoch(),
+                    measured,
+                    delta=1,
+                )
+        finally:
+            destroy(view)
+
     def test_directory_proxy_filters_folder_names_by_regex(self):
         proxy = DirectorySortFilterProxyModel()
         proxy.excluded_folders = []
