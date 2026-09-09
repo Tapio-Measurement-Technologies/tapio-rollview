@@ -42,11 +42,16 @@ class SerialPortItem:
         # Why the last probe went unanswered: a utils.serial_errors cause,
         # None when it was answered or nothing has asked yet.
         self.error_cause = error_cause
-        # A worker-held port may be a known RQFT device without having a
-        # live session during this scan.
-        self.supports_rqft = (
-            device_responded or known_device
-        ) and firmware_supports_rqft(self.firmware_version)
+        # Capability belongs to the firmware, not to whether this port
+        # answered the last probe. A unit that has identified itself keeps
+        # it through a missed probe: one silent probe used to reclassify a
+        # 1.2.0 unit as legacy, and the next sync then went down the ZMODEM
+        # path its firmware no longer speaks. A port nothing has identified
+        # is still not a device, which is what the first clause holds.
+        identified = bool(self.firmware_version) or device_responded or known_device
+        self.supports_rqft = identified and firmware_supports_rqft(
+            self.firmware_version
+        )
 
     def is_pinned(self):
         return self.device in preferences.pinned_serial_ports

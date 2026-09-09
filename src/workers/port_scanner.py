@@ -709,10 +709,16 @@ class DiscoveryLane:
                     candidate.in_pass = False
                     if status is not None:
                         identity = status.identity
+                        # Every field falls back to what the last probe
+                        # learned. A worker started before any DEVICEINFO
+                        # answer carries a blank identity, and overwriting
+                        # the firmware version with it dropped the unit's
+                        # RQFT capability on the next pass.
+                        known = candidate.identity or ("", "", "")
                         candidate.identity = (
-                            identity.device_name or (candidate.identity or ("",))[0],
-                            identity.serial_number or (candidate.identity or ("", ""))[1],
-                            identity.firmware_version,
+                            identity.device_name or known[0],
+                            identity.serial_number or known[1],
+                            identity.firmware_version or known[2],
                         )
                         candidate.reachable = bool(status.connected)
                         cached.append(self._item_locked(candidate, known_device=True))

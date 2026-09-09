@@ -539,6 +539,25 @@ class TestPassOrdering(LaneHarness):
         self.assertTrue(held.supports_rqft)
         self.assertEqual(held.description, "Tapio RQP Live")
 
+    def test_a_held_port_keeps_the_firmware_its_probe_learned(self):
+        """A worker started before the unit answered DEVICEINFO carries a
+        blank identity. Reporting the port from it must not throw away what
+        the probe already knew, or the unit stops being RQFT-capable and
+        the next sync goes looking for a ZMODEM receiver."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+
+        self.busy["COM7"] = BusyPortStatus(DeviceIdentity("", "", ""), connected=True)
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        held = self.publisher.results[0]
+        self.assertEqual(held.firmware_version, "v1.2.0")
+        self.assertEqual(held.serial_number, "ABC123")
+        self.assertTrue(held.supports_rqft)
+
     def test_a_pass_with_nothing_to_probe_still_finishes(self):
         self.ports = [make_port("COM2", vid=0x1234, pid=0x5678)]
 

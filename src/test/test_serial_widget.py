@@ -306,3 +306,29 @@ class TestRowText(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCapability(unittest.TestCase):
+    """Speaking RQFT is a property of the firmware in the unit, not of
+    whether its port answered the probe a second ago."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_a_unit_keeps_its_capability_through_a_missed_probe(self):
+        """A silent probe used to reclassify a 1.2.0 unit as legacy, and
+        the sync after it went looking for a ZMODEM receiver that the
+        firmware no longer has."""
+        item = make_item("COM6", responded=False, firmware="v1.2.0")
+
+        self.assertTrue(item.supports_rqft)
+
+    def test_a_port_that_has_named_no_firmware_is_not_capable(self):
+        self.assertFalse(make_item("COM6", responded=False).supports_rqft)
+
+    def test_firmware_below_the_minimum_is_never_capable(self):
+        self.assertFalse(
+            make_item("COM6", responded=True, firmware="v1.1.4").supports_rqft
+        )
+
