@@ -933,6 +933,10 @@ class DeviceConnectionManager(QObject):
         # Ports the scan classified as Bluetooth: their workers leave the
         # paging to the discovery lane.
         self._bluetooth_ports: set[str] = set()
+        # A unit reachable over both links gets one connection. The port an
+        # operator picked for a unit, and when each port last answered.
+        self._link_forced: dict[str, str] = {}
+        self._last_seen: dict[str, float] = {}
         self._transfer_manager = None
 
     def set_transfer_manager(self, transfer_manager):
@@ -956,9 +960,100 @@ class DeviceConnectionManager(QObject):
                 serial_number=item.serial_number or "",
                 firmware_version=getattr(item, "firmware_version", "") or "",
             )
-            if item.device in self._manually_disconnected:
-                continue
-            self._ensure_worker(item.device)
+            self._last_seen[item.device] = time.monotonic()
+            self._apply_link_choice(item.device)
+
+    # -- one connection per unit ---------------------------------------
+
+    def _unit_serial(self, port: str) -> str:
+        identity = self.identities.get(port)
+        return identity.serial_number if identity is not None else ""
+
+    def _unit_ports(self, serial: str) -> list:
+        """Every port this unit has been seen on, in a stable order."""
+        return sorted(
+            port for port, identity in self.identities.items()
+            if identity.serial_number == serial
+        )
+
+    def _link_is_live(self, port: str) -> bool:
+        """Whether this port still counts as one of its unit's links."""
+        if self._states.get(port) is ConnectionState.CONNECTED:
+            return True
+        last_seen = self._last_seen.get(port)
+        if last_seen is None:
+            return False
+        return (time.monotonic() - last_seen) <= settings.RQFT_LINK_CHOICE_STALE_S
+
+    def _choose_link(self, serial: str) -> Optional[str]:
+        """Which of a unit's ports carries its connection.
+
+        The port an operator connected by hand wins for as long as it is
+        there. Otherwise a session already up keeps it, since moving a live
+        connection costs a sync and buys nothing. Failing both, Bluetooth,
+        which is the better behaved of the two links today, and failing
+        that whichever port answered most recently. A port quiet for
+        RQFT_LINK_CHOICE_STALE_S drops out of the running, so pulling the
+        USB cable hands the unit back to Bluetooth on its own.
+        """
+        ports = [
+            port for port in self._unit_ports(serial)
+            if port not in self._manually_disconnected
+        ]
+        if not ports:
+            return None
+        live = [port for port in ports if self._link_is_live(port)] or ports
+        forced = self._link_forced.get(serial)
+        if forced is not None:
+            if forced in live:
+                return forced
+            # The link they picked has gone: the unit falls back to the
+            # ordinary choice rather than waiting for a port that is not
+            # there, and stops being pinned to it.
+            self._link_forced.pop(serial, None)
+        connected = [
+            port for port in live
+            if self._states.get(port) is ConnectionState.CONNECTED
+        ]
+        if connected:
+            return connected[0]
+        bluetooth = [port for port in live if port in self._bluetooth_ports]
+        if settings.RQFT_PREFER_BLUETOOTH_LINK and bluetooth:
+            return bluetooth[0]
+        return max(live, key=lambda port: self._last_seen.get(port, 0.0))
+
+    def _apply_link_choice(self, port: str, force: bool = False):
+        """Hold one connection to the unit behind ``port``.
+
+        The device binds its RQFT session to the link that established it
+        and stops reading the other one, so a second connection to the
+        same unit is talking to nobody: its HELLOs go unanswered, and the
+        probe that follows reports a live unit as silent. One link at a
+        time is what keeps the list telling the truth.
+        """
+        serial = self._unit_serial(port)
+        if not serial:
+            # A unit that reports no serial number cannot be paired with
+            # anything, so every port it appears on stands on its own.
+            if port not in self._manually_disconnected:
+                self._ensure_worker(port)
+            return
+        if force:
+            self._link_forced[serial] = port
+        chosen = self._choose_link(serial)
+        for other in self._unit_ports(serial):
+            if other != chosen:
+                self._release_link(other)
+        if chosen is not None and chosen not in self._manually_disconnected:
+            self._ensure_worker(chosen)
+
+    def _release_link(self, port: str):
+        """Let go of a port whose unit is connected on its other link."""
+        worker = self._workers.get(port)
+        if worker is None or not worker.enabled:
+            return
+        log.info(f"One connection per unit: releasing {port}")
+        worker.request_disconnect()
 
     def _ensure_worker(self, port: str) -> DeviceConnectionWorker:
         worker = self._workers.get(port)
@@ -982,7 +1077,10 @@ class DeviceConnectionManager(QObject):
 
     def manual_connect(self, port: str):
         self._manually_disconnected.discard(port)
-        self._ensure_worker(port)
+        # An explicit connect moves the unit's link to this port, and lets
+        # go of the other one: the operator asked for this one.
+        self._last_seen[port] = time.monotonic()
+        self._apply_link_choice(port, force=True)
 
     def allow_auto_connect(self, port: str):
         """Forget a manual disconnect, so the next scan result for the
@@ -1009,6 +1107,9 @@ class DeviceConnectionManager(QObject):
         worker = self._workers.get(port)
         if worker is not None:
             worker.request_disconnect()
+        # The unit may still be reachable on its other link, which is now
+        # free to take it: disconnecting one port is not disowning the unit.
+        self._apply_link_choice(port)
 
     def get_connection(self, port: str) -> Optional[DeviceConnectionWorker]:
         """Return a usable (enabled, running) worker for the port."""
@@ -1051,6 +1152,21 @@ class DeviceConnectionManager(QObject):
                         self._states.get(port) is ConnectionState.CONNECTED
                     ),
                 )
+        # The other link of a unit whose session is live: the device is not
+        # reading that port at all while its session is bound elsewhere, so
+        # a probe there would report a working unit as silent. It is known
+        # and it is reachable -- just not on this port.
+        identities = list(self.identities.items())
+        connected_units = {
+            identity.serial_number for port, identity in identities
+            if identity.serial_number
+            and self._states.get(port) is ConnectionState.CONNECTED
+        }
+        for port, identity in identities:
+            if port in busy:
+                continue
+            if identity.serial_number in connected_units:
+                busy[port] = BusyPortStatus(identity=identity, connected=True)
         return busy
 
     def device_label(self, port: str) -> str:

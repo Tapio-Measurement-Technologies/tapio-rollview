@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QCoreApplication
 
+import settings
 import store
 from rqft.client import BlockingSessionDriver, LocalDirFs, PumpResult
 from rqft.demo import LoopbackResponder, SocketTransport
@@ -836,3 +837,141 @@ class TestMultipleDevices(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeWorker:
+    """Stands in for DeviceConnectionWorker: the link policy is about which
+    ports get a worker at all, not about what a worker then does."""
+
+    def __init__(self, port, bridge, bluetooth=False):
+        self.port = port
+        self.bridge = bridge
+        self.bluetooth = bluetooth
+        self.enabled = False
+        self.awaiting_reachable = False
+        self.last_error_cause = None
+        self.started = False
+        self.disconnects = 0
+        self._stop_event = threading.Event()
+        self._cancel = threading.Event()
+
+    def enable(self):
+        self.enabled = True
+
+    def start(self):
+        self.started = True
+
+    def is_alive(self):
+        return self.started
+
+    def request_disconnect(self):
+        self.enabled = False
+        self.disconnects += 1
+
+    def retry_now(self):
+        pass
+
+    def shutdown(self):
+        self.started = False
+
+
+class TestOneConnectionPerUnit(unittest.TestCase):
+    """One unit, one connection. The device binds its RQFT session to the
+    link that established it and stops reading the other, so a second
+    connection to the same unit is answered by nothing at all."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QCoreApplication.instance() or QCoreApplication([])
+
+    def setUp(self):
+        worker_patch = patch(
+            "workers.device_connection.DeviceConnectionWorker", FakeWorker
+        )
+        worker_patch.start()
+        self.addCleanup(worker_patch.stop)
+        self.manager = DeviceConnectionManager()
+
+    def _scan(self, port, serial_number, transport="usb"):
+        self.manager.on_scan_results([
+            SimpleNamespace(
+                device=port,
+                device_responded=True,
+                supports_rqft=True,
+                description="Tapio RQP Live",
+                serial_number=serial_number,
+                firmware_version="v1.2.0",
+                transport=transport,
+            )
+        ])
+
+    def _connected_ports(self):
+        return {
+            port for port, worker in self.manager._workers.items()
+            if worker.enabled
+        }
+
+    def test_a_unit_on_both_links_is_connected_over_bluetooth(self):
+        self._scan("COM7", "SN-1")
+        self._scan("COM9", "SN-1", transport="bluetooth")
+
+        self.assertEqual(self._connected_ports(), {"COM9"})
+        self.assertEqual(self.manager._workers["COM7"].disconnects, 1)
+
+    def test_the_link_already_connected_keeps_the_unit(self):
+        self._scan("COM7", "SN-1")
+        self.manager._on_state_changed("COM7", ConnectionState.CONNECTED)
+        self._scan("COM9", "SN-1", transport="bluetooth")
+
+        self.assertEqual(self._connected_ports(), {"COM7"})
+
+    def test_two_units_keep_a_connection_each(self):
+        self._scan("COM7", "SN-1")
+        self._scan("COM9", "SN-2", transport="bluetooth")
+
+        self.assertEqual(self._connected_ports(), {"COM7", "COM9"})
+
+    def test_disconnecting_one_link_hands_the_unit_to_the_other(self):
+        self._scan("COM7", "SN-1")
+        self._scan("COM9", "SN-1", transport="bluetooth")
+        self.assertEqual(self._connected_ports(), {"COM9"})
+
+        self.manager.manual_disconnect("COM9")
+
+        self.assertEqual(self._connected_ports(), {"COM7"})
+
+    def test_connecting_by_hand_moves_the_unit_to_that_link(self):
+        self._scan("COM7", "SN-1")
+        self._scan("COM9", "SN-1", transport="bluetooth")
+
+        self.manager.manual_connect("COM7")
+
+        self.assertEqual(self._connected_ports(), {"COM7"})
+        self.assertEqual(self.manager._workers["COM9"].disconnects, 1)
+
+    def test_the_idle_link_of_a_connected_unit_is_not_probed(self):
+        self._scan("COM7", "SN-1")
+        self._scan("COM9", "SN-1", transport="bluetooth")
+        self.manager._on_state_changed("COM9", ConnectionState.CONNECTED)
+
+        busy = self.manager.busy_ports()
+
+        # The unit is reachable on both rows; probing the idle one would
+        # report a working unit as silent, since the device is not reading
+        # that port while its session is bound to the other.
+        self.assertEqual(set(busy), {"COM7", "COM9"})
+        self.assertTrue(busy["COM7"].connected)
+        self.assertEqual(busy["COM7"].identity.firmware_version, "v1.2.0")
+
+    def test_a_stale_link_loses_the_unit_to_the_one_still_answering(self):
+        self._scan("COM9", "SN-1", transport="bluetooth")
+        self.assertEqual(self._connected_ports(), {"COM9"})
+
+        # The Bluetooth unit has not answered for longer than a link is
+        # kept in the running: the cable that is still there takes it.
+        self.manager._last_seen["COM9"] = (
+            time.monotonic() - settings.RQFT_LINK_CHOICE_STALE_S - 1
+        )
+        self._scan("COM7", "SN-1")
+
+        self.assertEqual(self._connected_ports(), {"COM7"})

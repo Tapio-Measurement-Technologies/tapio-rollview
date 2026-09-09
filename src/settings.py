@@ -225,6 +225,15 @@ RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)
 RQFT_HELLO_RETRY_BUSY_S = 30
 RQFT_HELLO_RETRY_DEAD_S = 5
 RQFT_HELLO_RETRY_CANCELLED_S = 2
+# A unit reachable over both USB and Bluetooth gets one connection, not two:
+# the device binds its session to one link and stops reading the other, so a
+# second connection to the same unit is answered by nothing. Bluetooth is
+# preferred, being the link that behaves the better of the two today.
+RQFT_PREFER_BLUETOOTH_LINK = True
+# How long a port that has stopped answering still counts as one of its
+# unit's links. Past this the unit's connection moves to a link that is
+# still there, which is how an unplugged USB cable hands back to Bluetooth.
+RQFT_LINK_CHOICE_STALE_S = 120
 
 # Default values for plot export (copy to clipboard and postprocessor)
 PLOT_IMAGE_EXPORT_DPI = 300
