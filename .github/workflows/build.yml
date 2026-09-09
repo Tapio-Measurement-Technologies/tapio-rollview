@@ -12,8 +12,31 @@ jobs:
       contents: read
     uses: ./.github/workflows/test.yml
 
+  # Runs before PyInstaller spends a build and before the signing certificate is
+  # used on the result. The evidence step in build binds to the signed artifact,
+  # so it cannot carry these checks itself.
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4
+        with:
+          python-version: '3.12'
+
+      - name: Check configuration, lock freshness, and dependencies
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-checks@c8872faa5c923c76ffa54a4ba057ed7010757fd1
+        with:
+          config: build-tooling.toml
+          requirement-group: runtime
+
   build:
-    needs: test
+    needs: [test, checks]
     permissions:
       contents: read
       id-token: write
@@ -144,8 +167,8 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
-      - name: Audit dependencies and generate signed-artifact evidence
-        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@a77238014cf7116e6b272f11aac649531cd95497
+      - name: Generate signed-artifact evidence
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@c8872faa5c923c76ffa54a4ba057ed7010757fd1
         with:
           config: build-tooling.toml
           product: tapio-rollview
@@ -154,7 +177,7 @@ jobs:
           artifact: dist/rollview-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
           version: ${{ github.ref_name }}
           platform: ${{ matrix.platform }}
-          audit: ${{ runner.os == 'Linux' }}
+          audit: 'false'
           upload-name: rollview-${{ github.ref_name }}-${{ matrix.platform }}-sbom
 
       - name: Compress executable (Linux)
