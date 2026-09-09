@@ -17,6 +17,7 @@ from gui.widgets.messagebox import show_error_msgbox
 from utils.serial_errors import (
     CAUSE_LINK_LOST,
     CAUSE_SILENT,
+    CAUSE_UNREACHABLE,
     classify_port_error,
     describe_port_error,
 )
@@ -278,8 +279,26 @@ class FileTransferManager(QObject):
             conn = self._connection_manager.get_connection(port)
         if conn is not None:
             self._begin_rqft(port, conn, folder_path, on_complete, auto=False)
+        elif supports_rqft:
+            # There is no ZMODEM receiver on the far end to fall back to:
+            # 1.2.0 removed that path from the firmware. Say why the
+            # connection could not be opened rather than start a transfer
+            # that can only sit there until it times out.
+            self._report_no_connection(port)
         else:
             self._begin_zmodem(port, folder_path, on_complete)
+
+    def _report_no_connection(self, port):
+        """A capable unit the connection worker could not reach."""
+        cause = None
+        if self._connection_manager is not None:
+            cause = self._connection_manager.last_error_cause(port)
+        cause = cause or CAUSE_UNREACHABLE
+        log.error(f"Cannot sync {port}: no RQFT connection ({cause})")
+        self.last_transfer_outcome = "error"
+        self.last_transfer_was_auto = False
+        text = describe_port_error(cause, port, self._active_unit_name)
+        show_error_msgbox(text.body, text.title)
 
     def request_auto_sync(self, port):
         """

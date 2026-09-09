@@ -1020,6 +1020,12 @@ class DeviceConnectionManager(QObject):
     def bridge_for(self, port: str) -> Optional[ConnectionBridge]:
         return self._bridges.get(port)
 
+    def last_error_cause(self, port: str) -> Optional[str]:
+        """Why the worker on this port last failed, for a sync that cannot
+        start: a utils.serial_errors cause, or None when it never failed."""
+        worker = self._workers.get(port)
+        return getattr(worker, "last_error_cause", None) if worker else None
+
     def connection_state(self, port: str) -> Optional[ConnectionState]:
         if port in self._workers:
             return self._states.get(port, ConnectionState.DISABLED)

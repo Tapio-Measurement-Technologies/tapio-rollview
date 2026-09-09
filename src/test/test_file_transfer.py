@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QCoreApplication
 
+from utils.serial_errors import CAUSE_HELD
 from workers.device_connection import ConnectionBridge, SyncError
 from workers.file_transfer import FileTransferManager
 
@@ -120,18 +121,26 @@ class TestRqftRouting(unittest.TestCase):
         self.connection.request_sync.assert_not_called()
         self.assertEqual(self.manager.last_deleted_count, 0)
 
-    def test_rqft_device_falling_back_to_zmodem_does_not_delete(self):
-        """A capable device with no live session takes the ZMODEM path,
-        which has no delete step."""
+    def test_rqft_device_with_no_session_does_not_fall_back_to_zmodem(self):
+        """1.2.0 firmware has no ZMODEM receiver to fall back to, so a
+        capable device with no live session is told why the sync could not
+        start rather than sent down a path that can only time out."""
         self.connection_manager.get_connection.return_value = None
+        self.connection_manager.last_error_cause.return_value = CAUSE_HELD
 
-        with patch("workers.file_transfer.QThread"), \
-             patch("workers.file_transfer.FileTransferWorker"):
+        with patch("workers.file_transfer.QThread") as thread_class, \
+             patch("workers.file_transfer.FileTransferWorker") as worker_class, \
+             patch("workers.file_transfer.show_error_msgbox") as popup:
             self.manager.start_transfer(
                 "COM1", "/rolls", MagicMock(), supports_rqft=True
             )
 
+        thread_class.assert_not_called()
+        worker_class.assert_not_called()
+        popup.assert_called_once()
         self.connection.request_sync.assert_not_called()
+        self.assertFalse(self.manager.is_transfer_in_progress())
+        self.assertEqual(self.manager.last_transfer_outcome, "error")
         self.assertEqual(self.manager.last_deleted_count, 0)
 
     def test_non_rqft_device_uses_zmodem_thread(self):
