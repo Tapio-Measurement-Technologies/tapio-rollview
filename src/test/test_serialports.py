@@ -558,6 +558,60 @@ class TestPassOrdering(LaneHarness):
         self.assertEqual(held.serial_number, "ABC123")
         self.assertTrue(held.supports_rqft)
 
+    def test_an_unreadable_firmware_version_leaves_a_readable_one_alone(self):
+        """A byte corrupted inside the version string still parses as JSON,
+        so the reply is not lost the way a mangled line is -- it is read and
+        believed. An unparseable version does not meet the RQFT minimum, so a
+        unit already known to speak it is written down as legacy and its next
+        sync goes down the path meant for older firmware."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+        self.assertTrue(self.publisher.results[0].supports_rqft)
+
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.\x83.0")
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        item = self.publisher.results[0]
+        self.assertTrue(item.device_responded)
+        self.assertEqual(item.firmware_version, "v1.2.0")
+        self.assertTrue(item.supports_rqft)
+
+    def test_a_version_that_parses_is_believed_even_when_it_is_older(self):
+        """The other side of it: a unit really can be downgraded, and an
+        unreadable answer is the only thing being ignored here."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.1.0")
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        item = self.publisher.results[0]
+        self.assertEqual(item.firmware_version, "v1.1.0")
+        self.assertFalse(item.supports_rqft)
+
+    def test_a_different_unit_on_the_port_does_not_inherit_the_version(self):
+        """The version is kept for the unit that reported it, not for the
+        port. Another unit plugged into the same COM name starts over."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+
+        self.responses["COM7"] = ("Tapio RQP Live", "DEF456", "nonsense")
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        item = self.publisher.results[0]
+        self.assertEqual(item.serial_number, "DEF456")
+        self.assertEqual(item.firmware_version, "nonsense")
+        self.assertFalse(item.supports_rqft)
+
     def test_a_pass_with_nothing_to_probe_still_finishes(self):
         self.ports = [make_port("COM2", vid=0x1234, pid=0x5678)]
 

@@ -57,6 +57,7 @@ from utils.bluetooth_ports import (
     paired_devices,
     split_paired_name,
 )
+from utils.rqft_support import parse_firmware_version
 from utils.serial_errors import CAUSE_HELD, classify_port_error
 from utils.time_sync import send_timestamp
 from utils.translation import _
@@ -644,6 +645,40 @@ class DiscoveryLane:
 
     # -- probing -------------------------------------------------------
 
+    def _identity_locked(self, candidate, port_info):
+        """What the unit is, after a probe it answered.
+
+        Almost always just what it said. The exception is the firmware
+        version, which decides whether the unit gets a persistent RQFT
+        connection or the legacy sync path: a version that will not parse is
+        not evidence that the unit is old, only that this answer cannot be
+        read, and one corrupted byte inside the string is enough for that.
+        The line still parses as JSON, so it is not lost the way a mangled
+        one is -- it is read, believed, and a unit already known to speak
+        RQFT is written down as legacy.
+
+        So an unreadable version leaves a readable one alone, for as long as
+        the serial number says it is the same unit. A version that parses is
+        always taken, including one below the minimum: a unit really can be
+        downgraded, and that is what saying so looks like.
+        """
+        description = port_info.description
+        serial_number = port_info.serial_number
+        firmware = getattr(port_info, "firmware_version", "") or ""
+        known = candidate.identity
+        if (
+            known is not None
+            and parse_firmware_version(firmware) is None
+            and parse_firmware_version(known[2]) is not None
+            and serial_number == known[1]
+        ):
+            log.debug(
+                f"{candidate.device} reported an unreadable firmware version "
+                f"{firmware!r}; keeping {known[2]!r}"
+            )
+            firmware = known[2]
+        return (description, serial_number, firmware)
+
     def _run_probe(self, device, info, kind):
         running = lambda: not self._stop.is_set()  # noqa: E731
         try:
@@ -668,11 +703,7 @@ class DiscoveryLane:
                 candidate.error_cause = None if responded else classify_port_error(error)
                 if responded:
                     candidate.responded_at = now
-                    candidate.identity = (
-                        port_info.description,
-                        port_info.serial_number,
-                        getattr(port_info, "firmware_version", "") or "",
-                    )
+                    candidate.identity = self._identity_locked(candidate, port_info)
                 candidate.next_due = self._next_due_locked(candidate, now)
                 item = self._item_locked(candidate)
                 if candidate.in_pass:
