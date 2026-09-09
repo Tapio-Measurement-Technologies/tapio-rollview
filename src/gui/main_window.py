@@ -46,6 +46,11 @@ from utils.translation import _
 #: control, and the control is sized from it rather than the other way round.
 STATUS_BAR_HEIGHT = 30
 
+#: How long an idle status message stays up before the row goes quiet again.
+#: Long enough to read a sentence, short enough that what is on the screen is
+#: still about now.
+STATUS_MESSAGE_LINGER_MS = 5000
+
 
 class MainWindow(QMainWindow):
 
@@ -233,6 +238,12 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.guide_label, 1)
 
         self._activity_cancel = None
+        #: Clears an idle status message once it has been read. Work in
+        #: progress is not on this timer: it says what the window is doing
+        #: now, and it ends when the work does.
+        self._status_clear_timer = QTimer(self)
+        self._status_clear_timer.setSingleShot(True)
+        self._status_clear_timer.timeout.connect(self._clear_idle_status_message)
         #: What the last sync brought in, held until the postprocessors that
         #: follow it have finished, so the two are read out together.
         self._sync_summary = None
@@ -285,8 +296,32 @@ class MainWindow(QMainWindow):
     # ---- the status bar's one activity area ------------------------------
 
     def set_status_message(self, message=""):
-        """What the window is doing or has just done, on the left of the row."""
+        """What the window is doing or has just done, on the left of the row.
+
+        A message set with no progress bar beside it is an outcome -- how
+        many units answered, what the last sync fetched -- and it is read
+        within a few seconds of appearing. Left standing it becomes a claim
+        about the present that stopped being true a while ago, so it is
+        given STATUS_MESSAGE_LINGER_MS and then cleared. A message that
+        belongs to work in progress stays for as long as the work does.
+        """
         self.activity_label.setText(message)
+        self._status_clear_timer.stop()
+        if message and not self._activity_is_running():
+            self._status_clear_timer.start(STATUS_MESSAGE_LINGER_MS)
+
+    def _activity_is_running(self):
+        """Whether the bar is up beside the words.
+
+        isVisibleTo rather than isVisible: a window that has not been shown
+        reports every child as hidden, which would make every message look
+        idle to the timer above.
+        """
+        return self.activity_progress_bar.isVisibleTo(self)
+
+    def _clear_idle_status_message(self):
+        if not self._activity_is_running():
+            self.activity_label.setText("")
 
     def status_message(self):
         return self.activity_label.text()

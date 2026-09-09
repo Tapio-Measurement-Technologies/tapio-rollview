@@ -906,6 +906,29 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         self.window.postprocess_manager.run_postprocessors.assert_not_called()
         self.window.on_directory_contents_changed.assert_not_called()
 
+    def test_an_idle_status_message_takes_itself_down(self):
+        """A finished outcome is read within seconds of appearing. Left
+        standing it becomes a claim about a present that has moved on."""
+        from PySide6.QtTest import QTest
+
+        with patch("gui.main_window.STATUS_MESSAGE_LINGER_MS", 20):
+            self.window.set_status_message("Found 2 device(s).")
+            self.assertEqual(self.window.status_message(), "Found 2 device(s).")
+            QTest.qWait(120)
+
+        self.assertEqual(self.window.status_message(), "")
+
+    def test_a_message_about_work_in_progress_stays_up(self):
+        """What the window is doing now ends when the work does, not on a
+        timer: a bar with no words beside it says nothing."""
+        from PySide6.QtTest import QTest
+
+        with patch("gui.main_window.STATUS_MESSAGE_LINGER_MS", 20):
+            self.window.start_activity("Scanning")
+            QTest.qWait(120)
+
+        self.assertEqual(self.window.status_message(), "Scanning")
+
     def test_a_device_that_goes_away_says_nothing_in_the_row(self):
         """The row is one short line beside the guidance, and a fault with
         its remedy does not fit. A device that has gone shows in the device
