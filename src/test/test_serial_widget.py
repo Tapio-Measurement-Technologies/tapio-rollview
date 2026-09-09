@@ -269,9 +269,14 @@ class TestRowText(unittest.TestCase):
     def setUp(self):
         self._prefixes = settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES
         settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = ("Tapio RQP",)
+        # A unit that is not answering is listed only when it is pinned,
+        # and the rows below are about the words on such a row.
+        self._pinned = preferences.pinned_serial_ports
+        preferences.pinned_serial_ports = {"COM10"}
 
     def tearDown(self):
         settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = self._prefixes
+        preferences.pinned_serial_ports = self._pinned
 
     def data_for(self, item, role):
         model = SerialPortModel()
@@ -332,3 +337,54 @@ class TestCapability(unittest.TestCase):
             make_item("COM6", responded=True, firmware="v1.1.4").supports_rqft
         )
 
+
+class TestListedRows(unittest.TestCase):
+    """Which rows the device list shows when it is not showing every COM
+    port on the machine."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self._prefixes = settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES
+        settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = ("Tapio RQP",)
+        self._pinned = preferences.pinned_serial_ports
+        preferences.pinned_serial_ports = set()
+        self._show_all = preferences.show_all_com_ports
+        preferences.show_all_com_ports = False
+
+    def tearDown(self):
+        settings.SERIAL_PAIRED_DEVICE_NAME_PREFIXES = self._prefixes
+        preferences.pinned_serial_ports = self._pinned
+        preferences.show_all_com_ports = self._show_all
+
+    def listed(self, *items):
+        model = SerialPortModel()
+        for item in items:
+            model.addItem(item)
+        model.applyFilter()
+        return [item.device for item in model.filtered_ports]
+
+    def test_a_paired_unit_that_is_not_answering_is_not_listed(self):
+        """An old pairing for a unit nobody is going to switch on is a row
+        that can never do anything, and there is usually more than one."""
+        self.assertEqual(
+            self.listed(make_item("COM10", responded=False)), []
+        )
+
+    def test_pinning_keeps_a_silent_unit_in_view(self):
+        preferences.pinned_serial_ports = {"COM10"}
+
+        self.assertEqual(
+            self.listed(make_item("COM10", responded=False)), ["COM10"]
+        )
+
+    def test_a_unit_that_answers_is_listed(self):
+        self.assertEqual(
+            self.listed(
+                make_item("COM6", responded=True, firmware="v1.2.0"),
+                make_item("COM10", responded=False),
+            ),
+            ["COM6"],
+        )

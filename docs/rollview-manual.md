@@ -28,7 +28,7 @@ cd tapio-rollview
 ![Tapio RollView](../tapio-rollview-screenshot.png)
 
 1. **Connect and power on** an RQP Live device.  
-2. RollView looks for RQP Live units by itself: a unit plugged in over USB, or switched on over Bluetooth, appears in the list within seconds. Paired Bluetooth units that are switched off are listed greyed out until they answer. **Scan devices** checks the most likely units first and keeps looking in the background; a paired unit that is off costs about five seconds per check, which is why the list may keep filling in for a moment.  
+2. RollView looks for RQP Live units by itself: a unit plugged in over USB, or switched on over Bluetooth, appears in the list within seconds. A paired Bluetooth unit that is switched off is not listed until it answers; pin it from its right-click menu to keep it in view while it is off. **Scan devices** checks the most likely units first and keeps looking in the background; a paired unit that is off costs about five seconds per check, which is why the list may keep filling in for a moment. A unit reachable over both USB and Bluetooth is connected on one link at a time, Bluetooth by preference; **Connect** on the other row moves it.  
 3. **Select** a device from the list and click **Sync data**. The measurement profiles are then downloaded to your computer.  
 4. After synchronization, the selected default postprocessors are automatically run for new profile folders. For each folder with new profiles, the default postprocessors will generate:  
    - a `.json` data file  

@@ -358,20 +358,17 @@ class SerialPortModel(QAbstractListModel):
     def applyFilter(self):
         """ Apply the filter and update the filtered_ports list. """
         if not preferences.show_all_com_ports:
-            # Pinned ports always, then the units that answered, then the
-            # paired units that did not: an operator sees the unit they are
-            # about to switch on, greyed out, rather than an empty list.
+            # Pinned ports always, then the units that answered. A paired
+            # unit that is not answering is not listed: an old pairing for a
+            # unit nobody is going to switch on is a row that can never do
+            # anything, and there is usually more than one of them. Pin it
+            # to keep it in view, or turn on every COM port below.
             pinned_ports = [item for item in self.ports if item.is_pinned()]
             responded_ports = [item for item in self.ports if item.device_responded and not item.is_pinned()]
-            paired_ports = [
-                item for item in self.ports
-                if item.is_paired_unit() and not item.device_responded and not item.is_pinned()
-            ]
             # Sort each list by serial port name
             pinned_ports.sort(key=lambda x: natural_sort_key(x.device))
             responded_ports.sort(key=lambda x: natural_sort_key(x.device))
-            paired_ports.sort(key=lambda x: natural_sort_key(x.device))
-            self.filtered_ports = pinned_ports + responded_ports + paired_ports
+            self.filtered_ports = pinned_ports + responded_ports
         else:
             # Show all ports, but pinned ports first
             pinned_ports = [item for item in self.ports if item.is_pinned()]
