@@ -1318,3 +1318,84 @@ msgstr "Save these limits; the tiles use them immediately"
 #. QR configuration dialog: the block of limit values.
 msgid "GUIDANCE_QR_ALERT_LIMITS"
 msgstr "The limits this QR code carries to the device"
+
+#. Advanced settings: heading over the device tools.
+msgid "SECTION_HEADING_DEVICE"
+msgstr "Device"
+
+#. Advanced settings: the button that opens the firmware update window.
+msgid "FIRMWARE_UPDATE_LINK"
+msgstr "Device firmware update..."
+
+msgid "GUIDANCE_FIRMWARE_UPDATE"
+msgstr "Write a new firmware to a device connected with the USB cable"
+
+#. Firmware update window.
+msgid "FIRMWARE_UPDATE_TITLE"
+msgstr "Device firmware update"
+
+msgid "FIRMWARE_UPDATE_INTRO"
+msgstr "Connect the device with the USB cable, choose the firmware file, and press Upload. The device restarts by itself when the update is done. Do not unplug the cable while the update is running."
+
+msgid "FIRMWARE_UPDATE_DEVICE_LABEL"
+msgstr "Device:"
+
+msgid "FIRMWARE_UPDATE_NO_DEVICE"
+msgstr "No device on USB. Connect the cable and wait for the device to appear in the list."
+
+msgid "FIRMWARE_UPDATE_DEVICE_IN_UPDATE_MODE"
+msgstr "Device in update mode"
+
+msgid "FIRMWARE_UPDATE_FILE_LABEL"
+msgstr "Firmware file:"
+
+msgid "FIRMWARE_UPDATE_FILE_PLACEHOLDER"
+msgstr "Choose a firmware file"
+
+msgid "FIRMWARE_UPDATE_FILE_FILTER"
+msgstr "Firmware files (*.hex)"
+
+msgid "FIRMWARE_UPDATE_FILE_READY"
+msgstr "{name} checked: {kb} KB, ready to upload"
+
+msgid "FIRMWARE_UPDATE_BROWSE"
+msgstr "Browse..."
+
+msgid "FIRMWARE_UPDATE_UPLOAD"
+msgstr "Upload"
+
+msgid "GUIDANCE_FIRMWARE_UPLOAD"
+msgstr "Restart the device into update mode and write the chosen file to it"
+
+msgid "FIRMWARE_UPDATE_STATUS_RESTARTING"
+msgstr "Restarting the device into update mode..."
+
+msgid "FIRMWARE_UPDATE_STATUS_WAITING"
+msgstr "Waiting for the device to enter update mode..."
+
+msgid "FIRMWARE_UPDATE_STATUS_UPLOADING"
+msgstr "Writing the firmware..."
+
+msgid "FIRMWARE_UPDATE_STATUS_REBOOTING"
+msgstr "Starting the new firmware..."
+
+msgid "FIRMWARE_UPDATE_STATUS_RETURNING"
+msgstr "Waiting for the device to start..."
+
+msgid "FIRMWARE_UPDATE_STATUS_DONE"
+msgstr "Firmware updated. The device is running the new firmware."
+
+msgid "FIRMWARE_UPDATE_ERROR_BAD_FILE"
+msgstr "This file is not a firmware for this device."
+
+msgid "FIRMWARE_UPDATE_ERROR_PORT"
+msgstr "The device's port could not be opened. Close other programs using the device and try again."
+
+msgid "FIRMWARE_UPDATE_ERROR_NO_BOOTLOADER"
+msgstr "The device did not enter update mode. Unplug the USB cable, plug it back in, and try again."
+
+msgid "FIRMWARE_UPDATE_ERROR_WRITE"
+msgstr "Writing the firmware failed. Leave the cable connected and press Upload again."
+
+msgid "FIRMWARE_UPDATE_ERROR_NOT_BACK"
+msgstr "The firmware was written, but the device has not started. Unplug the USB cable and plug it back in."

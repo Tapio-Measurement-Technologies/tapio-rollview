@@ -79,6 +79,20 @@ The settings system in Tapio RollView allows users to customize the software's b
 - **Retaining defaults**: Any settings not specified in the custom file will automatically retain their default values. This means users only need to specify the settings they wish to change in the custom settings file.
 - **Shortcut to Windows executable**: It's common to create a shortcut that automatically launches the software with the custom settings file included as a parameter. This streamlines the process of using custom configurations.
 
+## Device Firmware Update
+
+Settings, Advanced settings, *Device firmware update...* opens the update tool.
+Connect the device with the USB cable, wait for it to appear in the device list,
+choose the firmware file (a `.hex` file from Tapio) and press *Upload*. The file
+is checked before anything is sent: a file that is not a firmware for this
+device is refused. The device restarts into update mode, receives the firmware
+with a progress bar, and starts the new firmware by itself. Do not unplug the
+cable while the update is running.
+
+A device that was left in update mode by an interrupted update is offered in
+the same window as *Device in update mode*; press *Upload* again to complete it.
+The update works over USB only.
+
 ## Postprocessor System
 The postprocessor system in Tapio RollView can be used to automate tasks that need to be performed after data synchronization.
 

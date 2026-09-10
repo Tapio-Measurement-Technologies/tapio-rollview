@@ -1315,3 +1315,84 @@ msgstr "この制限を保存します。タイルにすぐ反映されます"
 #. QR configuration dialog: the block of limit values.
 msgid "GUIDANCE_QR_ALERT_LIMITS"
 msgstr "このQRコードでデバイスに適用される制限です"
+
+#. Advanced settings: heading over the device tools.
+msgid "SECTION_HEADING_DEVICE"
+msgstr "デバイス"
+
+#. Advanced settings: the button that opens the firmware update window.
+msgid "FIRMWARE_UPDATE_LINK"
+msgstr "デバイスのファームウェア更新..."
+
+msgid "GUIDANCE_FIRMWARE_UPDATE"
+msgstr "USBケーブルで接続したデバイスに新しいファームウェアを書き込みます"
+
+#. Firmware update window.
+msgid "FIRMWARE_UPDATE_TITLE"
+msgstr "デバイスのファームウェア更新"
+
+msgid "FIRMWARE_UPDATE_INTRO"
+msgstr "デバイスをUSBケーブルで接続し、ファームウェアファイルを選択してから「アップロード」を押してください。更新が終わるとデバイスは自動的に再起動します。更新中はケーブルを抜かないでください。"
+
+msgid "FIRMWARE_UPDATE_DEVICE_LABEL"
+msgstr "デバイス:"
+
+msgid "FIRMWARE_UPDATE_NO_DEVICE"
+msgstr "USBにデバイスがありません。ケーブルを接続し、デバイスが一覧に表示されるまでお待ちください。"
+
+msgid "FIRMWARE_UPDATE_DEVICE_IN_UPDATE_MODE"
+msgstr "更新モードのデバイス"
+
+msgid "FIRMWARE_UPDATE_FILE_LABEL"
+msgstr "ファームウェアファイル:"
+
+msgid "FIRMWARE_UPDATE_FILE_PLACEHOLDER"
+msgstr "ファームウェアファイルを選択"
+
+msgid "FIRMWARE_UPDATE_FILE_FILTER"
+msgstr "ファームウェアファイル (*.hex)"
+
+msgid "FIRMWARE_UPDATE_FILE_READY"
+msgstr "{name} を確認しました: {kb} KB、アップロード可能"
+
+msgid "FIRMWARE_UPDATE_BROWSE"
+msgstr "参照..."
+
+msgid "FIRMWARE_UPDATE_UPLOAD"
+msgstr "アップロード"
+
+msgid "GUIDANCE_FIRMWARE_UPLOAD"
+msgstr "デバイスを更新モードで再起動し、選択したファイルを書き込みます"
+
+msgid "FIRMWARE_UPDATE_STATUS_RESTARTING"
+msgstr "デバイスを更新モードで再起動しています..."
+
+msgid "FIRMWARE_UPDATE_STATUS_WAITING"
+msgstr "デバイスが更新モードになるのを待っています..."
+
+msgid "FIRMWARE_UPDATE_STATUS_UPLOADING"
+msgstr "ファームウェアを書き込んでいます..."
+
+msgid "FIRMWARE_UPDATE_STATUS_REBOOTING"
+msgstr "新しいファームウェアを起動しています..."
+
+msgid "FIRMWARE_UPDATE_STATUS_RETURNING"
+msgstr "デバイスの起動を待っています..."
+
+msgid "FIRMWARE_UPDATE_STATUS_DONE"
+msgstr "ファームウェアを更新しました。デバイスは新しいファームウェアで動作しています。"
+
+msgid "FIRMWARE_UPDATE_ERROR_BAD_FILE"
+msgstr "このファイルはこのデバイス用のファームウェアではありません。"
+
+msgid "FIRMWARE_UPDATE_ERROR_PORT"
+msgstr "デバイスのポートを開けませんでした。デバイスを使用している他のプログラムを閉じて、もう一度お試しください。"
+
+msgid "FIRMWARE_UPDATE_ERROR_NO_BOOTLOADER"
+msgstr "デバイスが更新モードになりませんでした。USBケーブルを抜き差しして、もう一度お試しください。"
+
+msgid "FIRMWARE_UPDATE_ERROR_WRITE"
+msgstr "ファームウェアの書き込みに失敗しました。ケーブルを接続したまま、もう一度「アップロード」を押してください。"
+
+msgid "FIRMWARE_UPDATE_ERROR_NOT_BACK"
+msgstr "ファームウェアは書き込まれましたが、デバイスが起動しません。USBケーブルを抜き差ししてください。"

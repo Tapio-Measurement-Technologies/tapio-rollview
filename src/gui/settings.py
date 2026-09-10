@@ -61,6 +61,9 @@ TABLEAU_COLOR_HEX = highlight_color_hex()
 
 class SettingsWindow(QWidget):
     settings_updated = Signal()
+    # The advanced page's "Device firmware update" link. The window that
+    # holds the device list opens the tool; this window only says it was asked.
+    firmware_update_requested = Signal()
 
     def __init__(self):
         super().__init__()
@@ -105,6 +108,9 @@ class SettingsWindow(QWidget):
 
         self.advanced_settings_page = AdvancedSettingsPage()
         self.add_settings_page(_("ADVANCED_SETTINGS"), self.advanced_settings_page)
+        self.advanced_settings_page.firmware_update_requested.connect(
+            self.firmware_update_requested.emit
+        )
 
         self.list_widget.currentRowChanged.connect(self.display_page)
         self.list_widget.setCurrentRow(0)
@@ -425,6 +431,7 @@ class AlertLimitSetting(QFrame):
 
 class AdvancedSettingsPage(QWidget):
     settings_updated = Signal()
+    firmware_update_requested = Signal()
     BAND_PASS_SLIDER_MIN = settings.BAND_PASS_HIGH_MIN
     BAND_PASS_SLIDER_MAX = 100
     BAND_PASS_SLIDER_STEP = 0.1
@@ -602,6 +609,21 @@ class AdvancedSettingsPage(QWidget):
         layout.addLayout(regions_layout)
         layout.addWidget(self.excluded_regions_error)
         self._update_excluded_regions_ui()
+
+        device_heading = self._create_section_heading(_("SECTION_HEADING_DEVICE"))
+        layout.addWidget(device_heading)
+
+        # A tool, not a setting: it opens its own window and saves nothing
+        # here, so it sits apart from the Save button's reach.
+        self.firmware_update_button = QPushButton(_("FIRMWARE_UPDATE_LINK"), self)
+        theme_qt.set_variant(self.firmware_update_button, "secondary")
+        set_guidance(self.firmware_update_button, _("FIRMWARE_UPDATE_LINK"),
+                     _("GUIDANCE_FIRMWARE_UPDATE"))
+        self.firmware_update_button.clicked.connect(self.firmware_update_requested.emit)
+        firmware_row = QHBoxLayout()
+        firmware_row.addWidget(self.firmware_update_button)
+        firmware_row.addStretch()
+        layout.addLayout(firmware_row)
 
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()

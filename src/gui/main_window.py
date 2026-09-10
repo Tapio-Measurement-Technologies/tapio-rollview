@@ -10,7 +10,7 @@
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QCheckBox, QVBoxLayout, QHBoxLayout, QWidgetAction, QSizePolicy, QSplitter, QTabWidget, QProgressBar, QPushButton, QLabel, QFileDialog, QMessageBox
 from PySide6.QtGui import QAction, QFontMetrics, QIcon
-from PySide6.QtCore import QDir, Qt, QEvent, QSignalBlocker, QTimer
+from PySide6.QtCore import QDir, Qt, QEvent, QSignalBlocker, QThread, QTimer
 
 import theme
 from theme import qt as theme_qt
@@ -39,6 +39,9 @@ from gui.widgets.StatisticsAnalysis import StatisticsAnalysisWidget
 from gui.settings import SettingsWindow
 from gui.file_transfer_dialog import FileTransferDialog
 from gui.qr_config_dialog import QRConfigDialog
+from gui.firmware_update_dialog import FirmwareUpdateDialog
+from utils.bluetooth_ports import KIND_BLUETOOTH, KIND_BLUETOOTH_INCOMING
+from workers.device_connection import ConnectionState
 from gui.widgets.messagebox import show_info_msgbox, show_error_msgbox
 from utils.translation import _
 
@@ -1000,7 +1003,62 @@ class MainWindow(QMainWindow):
         # Two places show the same switches; saving in one has to move the other.
         self.settings_window.settings_updated.connect(self._sync_menu_checkbox_states)
         self.settings_window.general_settings_page.appearance_changed.connect(self.apply_appearance)
+        self.settings_window.firmware_update_requested.connect(self.open_firmware_update_dialog)
         self.settings_window.show()
+
+    # -- device firmware update ------------------------------------------
+
+    def _firmware_update_target(self):
+        """The unit to update: the selected one if it is on USB and has
+        answered, else the first such unit in the list. Bluetooth cannot
+        carry an update; the bootloader is only ever on the cable."""
+        model = self.serial_widget.view.model
+        candidates = []
+        selected = model.getSelectedPort()
+        if selected is not None:
+            candidates.append(selected)
+        candidates.extend(model.ports)
+        for item in candidates:
+            if not item.device_responded:
+                continue
+            if item.transport in (KIND_BLUETOOTH, KIND_BLUETOOTH_INCOMING):
+                continue
+            return item.device, item.label()
+        return None
+
+    def _hold_port_for_update(self, port):
+        """Free the port for the update: no probe may open it, and the
+        persistent connection on it has to let go before the restart
+        request can open it itself."""
+        scanner = self.serial_widget.scanner
+        scanner.set_paused(True)
+        scanner.wait_until_port_free(port)
+        manager = self.device_connection_manager
+        manager.manual_disconnect(port)
+        deadline = datetime.now() + timedelta(seconds=3)
+        while manager.connection_state(port) not in (None, ConnectionState.DISABLED):
+            QApplication.processEvents()
+            if datetime.now() >= deadline:
+                break
+            QThread.msleep(20)
+
+    def _release_port_after_update(self, port):
+        """Take the port back: connections may come up on it again, and
+        discovery asks it what it is now, since that is what just changed."""
+        manager = self.device_connection_manager
+        manager.allow_auto_connect(port)
+        scanner = self.serial_widget.scanner
+        scanner.set_paused(False)
+        scanner.probe_port(port)
+
+    def open_firmware_update_dialog(self):
+        dialog = FirmwareUpdateDialog(
+            self._firmware_update_target,
+            hold=self._hold_port_for_update,
+            release=self._release_port_after_update,
+            parent=self,
+        )
+        dialog.exec()
 
     def _follow_system_appearance(self):
         """The desktop switched between light and dark.

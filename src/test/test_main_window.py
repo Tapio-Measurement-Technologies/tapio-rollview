@@ -390,6 +390,8 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
         one: the status bar's progress row, and the window a sync reports
         in — which is where the sync's own uncounted wait went when it
         left the row. Neither can be on screen for the same piece of work.
+        The firmware update window is a third: it reports the update it
+        runs, and waits on the device restarting, which nothing can count.
 
         Checked in the source because the rule is about what may exist,
         not about what happens to be on screen during one test.
@@ -406,7 +408,9 @@ class TestMainWindowSettingsFileLoading(unittest.TestCase):
                 path.read_text(encoding="utf-8"))
         )
         self.assertEqual(
-            found, ["gui/file_transfer_dialog.py", "gui/main_window.py"])
+            found,
+            ["gui/file_transfer_dialog.py", "gui/firmware_update_dialog.py",
+             "gui/main_window.py"])
 
     def test_a_sync_reports_in_its_own_window_not_in_the_row(self):
         """The row has one line of fixed width to give; a sync has a file
