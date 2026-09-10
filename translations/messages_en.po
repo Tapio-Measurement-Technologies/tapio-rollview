@@ -1033,7 +1033,7 @@ msgstr "Port in use"
 msgid "PORT_ERROR_UNREACHABLE"
 msgstr "{unit} on {port} is not connected."
 msgid "PORT_ERROR_UNREACHABLE_HINT"
-msgstr "Switch the device on and check that it is in range."
+msgstr "Switch the device on, or connect it with the USB cable."
 msgid "PORT_ERROR_UNREACHABLE_TITLE"
 msgstr "Not connected"
 
@@ -1318,3 +1318,7 @@ msgstr "Save these limits; the tiles use them immediately"
 #. QR configuration dialog: the block of limit values.
 msgid "GUIDANCE_QR_ALERT_LIMITS"
 msgstr "The limits this QR code carries to the device"
+
+#. Status row: Sync was pressed on a unit that has not answered yet.
+msgid "SYNC_CONNECTING_STATUS"
+msgstr "Connecting to {unit}..."

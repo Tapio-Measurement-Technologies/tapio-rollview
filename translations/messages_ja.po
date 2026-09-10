@@ -1030,7 +1030,7 @@ msgstr "ポートが使用中です"
 msgid "PORT_ERROR_UNREACHABLE"
 msgstr "{unit} ({port}) は接続されていません。"
 msgid "PORT_ERROR_UNREACHABLE_HINT"
-msgstr "デバイスの電源を入れ、通信範囲内にあることを確認してください。"
+msgstr "デバイスの電源を入れるか、USBケーブルで接続してください。"
 msgid "PORT_ERROR_UNREACHABLE_TITLE"
 msgstr "未接続"
 
@@ -1315,3 +1315,7 @@ msgstr "この制限を保存します。タイルにすぐ反映されます"
 #. QR configuration dialog: the block of limit values.
 msgid "GUIDANCE_QR_ALERT_LIMITS"
 msgstr "このQRコードでデバイスに適用される制限です"
+
+#. Status row: Sync was pressed on a unit that has not answered yet.
+msgid "SYNC_CONNECTING_STATUS"
+msgstr "{unit} に接続しています..."

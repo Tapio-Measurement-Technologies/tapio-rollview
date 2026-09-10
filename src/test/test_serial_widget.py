@@ -158,6 +158,7 @@ class TestSync(WidgetCase):
         and puts one line in the row."""
         item = make_item("COM6", responded=False)
         item.remembered = True
+        item.present = False
         self.select(self.listed(item))
         self.widget._set_sync_enabled(True)
         self.transfers.start_transfer = MagicMock()
@@ -167,10 +168,53 @@ class TestSync(WidgetCase):
         self.widget.sync_data()
 
         self.transfers.start_transfer.assert_not_called()
-        self.widget.scanner.probe_port.assert_called_once_with("COM6")
+        self.widget.scanner.probe_port.assert_not_called()
         self.assertEqual(len(lines), 1)
         self.assertIn("COM6", lines[0])
         self.assertTrue(self.widget.syncButton.isEnabled())
+
+    def test_a_press_before_the_unit_has_answered_connects_first_and_syncs_when_it_does(self):
+        """A cable just plugged back in: the press is what the operator
+        wants, so the unit is asked ahead of everything else and the sync
+        runs the moment it answers."""
+        item = make_item("COM6", responded=False)
+        item.remembered = True
+        self.select(self.listed(item))
+        self.transfers.start_transfer = MagicMock()
+        self.transfers.is_transfer_in_progress = MagicMock(return_value=False)
+        lines = []
+        self.widget.status_message.connect(lines.append)
+
+        self.widget.sync_data()
+
+        self.transfers.start_transfer.assert_not_called()
+        self.widget.scanner.probe_port.assert_called_once_with("COM6")
+        self.assertEqual(self.connections.calls, [("port_appeared", "COM6")])
+        self.assertIn("Connecting", lines[0])
+
+        answered = make_item("COM6", responded=True, firmware="v1.2.0")
+        self.widget.on_port_update(answered)
+
+        self.transfers.start_transfer.assert_called_once()
+        self.assertEqual(self.transfers.start_transfer.call_args.args[0], "COM6")
+
+    def test_a_press_the_unit_never_answers_ends_with_the_row_saying_so(self):
+        item = make_item("COM6", responded=False)
+        item.remembered = True
+        self.select(self.listed(item))
+        self.transfers.start_transfer = MagicMock()
+        lines = []
+        self.widget.status_message.connect(lines.append)
+        self.widget.sync_data()
+
+        silent = make_item("COM6", responded=False)
+        silent.reachable = False
+        self.widget.on_port_update(silent)
+
+        self.transfers.start_transfer.assert_not_called()
+        self.assertEqual(len(lines), 2)
+        self.assertIn("not connected", lines[1])
+        self.assertIsNone(self.widget._sync_when_answered)
 
     def test_the_sync_button_comes_back_with_the_pass_when_nothing_is_running(self):
         self.select(self.listed(make_item("COM6", responded=True)))

@@ -154,6 +154,9 @@ class SerialWidget(QWidget):
         self._announced_device_count = None
         self._pass_running = False
         self._focus_returns_to_scan = False
+        # A port Sync was pressed on before the unit behind it had answered:
+        # the sync runs the moment it does.
+        self._sync_when_answered = None
 
         self.scanner = PortScanner(self)
 
@@ -257,6 +260,24 @@ class SerialWidget(QWidget):
             self.connectionManager.on_scan_results([item])
         self._announce_device_count()
         self._refresh_sync_enabled()
+        self._run_sync_pressed_early(item)
+
+    def _run_sync_pressed_early(self, item):
+        """The sync a press asked for before the unit had answered."""
+        if item.device != self._sync_when_answered:
+            return
+        if item.device_responded:
+            self._sync_when_answered = None
+            if self.transferManager.is_transfer_in_progress():
+                return
+            self._start_sync(item, store.root_directory)
+        elif item.reachable is False or not item.present:
+            # Asked, and nothing answered: the press is done with, and the
+            # row says why.
+            self._sync_when_answered = None
+            self.status_message.emit(describe_port_error(
+                item.error_cause or CAUSE_UNREACHABLE, item.device, item.label(),
+            ).body)
 
     def _refresh_sync_enabled(self):
         """The button follows the selection and the transfer, whatever
@@ -268,6 +289,8 @@ class SerialWidget(QWidget):
 
     def on_port_gone(self, device):
         """A port is no longer there: unplugged, or the pairing removed."""
+        if device == self._sync_when_answered:
+            self._sync_when_answered = None
         self.view.model.removeDevice(device)
         self.view.restore_selection()
         if not self.view.selectionModel().hasSelection():
@@ -330,19 +353,32 @@ class SerialWidget(QWidget):
         if not port_item:
             return
         if not port_item.device_responded:
-            # Nothing is answering there: the unit is off, out of range or
-            # unplugged. Opening a Bluetooth port to a unit that is off
-            # pages it for seconds, holds the radio the whole time, and
-            # cannot be stopped once begun, so no sync starts on the
-            # strength of a press. The row says why, the unit is asked
-            # again right away, and the button stays where it is.
+            if port_item.present:
+                # The port is there but the unit behind it has not answered
+                # yet: a cable just plugged back in, a unit just switched
+                # on. The press is what the operator wants done, so it goes
+                # first: the unit is asked ahead of everything else, its
+                # connection is told not to wait out any backoff, and the
+                # sync runs the moment it answers. If it does not, the row
+                # says so then.
+                self._sync_when_answered = port_item.device
+                self.status_message.emit(
+                    _("SYNC_CONNECTING_STATUS").format(unit=port_item.label())
+                )
+                if self.connectionManager is not None:
+                    self.connectionManager.port_appeared(port_item.device)
+                self.scanner.probe_port(port_item.device)
+                return
+            # Unplugged: nothing to ask. The row says so, and the button
+            # stays where it is.
             self.status_message.emit(describe_port_error(
                 port_item.error_cause or CAUSE_UNREACHABLE,
                 port_item.device, port_item.label(),
             ).body)
-            if port_item.present:
-                self.scanner.probe_port(port_item.device)
             return
+        self._start_sync(port_item, sync_folder)
+
+    def _start_sync(self, port_item, sync_folder):
         # The lane sits out the sync from here. Paused first, so no probe of
         # this port can start between the wait and the sync's own open;
         # then waited for, since a probe already inside the port holds it
