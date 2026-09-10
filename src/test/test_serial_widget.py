@@ -56,6 +56,9 @@ class FakeConnectionManager(QObject):
     def on_scan_results(self, items):
         self.calls.append(("on_scan_results", [item.device for item in items]))
 
+    def port_appeared(self, port):
+        self.calls.append(("port_appeared", port))
+
 
 def make_item(device, responded, firmware="", paired="Tapio RQP Live (1)"):
     info = list_ports_common.ListPortInfo(device, skip_link_detection=True)
@@ -101,6 +104,13 @@ class WidgetCase(unittest.TestCase):
 
 
 class TestConnect(WidgetCase):
+    def test_a_port_back_in_the_list_pokes_its_worker(self):
+        """A replug: the row is back, and the worker waiting on the port
+        is told so, before the row is drawn."""
+        self.widget.on_port_appeared(make_item("COM6", responded=False))
+
+        self.assertEqual(self.connections.calls, [("port_appeared", "COM6")])
+
     def test_a_unit_that_answered_without_rqft_gets_no_connection(self):
         self.listed(make_item("COM6", responded=True, firmware="ac90a85-d"))
 
@@ -196,6 +206,24 @@ class TestBall(unittest.TestCase):
 
     def test_a_paired_unit_that_is_off_is_absent(self):
         self.assertEqual(self.kind_for(make_item("COM10", responded=False)), BALL_ABSENT)
+
+    def test_a_held_unit_back_from_a_replug_shows_its_connection(self):
+        """The row comes back before the session does. It is listed from
+        the worker that holds the port, so the worker's state is what the
+        ball can say: coming up, up, or nothing yet."""
+        info = list_ports_common.ListPortInfo("COM14", skip_link_detection=True)
+        info.description = "Tapio RQP Live"
+        info.serial_number = "1"
+        info.firmware_version = "v1.2.0"
+        item = SerialPortItem(
+            info, device_responded=False, known_device=True, reachable=False,
+            transport="usb",
+        )
+
+        self.assertEqual(self.kind_for(item, ConnectionState.LISTENING), BALL_WORKING)
+        self.assertEqual(self.kind_for(item, ConnectionState.CONNECTED), BALL_LIVE)
+        self.assertEqual(self.kind_for(item, ConnectionState.OPEN_BACKOFF), BALL_ABSENT)
+        self.assertEqual(self.kind_for(item, None), BALL_ABSENT)
 
     def test_an_rqft_device_shows_its_connection(self):
         item = make_item("COM6", responded=True, firmware="v1.2.0")

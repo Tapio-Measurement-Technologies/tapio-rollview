@@ -131,7 +131,7 @@ class DeviceConnectionTestBase(unittest.TestCase):
 
         self._simulate_unplugged = False
         transport_patch = patch(
-            "workers.device_connection.SerialTransport",
+            "workers.device_connection.SteadySerialTransport",
             side_effect=self._make_transport,
         )
         transport_patch.start()
@@ -228,7 +228,7 @@ class TestWorkerShutdown(unittest.TestCase):
         self.addCleanup(worker.shutdown)
 
         with patch(
-            "workers.device_connection.SerialTransport",
+            "workers.device_connection.SteadySerialTransport",
             return_value=transport,
         ):
             worker.enable()
@@ -767,7 +767,7 @@ class TestMultipleDevices(unittest.TestCase):
             self.addCleanup(left.close)
 
         transport_patch = patch(
-            "workers.device_connection.SerialTransport",
+            "workers.device_connection.SteadySerialTransport",
             side_effect=lambda port, **kwargs: SocketTransport(self.transports[port]),
         )
         transport_patch.start()

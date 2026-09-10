@@ -178,7 +178,9 @@ SERIAL_PAIRED_DEVICE_NAME_PREFIXES = ("Tapio RQP",)
 # pages one unit at a time, and nothing cancels a page once it has started.
 # So one background lane probes Bluetooth ports one after another, and how
 # often an absent unit is paged depends on how recently it was used.
-DISCOVERY_ENUMERATE_INTERVAL_S = 1.5
+# How often the port list is read: the most a unit just plugged in, or
+# plugged back in, waits before anything notices it.
+DISCOVERY_ENUMERATE_INTERVAL_S = 1.0
 # After start-up and after a press of the scan button every absent unit is
 # probed back to back for this long: that is when an operator is most likely
 # to be switching one on.

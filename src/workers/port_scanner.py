@@ -510,7 +510,12 @@ class DiscoveryLane:
             log.exception("Paired device lookup failed")
             paired = {}
 
+        # Ports a connection worker holds are listed from what the worker
+        # knows, the way a pass reports them: a port back after a replug
+        # is that unit, and a session coming up on it is the row changing.
+        busy = self._busy_snapshot()
         appeared = []
+        updated = []
         gone = []
         with self._cond:
             now = self._clock()
@@ -522,20 +527,54 @@ class DiscoveryLane:
                     gone.append(device)
                     del self._cands[device]
             for port in ports:
+                status = busy.get(port.device) if port.device in busy else None
                 candidate = self._cands.get(port.device)
                 if candidate is None:
                     candidate = self._new_candidate_locked(port, pinned, paired, now)
                     self._cands[port.device] = candidate
-                    appeared.append(self._item_locked(candidate))
-                elif self._update_candidate_locked(candidate, port, pinned, paired):
-                    # Pinned, or newly named from the paired list: the row
-                    # reads differently, so it goes out again.
-                    appeared.append(self._item_locked(candidate))
+                    if status is not None:
+                        self._adopt_worker_status_locked(candidate, status)
+                    appeared.append(
+                        self._item_locked(candidate, known_device=status is not None)
+                    )
+                    continue
+                changed = self._update_candidate_locked(candidate, port, pinned, paired)
+                if status is not None and self._adopt_worker_status_locked(candidate, status):
+                    changed = True
+                if changed:
+                    # Pinned, newly named from the paired list, or its
+                    # worker's session came up or went: the row reads
+                    # differently, so it goes out again.
+                    updated.append(
+                        self._item_locked(candidate, known_device=status is not None)
+                    )
             self._next_enum = now + settings.DISCOVERY_ENUMERATE_INTERVAL_S
         for item in appeared:
             self._publish("port_appeared", item)
+        for item in updated:
+            self._publish("port_result", item)
         for device in gone:
             self._publish("port_gone", device)
+
+    def _adopt_worker_status_locked(self, candidate, status):
+        """Take what a connection worker knows about its port. Returns
+        whether the row now reads differently.
+
+        Every field falls back to what the last probe learned. A worker
+        started before any DEVICEINFO answer carries a blank identity, and
+        overwriting the firmware version with it dropped the unit's RQFT
+        capability on the next pass.
+        """
+        before = (candidate.identity, candidate.reachable)
+        identity = status.identity
+        known = candidate.identity or ("", "", "")
+        candidate.identity = (
+            identity.device_name or known[0],
+            identity.serial_number or known[1],
+            identity.firmware_version or known[2],
+        )
+        candidate.reachable = bool(status.connected)
+        return (candidate.identity, candidate.reachable) != before
 
     def _new_candidate_locked(self, port, pinned, paired, now):
         markers = getattr(settings, "SERIAL_BLUETOOTH_PORT_MARKERS", ())
@@ -739,19 +778,7 @@ class DiscoveryLane:
                     # a live session.
                     candidate.in_pass = False
                     if status is not None:
-                        identity = status.identity
-                        # Every field falls back to what the last probe
-                        # learned. A worker started before any DEVICEINFO
-                        # answer carries a blank identity, and overwriting
-                        # the firmware version with it dropped the unit's
-                        # RQFT capability on the next pass.
-                        known = candidate.identity or ("", "", "")
-                        candidate.identity = (
-                            identity.device_name or known[0],
-                            identity.serial_number or known[1],
-                            identity.firmware_version or known[2],
-                        )
-                        candidate.reachable = bool(status.connected)
+                        self._adopt_worker_status_locked(candidate, status)
                         cached.append(self._item_locked(candidate, known_device=True))
                     continue
                 if not candidate.probeable:

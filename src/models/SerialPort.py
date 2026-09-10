@@ -42,6 +42,9 @@ class SerialPortItem:
         # Why the last probe went unanswered: a utils.serial_errors cause,
         # None when it was answered or nothing has asked yet.
         self.error_cause = error_cause
+        # Listed from the connection worker that holds the port rather
+        # than from a probe: nothing may probe a held port.
+        self.known_device = known_device
         # Capability belongs to the firmware, not to whether this port
         # answered the last probe. A unit that has identified itself keeps
         # it through a missed probe: one silent probe used to reclassify a
@@ -208,9 +211,19 @@ class SerialPortModel(QAbstractListModel):
         or not, so it is filled; only a device that speaks RQFT has a
         connection to be live or coming up.
         """
-        if not (item.device_responded or item.is_paired_unit() or item.is_pinned()):
+        known = getattr(item, "known_device", False)
+        if not (item.device_responded or known or item.is_paired_unit() or item.is_pinned()):
             return None
         if not item.device_responded:
+            # A unit its connection worker holds answers through the
+            # session, not through a probe. Back from a replug, the row
+            # arrives before the session does, and the worker is either on
+            # its way to it or already there.
+            state = self.getConnectionState(item.device) if known else None
+            if state is ConnectionState.CONNECTED:
+                return BALL_LIVE
+            if state in (ConnectionState.CONNECTING, ConnectionState.LISTENING):
+                return BALL_WORKING
             return BALL_ABSENT
         if not item.supports_rqft:
             return BALL_READY
