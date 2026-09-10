@@ -108,7 +108,7 @@ class DirectoryView(QWidget):
         self._pending_focus_path = None
         self._pending_focus_active = False
         self._focus_restore_scheduled = False
-        self._root_directory = None
+        self.__root_directory = None
         self._selected_directory_path = None
         self.active_roll_filter_pattern = ""
         self.active_roll_filter_regex = None
@@ -202,6 +202,22 @@ class DirectoryView(QWidget):
         self.proxy_model.rowsInserted.connect(self.on_rows_inserted)
         self.proxy_model.layoutAboutToBeChanged.connect(self.on_layout_about_to_change)
         self.proxy_model.layoutChanged.connect(self.on_layout_changed)
+
+    @property
+    def _root_directory(self):
+        """The directory the rolls are in, or None before one is chosen."""
+        return self.__root_directory
+
+    @_root_directory.setter
+    def _root_directory(self, directory):
+        self.__root_directory = directory
+        # The model dates a folder from the measurements in it, and only a
+        # folder in here has any. Kept in step here rather than at the one
+        # place that assigns this, so a second assignment somewhere cannot
+        # leave the model reading the wrong part of the filesystem.
+        model = getattr(self, "model", None)
+        if model is not None:
+            model.set_root_directory(directory)
 
     def _refresh_directory_button_tooltips(self):
         """Name the folder each button works on, in the tooltip.
@@ -762,6 +778,38 @@ class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.modified_date_cache = {}
+        #: The roll directory, as an absolute path in the platform's own
+        #: spelling. Until it is known, no folder counts as being in it.
+        self._root_path = None
+
+    def set_root_directory(self, root_directory):
+        """Say which directory holds the rolls.
+
+        The date column asks the filesystem what is inside a folder, and
+        that question is only worth asking about a roll folder. A model of
+        the filesystem holds every other directory too, its top level
+        being the drives, so without this it was asked about those as
+        well: filling the column meant reading whole drives, on the thread
+        that draws the window. Ten seconds of a frozen window at start-up
+        was one slow drive being read twice.
+        """
+        new_root = os.path.abspath(root_directory) if root_directory else None
+        if new_root == self._root_path:
+            return
+        self._root_path = new_root
+        # Which folders the column has an answer for has just changed.
+        self.modified_date_cache.clear()
+
+    def _is_inside_root(self, file_path):
+        """Whether this folder is the roll directory or one of its own."""
+        if not self._root_path or not file_path:
+            return False
+        try:
+            target = os.path.normcase(os.path.abspath(file_path))
+        except (OSError, ValueError):
+            return False
+        root = os.path.normcase(self._root_path)
+        return target == root or target.startswith(root + os.sep)
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if orientation == Qt.Orientation.Horizontal:
@@ -802,22 +850,33 @@ class CustomFileSystemModel(QFileSystemModel):
             # on Windows and the column kept showing the date the folder had
             # while it was still filling up.
             cache_key = normalized_path_key(file_path)
-            # Check if cached
             if cache_key not in self.modified_date_cache:
-                latest_modified_date = self.get_latest_modified_date(file_path)
-                if latest_modified_date:
-                    self.modified_date_cache[cache_key] = QDateTime(latest_modified_date)
-                else:
-                    # No custom date available, get the directory's own modification time
-                    try:
-                        dir_mtime = os.path.getmtime(file_path)
-                        self.modified_date_cache[cache_key] = QDateTime(datetime.fromtimestamp(dir_mtime))
-                    except (OSError, PermissionError, ValueError):
-                        # Handle problematic paths (root drives, special system paths, etc.)
-                        # Return empty QDateTime for paths that cannot be accessed
-                        self.modified_date_cache[cache_key] = QDateTime()
+                # Cached whatever the answer turns out to be, including the
+                # answer that there is nothing to look for: a folder the
+                # column cannot date was otherwise asked about again on
+                # every repaint, and the asking is what costs.
+                self.modified_date_cache[cache_key] = self._column_date(file_path)
             return self.modified_date_cache.get(cache_key)
         return super().data(index, role)
+
+    def _column_date(self, file_path):
+        """The date this folder shows: its newest measurement where it has
+        one, and otherwise the folder's own time.
+
+        Only a folder in the roll directory is read for measurements. Every
+        other one is dated from the folder itself, which is a single
+        question to the filesystem rather than a walk of everything under
+        it (see set_root_directory).
+        """
+        if self._is_inside_root(file_path):
+            latest_modified_date = self.get_latest_modified_date(file_path)
+            if latest_modified_date:
+                return QDateTime(latest_modified_date)
+        try:
+            return QDateTime(datetime.fromtimestamp(os.path.getmtime(file_path)))
+        except (OSError, PermissionError, ValueError):
+            # Root drives, special system paths, a folder that has gone.
+            return QDateTime()
 
     def get_latest_modified_date(self, directory_path):
         # Validate that the directory path exists and is a directory

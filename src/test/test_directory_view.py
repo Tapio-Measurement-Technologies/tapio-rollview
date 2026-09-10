@@ -4,7 +4,8 @@ import tempfile
 import time
 import unittest
 
-from PySide6.QtCore import QAbstractListModel, QModelIndex, QPersistentModelIndex, Qt
+from PySide6.QtCore import (QAbstractListModel, QDateTime, QModelIndex,
+                            QPersistentModelIndex, Qt)
 from PySide6.QtWidgets import QApplication
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -807,6 +808,127 @@ def test_the_newest_folder_outlives_the_restore_a_refresh_schedules(qtbot, tmp_p
             f"left on {selected} rather than {newer}")
     finally:
         destroy(view)
+
+
+class TestTheDateColumnStaysInTheRollDirectory(unittest.TestCase):
+    """Filling the date column means reading what is inside a folder, and
+    that is only worth doing for a roll folder.
+
+    A model of the filesystem holds every other directory too, its top
+    level being the drives, so the column used to be filled for those as
+    well: whole drives were read on the thread that draws the window, for
+    ten seconds at start-up on a machine with a slow one.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.model = CustomFileSystemModel()
+        # A file system model is not a widget; it keeps a watcher of its own
+        # until it is deleted.
+        self.addCleanup(self.model.deleteLater)
+        self.read = []
+        original = self.model.get_latest_modified_date
+
+        def record(directory_path):
+            self.read.append(directory_path)
+            return original(directory_path)
+
+        self.model.get_latest_modified_date = record
+
+    def date_for(self, path):
+        return self.model._column_date(path)
+
+    def test_a_roll_folder_is_read_for_its_newest_measurement(self):
+        with tempfile.TemporaryDirectory() as root:
+            roll = os.path.join(root, "250521-081510")
+            os.mkdir(roll)
+            profile = os.path.join(roll, "a.prof")
+            with open(profile, "wb") as handle:
+                handle.write(b"profile")
+            measured = time.time() - 3600
+            os.utime(profile, (measured, measured))
+            self.model.set_root_directory(root)
+
+            self.assertAlmostEqual(
+                self.date_for(roll).toSecsSinceEpoch(), measured, delta=1)
+            self.assertEqual(self.read, [roll])
+
+    def test_nothing_outside_the_roll_directory_is_read(self):
+        with tempfile.TemporaryDirectory() as root,              tempfile.TemporaryDirectory() as elsewhere:
+            self.model.set_root_directory(root)
+
+            for path in (elsewhere, os.path.dirname(os.path.abspath(root)) or root,
+                         os.path.splitdrive(os.path.abspath(root))[0] + os.sep):
+                self.date_for(path)
+
+            self.assertEqual(self.read, [])
+
+    def test_a_folder_beside_the_roll_directory_with_a_shared_prefix_is_not_read(self):
+        """Not a string comparison: "rolls-old" is not inside "rolls"."""
+        with tempfile.TemporaryDirectory() as parent:
+            root = os.path.join(parent, "rolls")
+            sibling = os.path.join(parent, "rolls-old")
+            os.mkdir(root)
+            os.mkdir(sibling)
+            self.model.set_root_directory(root)
+
+            self.date_for(sibling)
+
+            self.assertEqual(self.read, [])
+
+    def test_nothing_is_read_before_a_roll_directory_is_known(self):
+        with tempfile.TemporaryDirectory() as somewhere:
+            self.date_for(somewhere)
+
+        self.assertEqual(self.read, [])
+
+    def test_a_folder_that_cannot_be_dated_is_answered_once_not_on_every_repaint(self):
+        """The asking is what costs, so the answer is kept whatever it is."""
+        with tempfile.TemporaryDirectory() as root:
+            roll = os.path.join(root, "250521-081510")
+            os.mkdir(roll)                       # no measurements in it yet
+            self.model.set_root_directory(root)
+            index = self.model.index(roll).siblingAtColumn(3)
+
+            first = self.model.data(index, Qt.ItemDataRole.DisplayRole)
+            second = self.model.data(index, Qt.ItemDataRole.DisplayRole)
+
+            self.assertEqual(first, second)
+            self.assertEqual(len(self.read), 1)
+
+    def test_changing_the_roll_directory_forgets_the_dates_of_the_old_one(self):
+        with tempfile.TemporaryDirectory() as root,              tempfile.TemporaryDirectory() as other:
+            self.model.set_root_directory(root)
+            self.model.modified_date_cache["stale"] = QDateTime()
+
+            self.model.set_root_directory(other)
+
+            self.assertEqual(self.model.modified_date_cache, {})
+
+    def test_setting_the_same_roll_directory_again_keeps_what_is_cached(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.model.set_root_directory(root)
+            self.model.modified_date_cache["kept"] = QDateTime()
+
+            self.model.set_root_directory(root)
+
+            self.assertIn("kept", self.model.modified_date_cache)
+
+    def test_the_view_tells_the_model_where_the_rolls_are(self):
+        view = DirectoryView()
+        try:
+            with tempfile.TemporaryDirectory() as root:
+                view._root_directory = root
+
+                self.assertTrue(view.model._is_inside_root(
+                    os.path.join(root, "250521-081510")))
+                self.assertFalse(view.model._is_inside_root(
+                    os.path.dirname(os.path.abspath(root))))
+        finally:
+            destroy(view)
 
 
 if __name__ == "__main__":
