@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 
 from utils.serial_errors import CAUSE_GONE, CAUSE_HELD, CAUSE_LINK_LOST, CAUSE_SILENT
 from workers.device_connection import (
+    ConnectionState,
     DeviceConnectionManager,
     SyncError,
     describe_sync_error,
@@ -233,6 +234,71 @@ class TestManagerWording(unittest.TestCase):
         with patch("workers.file_transfer.QThread"), patch("workers.file_transfer.FileTransferWorker"):
             manager.start_transfer("COM6", "C:/rolls", None, unit_name="Tapio RQP Live (1)")
         self.assertEqual(manager._active_unit_name, "Tapio RQP Live (1)")
+
+
+class TestBusyDevice(unittest.TestCase):
+    """A sync pressed while the device is measuring is not a fault. It
+    waits, quietly, and runs when the device comes back."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make_manager(self):
+        manager = FileTransferManager()
+        manager._connection_manager = MagicMock()
+        manager._active_port = "COM6"
+        manager._active_is_auto = False
+        manager._transfer_in_progress = True
+        manager.sync_folder_path = "C:/rolls"
+        manager._on_complete_callback = None
+        manager._active_bridge = None
+        return manager
+
+    def test_a_manual_sync_the_device_refuses_shows_no_box(self):
+        manager = self.make_manager()
+
+        with patch("workers.file_transfer.show_error_msgbox") as popup:
+            manager._on_rqft_failed("COM6", SyncError("busy", message="E_BUSY"))
+
+        popup.assert_not_called()
+        self.assertEqual(manager.last_transfer_outcome, "busy")
+        self.assertEqual(manager._retry_after_busy, ("COM6", "C:/rolls", None))
+
+    def test_the_refused_sync_runs_again_when_the_device_is_back(self):
+        manager = self.make_manager()
+        with patch("workers.file_transfer.show_error_msgbox"):
+            manager._on_rqft_failed("COM6", SyncError("busy", message="E_BUSY"))
+
+        with patch.object(manager, "start_transfer") as start:
+            manager._on_connection_state_changed("COM6", ConnectionState.CONNECTED)
+            QApplication.processEvents()
+
+        start.assert_called_once_with("COM6", "C:/rolls", None, supports_rqft=True)
+        self.assertIsNone(manager._retry_after_busy)
+
+    def test_the_devices_own_doorbell_runs_the_operators_sync_instead(self):
+        manager = self.make_manager()
+        with patch("workers.file_transfer.show_error_msgbox"):
+            manager._on_rqft_failed("COM6", SyncError("busy", message="E_BUSY"))
+        manager._transfer_in_progress = False
+
+        with patch.object(manager, "start_transfer") as start, \
+             patch.object(manager, "_start_auto_sync") as auto:
+            manager.request_auto_sync("COM6")
+
+        start.assert_called_once()
+        auto.assert_not_called()
+
+    def test_an_automatic_sync_the_device_refuses_stays_quiet_and_does_not_retry(self):
+        manager = self.make_manager()
+        manager._active_is_auto = True
+
+        with patch("workers.file_transfer.show_error_msgbox") as popup:
+            manager._on_rqft_failed("COM6", SyncError("busy", message="E_BUSY"))
+
+        popup.assert_not_called()
+        self.assertIsNone(manager._retry_after_busy)
 
 
 class TestRqftWording(unittest.TestCase):

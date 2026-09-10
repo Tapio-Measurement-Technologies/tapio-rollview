@@ -1224,6 +1224,10 @@ class MainWindow(QMainWindow):
             outcome = f"{up_to_date} {removed_text}".strip()
             if outcome:
                 self.set_status_message(outcome)
+        elif self.file_transfer_manager.last_transfer_outcome == "busy":
+            # The device is measuring and the sync will follow on its own:
+            # one line in the row, and no box to dismiss over it.
+            self.set_status_message(_("DEVICE_BUSY_STATUS"))
         # A cancelled or failed sync leaves standing whatever its error
         # handler put in the row. The bar itself is never touched here: a
         # sync does not raise one, and a scan may have one up.

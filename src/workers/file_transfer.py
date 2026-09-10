@@ -21,7 +21,11 @@ from utils.serial_errors import (
     classify_port_error,
     describe_port_error,
 )
-from workers.device_connection import describe_sync_error, sync_error_title
+from workers.device_connection import (
+    ConnectionState,
+    describe_sync_error,
+    sync_error_title,
+)
 import store
 
 log = logging.getLogger(__name__)
@@ -236,6 +240,10 @@ class FileTransferManager(QObject):
         self._active_unit_name = ""
         # Ports with an automatic sync queued, at most one entry each.
         self._auto_queue: list[str] = []
+        # A sync the operator asked for that found the device measuring:
+        # (port, folder, on_complete), run again once the device is back.
+        self._retry_after_busy = None
+        self._active_is_busy_retry = False
         # "ok" | "cancelled" | "error" — how the last transfer ended;
         # lets the GUI report "all up to date" only for clean empty runs.
         self.last_transfer_outcome = "ok"
@@ -245,6 +253,9 @@ class FileTransferManager(QObject):
 
     def set_connection_manager(self, connection_manager):
         self._connection_manager = connection_manager
+        changed = getattr(connection_manager, "connectionStateChanged", None)
+        if changed is not None:
+            changed.connect(self._on_connection_state_changed)
 
     def is_transfer_in_progress(self):
         return self._transfer_in_progress
@@ -311,9 +322,17 @@ class FileTransferManager(QObject):
         arrived, so a measurement that finished mid-sync would otherwise
         wait for the next doorbell.
         """
+        if self._transfer_in_progress and self._active_port == port and self._active_is_busy_retry:
+            # The device just came back from measuring and rang for the
+            # sync it had refused; that sync is the one running.
+            return
         if self._transfer_in_progress or self._auto_queue:
             if port not in self._auto_queue:
                 self._auto_queue.append(port)
+            return
+        if self._retry_after_busy is not None and self._retry_after_busy[0] == port:
+            # The operator asked first: their sync runs, and answers them.
+            self._retry_after_busy_sync()
             return
         self._start_auto_sync(port)
 
@@ -339,6 +358,38 @@ class FileTransferManager(QObject):
         # away starts nothing, and the entries behind it must still run.
         while not self._transfer_in_progress and self._auto_queue:
             self._start_auto_sync(self._auto_queue.pop(0))
+        if not self._transfer_in_progress and self._busy_retry_is_ready():
+            self._retry_after_busy_sync()
+
+    # -- a sync the device refused while measuring ---------------------
+
+    def _on_connection_state_changed(self, port, state):
+        pending = self._retry_after_busy
+        if pending is None or pending[0] != port:
+            return
+        if state is ConnectionState.CONNECTED:
+            # Off the signal, so the worker's state has settled first.
+            QTimer.singleShot(0, self._retry_after_busy_sync)
+
+    def _busy_retry_is_ready(self):
+        pending = self._retry_after_busy
+        if pending is None or self._connection_manager is None:
+            return False
+        return (
+            self._connection_manager.connection_state(pending[0])
+            is ConnectionState.CONNECTED
+        )
+
+    def _retry_after_busy_sync(self):
+        pending = self._retry_after_busy
+        if pending is None or self._transfer_in_progress:
+            # Left pending: the drain after the running transfer runs it.
+            return
+        self._retry_after_busy = None
+        port, folder_path, on_complete = pending
+        log.info(f"Device on {port} is back; running the sync it refused")
+        self.start_transfer(port, folder_path, on_complete, supports_rqft=True)
+        self._active_is_busy_retry = self._transfer_in_progress
 
     # -- RQFT path -----------------------------------------------------
 
@@ -349,6 +400,7 @@ class FileTransferManager(QObject):
             return
 
         self._transfer_in_progress = True
+        self._active_is_busy_retry = False
         self._active_port = port
         self._active_is_auto = auto
         self.last_transfer_outcome = "ok"
@@ -399,6 +451,17 @@ class FileTransferManager(QObject):
         )
         if error.kind == "cancelled":
             log.info(f"RQFT sync on {port} cancelled by user")
+        elif error.kind == "busy" and not is_auto:
+            # The device is measuring. Not a fault, and nothing to answer
+            # in a box: the sync runs by itself once the device is back,
+            # which it announces with a doorbell of its own. Pressing the
+            # button right after the unit connected is where this lands,
+            # since the unit was often still busy when the session came up.
+            log.info(f"RQFT sync on {port}: device is measuring, will retry")
+            self.last_transfer_outcome = "busy"
+            self._retry_after_busy = (
+                port, self.sync_folder_path, self._on_complete_callback
+            )
         else:
             log.error(f"RQFT sync failed on {port} ({error.kind}): {message}")
             # A sync the operator asked for always answers in a box, whatever

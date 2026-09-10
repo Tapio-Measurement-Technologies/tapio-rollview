@@ -29,11 +29,20 @@ jobs:
         with:
           python-version: '3.12'
 
+      # The supply-chain action is the one the tooling publishes for this:
+      # configuration, lock freshness and the audit, ahead of the build.
+      # The source SBOM it writes on the way is uploaded under its own name.
       - name: Check configuration, lock freshness, and dependencies
-        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-checks@a77238014cf7116e6b272f11aac649531cd95497
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-supply-chain@a77238014cf7116e6b272f11aac649531cd95497
         with:
           config: build-tooling.toml
+          product: tapio-rollview
           requirement-group: runtime
+          output: dist/rollview-${{ github.ref_name }}-source.cdx.json
+          version: ${{ github.ref_name }}
+          platform: source
+          audit: 'true'
+          upload-name: rollview-${{ github.ref_name }}-source-sbom
 
   build:
     needs: [test, checks]
