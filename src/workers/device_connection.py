@@ -224,6 +224,10 @@ class DeviceConnectionWorker(threading.Thread):
         self._retry_at = 0.0
         self._hello_retry_at = 0.0
         self._pending_end: Optional[Ended] = None
+        # When an open last failed. A Bluetooth open that fails has paged
+        # the unit for seconds; a sync asked for right after does not page
+        # it again, it gets the answer that page already gave.
+        self._open_failed_at = 0.0
 
     # -- public API (GUI thread, non-blocking) -------------------------
 
@@ -347,6 +351,7 @@ class DeviceConnectionWorker(threading.Thread):
             log.debug(f"Could not open {self.port}: {e}")
             self._transport = None
             self._last_open_error = e
+            self._open_failed_at = time.monotonic()
             if self.bluetooth:
                 log.info(f"{self.port} not reachable; waiting for discovery")
                 self.awaiting_reachable = True
@@ -610,11 +615,21 @@ class DeviceConnectionWorker(threading.Thread):
 
     # -- sync operation ------------------------------------------------
 
+    def _recent_open_failure(self) -> Optional[Exception]:
+        """The failure of an open that just happened, if paging again now
+        would only repeat it."""
+        if not self.bluetooth or self._last_open_error is None:
+            return None
+        if time.monotonic() - self._open_failed_at > settings.RQFT_BLUETOOTH_REOPEN_HOLD_S:
+            return None
+        return self._last_open_error
+
     def _op_sync(self, auto: bool):
         fetched: list[str] = []
         try:
             if self._transport is None:
-                self._try_open()
+                if self._recent_open_failure() is None:
+                    self._try_open()
                 if self._transport is None:
                     # The original failure, so the sync can say whether
                     # the port is held, gone, or a unit that is off.
@@ -661,15 +676,24 @@ class DeviceConnectionWorker(threading.Thread):
                 self.port, SyncError("timeout", message=str(e), fetched=fetched)
             )
         except OSError as e:
-            self._bridge.syncFailed.emit(
-                self.port,
-                SyncError(
-                    "transport",
-                    message=str(e),
-                    fetched=fetched,
-                    opened=self._transport is not None,
-                ),
-            )
+            if self._cancel.is_set():
+                # The operator gave up while the open was still paging the
+                # unit. What they get is the cancel they asked for, not a
+                # report on a port they had already stopped waiting on.
+                log.info(f"Sync on {self.port} cancelled during open: {e}")
+                self._bridge.syncFailed.emit(
+                    self.port, SyncError("cancelled", fetched=fetched)
+                )
+            else:
+                self._bridge.syncFailed.emit(
+                    self.port,
+                    SyncError(
+                        "transport",
+                        message=str(e),
+                        fetched=fetched,
+                        opened=self._transport is not None,
+                    ),
+                )
             self._on_transport_error(e)
 
     def _sync(self, fetched: list):

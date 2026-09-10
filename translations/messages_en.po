@@ -1033,7 +1033,7 @@ msgstr "Port in use"
 msgid "PORT_ERROR_UNREACHABLE"
 msgstr "{unit} on {port} is not connected."
 msgid "PORT_ERROR_UNREACHABLE_HINT"
-msgstr "Switch the device on and check that it is in range."
+msgstr "Check that the device is switched on and connected."
 msgid "PORT_ERROR_UNREACHABLE_TITLE"
 msgstr "Not connected"
 
@@ -1399,3 +1399,7 @@ msgstr "Writing the firmware failed. Leave the cable connected and press Upload 
 
 msgid "FIRMWARE_UPDATE_ERROR_NOT_BACK"
 msgstr "The firmware was written, but the device has not started. Unplug the USB cable and plug it back in."
+
+#. Status row: Sync was pressed on a unit that has not answered yet.
+msgid "SYNC_CONNECTING_STATUS"
+msgstr "Connecting to {unit}..."

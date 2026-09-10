@@ -220,6 +220,10 @@ FORCE_RQFT = "--force-rqft" in sys.argv and not getattr(sys, "frozen", False)
 # on a write forever, and a port whose device has been switched off never
 # completes one, so the session hangs rather than reporting a lost link.
 RQFT_WRITE_TIMEOUT_S = 5.0
+# A Bluetooth open that failed has just paged the unit for seconds. A sync
+# asked for within this long is answered from that failure rather than
+# paging again.
+RQFT_BLUETOOTH_REOPEN_HOLD_S = 20
 # Transport reopen backoff after an open failure or unplug (seconds).
 RQFT_OPEN_BACKOFF_S = (2, 5, 10, 30)
 # HELLO retry while listening: device busy/measuring gets a slow retry so

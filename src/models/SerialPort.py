@@ -26,6 +26,8 @@ class SerialPortItem:
         transport="other",
         bluetooth_address=None,
         error_cause=None,
+        remembered=False,
+        present=True,
     ):
         self.device = port.device
         self.description = port.description
@@ -45,6 +47,12 @@ class SerialPortItem:
         # Listed from the connection worker that holds the port rather
         # than from a probe: nothing may probe a held port.
         self.known_device = known_device
+        # A unit this session has heard from. It stays in the list when it
+        # goes quiet or its port goes, shown absent, so it is there to sync
+        # the moment it is back without a scan to find it again.
+        self.remembered = remembered
+        # Whether the port is in the system's list right now.
+        self.present = present
         # Capability belongs to the firmware, not to whether this port
         # answered the last probe. A unit that has identified itself keeps
         # it through a missed probe: one silent probe used to reclassify a
@@ -76,9 +84,12 @@ class SerialPortItem:
         )
 
     def is_listed_without_answer(self):
-        """Shown in the list, but nothing has answered on it: a paired unit
-        that is off, or a pinned port with nothing behind it."""
-        return not self.device_responded and (self.is_paired_unit() or self.is_pinned())
+        """Shown in the list, but nothing is answering on it: a paired unit
+        that is off, a pinned port with nothing behind it, or a unit this
+        session heard from that has since gone quiet or been unplugged."""
+        return not self.device_responded and (
+            self.is_paired_unit() or self.is_pinned() or self.remembered
+        )
 
 
 # The ball beside a device answers one question, and the same question for
@@ -212,7 +223,9 @@ class SerialPortModel(QAbstractListModel):
         connection to be live or coming up.
         """
         known = getattr(item, "known_device", False)
-        if not (item.device_responded or known or item.is_paired_unit() or item.is_pinned()):
+        remembered = getattr(item, "remembered", False)
+        if not (item.device_responded or known or remembered
+                or item.is_paired_unit() or item.is_pinned()):
             return None
         if not item.device_responded:
             # A unit its connection worker holds answers through the
@@ -377,7 +390,14 @@ class SerialPortModel(QAbstractListModel):
             # anything, and there is usually more than one of them. Pin it
             # to keep it in view, or turn on every COM port below.
             pinned_ports = [item for item in self.ports if item.is_pinned()]
-            responded_ports = [item for item in self.ports if item.device_responded and not item.is_pinned()]
+            # A unit this session heard from keeps its row after it is
+            # switched off or unplugged, shown absent: it is going to be
+            # switched on or plugged in again, and then it is right there.
+            responded_ports = [
+                item for item in self.ports
+                if (item.device_responded or getattr(item, "remembered", False))
+                and not item.is_pinned()
+            ]
             # Sort each list by serial port name
             pinned_ports.sort(key=lambda x: natural_sort_key(x.device))
             responded_ports.sort(key=lambda x: natural_sort_key(x.device))

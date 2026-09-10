@@ -267,6 +267,7 @@ class MainWindow(QMainWindow):
         # the moment it starts, and a scan whose start nobody heard put a
         # moving bar in the row with no way to stop it.
         self.serial_widget.device_count_changed.connect(self.on_device_count_changed)
+        self.serial_widget.status_message.connect(self.set_status_message)
         self.serial_widget.scan_started.connect(self.on_scan_started)
         self.serial_widget.scan_progress.connect(self.on_scan_progress)
         self.serial_widget.scan_finished.connect(self.on_scan_finished)

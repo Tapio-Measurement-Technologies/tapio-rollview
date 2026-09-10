@@ -58,7 +58,7 @@ from utils.bluetooth_ports import (
     split_paired_name,
 )
 from utils.rqft_support import parse_firmware_version
-from utils.serial_errors import CAUSE_HELD, classify_port_error
+from utils.serial_errors import CAUSE_GONE, CAUSE_HELD, classify_port_error
 from utils.time_sync import send_timestamp
 from utils.translation import _
 
@@ -229,6 +229,10 @@ class Candidate:
     in_pass: bool = False
     # (description, serial number, firmware version) the unit last reported.
     identity: Optional[tuple] = None
+    # Whether the port is in the system's list right now. A unit that has
+    # answered once this session stays in the table when its port goes,
+    # listed as absent, and is asked again when the port comes back.
+    present: bool = True
 
 
 class DiscoveryLane:
@@ -521,11 +525,25 @@ class DiscoveryLane:
             now = self._clock()
             present = {port.device for port in ports}
             for device in list(self._cands):
-                if device not in present:
-                    # A probe in flight on it fails on its own and finds
-                    # no candidate to record against.
-                    gone.append(device)
-                    del self._cands[device]
+                if device in present:
+                    continue
+                candidate = self._cands[device]
+                if candidate.identity is not None:
+                    # A unit this session has heard from: the row stays,
+                    # marked absent, so it need not be found all over
+                    # again when the cable goes back in.
+                    if candidate.present:
+                        candidate.present = False
+                        candidate.reachable = False
+                        candidate.error_cause = CAUSE_GONE
+                        candidate.requested_at = None
+                        candidate.in_pass = False
+                        updated.append(self._item_locked(candidate))
+                    continue
+                # A probe in flight on it fails on its own and finds
+                # no candidate to record against.
+                gone.append(device)
+                del self._cands[device]
             for port in ports:
                 status = busy.get(port.device) if port.device in busy else None
                 candidate = self._cands.get(port.device)
@@ -539,6 +557,19 @@ class DiscoveryLane:
                     )
                     continue
                 changed = self._update_candidate_locked(candidate, port, pinned, paired)
+                if not candidate.present:
+                    # Back. Asked at once, the way a new port is: what is
+                    # behind it now is the one thing that may have changed.
+                    candidate.present = True
+                    candidate.reachable = None
+                    candidate.error_cause = None
+                    candidate.next_due = now
+                    if status is not None:
+                        self._adopt_worker_status_locked(candidate, status)
+                    appeared.append(
+                        self._item_locked(candidate, known_device=status is not None)
+                    )
+                    continue
                 if status is not None and self._adopt_worker_status_locked(candidate, status):
                     changed = True
                 if changed:
@@ -638,7 +669,7 @@ class DiscoveryLane:
     def _eligible_locked(self, busy, now):
         radio_free = now >= self._radio_free_at
         for candidate in self._cands.values():
-            if not candidate.probeable:
+            if not candidate.probeable or not candidate.present:
                 continue
             if candidate.device in busy:
                 # Held by a connection worker, which knows better than a
@@ -772,6 +803,11 @@ class DiscoveryLane:
             total = 0
             for candidate in self._cands.values():
                 status = busy.get(candidate.device)
+                if not candidate.present:
+                    # Nothing to ask: the port is not there. The row stays
+                    # as it is, absent.
+                    candidate.in_pass = False
+                    continue
                 if candidate.device in busy:
                     # Held by a connection worker: reported from what it
                     # knows, never probed. Probing would inject bytes into
@@ -865,6 +901,8 @@ class DiscoveryLane:
             transport=candidate.kind,
             bluetooth_address=candidate.address,
             error_cause=candidate.error_cause,
+            remembered=candidate.identity is not None,
+            present=candidate.present,
         )
         return item
 

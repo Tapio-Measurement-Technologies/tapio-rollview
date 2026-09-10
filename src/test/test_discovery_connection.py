@@ -101,6 +101,32 @@ class TestWorkerLeavesBluetoothPagingToDiscovery(unittest.TestCase):
 
         self.assertTrue(wait_until(lambda: self.opens.attempts >= 2))
 
+    def test_a_sync_right_after_a_failed_page_does_not_page_again(self):
+        """The page that just failed is the answer; a second one would hold
+        the radio for as long again and say the same thing."""
+        worker = self.start_worker(bluetooth=True)
+        self.assertTrue(wait_until(lambda: worker.awaiting_reachable))
+        failures = []
+        worker._bridge.syncFailed.connect(lambda port, error: failures.append(error))
+
+        worker.request_sync(auto=False)
+
+        self.assertTrue(wait_until(lambda: failures))
+        self.assertEqual(failures[0].kind, "transport")
+        self.assertEqual(self.opens.attempts, 1)
+
+    def test_a_cancel_during_the_open_is_reported_as_the_cancel(self):
+        worker = DeviceConnectionWorker("TESTPORT", ConnectionBridge(), bluetooth=False)
+        worker.enabled = True
+        failures = []
+        worker._bridge.syncFailed.connect(lambda port, error: failures.append(error))
+        worker._cancel.set()
+
+        worker._op_sync(auto=False)
+
+        self.assertTrue(wait_until(lambda: failures))
+        self.assertEqual(failures[0].kind, "cancelled")
+
     def test_a_usb_worker_keeps_its_own_backoff(self):
         worker = self.start_worker(bluetooth=False)
 

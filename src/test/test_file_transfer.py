@@ -107,6 +107,18 @@ class TestRqftRouting(unittest.TestCase):
         self.assertEqual(self.manager.last_transfer_outcome, "cancelled")
         self.assertFalse(self.manager.is_transfer_in_progress())
 
+    def test_a_failure_after_a_cancel_is_the_cancel_and_shows_no_box(self):
+        self.manager.start_transfer("COM1", "/rolls", None, supports_rqft=True)
+        self.manager.cancel_transfer()
+
+        with patch("workers.file_transfer.show_error_msgbox") as popup:
+            self.bridge.syncFailed.emit("COM1", SyncError("transport", message="page failed"))
+            QCoreApplication.processEvents()
+            popup.assert_not_called()
+
+        self.assertEqual(self.manager.last_transfer_outcome, "cancelled")
+        self.assertFalse(self.manager.is_transfer_in_progress())
+
     def test_legacy_device_sync_never_deletes(self):
         """Pre-RQFT firmware keeps its old behaviour: the ZMODEM path has
         no delete step, so the device decides as before."""

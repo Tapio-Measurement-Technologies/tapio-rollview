@@ -1030,7 +1030,7 @@ msgstr "ポートが使用中です"
 msgid "PORT_ERROR_UNREACHABLE"
 msgstr "{unit} ({port}) は接続されていません。"
 msgid "PORT_ERROR_UNREACHABLE_HINT"
-msgstr "デバイスの電源を入れ、通信範囲内にあることを確認してください。"
+msgstr "デバイスの電源が入っていて、接続されていることを確認してください。"
 msgid "PORT_ERROR_UNREACHABLE_TITLE"
 msgstr "未接続"
 
@@ -1396,3 +1396,7 @@ msgstr "ファームウェアの書き込みに失敗しました。ケーブル
 
 msgid "FIRMWARE_UPDATE_ERROR_NOT_BACK"
 msgstr "ファームウェアは書き込まれましたが、デバイスが起動しません。USBケーブルを抜き差ししてください。"
+
+#. Status row: Sync was pressed on a unit that has not answered yet.
+msgid "SYNC_CONNECTING_STATUS"
+msgstr "{unit} に接続しています..."
