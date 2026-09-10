@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QLabel, QListWidgetItem, QLineEdit, QPushButton, QComboBox, QMessageBox, QCheckBox, QSlider, QScrollArea, QFrame
-from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator, QColor, QIcon, QPainter, QPixmap
+from PySide6.QtGui import (QDoubleValidator, QRegularExpressionValidator, QColor, QIcon,
+                           QKeySequence, QPainter, QPixmap, QShortcut)
 from PySide6.QtCore import Signal, Slot, Qt, QLocale, QRegularExpression, QSignalBlocker
 from utils import preferences
 from utils.translation import _
@@ -59,10 +60,18 @@ def highlight_color_hex():
 TABLEAU_COLOR_HEX = highlight_color_hex()
 
 
+#: Opens the device firmware update tool. Deliberately the only way in, and
+#: deliberately not written down in the interface: writing a firmware is a
+#: service job, and a link an operator can find is a link an operator can
+#: press by accident. Someone who has been told the keys can use it, from
+#: this window, on any page.
+FIRMWARE_UPDATE_SHORTCUT = "Ctrl+Shift+U"
+
+
 class SettingsWindow(QWidget):
     settings_updated = Signal()
-    # The advanced page's "Device firmware update" link. The window that
-    # holds the device list opens the tool; this window only says it was asked.
+    # Raised by the firmware update shortcut. The window that holds the
+    # device list opens the tool; this window only says it was asked.
     firmware_update_requested = Signal()
 
     def __init__(self):
@@ -108,9 +117,14 @@ class SettingsWindow(QWidget):
 
         self.advanced_settings_page = AdvancedSettingsPage()
         self.add_settings_page(_("ADVANCED_SETTINGS"), self.advanced_settings_page)
-        self.advanced_settings_page.firmware_update_requested.connect(
-            self.firmware_update_requested.emit
+
+        # Window context: the keys do nothing unless this window has the
+        # focus, so they cannot fire from the main window or a dialog.
+        self.firmware_update_shortcut = QShortcut(
+            QKeySequence(FIRMWARE_UPDATE_SHORTCUT), self
         )
+        self.firmware_update_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        self.firmware_update_shortcut.activated.connect(self.firmware_update_requested.emit)
 
         self.list_widget.currentRowChanged.connect(self.display_page)
         self.list_widget.setCurrentRow(0)
@@ -431,7 +445,6 @@ class AlertLimitSetting(QFrame):
 
 class AdvancedSettingsPage(QWidget):
     settings_updated = Signal()
-    firmware_update_requested = Signal()
     BAND_PASS_SLIDER_MIN = settings.BAND_PASS_HIGH_MIN
     BAND_PASS_SLIDER_MAX = 100
     BAND_PASS_SLIDER_STEP = 0.1
@@ -609,21 +622,6 @@ class AdvancedSettingsPage(QWidget):
         layout.addLayout(regions_layout)
         layout.addWidget(self.excluded_regions_error)
         self._update_excluded_regions_ui()
-
-        device_heading = self._create_section_heading(_("SECTION_HEADING_DEVICE"))
-        layout.addWidget(device_heading)
-
-        # A tool, not a setting: it opens its own window and saves nothing
-        # here, so it sits apart from the Save button's reach.
-        self.firmware_update_button = QPushButton(_("FIRMWARE_UPDATE_LINK"), self)
-        theme_qt.set_variant(self.firmware_update_button, "secondary")
-        set_guidance(self.firmware_update_button, _("FIRMWARE_UPDATE_LINK"),
-                     _("GUIDANCE_FIRMWARE_UPDATE"))
-        self.firmware_update_button.clicked.connect(self.firmware_update_requested.emit)
-        firmware_row = QHBoxLayout()
-        firmware_row.addWidget(self.firmware_update_button)
-        firmware_row.addStretch()
-        layout.addLayout(firmware_row)
 
         self.footer_layout = QHBoxLayout()
         self.footer_layout.addStretch()

@@ -3,7 +3,7 @@ import copy
 from unittest.mock import patch
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFontMetrics
+from PySide6.QtGui import QFontMetrics, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -16,6 +16,7 @@ import settings
 import theme
 from theme import qt as theme_qt
 from gui.settings import (
+    FIRMWARE_UPDATE_SHORTCUT,
     AlertLimitSettingsPage,
     AdvancedSettingsPage,
     DistanceHighlightsSettingsPage,
@@ -523,6 +524,58 @@ class TestSettingsWindow(unittest.TestCase):
             self.assertTrue(hasattr(window.general_settings_page, "theme_selector"))
         finally:
             destroy(window)
+
+
+class TestFirmwareUpdateShortcut(unittest.TestCase):
+    """The firmware update tool has one way in, and it is not written down
+    anywhere in the interface: writing a firmware is a service job, and a
+    link an operator can find is a link an operator can press by accident."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.window = SettingsWindow()
+        self.addCleanup(lambda: destroy(self.window))
+
+    def test_the_shortcut_asks_for_the_tool(self):
+        asked = []
+        self.window.firmware_update_requested.connect(lambda: asked.append(True))
+
+        self.window.firmware_update_shortcut.activated.emit()
+
+        self.assertEqual(len(asked), 1)
+
+    def test_the_keys_are_the_ones_service_is_told(self):
+        self.assertEqual(
+            self.window.firmware_update_shortcut.key(),
+            QKeySequence(FIRMWARE_UPDATE_SHORTCUT),
+        )
+        self.assertEqual(FIRMWARE_UPDATE_SHORTCUT, "Ctrl+Shift+U")
+
+    def test_the_keys_do_nothing_outside_this_window(self):
+        """Window context, so the same keys pressed in the main window or a
+        dialog reach nothing."""
+        self.assertEqual(
+            self.window.firmware_update_shortcut.context(),
+            Qt.ShortcutContext.WindowShortcut,
+        )
+
+    def test_nothing_in_the_settings_pages_names_the_tool(self):
+        """No button, no label, no menu entry: the whole point is that an
+        operator cannot arrive here by looking."""
+        from PySide6.QtWidgets import QAbstractButton, QLabel
+
+        texts = [
+            widget.text()
+            for kind in (QAbstractButton, QLabel)
+            for widget in self.window.findChildren(kind)
+            if widget.text()
+        ]
+        self.assertTrue(texts, "the settings window rendered no text at all")
+        for text in texts:
+            self.assertNotIn("firmware", text.lower(), text)
 
 
 if __name__ == "__main__":

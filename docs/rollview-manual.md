@@ -81,7 +81,10 @@ The settings system in Tapio RollView allows users to customize the software's b
 
 ## Device Firmware Update
 
-Settings, Advanced settings, *Device firmware update...* opens the update tool.
+Writing a firmware to a device is a service job, so the tool has no link of its
+own: open *Settings* and press **Ctrl+Shift+U**. The keys work anywhere in the
+settings window and nowhere else.
+
 Connect the device with the USB cable, wait for it to appear in the device list,
 choose the firmware file (a `.hex` file from Tapio) and press *Upload*. The file
 is checked before anything is sent: a file that is not a firmware for this

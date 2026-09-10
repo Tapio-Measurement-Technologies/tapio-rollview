@@ -1319,17 +1319,6 @@ msgstr "Save these limits; the tiles use them immediately"
 msgid "GUIDANCE_QR_ALERT_LIMITS"
 msgstr "The limits this QR code carries to the device"
 
-#. Advanced settings: heading over the device tools.
-msgid "SECTION_HEADING_DEVICE"
-msgstr "Device"
-
-#. Advanced settings: the button that opens the firmware update window.
-msgid "FIRMWARE_UPDATE_LINK"
-msgstr "Device firmware update..."
-
-msgid "GUIDANCE_FIRMWARE_UPDATE"
-msgstr "Write a new firmware to a device connected with the USB cable"
-
 #. Firmware update window.
 msgid "FIRMWARE_UPDATE_TITLE"
 msgstr "Device firmware update"
