@@ -286,14 +286,28 @@ class DirectoryView(QWidget):
         self.treeView.selectionModel().setCurrentIndex(first_child, selection_flags)
         self.treeView.scrollTo(first_child)
 
-    def _apply_root_index(self):
+    def _apply_root_index(self, source_index=None):
+        """Point the list at the roll directory. Returns whether it could.
+
+        Until it can, the list shows nothing. A tree with no root index
+        shows its model from the top, and this model is the filesystem:
+        the roll directory is imposed by the root index alone, and its
+        ancestors are let through the filter so there is a path to it. So
+        the list without a root index is the drives, which is what an
+        operator saw as rows among their rolls whenever the directory had
+        not resolved yet.
+        """
         if not self._root_directory:
             return False
         self.proxy_model.set_root_directory(self._root_directory)
-        root_index = self.proxy_model.mapFromSource(self.model.index(self._root_directory))
+        if source_index is None:
+            source_index = self.model.index(self._root_directory)
+        root_index = self.proxy_model.mapFromSource(source_index)
         if not root_index.isValid():
+            self.treeView.setVisible(False)
             return False
         self.treeView.setRootIndex(root_index)
+        self.treeView.setVisible(True)
         return True
 
     def _note_directory_load_failed(self, directory):
@@ -440,13 +454,14 @@ class DirectoryView(QWidget):
                 self._refresh_directory_button_tooltips()
                 self._clear_current_selection(clear_logical_selection=True)
                 self._clear_pending_focus_restore()
-                self.model.setRootPath(directory)
-                self.proxy_model.set_root_directory(directory)
-                root_index = self.proxy_model.mapFromSource(self.model.index(directory))
-                root_index_valid = root_index.isValid()
-                if root_index_valid:
-                    self.treeView.setRootIndex(root_index)
-                else:
+                # setRootPath answers with the index of the directory it has
+                # just been given, so the list cannot end up pointed at one
+                # directory while the model is watching another.
+                source_index = self.model.setRootPath(directory)
+                root_index_valid = self._apply_root_index(source_index)
+                if not root_index_valid:
+                    # Not an error: the model resolves paths on its own time,
+                    # and directoryLoaded brings the list back (init_selection).
                     self._note_directory_load_failed(directory)
 
                 self.root_directory_changed.emit(directory)

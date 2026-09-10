@@ -931,5 +931,117 @@ class TestTheDateColumnStaysInTheRollDirectory(unittest.TestCase):
             destroy(view)
 
 
+class TestTheListNeverShowsTheFilesystem(unittest.TestCase):
+    """The roll directory is imposed by the view's root index alone.
+
+    The model is the whole filesystem, and the proxy lets the roll
+    directory's ancestors through so there is a path down to it, so a list
+    with no root index applied shows the drives. The model resolves paths
+    on its own time, and while it had not resolved this one the drives were
+    rows among the rolls.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make_view(self, unresolved=False):
+        view = DirectoryView()
+        self.addCleanup(lambda: destroy(view))
+        view.watch_directory_and_subdirs = MagicMock()
+        if unresolved:
+            real = view.model.setRootPath
+            first = []
+
+            def not_yet(path):
+                real(path)
+                if not first:
+                    first.append(path)
+                    return QModelIndex()
+                return real(path)
+
+            view.model.setRootPath = not_yet
+        return view
+
+    def wait_until(self, predicate, timeout_ms=2000):
+        from PySide6.QtTest import QTest
+
+        for _ in range(max(1, timeout_ms // 50)):
+            QApplication.processEvents()
+            if predicate():
+                return True
+            QTest.qWait(50)
+        QApplication.processEvents()
+        return predicate()
+
+    def visible_rows(self, view):
+        if view.treeView.isHidden():
+            return []
+        root = view.treeView.rootIndex()
+        proxy = view.proxy_model
+        return [proxy.data(proxy.index(row, 0, root), Qt.ItemDataRole.DisplayRole)
+                for row in range(proxy.rowCount(root))]
+
+    def test_a_root_that_has_not_resolved_shows_nothing_not_the_drives(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_roll(root, "250521-081510", hours_ago=1)
+            view = self.make_view(unresolved=True)
+
+            view.change_root_directory(root)
+
+            self.assertFalse(view.treeView.rootIndex().isValid())
+            self.assertTrue(view.treeView.isHidden())
+            self.assertEqual(self.visible_rows(view), [])
+
+    def test_the_list_comes_back_when_the_model_resolves_it(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_roll(root, "250521-081510", hours_ago=1)
+            view = self.make_view(unresolved=True)
+            view.change_root_directory(root)
+            self.assertTrue(view.treeView.isHidden())
+
+            view.init_selection()          # what directoryLoaded triggers
+
+            self.assertTrue(view.treeView.rootIndex().isValid())
+            self.assertFalse(view.treeView.isHidden())
+
+    def test_a_root_that_resolves_shows_the_rolls_and_only_those(self):
+        with tempfile.TemporaryDirectory() as root:
+            write_roll(root, "250521-081510", hours_ago=1)
+            write_roll(root, "250522-090000", hours_ago=2)
+            view = self.make_view()
+
+            view.change_root_directory(root)
+
+            self.assertFalse(view.treeView.isHidden())
+            # The model fetches a directory's children on its own time.
+            self.assertTrue(self.wait_until(lambda: len(self.visible_rows(view)) == 2))
+            self.assertEqual(sorted(self.visible_rows(view)),
+                             ["250521-081510", "250522-090000"])
+
+    def test_the_list_is_pointed_at_the_directory_the_model_was_given(self):
+        """The index comes from the call that sets the root, so the list
+        cannot end up showing one directory while the model watches
+        another."""
+        with tempfile.TemporaryDirectory() as root:
+            write_roll(root, "250521-081510", hours_ago=1)
+            view = self.make_view()
+            asked = []
+            real = view.model.setRootPath
+
+            def record(path):
+                asked.append(path)
+                return real(path)
+
+            view.model.setRootPath = record
+            view.change_root_directory(root)
+
+            self.assertEqual(asked, [root])
+            shown = view.model.filePath(
+                view.proxy_model.mapToSource(view.treeView.rootIndex()))
+            self.assertEqual(os.path.normcase(os.path.abspath(shown)),
+                             os.path.normcase(os.path.abspath(root)))
+
+
 if __name__ == "__main__":
     unittest.main()
