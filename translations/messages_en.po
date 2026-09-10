@@ -1033,7 +1033,7 @@ msgstr "Port in use"
 msgid "PORT_ERROR_UNREACHABLE"
 msgstr "{unit} on {port} is not connected."
 msgid "PORT_ERROR_UNREACHABLE_HINT"
-msgstr "Switch the device on, or connect it with the USB cable."
+msgstr "Check that the device is switched on and connected."
 msgid "PORT_ERROR_UNREACHABLE_TITLE"
 msgstr "Not connected"
 

@@ -1030,7 +1030,7 @@ msgstr "ポートが使用中です"
 msgid "PORT_ERROR_UNREACHABLE"
 msgstr "{unit} ({port}) は接続されていません。"
 msgid "PORT_ERROR_UNREACHABLE_HINT"
-msgstr "デバイスの電源を入れるか、USBケーブルで接続してください。"
+msgstr "デバイスの電源が入っていて、接続されていることを確認してください。"
 msgid "PORT_ERROR_UNREACHABLE_TITLE"
 msgstr "未接続"
 
