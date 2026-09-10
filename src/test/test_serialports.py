@@ -558,6 +558,60 @@ class TestPassOrdering(LaneHarness):
         self.assertEqual(held.serial_number, "ABC123")
         self.assertTrue(held.supports_rqft)
 
+    def test_an_unreadable_firmware_version_leaves_a_readable_one_alone(self):
+        """A byte corrupted inside the version string still parses as JSON,
+        so the reply is not lost the way a mangled line is -- it is read and
+        believed. An unparseable version does not meet the RQFT minimum, so a
+        unit already known to speak it is written down as legacy and its next
+        sync goes down the path meant for older firmware."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+        self.assertTrue(self.publisher.results[0].supports_rqft)
+
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.\x83.0")
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        item = self.publisher.results[0]
+        self.assertTrue(item.device_responded)
+        self.assertEqual(item.firmware_version, "v1.2.0")
+        self.assertTrue(item.supports_rqft)
+
+    def test_a_version_that_parses_is_believed_even_when_it_is_older(self):
+        """The other side of it: a unit really can be downgraded, and an
+        unreadable answer is the only thing being ignored here."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.1.0")
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        item = self.publisher.results[0]
+        self.assertEqual(item.firmware_version, "v1.1.0")
+        self.assertFalse(item.supports_rqft)
+
+    def test_a_different_unit_on_the_port_does_not_inherit_the_version(self):
+        """The version is kept for the unit that reported it, not for the
+        port. Another unit plugged into the same COM name starts over."""
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.run_pass()
+
+        self.responses["COM7"] = ("Tapio RQP Live", "DEF456", "nonsense")
+        self.publisher.results.clear()
+        self.publisher.finished.clear()
+        self.run_pass()
+
+        item = self.publisher.results[0]
+        self.assertEqual(item.serial_number, "DEF456")
+        self.assertEqual(item.firmware_version, "nonsense")
+        self.assertFalse(item.supports_rqft)
+
     def test_a_pass_with_nothing_to_probe_still_finishes(self):
         self.ports = [make_port("COM2", vid=0x1234, pid=0x5678)]
 
@@ -889,6 +943,66 @@ class TestLaneThread(unittest.TestCase):
         self.assertTrue(scanner.stop())
         scanner.start()
         self.assertTrue(scanner.is_running())
+
+
+class TestHeldPortsComeBackNamed(LaneHarness):
+    """A port a connection worker holds is listed from the worker, the way
+    a pass lists it. Back from a replug the row is that unit at once, and
+    the session coming up on it is the row changing; nothing probes it."""
+
+    def setUp(self):
+        super().setUp()
+        self.identity = DeviceIdentity("Tapio RQP Live", "ABC123", "v1.2.0")
+
+    def test_a_port_back_from_a_replug_is_listed_from_its_worker_and_not_probed(self):
+        self.ports = [usb_port("COM7")]
+        self.busy["COM7"] = BusyPortStatus(self.identity, connected=False)
+
+        self.lane.step()
+
+        self.assertEqual(self.probed, [])
+        self.assertEqual([item.device for item in self.publisher.appeared], ["COM7"])
+        item = self.publisher.appeared[0]
+        self.assertTrue(item.known_device)
+        self.assertFalse(item.device_responded)
+        self.assertEqual(item.description, "Tapio RQP Live")
+        self.assertEqual(item.serial_number, "ABC123")
+        self.assertTrue(item.supports_rqft)
+
+    def test_a_held_port_is_reported_again_when_its_session_comes_up(self):
+        self.ports = [usb_port("COM7")]
+        self.busy["COM7"] = BusyPortStatus(self.identity, connected=False)
+        self.lane.step()
+        self.assertEqual(self.publisher.results, [])
+
+        self.busy["COM7"] = BusyPortStatus(self.identity, connected=True)
+        self.clock.advance(settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+        self.lane.step()
+
+        self.assertEqual([item.device for item in self.publisher.results], ["COM7"])
+        item = self.publisher.results[0]
+        self.assertTrue(item.device_responded)
+        self.assertTrue(item.known_device)
+        self.assertEqual(self.probed, [])
+
+    def test_a_held_port_that_reads_the_same_is_left_alone(self):
+        self.ports = [usb_port("COM7")]
+        self.busy["COM7"] = BusyPortStatus(self.identity, connected=True)
+        self.lane.step()
+
+        self.clock.advance(settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+        self.lane.step()
+
+        self.assertEqual(len(self.publisher.appeared), 1)
+        self.assertEqual(self.publisher.results, [])
+
+    def test_a_port_nobody_holds_is_probed_as_before(self):
+        self.ports = [usb_port("COM7")]
+
+        self.lane.step()
+
+        self.assertEqual(self.probed, ["COM7"])
+        self.assertFalse(self.publisher.appeared[0].known_device)
 
 
 if __name__ == "__main__":

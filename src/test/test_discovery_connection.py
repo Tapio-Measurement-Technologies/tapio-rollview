@@ -57,7 +57,7 @@ class TestWorkerLeavesBluetoothPagingToDiscovery(unittest.TestCase):
 
     def setUp(self):
         self.opens = OpenCounter()
-        patcher = patch("workers.device_connection.SerialTransport", side_effect=self.opens)
+        patcher = patch("workers.device_connection.SteadySerialTransport", side_effect=self.opens)
         patcher.start()
         self.addCleanup(patcher.stop)
         self._backoffs = settings.RQFT_OPEN_BACKOFF_S
@@ -154,6 +154,20 @@ class TestManagerSharesTheRadio(unittest.TestCase):
         holding.retry_now.assert_called_once()
         usb.retry_now.assert_called_once()
         dead.retry_now.assert_not_called()
+
+    def test_a_port_that_comes_back_pokes_its_usb_worker_and_no_other(self):
+        manager = DeviceConnectionManager()
+        usb = self.make_worker(bluetooth=False, awaiting=False)
+        bluetooth = self.make_worker(bluetooth=True, awaiting=True)
+        disabled = self.make_worker(bluetooth=False, awaiting=False, enabled=False)
+        manager._workers.update({"COM1": usb, "COM6": bluetooth, "COM2": disabled})
+
+        for port in ("COM1", "COM6", "COM2", "COM9"):
+            manager.port_appeared(port)
+
+        usb.retry_now.assert_called_once()
+        bluetooth.retry_now.assert_not_called()
+        disabled.retry_now.assert_not_called()
 
     def test_scan_results_tell_the_manager_which_ports_are_bluetooth(self):
         manager = DeviceConnectionManager()

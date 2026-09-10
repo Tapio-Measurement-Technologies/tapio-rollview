@@ -165,7 +165,7 @@ class SerialWidget(QWidget):
 
         self.view.selectionModel().currentChanged.connect(self.on_port_selected)
         self.scanner.progress.connect(self.scan_progress)
-        self.scanner.port_appeared.connect(self.on_port_update)
+        self.scanner.port_appeared.connect(self.on_port_appeared)
         self.scanner.port_result.connect(self.on_port_update)
         self.scanner.port_gone.connect(self.on_port_gone)
         self.scanner.finished.connect(self.on_scan_finished)
@@ -236,6 +236,13 @@ class SerialWidget(QWidget):
         if self.connectionManager is not None:
             self.connectionManager.retry_all_now()
         self.scanner.scan_now()
+
+    def on_port_appeared(self, item):
+        """A port is in the list again. A connection worker still waiting
+        for it after its cable was pulled need not wait out its backoff."""
+        if self.connectionManager is not None:
+            self.connectionManager.port_appeared(item.device)
+        self.on_port_update(item)
 
     def on_port_update(self, item):
         """A port appeared or was probed: one row changes, nothing else."""

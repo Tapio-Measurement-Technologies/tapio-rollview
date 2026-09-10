@@ -46,6 +46,13 @@ def activate():
 
     _home = Path(tempfile.mkdtemp(prefix="rollview-test-"))
     os.environ["HOME"] = str(_home)
+    # Qt on Windows does not read HOME, or any other variable, for the
+    # home directory: it asks the system for the profile folder. So there
+    # the redirect above changed nothing, and a run wrote the operator's
+    # preferences again. QDir.homePath is what settings and preferences
+    # compute their paths from, so it is answered here instead.
+    from PySide6.QtCore import QDir
+    QDir.homePath = staticmethod(lambda: _home.as_posix())
     os.environ["XDG_CONFIG_HOME"] = str(_home / ".config")
     os.environ["XDG_DATA_HOME"] = str(_home / ".local" / "share")
     os.environ["XDG_CACHE_HOME"] = str(_home / ".cache")

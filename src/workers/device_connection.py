@@ -47,7 +47,7 @@ from rqft.messages import (
     ErrCode,
     Role,
 )
-from rqft.serial_transport import SerialTransport
+from utils.serial_transport import SteadySerialTransport
 from rqft.session import Session, SessionState
 from utils import preferences
 from utils.rqft_support import (
@@ -215,7 +215,7 @@ class DeviceConnectionWorker(threading.Thread):
         self._stop_event = threading.Event()
         self._cancel = threading.Event()
         self.enabled = False
-        self._transport: Optional[SerialTransport] = None
+        self._transport: Optional[SteadySerialTransport] = None
         self._driver: Optional[BlockingSessionDriver] = None
         self._fs: Optional[LocalDirFs] = None
         self._established: Optional[Established] = None
@@ -334,7 +334,10 @@ class DeviceConnectionWorker(threading.Thread):
             # write_timeout, or a port whose device has gone takes the
             # session's writes and never returns from one: pyserial waits
             # on a write forever unless it is given a deadline.
-            self._transport = SerialTransport(
+            # The port is configured here and never again: a unit takes a
+            # configuration write as its cable being replugged (see
+            # utils.serial_transport).
+            self._transport = SteadySerialTransport(
                 self.port,
                 baudrate=115200,
                 write_timeout=settings.RQFT_WRITE_TIMEOUT_S,
@@ -1101,6 +1104,18 @@ class DeviceConnectionManager(QObject):
             if worker.bluetooth and worker.awaiting_reachable:
                 continue
             worker.retry_now()
+
+    def port_appeared(self, port: str):
+        """The port is in the list again. A worker waiting out a backoff
+        on it -- its cable was pulled, and every open since has failed --
+        tries at once rather than in up to thirty seconds. Bluetooth
+        workers are left to discovery, as in retry_all_now."""
+        worker = self._workers.get(port)
+        if worker is None or not worker.is_alive() or not worker.enabled:
+            return
+        if worker.bluetooth:
+            return
+        worker.retry_now()
 
     def manual_disconnect(self, port: str):
         self._manually_disconnected.add(port)
