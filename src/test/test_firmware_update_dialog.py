@@ -63,6 +63,17 @@ class TestFirmwareUpdateDialog(unittest.TestCase):
         self.assertIsNone(self.dialog._target[0])
         self.assertNotEqual(self.dialog.device_label.text(), "")
 
+    def test_a_running_unit_is_preferred_over_a_board_left_in_update_mode(self):
+        """A board stranded in update mode elsewhere on the bench must not
+        take the update meant for the unit on screen."""
+        self.target = ("COM9", "Tapio RQP Live (1)")
+
+        with patch("gui.firmware_update_dialog.find_bootloader", return_value=object()):
+            self.dialog.refresh_device()
+
+        self.assertEqual(self.dialog._target, ("COM9", "Tapio RQP Live (1)"))
+        self.assertEqual(self.dialog.device_label.text(), "Tapio RQP Live (1)")
+
     def test_the_window_does_not_close_while_an_update_runs(self):
         self.dialog.running = True
 

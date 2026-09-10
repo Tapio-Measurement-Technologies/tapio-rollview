@@ -141,6 +141,40 @@ def _list_hid_paths():
     return []
 
 
+def _linux_usage(path):
+    """(usage page, usage) from a hidraw device's report descriptor, or
+    None when it cannot be read.
+
+    The bootloader's usage names the board it is on, and it is the only
+    thing that tells one Teensy's bootloader from another's: they share a
+    USB product id. Windows hands the pair over through the HID class
+    driver; on Linux the report descriptor is where it is written down.
+    """
+    name = os.path.basename(path)
+    try:
+        with open(f"/sys/class/hidraw/{name}/device/report_descriptor", "rb") as handle:
+            descriptor = handle.read()
+    except OSError:
+        return None
+    page = usage = None
+    index = 0
+    while index < len(descriptor) and (page is None or usage is None):
+        prefix = descriptor[index]
+        index += 1
+        size = prefix & 0x03
+        size = 4 if size == 3 else size
+        value = int.from_bytes(descriptor[index:index + size], "little") if size else 0
+        index += size
+        tag = prefix & 0xFC
+        if tag == 0x04 and page is None:      # Usage Page (global)
+            page = value
+        elif tag == 0x08 and usage is None:   # Usage (local)
+            usage = value
+    if page is None or usage is None:
+        return None
+    return page, usage
+
+
 def _linux_enumerate():
     found = []
     base = "/sys/class/hidraw"
@@ -162,12 +196,24 @@ def _linux_enumerate():
     return found
 
 
-def find_bootloader():
-    """The device's bootloader if it is on the bus, else None."""
+def find_bootloader(exclude=()):
+    """The device's bootloader if it is on the bus, else None.
+
+    ``exclude`` names paths that were already there. A restart is answered
+    by a bootloader that was not on the bus before it, so another board
+    sitting in update mode on the same machine is never taken for the one
+    that was asked to restart.
+    """
     for path, vid, pid in _list_hid_paths():
-        if vid == USB_VID and pid == BOOTLOADER_PID:
+        if vid == USB_VID and pid == BOOTLOADER_PID and path not in exclude:
             return BootloaderDevice(path)
     return None
+
+
+def bootloader_paths():
+    """Every bootloader on the bus now, as a set of paths."""
+    return {path for path, vid, pid in _list_hid_paths()
+            if vid == USB_VID and pid == BOOTLOADER_PID}
 
 
 def open_bootloader(device):
@@ -177,6 +223,15 @@ def open_bootloader(device):
         return win32_hid.open_output(
             device.path, REPORT_SIZE, WRITE_TIMEOUT_MS,
             usage_page=BOOTLOADER_USAGE_PAGE, usage=BOOTLOADER_USAGE,
+        )
+    identity = _linux_usage(device.path)
+    if identity is None:
+        raise OSError(
+            f"could not read what board {device.path} is; refusing to write to it"
+        )
+    if identity != (BOOTLOADER_USAGE_PAGE, BOOTLOADER_USAGE):
+        raise OSError(
+            f"not this device's bootloader (usage {identity[0]:#x}/{identity[1]:#x})"
         )
     return _LinuxHidraw(device.path)
 
@@ -194,11 +249,28 @@ class _LinuxHidraw:
         os.close(self._fd)
 
 
-def find_running_port():
-    """The serial port the running firmware is on, or None."""
+def find_running_port(serial_number=None):
+    """The serial port a running device is on, or None.
+
+    With a serial number, only that unit answers. Several units share one
+    computer, and "some RQP Live is on the bus" says nothing about the one
+    that was just written.
+    """
     for port in list_ports.comports():
-        if port.vid == USB_VID and port.pid == RUNNING_PID:
-            return port.device
+        if port.vid != USB_VID or port.pid != RUNNING_PID:
+            continue
+        if serial_number and (port.serial_number or "") != serial_number:
+            continue
+        return port.device
+    return None
+
+
+def port_serial_number(port_name):
+    """The USB serial number of the unit on ``port_name``, or None when the
+    port is gone or reports none."""
+    for port in list_ports.comports():
+        if port.device == port_name:
+            return port.serial_number or None
     return None
 
 
@@ -253,24 +325,39 @@ class FirmwareUpdater:
         self._sleep = sleep
         self._clock = clock
         self.find_bootloader = find_bootloader
+        self.bootloader_paths = bootloader_paths
         self.open_bootloader = open_bootloader
         self.request_bootloader = request_bootloader
         self.find_running_port = find_running_port
+        self.port_serial_number = port_serial_number
         self.cancelled = lambda: False
 
     def run(self, image, port_name=None):
-        """Write ``image``. ``port_name`` is the running device's port, or
-        None when the device is already in update mode."""
-        device = self.find_bootloader()
-        if device is None:
-            if port_name is None:
-                raise FirmwareUpdateError("no_bootloader", "no device in update mode")
+        """Write ``image`` to the unit on ``port_name``, or to the one
+        already in update mode when ``port_name`` is None.
+
+        With a port name the unit on it is the one written, whatever else
+        is on the bus: it is restarted, and the bootloader that answers is
+        one that was not there before. Without one this is the recovery
+        path, and the bootloader already on the bus is the subject.
+        """
+        serial_number = None
+        if port_name is not None:
+            # Read before the restart: the port is about to go away.
+            serial_number = self.port_serial_number(port_name)
+            already = self.bootloader_paths()
             self._status("restarting")
             self.request_bootloader(port_name)
             self._status("waiting")
-            device = self._wait_for(self.find_bootloader, BOOTLOADER_APPEAR_TIMEOUT_S)
+            device = self._wait_for(
+                lambda: self.find_bootloader(already), BOOTLOADER_APPEAR_TIMEOUT_S
+            )
             if device is None:
                 raise FirmwareUpdateError("no_bootloader", "the bootloader did not appear")
+        else:
+            device = self.find_bootloader()
+            if device is None:
+                raise FirmwareUpdateError("no_bootloader", "no device in update mode")
         handle = self.open_bootloader(device)
         try:
             self._write_image(handle, image)
@@ -281,8 +368,20 @@ class FirmwareUpdater:
                 handle.close()
             except Exception:
                 pass
+        # The unit that was written has to leave update mode and be seen
+        # running again. The reboot report is allowed to go unanswered
+        # above because a device that has taken it is gone from the bus;
+        # this is what tells that apart from one that stalled and is still
+        # sitting in the bootloader on a flash that was erased at block 0.
+        # Only this unit's own path counts: another board in update mode
+        # elsewhere on the bench has nothing to do with this update.
+        written = device.path
         self._status("returning")
-        port = self._wait_for(self.find_running_port, DEVICE_RETURN_TIMEOUT_S)
+        port = self._wait_for(
+            lambda: None if written in self.bootloader_paths()
+            else self.find_running_port(serial_number),
+            DEVICE_RETURN_TIMEOUT_S,
+        )
         if port is None:
             raise FirmwareUpdateError("not_back", "the device did not come back")
         return port

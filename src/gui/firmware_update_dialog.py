@@ -176,13 +176,18 @@ class FirmwareUpdateDialog(QDialog):
         in update mode."""
         if self.running:
             return
+        # A unit that is running and named is always the subject. A
+        # bootloader on the bus is only the subject when there is no such
+        # unit, which is the recovery case: an update that was interrupted
+        # left one behind. Preferring it unconditionally meant a stranded
+        # device elsewhere on the bench quietly took the update meant for
+        # the unit on screen.
         target = None
-        if find_bootloader() is not None:
+        found = self._device_provider()
+        if found is not None:
+            target = tuple(found)
+        elif find_bootloader() is not None:
             target = (None, _("FIRMWARE_UPDATE_DEVICE_IN_UPDATE_MODE"))
-        else:
-            found = self._device_provider()
-            if found is not None:
-                target = tuple(found)
         self._target = target
         if target is None:
             self.device_label.setText(_("FIRMWARE_UPDATE_NO_DEVICE"))

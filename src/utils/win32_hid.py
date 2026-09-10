@@ -230,9 +230,17 @@ class OutputDevice:
         self._timeout_ms = timeout_ms
         self._report_size = report_size
         caps = _caps(self._handle)
-        if caps is not None:
+        if caps is None:
+            if usage_page is not None:
+                # The usage names the board. Not being able to read it is
+                # not permission to write to whatever this is.
+                _kernel32.CloseHandle(self._handle)
+                self._handle = None
+                raise OSError(f"could not read what board {path} is; refusing to write to it")
+        else:
             if usage_page is not None and (caps.UsagePage, caps.Usage) != (usage_page, usage):
                 _kernel32.CloseHandle(self._handle)
+                self._handle = None
                 raise OSError(
                     f"not the device's bootloader (usage {caps.UsagePage:#x}/{caps.Usage:#x})"
                 )

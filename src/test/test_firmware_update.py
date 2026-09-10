@@ -73,6 +73,27 @@ class TestIntelHex(unittest.TestCase):
         with self.assertRaises(FirmwareImageError):
             parse_intel_hex("MZ\x90\x00 this is an exe")
 
+    def test_a_file_cut_short_at_a_line_boundary_is_refused(self):
+        """Every record in a truncated file parses, and the flash
+        configuration at the front is intact, so the end-of-file record is
+        the only thing that says the rest of the firmware is there."""
+        whole = device_hex(b"\x5A" * 4000)
+        lines = whole.splitlines()
+        half = "\n".join(lines[:len(lines) // 2]) + "\n"
+
+        with self.assertRaises(FirmwareImageError) as caught:
+            parse_intel_hex(half)
+        self.assertIn("incomplete", str(caught.exception))
+
+    def test_a_file_with_no_end_record_at_all_is_refused(self):
+        text = "\n".join([
+            hex_record(0x04, 0, b"\x60\x00"),
+            hex_record(0x00, 0x0000, b"\x11" * 16),
+        ]) + "\n"
+
+        with self.assertRaises(FirmwareImageError):
+            parse_intel_hex(text)
+
     def test_reading_across_a_gap_fills_with_zeros(self):
         text = "\n".join([
             hex_record(0x04, 0, b"\x60\x00"),
@@ -145,47 +166,99 @@ class TestReports(unittest.TestCase):
 
 class FakeBootloader:
     """Refuses the first ``busy`` writes of every report, as the real one
-    does while it is still working on the last block."""
+    does while it is still working on the last block. Taking the reboot
+    report leaves the bus, which is what the real one does too."""
 
-    def __init__(self, busy=2):
+    #: What the device does with the reboot report. "takes" is the
+    #: ordinary case. "vanishes" is the same thing seen from the host: the
+    #: device left the bus mid-write, so the write itself failed. "stalls"
+    #: is the bad one: it refuses and stays in update mode.
+    def __init__(self, busy=2, bus=None, reboot="takes"):
         self.busy = busy
+        self.bus = bus
+        self.reboot_behaviour = reboot
         self._refusals = 0
         self.reports = []
         self.closed = False
 
     def write(self, report):
+        is_reboot = bytes(report[1:4]) == b"\xFF\xFF\xFF"
+        if is_reboot and self.reboot_behaviour != "takes":
+            if self.reboot_behaviour == "vanishes" and self.bus is not None:
+                self.bus.reboot()
+            raise OSError("gone")
         if self._refusals < self.busy:
             self._refusals += 1
             raise OSError("stall")
         self._refusals = 0
         self.reports.append(bytes(report))
+        if is_reboot and self.bus is not None:
+            self.bus.reboot()
 
     def close(self):
         self.closed = True
 
 
 class FakeBus:
-    """What is on the bus: nothing, the bootloader, or the running port."""
+    """The USB bus: the units on it, and which of them are in update mode.
 
-    def __init__(self):
-        self.bootloader = None
-        self.port = "COM9"
+    A unit is (serial, port). One of them may be in update mode instead,
+    which is what a bootloader path stands for.
+    """
+
+    SERIAL = "UNIT-A"
+
+    def __init__(self, busy=2, reboot="takes"):
+        self.bootloader = None          # the path of the unit being written
+        self.port = "COM9"              # that unit, running
+        self.serial = self.SERIAL
+        self.others = {}                # path -> another board in update mode
+        self.other_ports = {}           # serial -> port, other units running
         self.restart_requests = []
-        self.device = FakeBootloader()
+        self.device = FakeBootloader(busy=busy, bus=self, reboot=reboot)
+
+    # -- what the updater asks the bus --------------------------------
 
     def request_bootloader(self, port):
         self.restart_requests.append(port)
         self.port = None
-        self.bootloader = BootloaderDevice("fake")
+        self.bootloader = "unit-a"
 
-    def find_bootloader(self):
-        return self.bootloader
+    def bootloader_paths(self):
+        paths = set(self.others)
+        if self.bootloader:
+            paths.add(self.bootloader)
+        return paths
+
+    def find_bootloader(self, exclude=()):
+        for path in sorted(self.bootloader_paths()):
+            if path not in exclude:
+                return BootloaderDevice(path)
+        return None
 
     def open_bootloader(self, device):
+        if device.path in self.others:
+            return self.others[device.path]
         return self.device
 
-    def find_running_port(self):
-        return self.port
+    def find_running_port(self, serial_number=None):
+        ports = dict(self.other_ports)
+        if self.port:
+            ports[self.serial] = self.port
+        if serial_number:
+            return ports.get(serial_number)
+        return next(iter(ports.values()), None)
+
+    def port_serial_number(self, port_name):
+        return self.serial if port_name == "COM9" else None
+
+    # -- what the device does -----------------------------------------
+
+    def reboot(self):
+        """The unit takes the reboot report: it leaves update mode and
+        comes back running."""
+        self.bootloader = None
+        self.port = "COM9"
 
 
 class TestUpdater(unittest.TestCase):
@@ -199,25 +272,17 @@ class TestUpdater(unittest.TestCase):
             clock=Clock(),
         )
         updater.find_bootloader = bus.find_bootloader
+        updater.bootloader_paths = bus.bootloader_paths
         updater.open_bootloader = bus.open_bootloader
         updater.request_bootloader = bus.request_bootloader
         updater.find_running_port = bus.find_running_port
+        updater.port_serial_number = bus.port_serial_number
         return updater
 
     def test_a_running_device_is_restarted_written_and_rebooted(self):
         bus = FakeBus()
         image = parse_intel_hex(device_hex(b"\x5A" * 1500))
         updater = self.make(bus)
-
-        # The device comes back once the reboot report has been taken.
-        original_write = bus.device.write
-
-        def write(report):
-            original_write(report)
-            if report[1:4] == b"\xFF\xFF\xFF":
-                bus.port = "COM9"
-
-        bus.device.write = write
 
         port = updater.run(image, "COM9")
 
@@ -235,7 +300,7 @@ class TestUpdater(unittest.TestCase):
 
     def test_a_device_already_in_update_mode_is_written_without_a_restart(self):
         bus = FakeBus()
-        bus.bootloader = BootloaderDevice("fake")
+        bus.bootloader, bus.port = "unit-a", None
         updater = self.make(bus)
 
         updater.run(parse_intel_hex(device_hex()), None)
@@ -247,15 +312,15 @@ class TestUpdater(unittest.TestCase):
         bus = FakeBus()
         bus.request_bootloader = lambda port: bus.restart_requests.append(port)
         updater = self.make(bus)
+        updater.request_bootloader = bus.request_bootloader
 
         with self.assertRaises(FirmwareUpdateError) as caught:
             updater.run(parse_intel_hex(device_hex()), "COM9")
         self.assertEqual(caught.exception.kind, "no_bootloader")
 
     def test_a_write_the_bootloader_keeps_refusing_fails_the_update(self):
-        bus = FakeBus()
-        bus.bootloader = BootloaderDevice("fake")
-        bus.device = FakeBootloader(busy=10_000)
+        bus = FakeBus(busy=10_000)
+        bus.bootloader, bus.port = "unit-a", None
         updater = self.make(bus)
 
         with self.assertRaises(FirmwareUpdateError) as caught:
@@ -266,31 +331,59 @@ class TestUpdater(unittest.TestCase):
     def test_a_reboot_report_the_device_never_takes_is_not_a_failure(self):
         """The device is gone the moment it takes the reboot command, so
         the last try can only be refused. What counts is it coming back."""
-        bus = FakeBus()
-        bus.bootloader = BootloaderDevice("fake")
-        device = FakeBootloader(busy=0)
-        original_write = device.write
-
-        def write(report):
-            if report[1:4] == b"\xFF\xFF\xFF":
-                raise OSError("gone")
-            original_write(report)
-
-        device.write = write
-        bus.device = device
+        bus = FakeBus(busy=0, reboot="vanishes")
+        bus.bootloader, bus.port = "unit-a", None
         updater = self.make(bus)
 
         self.assertEqual(updater.run(parse_intel_hex(device_hex()), None), "COM9")
 
     def test_a_device_that_does_not_come_back_is_reported(self):
         bus = FakeBus()
-        bus.bootloader = BootloaderDevice("fake")
-        bus.port = None
+        bus.bootloader, bus.port = "unit-a", None
+        bus.reboot = lambda: setattr(bus, "bootloader", None)
         updater = self.make(bus)
 
         with self.assertRaises(FirmwareUpdateError) as caught:
             updater.run(parse_intel_hex(device_hex()), None)
         self.assertEqual(caught.exception.kind, "not_back")
+
+    def test_a_device_left_in_update_mode_is_not_called_a_success(self):
+        """The reboot report going unanswered is tolerated because a device
+        that took it is gone from the bus. A device still sitting in the
+        bootloader has not taken it, and its flash was erased at block 0."""
+        bus = FakeBus(busy=0, reboot="stalls")
+        bus.bootloader, bus.port = "unit-a", None
+        updater = self.make(bus)
+
+        with self.assertRaises(FirmwareUpdateError) as caught:
+            updater.run(parse_intel_hex(device_hex()), None)
+        self.assertEqual(caught.exception.kind, "not_back")
+
+    def test_another_unit_running_is_not_the_one_that_was_written(self):
+        """Two units on one bench. The one that was written stalls; the
+        other has been running untouched the whole time."""
+        bus = FakeBus(busy=0, reboot="stalls")
+        bus.other_ports = {"UNIT-B": "COM7"}
+        updater = self.make(bus)
+
+        with self.assertRaises(FirmwareUpdateError) as caught:
+            updater.run(parse_intel_hex(device_hex()), "COM9")
+        self.assertEqual(caught.exception.kind, "not_back")
+
+    def test_a_board_already_in_update_mode_never_takes_the_update(self):
+        """Another board left in update mode on the same bench must not be
+        written in place of the unit the operator asked for."""
+        stranded = FakeBootloader(busy=0)
+        bus = FakeBus()
+        bus.others = {"stranded-board": stranded}
+        updater = self.make(bus)
+
+        port = updater.run(parse_intel_hex(device_hex(b"\x5A" * 100)), "COM9")
+
+        self.assertEqual(port, "COM9")
+        self.assertEqual(bus.restart_requests, ["COM9"])
+        self.assertEqual(stranded.reports, [])
+        self.assertTrue(bus.device.reports)
 
 
 class Clock:

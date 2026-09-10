@@ -79,9 +79,17 @@ def parse_intel_hex(text):
     records (03, 05) carry nothing the flash needs and are skipped. A
     record whose checksum or length does not add up fails the whole file:
     a corrupted download is the one thing this must not write.
+
+    The end-of-file record is required. It is the only thing in the format
+    that says the file is complete, and a file cut short at a line
+    boundary is otherwise indistinguishable from a whole one: every record
+    in it parses, the flash configuration at the front is intact, and the
+    checks that follow only look at the front. Writing that erases the
+    flash and puts half a firmware in it.
     """
     image = FirmwareImage()
     upper = 0
+    complete = False
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
         if not line:
@@ -103,6 +111,7 @@ def parse_intel_hex(text):
         if rtype == 0x00:
             image._add(upper + offset, data)
         elif rtype == 0x01:
+            complete = True
             break
         elif rtype == 0x02:
             upper = int.from_bytes(data, "big") << 4
@@ -112,6 +121,10 @@ def parse_intel_hex(text):
             continue
         else:
             raise FirmwareImageError(f"line {number}: unknown record type {rtype:#04x}")
+    if not complete:
+        raise FirmwareImageError(
+            "the file ends before its end-of-file record: it is incomplete"
+        )
     if not image.segments:
         raise FirmwareImageError("the file holds no data")
     return image
