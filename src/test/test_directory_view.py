@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import tempfile
 import time
 import unittest
@@ -825,10 +826,13 @@ class TestTheDateColumnStaysInTheRollDirectory(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
+        # Registered before the model, so it is removed after it: a model
+        # still watching a directory that has gone underneath it makes Qt
+        # warn, and this suite fails on a Qt warning.
+        self.root = self.temp_dir()
         self.model = CustomFileSystemModel()
-        # A file system model is not a widget; it keeps a watcher of its own
-        # until it is deleted.
         self.addCleanup(self.model.deleteLater)
+        self.addCleanup(self.model.setRootPath, "")
         self.read = []
         original = self.model.get_latest_modified_date
 
@@ -838,97 +842,92 @@ class TestTheDateColumnStaysInTheRollDirectory(unittest.TestCase):
 
         self.model.get_latest_modified_date = record
 
+    def temp_dir(self):
+        """A directory that outlives every cleanup registered after it."""
+        folder = tempfile.mkdtemp(prefix="rollview-test-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        return folder
+
     def date_for(self, path):
         return self.model._column_date(path)
 
     def test_a_roll_folder_is_read_for_its_newest_measurement(self):
-        with tempfile.TemporaryDirectory() as root:
-            roll = os.path.join(root, "250521-081510")
-            os.mkdir(roll)
-            profile = os.path.join(roll, "a.prof")
-            with open(profile, "wb") as handle:
-                handle.write(b"profile")
-            measured = time.time() - 3600
-            os.utime(profile, (measured, measured))
-            self.model.set_root_directory(root)
+        roll = write_roll(self.root, "250521-081510", hours_ago=1)
+        measured = os.path.getmtime(os.path.join(roll, "a.prof"))
+        self.model.set_root_directory(self.root)
 
-            self.assertAlmostEqual(
-                self.date_for(roll).toSecsSinceEpoch(), measured, delta=1)
-            self.assertEqual(self.read, [roll])
+        self.assertAlmostEqual(
+            self.date_for(roll).toSecsSinceEpoch(), measured, delta=1)
+        self.assertEqual(self.read, [roll])
 
     def test_nothing_outside_the_roll_directory_is_read(self):
-        with tempfile.TemporaryDirectory() as root,              tempfile.TemporaryDirectory() as elsewhere:
-            self.model.set_root_directory(root)
+        elsewhere = self.temp_dir()
+        self.model.set_root_directory(self.root)
 
-            for path in (elsewhere, os.path.dirname(os.path.abspath(root)) or root,
-                         os.path.splitdrive(os.path.abspath(root))[0] + os.sep):
-                self.date_for(path)
+        for path in (elsewhere,
+                     os.path.dirname(os.path.abspath(self.root)),
+                     os.path.splitdrive(os.path.abspath(self.root))[0] + os.sep):
+            self.date_for(path)
 
-            self.assertEqual(self.read, [])
+        self.assertEqual(self.read, [])
 
     def test_a_folder_beside_the_roll_directory_with_a_shared_prefix_is_not_read(self):
         """Not a string comparison: "rolls-old" is not inside "rolls"."""
-        with tempfile.TemporaryDirectory() as parent:
-            root = os.path.join(parent, "rolls")
-            sibling = os.path.join(parent, "rolls-old")
-            os.mkdir(root)
-            os.mkdir(sibling)
-            self.model.set_root_directory(root)
+        rolls = os.path.join(self.root, "rolls")
+        sibling = os.path.join(self.root, "rolls-old")
+        os.mkdir(rolls)
+        os.mkdir(sibling)
+        self.model.set_root_directory(rolls)
 
-            self.date_for(sibling)
+        self.date_for(sibling)
 
-            self.assertEqual(self.read, [])
+        self.assertEqual(self.read, [])
 
     def test_nothing_is_read_before_a_roll_directory_is_known(self):
-        with tempfile.TemporaryDirectory() as somewhere:
-            self.date_for(somewhere)
+        self.date_for(self.root)
 
         self.assertEqual(self.read, [])
 
     def test_a_folder_that_cannot_be_dated_is_answered_once_not_on_every_repaint(self):
         """The asking is what costs, so the answer is kept whatever it is."""
-        with tempfile.TemporaryDirectory() as root:
-            roll = os.path.join(root, "250521-081510")
-            os.mkdir(roll)                       # no measurements in it yet
-            self.model.set_root_directory(root)
-            index = self.model.index(roll).siblingAtColumn(3)
+        roll = os.path.join(self.root, "250521-081510")
+        os.mkdir(roll)                       # no measurements in it yet
+        self.model.set_root_directory(self.root)
+        index = self.model.index(roll).siblingAtColumn(3)
 
-            first = self.model.data(index, Qt.ItemDataRole.DisplayRole)
-            second = self.model.data(index, Qt.ItemDataRole.DisplayRole)
+        first = self.model.data(index, Qt.ItemDataRole.DisplayRole)
+        second = self.model.data(index, Qt.ItemDataRole.DisplayRole)
 
-            self.assertEqual(first, second)
-            self.assertEqual(len(self.read), 1)
+        self.assertEqual(first, second)
+        self.assertEqual(len(self.read), 1)
 
     def test_changing_the_roll_directory_forgets_the_dates_of_the_old_one(self):
-        with tempfile.TemporaryDirectory() as root,              tempfile.TemporaryDirectory() as other:
-            self.model.set_root_directory(root)
-            self.model.modified_date_cache["stale"] = QDateTime()
+        self.model.set_root_directory(self.root)
+        self.model.modified_date_cache["stale"] = QDateTime()
 
-            self.model.set_root_directory(other)
+        self.model.set_root_directory(self.temp_dir())
 
-            self.assertEqual(self.model.modified_date_cache, {})
+        self.assertEqual(self.model.modified_date_cache, {})
 
     def test_setting_the_same_roll_directory_again_keeps_what_is_cached(self):
-        with tempfile.TemporaryDirectory() as root:
-            self.model.set_root_directory(root)
-            self.model.modified_date_cache["kept"] = QDateTime()
+        self.model.set_root_directory(self.root)
+        self.model.modified_date_cache["kept"] = QDateTime()
 
-            self.model.set_root_directory(root)
+        self.model.set_root_directory(self.root)
 
-            self.assertIn("kept", self.model.modified_date_cache)
+        self.assertIn("kept", self.model.modified_date_cache)
 
     def test_the_view_tells_the_model_where_the_rolls_are(self):
         view = DirectoryView()
-        try:
-            with tempfile.TemporaryDirectory() as root:
-                view._root_directory = root
+        self.addCleanup(lambda: destroy(view))
+        self.addCleanup(view.model.setRootPath, "")
 
-                self.assertTrue(view.model._is_inside_root(
-                    os.path.join(root, "250521-081510")))
-                self.assertFalse(view.model._is_inside_root(
-                    os.path.dirname(os.path.abspath(root))))
-        finally:
-            destroy(view)
+        view._root_directory = self.root
+
+        self.assertTrue(view.model._is_inside_root(
+            os.path.join(self.root, "250521-081510")))
+        self.assertFalse(view.model._is_inside_root(
+            os.path.dirname(os.path.abspath(self.root))))
 
 
 class TestTheListNeverShowsTheFilesystem(unittest.TestCase):
@@ -945,18 +944,27 @@ class TestTheListNeverShowsTheFilesystem(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def temp_dir(self):
+        """A directory that outlives every cleanup registered after it."""
+        folder = tempfile.mkdtemp(prefix="rollview-test-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        return folder
+
     def make_view(self, unresolved=False):
         view = DirectoryView()
         self.addCleanup(lambda: destroy(view))
+        # The model watches whatever root it is given, and this suite fails
+        # on the Qt warning a watched directory makes when it is deleted.
+        self.addCleanup(view.model.setRootPath, "")
         view.watch_directory_and_subdirs = MagicMock()
         if unresolved:
             real = view.model.setRootPath
-            first = []
+            asked = []
 
             def not_yet(path):
                 real(path)
-                if not first:
-                    first.append(path)
+                if not asked:
+                    asked.append(path)
                     return QModelIndex()
                 return real(path)
 
@@ -983,64 +991,64 @@ class TestTheListNeverShowsTheFilesystem(unittest.TestCase):
                 for row in range(proxy.rowCount(root))]
 
     def test_a_root_that_has_not_resolved_shows_nothing_not_the_drives(self):
-        with tempfile.TemporaryDirectory() as root:
-            write_roll(root, "250521-081510", hours_ago=1)
-            view = self.make_view(unresolved=True)
+        root = self.temp_dir()
+        write_roll(root, "250521-081510", hours_ago=1)
+        view = self.make_view(unresolved=True)
 
-            view.change_root_directory(root)
+        view.change_root_directory(root)
 
-            self.assertFalse(view.treeView.rootIndex().isValid())
-            self.assertTrue(view.treeView.isHidden())
-            self.assertEqual(self.visible_rows(view), [])
+        self.assertFalse(view.treeView.rootIndex().isValid())
+        self.assertTrue(view.treeView.isHidden())
+        self.assertEqual(self.visible_rows(view), [])
 
     def test_the_list_comes_back_when_the_model_resolves_it(self):
-        with tempfile.TemporaryDirectory() as root:
-            write_roll(root, "250521-081510", hours_ago=1)
-            view = self.make_view(unresolved=True)
-            view.change_root_directory(root)
-            self.assertTrue(view.treeView.isHidden())
+        root = self.temp_dir()
+        write_roll(root, "250521-081510", hours_ago=1)
+        view = self.make_view(unresolved=True)
+        view.change_root_directory(root)
+        self.assertTrue(view.treeView.isHidden())
 
-            view.init_selection()          # what directoryLoaded triggers
+        view.init_selection()          # what directoryLoaded triggers
 
-            self.assertTrue(view.treeView.rootIndex().isValid())
-            self.assertFalse(view.treeView.isHidden())
+        self.assertTrue(view.treeView.rootIndex().isValid())
+        self.assertFalse(view.treeView.isHidden())
 
     def test_a_root_that_resolves_shows_the_rolls_and_only_those(self):
-        with tempfile.TemporaryDirectory() as root:
-            write_roll(root, "250521-081510", hours_ago=1)
-            write_roll(root, "250522-090000", hours_ago=2)
-            view = self.make_view()
+        root = self.temp_dir()
+        write_roll(root, "250521-081510", hours_ago=1)
+        write_roll(root, "250522-090000", hours_ago=2)
+        view = self.make_view()
 
-            view.change_root_directory(root)
+        view.change_root_directory(root)
 
-            self.assertFalse(view.treeView.isHidden())
-            # The model fetches a directory's children on its own time.
-            self.assertTrue(self.wait_until(lambda: len(self.visible_rows(view)) == 2))
-            self.assertEqual(sorted(self.visible_rows(view)),
-                             ["250521-081510", "250522-090000"])
+        self.assertFalse(view.treeView.isHidden())
+        # The model fetches a directory's children on its own time.
+        self.assertTrue(self.wait_until(lambda: len(self.visible_rows(view)) == 2))
+        self.assertEqual(sorted(self.visible_rows(view)),
+                         ["250521-081510", "250522-090000"])
 
     def test_the_list_is_pointed_at_the_directory_the_model_was_given(self):
         """The index comes from the call that sets the root, so the list
         cannot end up showing one directory while the model watches
         another."""
-        with tempfile.TemporaryDirectory() as root:
-            write_roll(root, "250521-081510", hours_ago=1)
-            view = self.make_view()
-            asked = []
-            real = view.model.setRootPath
+        root = self.temp_dir()
+        write_roll(root, "250521-081510", hours_ago=1)
+        view = self.make_view()
+        asked = []
+        real = view.model.setRootPath
 
-            def record(path):
-                asked.append(path)
-                return real(path)
+        def record(path):
+            asked.append(path)
+            return real(path)
 
-            view.model.setRootPath = record
-            view.change_root_directory(root)
+        view.model.setRootPath = record
+        view.change_root_directory(root)
 
-            self.assertEqual(asked, [root])
-            shown = view.model.filePath(
-                view.proxy_model.mapToSource(view.treeView.rootIndex()))
-            self.assertEqual(os.path.normcase(os.path.abspath(shown)),
-                             os.path.normcase(os.path.abspath(root)))
+        self.assertEqual(asked, [root])
+        shown = view.model.filePath(
+            view.proxy_model.mapToSource(view.treeView.rootIndex()))
+        self.assertEqual(os.path.normcase(os.path.abspath(shown)),
+                         os.path.normcase(os.path.abspath(root)))
 
 
 if __name__ == "__main__":
