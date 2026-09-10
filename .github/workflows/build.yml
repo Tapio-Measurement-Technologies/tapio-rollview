@@ -30,7 +30,7 @@ jobs:
           python-version: '3.12'
 
       - name: Check configuration, lock freshness, and dependencies
-        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-checks@c8872faa5c923c76ffa54a4ba057ed7010757fd1
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-checks@a77238014cf7116e6b272f11aac649531cd95497
         with:
           config: build-tooling.toml
           requirement-group: runtime
@@ -168,7 +168,7 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Generate signed-artifact evidence
-        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@c8872faa5c923c76ffa54a4ba057ed7010757fd1
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@a77238014cf7116e6b272f11aac649531cd95497
         with:
           config: build-tooling.toml
           product: tapio-rollview
