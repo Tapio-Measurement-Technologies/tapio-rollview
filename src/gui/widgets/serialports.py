@@ -11,6 +11,7 @@ from workers.device_connection import ConnectionState, DeviceConnectionManager
 from workers.port_scanner import PortScanner
 from utils.translation import _
 from utils import preferences
+from utils.serial_errors import CAUSE_UNREACHABLE, describe_port_error
 import store
 
 class SerialPortView(QListView):
@@ -121,6 +122,8 @@ class SerialWidget(QWidget):
     is the shape of it.
     """
     device_count_changed = Signal(int)
+    # One line for the status row: why a press did nothing.
+    status_message = Signal(str)
     scan_started = Signal()
     scan_progress = Signal(int, str)
     scan_finished = Signal()
@@ -253,6 +256,15 @@ class SerialWidget(QWidget):
             # as it answers, not at the end of a pass.
             self.connectionManager.on_scan_results([item])
         self._announce_device_count()
+        self._refresh_sync_enabled()
+
+    def _refresh_sync_enabled(self):
+        """The button follows the selection and the transfer, whatever
+        else happened: a row that came back, a pass that ended."""
+        self._set_sync_enabled(
+            self.view.selectionModel().hasSelection()
+            and not self.transferManager.is_transfer_in_progress()
+        )
 
     def on_port_gone(self, device):
         """A port is no longer there: unplugged, or the pairing removed."""
@@ -274,6 +286,7 @@ class SerialWidget(QWidget):
         self._pass_running = False
         self.view.model.applyFilter()
         self.view.restore_selection()
+        self._refresh_sync_enabled()
         self.scan_finished.emit()
         # After scan_finished, not before: the window clears the scan's
         # activity from the status bar on that signal, and the count is
@@ -315,6 +328,20 @@ class SerialWidget(QWidget):
         sync_folder = store.root_directory
         port_item = self.view.model.getSelectedPort()
         if not port_item:
+            return
+        if not port_item.device_responded:
+            # Nothing is answering there: the unit is off, out of range or
+            # unplugged. Opening a Bluetooth port to a unit that is off
+            # pages it for seconds, holds the radio the whole time, and
+            # cannot be stopped once begun, so no sync starts on the
+            # strength of a press. The row says why, the unit is asked
+            # again right away, and the button stays where it is.
+            self.status_message.emit(describe_port_error(
+                port_item.error_cause or CAUSE_UNREACHABLE,
+                port_item.device, port_item.label(),
+            ).body)
+            if port_item.present:
+                self.scanner.probe_port(port_item.device)
             return
         # The lane sits out the sync from here. Paused first, so no probe of
         # this port can start between the wait and the sync's own open;

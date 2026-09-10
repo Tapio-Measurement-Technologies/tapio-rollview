@@ -446,10 +446,11 @@ class FileTransferManager(QObject):
     def _on_rqft_failed(self, port, error):
         message = describe_sync_error(error, port, self._active_unit_name)
         is_auto = self._active_is_auto
-        self.last_transfer_outcome = (
-            "cancelled" if error.kind == "cancelled" else "error"
-        )
-        if error.kind == "cancelled":
+        # A cancel the operator asked for is the outcome, whatever the
+        # worker ran into on its way out.
+        cancelled = error.kind == "cancelled" or self.last_transfer_outcome == "cancelled"
+        self.last_transfer_outcome = "cancelled" if cancelled else "error"
+        if cancelled:
             log.info(f"RQFT sync on {port} cancelled by user")
         elif error.kind == "busy" and not is_auto:
             # The device is measuring. Not a fault, and nothing to answer

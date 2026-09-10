@@ -1005,5 +1005,63 @@ class TestHeldPortsComeBackNamed(LaneHarness):
         self.assertFalse(self.publisher.appeared[0].known_device)
 
 
+class TestRememberedUnits(LaneHarness):
+    """A unit this session has heard from keeps its row when its port goes,
+    listed as absent and left alone, and is asked again when the port is
+    back. A port nothing ever answered on is simply gone."""
+
+    def test_a_unit_that_answered_stays_listed_absent_when_its_port_goes(self):
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.lane.step()
+        self.assertEqual(self.probed, ["COM7"])
+
+        self.ports = []
+        self.clock.advance(settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+        self.lane.step()
+
+        self.assertEqual(self.publisher.gone, [])
+        item = self.publisher.results[-1]
+        self.assertEqual(item.device, "COM7")
+        self.assertTrue(item.remembered)
+        self.assertFalse(item.present)
+        self.assertFalse(item.device_responded)
+        self.assertEqual(item.description, "Tapio RQP Live")
+        self.assertEqual(item.serial_number, "ABC123")
+        self.assertTrue(item.supports_rqft)
+
+    def test_an_absent_unit_is_not_probed_and_does_not_hold_a_pass(self):
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.lane.step()
+        self.ports = []
+        self.clock.advance(settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+        self.lane.step()
+        self.probed.clear()
+
+        self.run_pass()
+
+        self.assertEqual(self.probed, [])
+        self.assertEqual(len(self.publisher.finished), 1)
+
+    def test_a_unit_whose_port_comes_back_is_asked_again_at_once(self):
+        self.ports = [usb_port("COM7")]
+        self.responses["COM7"] = ("Tapio RQP Live", "ABC123", "v1.2.0")
+        self.lane.step()
+        self.ports = []
+        self.clock.advance(settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+        self.lane.step()
+        self.probed.clear()
+
+        self.ports = [usb_port("COM7")]
+        self.clock.advance(settings.DISCOVERY_ENUMERATE_INTERVAL_S)
+        self.lane.step()
+
+        self.assertEqual(self.probed, ["COM7"])
+        self.assertEqual([item.device for item in self.publisher.appeared], ["COM7", "COM7"])
+        self.assertTrue(self.publisher.appeared[-1].present)
+        self.assertTrue(self.publisher.results[-1].device_responded)
+
+
 if __name__ == "__main__":
     unittest.main()
